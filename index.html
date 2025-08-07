@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Pedidos - Polo Gastronómico Docks del Puerto</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .local-button {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .local-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .local-button:hover::before {
+            left: 100%;
+        }
+
+        .local-button:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .local-button.selected {
+            background: linear-gradient(135deg, #3B82F6, #1E40AF);
+            color: white;
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 15px 35px rgba(59,130,246,0.4);
+        }
+
+        .local-button.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 1.2em;
+            font-weight: bold;
+            animation: checkmark 0.5s ease-in-out;
+        }
+
+        @keyframes checkmark {
+            0% { transform: scale(0) rotate(180deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .producto-row {
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        .producto-row:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            border-color: #3B82F6;
+        }
+
+        .urgencia-btn {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .urgencia-btn.baja {
+            border-color: #10B981;
+            color: #10B981;
+            background: rgba(16,185,129,0.1);
+        }
+
+        .urgencia-btn.baja.selected {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(16,185,129,0.3);
+        }
+
+        .urgencia-btn.normal {
+            border-color: #F59E0B;
+            color: #F59E0B;
+            background: rgba(245,158,11,0.1);
+        }
+
+        .urgencia-btn.normal.selected {
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(245,158,11,0.3);
+        }
+
+        .urgencia-btn.urgente {
+            border-color: #EF4444;
+            color: #EF4444;
+            background: rgba(239,68,68,0.1);
+        }
+
+        .urgencia-btn.urgente.selected {
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(239,68,68,0.3);
+        }
+
+        .header-gradient {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1);
+            background-size: 300% 300%;
+            animation: gradientShift 4s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .btn-enviar {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1);
+            background-size: 300% 300%;
+            animation: gradientShift 3s ease infinite;
+            transition: all 0.3s ease;
+        }
+
+        .btn-enviar:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(255,107,107,0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto max-w-4xl p-6">
+        <!-- Header -->
+        <div class="header-gradient text-white p-8 rounded-t-3xl text-center mb-0">
+            <h1 class="text-4xl font-bold mb-4">🍽️ Sistema de Pedidos</h1>
+            <p class="text-xl opacity-90">Polo Gastronómico</p>
+        </div>
+
+        <!-- Form Container -->
+        <div class="bg-white rounded-b-3xl shadow-2xl">
+            <form id="formPedidos" class="p-8">
+                <!-- Selección de Local -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
+                        📍 Selecciona tu Local
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Parrilla">
+                            <div class="text-3xl mb-2">🥩</div>
+                            <div class="font-semibold">Parrilla</div>
+                        </div>
+                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Pizzería">
+                            <div class="text-3xl mb-2">🍕</div>
+                            <div class="font-semibold">Pizzería</div>
+                        </div>
+                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Heladería">
+                            <div class="text-3xl mb-2">🍦</div>
+                            <div class="font-semibold">Heladería</div>
+                        </div>
+                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Cafetería">
+                            <div class="text-3xl mb-2">☕️</div>
+                            <div class="font-semibold">Cafetería</div>
+                        </div>
+                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Hamburguesería">
+                            <div class="text-3xl mb-2">🍔</div>
+                            <div class="font-semibold">Hamburguesería</div>
+                        </div>
+                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Eventos">
+                            <div class="text-3xl mb-2">🎉</div>
+                            <div class="font-semibold">Eventos</div>
+                        </div>
+                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Shopping">
+                            <div class="text-3xl mb-2">🛎️</div>
+                            <div class="font-semibold">Shopping</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información del Pedido -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
+                        📝 Información del Pedido
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Encargado del Local</label>
+                            <input type="text" id="encargado" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Nombre completo" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email del Encargado</label>
+                            <input type="email" id="email" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="email@local.com" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Semana del Pedido</label>
+                            <input type="week" id="semana" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Entrega Deseada</label>
+                            <input type="date" id="fecha_entrega" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Productos -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
+                        🛒 Productos a Pedir
+                    </h2>
+                    <div class="bg-gray-50 p-6 rounded-xl">
+                        <div id="productos-container">
+                            <div class="producto-row p-6 mb-4">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
+                                        <input type="text" name="producto[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Ej: Carne molida" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
+                                        <input type="number" name="cantidad[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="10" min="0.1" step="0.1" required>
+                                    </div>
+                                    <div class="flex items-end gap-2">
+                                        <div class="flex-1">
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Unidad</label>
+                                            <select name="medida[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
+                                                <option value="">Seleccionar...</option>
+                                                <option value="kg">Kilogramos (kg)</option>
+                                                <option value="g">Gramos (g)</option>
+                                                <option value="l">Litros (l)</option>
+                                                <option value="ml">Mililitros (ml)</option>
+                                                <option value="unidades">Unidades</option>
+                                                <option value="paquetes">Paquetes</option>
+                                                <option value="cajas">Cajas</option>
+                                                <option value="bolsas">Bolsas</option>
+                                                <option value="latas">Latas</option>
+                                                <option value="botellas">Botellas</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn-eliminar bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl transition-colors hidden" onclick="eliminarProducto(this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-xl transition-all duration-300 font-semibold text-lg" onclick="agregarProducto()">
+                            <i class="fas fa-plus mr-2"></i> Agregar Otro Producto
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Urgencia -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
+                        ⚡ Nivel de Urgencia
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="urgencia-btn baja p-6 rounded-xl cursor-pointer border-2 text-center font-semibold" data-urgencia="Baja">
+                            <div class="text-2xl mb-2">🟢</div>
+                            <div>BAJA</div>
+                            <small class="block text-sm mt-1 opacity-75">Puede esperar</small>
+                        </div>
+                        <div class="urgencia-btn normal p-6 rounded-xl cursor-pointer border-2 text-center font-semibold selected" data-urgencia="Normal">
+                            <div class="text-2xl mb-2">🟡</div>
+                            <div>NORMAL</div>
+                            <small class="block text-sm mt-1 opacity-75">Necesario pronto</small>
+                        </div>
+                        <div class="urgencia-btn urgente p-6 rounded-xl cursor-pointer border-2 text-center font-semibold" data-urgencia="Urgente">
+                            <div class="text-2xl mb-2">🔴</div>
+                            <div>URGENTE</div>
+                            <small class="block text-sm mt-1 opacity-75">Prioritario</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen -->
+                <div class="mb-8">
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-xl text-center">
+                        <div class="text-lg mb-2">Resumen del Pedido:</div>
+                        <div class="text-2xl font-bold" id="totalProductos">0 productos</div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones Especiales</label>
+                    <textarea id="observaciones" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" rows="4" placeholder="Cualquier información adicional sobre el pedido..."></textarea>
+                </div>
+
+                <!-- Botón Enviar -->
+                <button type="submit" class="btn-enviar w-full text-white px-8 py-6 rounded-xl font-bold text-xl uppercase tracking-wider">
+                    <i class="fas fa-rocket mr-3"></i>Enviar Pedido Semanal
+                </button>
+
+                <!-- Mensaje de Confirmación -->
+                <div id="mensajeConfirmacion" class="hidden bg-green-500 text-white p-6 rounded-xl text-center mt-6">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    ¡Pedido enviado exitosamente! Recibirás una confirmación por email.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // <script>
+  // ⚠️ IMPORTANTE: Reemplaza esta URL con la URL de tu Google Apps Script
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxoBHGWpx6LM-ii_fbH8sIHzv23crGu6Ka8gB0d7WRTz8jsF1RQRVvhK0Uo-UUtUVp/exec';
+
+                
+        let localSeleccionado = '';
+        let urgenciaSeleccionada = 'Normal';
+
+        // Selección de local
+        document.querySelectorAll('.local-button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.local-button').forEach(btn => btn.classList.remove('selected'));
+                this.classList.add('selected');
+                localSeleccionado = this.dataset.local;
+                
+                // Vibración si está disponible
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            });
+        });
+
+        // Selección de urgencia
+        document.querySelectorAll('.urgencia-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.urgencia-btn').forEach(btn => btn.classList.remove('selected'));
+                this.classList.add('selected');
+                urgenciaSeleccionada = this.dataset.urgencia;
+            });
+        });
+
+        // Agregar producto
+        function agregarProducto() {
+            const container = document.getElementById('productos-container');
+            const nuevoProducto = document.createElement('div');
+            nuevoProducto.className = 'producto-row p-6 mb-4';
+            nuevoProducto.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
+                        <input type="text" name="producto[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Ej: Aceite de oliva" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
+                        <input type="number" name="cantidad[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="5" min="0.1" step="0.1" required>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Unidad</label>
+                            <select name="medida[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="kg">Kilogramos (kg)</option>
+                                <option value="g">Gramos (g)</option>
+                                <option value="l">Litros (l)</option>
+                                <option value="ml">Mililitros (ml)</option>
+                                <option value="unidades">Unidades</option>
+                                <option value="paquetes">Paquetes</option>
+                                <option value="cajas">Cajas</option>
+                                <option value="bolsas">Bolsas</option>
+                                <option value="latas">Latas</option>
+                                <option value="botellas">Botellas</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-eliminar bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl transition-colors" onclick="eliminarProducto(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(nuevoProducto);
+            actualizarBotonesEliminar();
+            actualizarResumen();
+        }
+
+        // Eliminar producto
+        function eliminarProducto(boton) {
+            boton.closest('.producto-row').remove();
+            actualizarBotonesEliminar();
+            actualizarResumen();
+        }
+
+        // Actualizar botones eliminar
+        function actualizarBotonesEliminar() {
+            const productos = document.querySelectorAll('.producto-row');
+            const botones = document.querySelectorAll('.btn-eliminar');
+            
+            if (productos.length === 1) {
+                botones.forEach(btn => btn.classList.add('hidden'));
+            } else {
+                botones.forEach(btn => btn.classList.remove('hidden'));
+            }
+        }
+
+        // Actualizar resumen
+        function actualizarResumen() {
+            const productos = document.querySelectorAll('.producto-row');
+            let totalCantidad = 0;
+            
+            productos.forEach(producto => {
+                const cantidad = parseFloat(producto.querySelector('input[name="cantidad[]"]').value) || 0;
+                totalCantidad += cantidad;
+            });
+            
+            document.getElementById('totalProductos').textContent = `${productos.length} productos (${totalCantidad.toFixed(1)} unidades totales)`;
+        }
+
+        // Event listeners para actualizar resumen
+        document.addEventListener('input', function(e) {
+            if (e.target.name === 'cantidad[]' || e.target.name === 'producto[]') {
+                actualizarResumen();
+            }
+        });
+
+        // Función para generar ID de pedido
+        function generarIdPedido() {
+            const fecha = new Date();
+            const timestamp = fecha.getTime();
+            return `PED${timestamp.toString().slice(-6)}`;
+        }
+
+        // Función para formatear semana
+        function formatearSemana(semanaValue) {
+            if (!semanaValue) return '';
+            const [year, week] = semanaValue.split('-W');
+            const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const fecha = new Date(year, 0, 1 + (week - 1) * 7);
+            const mes = meses[fecha.getMonth()];
+            return `Semana ${week} - ${mes} ${year}`;
+        }
+
+        // Enviar formulario
+        document.getElementById('formPedidos').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!localSeleccionado) {
+                alert('Por favor selecciona tu local');
+                return;
+            }
+
+            // Recopilar productos con medidas
+            const productosItems = document.querySelectorAll('.producto-row');
+            let productosTexto = [];
+            let productosArray = [];
+            
+            productosItems.forEach(item => {
+                const producto = item.querySelector('input[name="producto[]"]').value;
+                const cantidad = item.querySelector('input[name="cantidad[]"]').value;
+                const medida = item.querySelector('select[name="medida[]"]').value;
+                
+                if (producto && cantidad && medida) {
+                    const productoCompleto = `${producto} - ${cantidad} ${medida}`;
+                    productosTexto.push(productoCompleto);
+                    productosArray.push({
+                        producto: producto,
+                        cantidad: parseFloat(cantidad),
+                        medida: medida
+                    });
+                }
+            });
+
+            // Estructura completa para las 17 columnas del Excel
+            const ahora = new Date();
+            const formData = {
+                // Columna 1: ID_Pedido
+                id_pedido: generarIdPedido(),
+                
+                // Columna 2: Fecha_Hora
+                fecha_hora: ahora.toLocaleString('es-ES'),
+                
+                // Columna 3: Local
+                local: localSeleccionado,
+                
+                // Columna 4: Encargado
+                encargado: document.getElementById('encargado').value,
+                
+                // Columna 5: Semana_Pedido
+                semana_pedido: formatearSemana(document.getElementById('semana').value),
+                
+                // Columna 6: Email_Encargado
+                email_encargado: document.getElementById('email').value,
+                
+                // Columna 7: Estado
+                estado: 'Recibido',
+                
+                // Columna 8: Urgencia
+                urgencia: urgenciaSeleccionada,
+                
+                // Columna 9: Productos_Solicitados
+                productos_solicitados: productosTexto.join(', '),
+                
+                // Columna 10: Total_Productos
+                total_productos: productosArray.length,
+                
+                // Columna 11: Total_Estimado (vacío para gerencia)
+                total_estimado: '',
+                
+                // Columna 12: Fecha_Entrega
+                fecha_entrega: document.getElementById('fecha_entrega').value,
+                
+                // Columna 13: Observaciones
+                observaciones: document.getElementById('observaciones').value || '',
+                
+                // Columna 14: Proveedor_Asignado (vacío para gerencia)
+                proveedor_asignado: '',
+                
+                // Columna 15: Comprado
+                comprado: 'NO',
+                
+                // Columna 16: Entregado
+                entregado: 'NO',
+                
+                // Columna 17: Notas_Gerencia (vacío para gerencia)
+                notas_gerencia: ''
+            };
+
+            // Enviar a Google Sheets
+            enviarAGoogleSheets(formData);
+        });
+
+        // Función para enviar a Google Sheets
+        function enviarAGoogleSheets(data) {
+            const btnEnviar = document.querySelector('.btn-enviar');
+            const textoOriginal = btnEnviar.innerHTML;
+            btnEnviar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...';
+            btnEnviar.disabled = true;
+
+            if (SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbxk6tEtKiDnIMzAOmw525z5HO8NwWhZCHg_RyqKYpuC1WBvfyPIdOHI2woc851Qyw9J/exec') {
+                alert('⚠️ ERROR: Necesitas configurar la URL del Google Apps Script.\n\nContacta al administrador del sistema.');
+                btnEnviar.innerHTML = textoOriginal;
+                btnEnviar.disabled = false;
+                return;
+            }
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(() => {
+                // Mostrar mensaje de éxito
+                document.getElementById('mensajeConfirmacion').classList.remove('hidden');
+                
+                // Limpiar formulario
+                document.getElementById('formPedidos').reset();
+                document.querySelectorAll('.local-button').forEach(btn => btn.classList.remove('selected'));
+                document.querySelectorAll('.urgencia-btn').forEach(btn => btn.classList.remove('selected'));
+                document.querySelector('.urgencia-btn.normal').classList.add('selected');
+                
+                localSeleccionado = '';
+                urgenciaSeleccionada = 'Normal';
+                
+                // Resetear productos a uno solo
+                const container = document.getElementById('productos-container');
+                container.innerHTML = `
+                    <div class="producto-row p-6 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
+                                <input type="text" name="producto[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Ej: Carne molida" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
+                                <input type="number" name="cantidad[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="10" min="0.1" step="0.1" required>
+                            </div>
+                            <div class="flex items-end gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Unidad</label>
+                                    <select name="medida[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
+                                        <option value="">Seleccionar...</option>
+                                        <option value="kg">Kilogramos (kg)</option>
+                                        <option value="g">Gramos (g)</option>
+                                        <option value="l">Litros (l)</option>
+                                        <option value="ml">Mililitros (ml)</option>
+                                        <option value="unidades">Unidades</option>
+                                        <option value="paquetes">Paquetes</option>
+                                        <option value="cajas">Cajas</option>
+                                        <option value="bolsas">Bolsas</option>
+                                        <option value="latas">Latas</option>
+                                        <option value="botellas">Botellas</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn-eliminar bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl transition-colors hidden" onclick="eliminarProducto(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                actualizarResumen();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                setTimeout(() => {
+                    document.getElementById('mensajeConfirmacion').classList.add('hidden');
+                }, 5000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al enviar el pedido. Por favor intenta nuevamente.');
+            })
+            .finally(() => {
+                btnEnviar.innerHTML = textoOriginal;
+                btnEnviar.disabled = false;
+            });
+        }
+
+        // Inicializar
+        actualizarResumen();
+    </script>
+</body>
+</html>
+    <script id="html_badge_script1">
+        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
+            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDlxvMBJRWVueEYvtJN%2FtpHk2AHLwTIvJVFsCRlgKKENcqOvjYcncwEAKXBAp8T%2FaaKmnmBUR%2FoPY6cJE5JAELV9v4wNfkN3RxsXCNc45CxrzBhznrYT1TJV9xmU1ajzyFxmkd7H6IymggdNJMsmH2sdJDQrLICYr3VOvmEafuVL%2BS8UVzAsywwxm%2F4mBy5KUv2pw44oxJGGqJuRpi6x7jYxwCp5SOE65YOHLEXIYfBtleGA6rvoSl4VHMZtII7%2B2ESPm4JhS9bZffD2iUgIMbaoeMYNp8fBGhGFsYxUNR8eCAOrUP0vRtPZqv1fcGlXG3gwRUoIFb9wHcAF7ztDAPM2if4lsPeicZeOuqjlNaCK1ein3NVEflDkWKpGjpTlumRZUSivEHGLLG4t2HxFNj75m9cgZpg7SYECpjB7WczJWSfWvDpUgt4EnVcGEy6RJoZoRNwxtIcL4bAOZtIuFmJJyJGpTf8O1oN7VextsvwDoNJGXFAiKanwWb49Wva7kr41M0lgeizisUS3hRu3G%2Fuw%3D";
+        window.__genspark_locale = "es-ES";
+        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDlxvMBJRWVueEYvtJN/tpHk2AHLwTIvJVFsCRlgKKENcqOvjYcncwEAKXBAp8T/aaKmnmBUR/oPY6cJE5JAELV9v4wNfkN3RxsXCNc45CxrzBhznrYT1TJV9xmU1ajzyFxmkd7H6IymggdNJMsmH2sdJDQrLICYr3VOvmEafuVL+S8UVzAsywwxm/4mBy5KUv2pw44oxJGGqJuRpi6x7jYxwCp5SOE65YOHLEXIYfBtleGA6rvoSl4VHMZtII7+2ESPm4JhS9bZffD2iUgIMbaoeMYNp8fBGhGFsYxUNR8eCAOrUP0vRtPZqv1fcGlXG3gwRUoIFb9wHcAF7ztDAPM2if4lsPeicZeOuqjlNaCK1ein3NVEflDkWKpGjpTlumRZUSivEHGLLG4t2HxFNj75m9cgZpg7SYECpjB7WczJWSfWvDpUgt4EnVcGEy6RJoZoRNwxtIcL4bAOZtIuFmJJyJGpTf8O1oN7VextsvwDoNJGXFAiKanwWb49Wva7kr41M0lgeizisUS3hRu3G/uw=";
+    </script>
+    
+    <script id="html_notice_dialog_script" src="https://www.genspark.ai/notice_dialog.js"></script>
