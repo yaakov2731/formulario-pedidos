@@ -1,641 +1,860 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Pedidos - Polo Gastronómico Docks del Puerto</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f5e7a">
+<title>Pedidos · Polo Gastronómico Docks del Puerto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: oklch(0.985 0.004 230);
+  --surface: oklch(0.997 0.003 230);
+  --surface-2: oklch(0.965 0.006 235);
+  --ink: oklch(0.27 0.02 240);
+  --ink-soft: oklch(0.50 0.02 240);
+  --ink-faint: oklch(0.62 0.015 240);
+  --line: oklch(0.90 0.008 240);
+  --line-strong: oklch(0.83 0.01 240);
+  --brand: oklch(0.55 0.11 225);
+  --brand-strong: oklch(0.45 0.12 235);
+  --brand-tint: oklch(0.95 0.02 225);
+  --green: oklch(0.62 0.13 150);
+  --green-tint: oklch(0.95 0.04 150);
+  --amber: oklch(0.74 0.14 75);
+  --amber-tint: oklch(0.95 0.05 75);
+  --red: oklch(0.58 0.18 25);
+  --red-tint: oklch(0.95 0.04 25);
+  --radius: 12px;
+  --radius-sm: 9px;
+  --shadow-sm: 0 1px 2px oklch(0.4 0.03 240 / 0.06), 0 1px 3px oklch(0.4 0.03 240 / 0.05);
+  --shadow-md: 0 4px 12px oklch(0.4 0.03 240 / 0.08), 0 2px 4px oklch(0.4 0.03 240 / 0.05);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 120px;counter-reset:step}
+@media(min-width:640px){.wrap{padding:32px 24px 140px}}
 
-        .local-button {
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
-        }
+/* Header — banda corporativa */
+.hero{position:relative;overflow:hidden;border-radius:16px;margin-bottom:18px;padding:20px;
+  color:#fff;box-shadow:0 10px 30px oklch(0.45 0.12 235 / 0.28),0 2px 6px oklch(0.45 0.12 235 / 0.18)}
+.hero-bg{position:absolute;inset:0;z-index:0;
+  background:
+    radial-gradient(120% 140% at 100% 0%, oklch(0.62 0.12 200 / 0.55), transparent 55%),
+    radial-gradient(120% 130% at 0% 100%, oklch(0.40 0.13 270 / 0.45), transparent 50%),
+    linear-gradient(135deg, var(--brand), var(--brand-strong));}
+.hero-bg::after{content:"";position:absolute;inset:0;opacity:.5;
+  background-image:linear-gradient(oklch(1 0 0 / 0.05) 1px,transparent 1px),linear-gradient(90deg,oklch(1 0 0 / 0.05) 1px,transparent 1px);
+  background-size:22px 22px;mask-image:radial-gradient(120% 100% at 80% 0%,#000,transparent 70%)}
+.hero-row{position:relative;z-index:1;display:flex;align-items:center;gap:14px}
+.mark{width:48px;height:48px;border-radius:13px;flex:none;display:grid;place-items:center;
+  font-weight:700;font-size:18px;letter-spacing:-0.02em;color:var(--brand-strong);
+  background:linear-gradient(160deg,#fff,oklch(0.96 0.01 230));
+  box-shadow:0 4px 12px oklch(0.2 0.05 250 / 0.25),inset 0 1px 0 #fff}
+.hero-txt h1{font-size:19px;font-weight:700;letter-spacing:-0.015em;line-height:1.15}
+.hero-txt p{font-size:13px;color:oklch(1 0 0 / 0.82);margin-top:2px}
+.conn{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;
+  color:oklch(1 0 0 / 0.92);background:oklch(1 0 0 / 0.14);border:1px solid oklch(1 0 0 / 0.22);
+  padding:6px 11px;border-radius:999px;backdrop-filter:blur(4px)}
+.dot{width:7px;height:7px;border-radius:50%;background:oklch(0.85 0.16 150);box-shadow:0 0 0 3px oklch(0.85 0.16 150 / 0.3)}
+.dot.off{background:oklch(0.78 0.16 30);box-shadow:0 0 0 3px oklch(0.78 0.16 30 / 0.3)}
+.hero-foot{position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-top:16px;
+  padding-top:13px;border-top:1px solid oklch(1 0 0 / 0.18);
+  font-size:11.5px;font-weight:500;letter-spacing:0.02em;color:oklch(1 0 0 / 0.80);text-transform:uppercase}
+.hero-sep{width:4px;height:4px;border-radius:50%;background:oklch(1 0 0 / 0.45)}
 
-        .local-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-            transition: left 0.5s;
-        }
+/* Sections */
+section{
+  position:relative;counter-increment:step;
+  background:linear-gradient(180deg,var(--surface),oklch(0.985 0.004 235));
+  border:1px solid var(--line);border-radius:14px;
+  padding:20px;margin-bottom:14px;box-shadow:var(--shadow-md);
+}
+.shead{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.shead::before{content:counter(step,decimal-leading-zero);flex:none;
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  font-size:14px;font-weight:700;color:#fff;letter-spacing:-0.02em;
+  background:linear-gradient(160deg,var(--brand),var(--brand-strong));
+  box-shadow:0 3px 8px oklch(0.45 0.12 235 / 0.30),inset 0 1px 0 oklch(1 0 0 / 0.25)}
+.shead>div{flex:1;min-width:0}
+.skicker{font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--brand)}
+.shead h2{font-size:17px;font-weight:600;letter-spacing:-0.01em;line-height:1.2}
+.snum{font-size:12px;color:var(--ink-faint);font-weight:500;flex:none}
 
-        .local-button:hover::before {
-            left: 100%;
-        }
+/* Local grid */
+.locales{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.local{
+  position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0;
+  background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius-sm);
+  padding:12px;cursor:pointer;text-align:left;font:inherit;color:inherit;
+  box-shadow:0 3px 0 var(--line-strong);
+  transition:border-color .12s var(--ease),background .12s var(--ease),box-shadow .12s var(--ease),transform .12s var(--ease);
+}
+.local:hover{border-color:var(--line-strong);background:var(--surface-2);box-shadow:0 4px 0 var(--line-strong);transform:translateY(-1px)}
+.local:active{box-shadow:0 1px 0 var(--line-strong);transform:translateY(2px)}
+.local .ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:19px;
+  background:var(--surface-2);border:1px solid var(--line)}
+.local .nm{font-size:13.5px;font-weight:600;line-height:1.25;width:100%;overflow-wrap:anywhere;hyphens:auto}
+.local[aria-pressed="true"]{
+  border-color:var(--accent,var(--brand));
+  background:color-mix(in oklch, var(--accent,var(--brand)) 8%, var(--surface));
+  box-shadow:0 3px 0 color-mix(in oklch,var(--accent,var(--brand)) 50%, var(--line-strong));
+}
+.local[aria-pressed="true"]:active{box-shadow:0 1px 0 color-mix(in oklch,var(--accent,var(--brand)) 50%, var(--line-strong));transform:translateY(2px)}
+.local[aria-pressed="true"] .ico{background:color-mix(in oklch,var(--accent,var(--brand)) 16%,var(--surface));
+  border-color:color-mix(in oklch,var(--accent,var(--brand)) 35%,var(--line))}
+.local .chk{position:absolute;top:9px;right:9px;width:18px;height:18px;border-radius:50%;
+  background:var(--accent,var(--brand));color:#fff;display:none;place-items:center;font-size:11px;font-weight:700}
+.local[aria-pressed="true"] .chk{display:grid}
 
-        .local-button:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-        }
+/* Fields */
+.grid2{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:560px){.grid2{grid-template-columns:1fr 1fr}}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+.field .auto{font-weight:500;color:var(--brand);font-size:11px;margin-left:6px}
+input,select,textarea{
+  width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--surface);
+  border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;
+  transition:border-color .15s var(--ease),box-shadow .15s var(--ease);
+}
+input::placeholder,textarea::placeholder{color:var(--ink-faint)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);
+  box-shadow:0 0 0 3px var(--brand-tint)}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+textarea{resize:vertical;min-height:84px;max-width:70ch}
 
-        .local-button.selected {
-            background: linear-gradient(135deg, #3B82F6, #1E40AF);
-            color: white;
-            transform: translateY(-2px) scale(1.03);
-            box-shadow: 0 15px 35px rgba(59,130,246,0.4);
-        }
+/* Product search */
+.search-wrap{position:relative}
+.search-row{display:flex;gap:8px}
+.search-row .free{flex:none;padding:11px 14px;font-size:14px;font-weight:600;white-space:nowrap;
+  background:var(--surface-2);color:var(--ink);border:1.5px solid var(--line);border-radius:var(--radius-sm);cursor:pointer;
+  box-shadow:0 3px 0 var(--line-strong);transition:box-shadow .12s var(--ease),transform .12s var(--ease),border-color .12s var(--ease)}
+.search-row .free:hover{border-color:var(--line-strong);box-shadow:0 4px 0 var(--line-strong);transform:translateY(-1px)}
+.search-row .free:active{box-shadow:0 1px 0 var(--line-strong);transform:translateY(2px)}
+.suggest{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;background:var(--surface);
+  border:1px solid var(--line-strong);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);
+  max-height:280px;overflow:auto;display:none}
+.suggest.open{display:block}
+.sg{display:flex;align-items:center;gap:10px;padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line)}
+.sg:last-child{border-bottom:none}
+.sg:hover,.sg.active{background:var(--brand-tint)}
+.sg .sg-main{flex:1;min-width:0}
+.sg .sg-nm{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg .sg-meta{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg .sg-unit{font-size:11px;font-weight:600;color:var(--ink-soft);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em;
+  background:var(--surface-2);border:1px solid var(--line);padding:3px 7px;border-radius:6px}
+.sg.empty{color:var(--ink-soft);font-size:13px;justify-content:center;cursor:default}
+.sg.empty:hover{background:none}
 
-        .local-button.selected::after {
-            content: '✓';
-            position: absolute;
-            top: 8px;
-            right: 12px;
-            font-size: 1.2em;
-            font-weight: bold;
-            animation: checkmark 0.5s ease-in-out;
-        }
+/* Items */
+.items{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.item{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px}
+.item .it-nm{font-size:14.5px;font-weight:600;line-height:1.25;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.item .it-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+.item .tag{font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  padding:2px 6px;border-radius:5px;background:var(--brand-tint);color:var(--brand-strong)}
+.item .tag.free{background:var(--amber-tint);color:oklch(0.45 0.12 60)}
+.item .qty{width:74px;text-align:center;padding:8px}
+.item .unit{width:104px;padding:8px 26px 8px 10px;font-size:13.5px}
+.item .del{flex:none;width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface);
+  color:var(--red);display:grid;place-items:center;cursor:pointer;transition:background .15s,border-color .15s}
+.item .del:hover{background:var(--red-tint);border-color:color-mix(in oklch,var(--red) 30%,var(--line))}
+.item .del svg{width:16px;height:16px}
+.items-empty{padding:22px 14px;text-align:center;color:var(--ink-soft);font-size:13.5px;
+  border:1.5px dashed var(--line-strong);border-radius:var(--radius-sm)}
+@media(max-width:480px){
+  .item{grid-template-columns:1fr auto;grid-template-areas:"nm del" "qty unit"}
+  .item .it-wrap{grid-area:nm}.item .qty{grid-area:qty;width:100%}.item .unit{grid-area:unit;width:100%}
+  .item .del{grid-area:del}
+}
 
-        @keyframes checkmark {
-            0% { transform: scale(0) rotate(180deg); opacity: 0; }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
+/* Urgency */
+.urg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.urgb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 8px;cursor:pointer;
+  background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius-sm);
+  font-size:13px;font-weight:600;text-align:center;box-shadow:0 3px 0 var(--line-strong);
+  transition:border-color .12s var(--ease),background .12s var(--ease),box-shadow .12s var(--ease),transform .12s var(--ease)}
+.urgb:hover{box-shadow:0 4px 0 var(--line-strong);transform:translateY(-1px)}
+.urgb:active{box-shadow:0 1px 0 var(--line-strong);transform:translateY(2px)}
+.urgb small{font-weight:500;font-size:11px;color:var(--ink-soft)}
+.urgb .pip{width:9px;height:9px;border-radius:50%;margin-bottom:3px}
+.urgb[data-u="Baja"] .pip{background:var(--green)}
+.urgb[data-u="Normal"] .pip{background:var(--amber)}
+.urgb[data-u="Urgente"] .pip{background:var(--red)}
+.urgb[aria-pressed="true"][data-u="Baja"]{border-color:var(--green);background:var(--green-tint)}
+.urgb[aria-pressed="true"][data-u="Normal"]{border-color:var(--amber);background:var(--amber-tint)}
+.urgb[aria-pressed="true"][data-u="Urgente"]{border-color:var(--red);background:var(--red-tint)}
 
-        .producto-row {
-            background: white;
-            border-radius: 12px;
-            border: 2px solid #e5e7eb;
-            transition: all 0.3s ease;
-        }
+/* Summary — tarjeta corporativa */
+.summary{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  color:#fff;border:none;border-radius:14px;padding:18px 20px;margin-bottom:16px;
+  background:radial-gradient(120% 160% at 100% 0%,oklch(0.50 0.13 270 / 0.55),transparent 55%),linear-gradient(135deg,var(--brand),var(--brand-strong));
+  box-shadow:0 10px 26px oklch(0.45 0.12 235 / 0.26)}
+.summary::after{content:"";position:absolute;inset:0;opacity:.45;pointer-events:none;
+  background-image:linear-gradient(oklch(1 0 0 / 0.05) 1px,transparent 1px),linear-gradient(90deg,oklch(1 0 0 / 0.05) 1px,transparent 1px);
+  background-size:22px 22px;mask-image:radial-gradient(120% 100% at 90% 0%,#000,transparent 70%)}
+.summary>div{position:relative;z-index:1}
+.summary .s-l{font-size:11px;color:oklch(1 0 0 / 0.80);font-weight:600;letter-spacing:0.07em;text-transform:uppercase}
+.summary .s-big{font-size:22px;font-weight:700;letter-spacing:-0.01em;line-height:1.1;margin-top:3px}
+.summary .s-est{font-size:13px;color:oklch(1 0 0 / 0.85);margin-top:3px}
+.summary .s-est b{color:#fff;font-weight:700}
+.summary .s-badge{position:relative;z-index:1;width:46px;height:46px;border-radius:13px;flex:none;display:grid;place-items:center;
+  background:oklch(1 0 0 / 0.16);border:1px solid oklch(1 0 0 / 0.25)}
+.summary .s-badge svg{width:24px;height:24px;stroke:#fff}
 
-        .producto-row:hover {
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-            border-color: #3B82F6;
-        }
+/* Footer */
+.foot{text-align:center;font-size:11.5px;color:var(--ink-faint);letter-spacing:0.03em;margin-top:6px;line-height:1.6}
+.foot b{color:var(--ink-soft);font-weight:600}
 
-        .urgencia-btn {
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
+/* Submit (sticky) */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:color-mix(in oklch,var(--bg) 86%,transparent);backdrop-filter:blur(10px);
+  border-top:1px solid var(--line)}
+.bar-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.send{flex:none;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--brand);color:#fff;border:none;border-radius:10px;padding:11px 22px;
+  font:inherit;font-size:14px;font-weight:600;letter-spacing:0.01em;cursor:pointer;
+  box-shadow:0 3px 0 var(--brand-strong),var(--shadow-sm);
+  transition:background .12s var(--ease),box-shadow .12s var(--ease),transform .12s var(--ease)}
+.send:hover:not(:disabled){background:var(--brand-strong);box-shadow:0 4px 0 oklch(0.38 0.12 240),var(--shadow-md);transform:translateY(-1px)}
+.send:active:not(:disabled){box-shadow:0 1px 0 var(--brand-strong);transform:translateY(2px)}
+.send:disabled{opacity:.5;cursor:not-allowed;box-shadow:0 3px 0 color-mix(in oklch,var(--brand-strong) 50%,var(--line))}
+.send svg{width:16px;height:16px}
+.bar-meta{order:-1;font-size:12px;color:var(--ink-soft);text-align:left;line-height:1.3}
+.bar-meta b{display:block;color:var(--ink);font-size:14px;font-weight:700}
 
-        .urgencia-btn.baja {
-            border-color: #10B981;
-            color: #10B981;
-            background: rgba(16,185,129,0.1);
-        }
+/* Toast */
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);z-index:60;
+  background:var(--ink);color:#fff;padding:13px 18px;border-radius:11px;font-size:14px;font-weight:500;
+  box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s var(--ease);
+  display:flex;align-items:center;gap:9px;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{background:oklch(0.42 0.10 150)}
+.toast.err{background:oklch(0.45 0.15 25)}
+.toast svg{width:17px;height:17px;flex:none}
 
-        .urgencia-btn.baja.selected {
-            background: linear-gradient(135deg, #10B981, #059669);
-            color: white;
-            transform: scale(1.05);
-            box-shadow: 0 8px 20px rgba(16,185,129,0.3);
-        }
+/* Gear */
+.gear{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;cursor:pointer;
+  color:#fff;background:oklch(1 0 0 / 0.14);border:1px solid oklch(1 0 0 / 0.22);
+  transition:background .15s var(--ease),transform .4s var(--ease)}
+.gear:hover{background:oklch(1 0 0 / 0.24);transform:rotate(45deg)}
+.gear svg{width:18px;height:18px}
 
-        .urgencia-btn.normal {
-            border-color: #F59E0B;
-            color: #F59E0B;
-            background: rgba(245,158,11,0.1);
-        }
+/* Config overlay */
+.cfg{position:fixed;inset:0;z-index:70;background:oklch(0.3 0.03 240 / 0.45);backdrop-filter:blur(3px);
+  display:flex;justify-content:center;align-items:flex-start;padding:20px 14px;overflow:auto}
+.cfg[hidden]{display:none}
+.cfg-panel{width:100%;max-width:560px;background:var(--bg);border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 60px oklch(0.2 0.05 250 / 0.4);margin:auto}
+.cfg-head{display:flex;align-items:center;gap:12px;padding:18px 20px;color:#fff;
+  background:linear-gradient(135deg,var(--brand),var(--brand-strong))}
+.cfg-head .skicker{color:oklch(1 0 0 / 0.8)}
+.cfg-head h2{font-size:18px;font-weight:700}
+.cfg-head>div{flex:1}
+.cfg-close{margin-left:auto;width:34px;height:34px;border-radius:9px;border:1px solid oklch(1 0 0 / 0.25);
+  background:oklch(1 0 0 / 0.14);color:#fff;font-size:15px;cursor:pointer;flex:none}
+.cfg-close:hover{background:oklch(1 0 0 / 0.26)}
+.cfg-body{padding:18px 20px 24px;display:flex;flex-direction:column;gap:18px}
+.cfg-block{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow-sm)}
+.cfg-block-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.cfg-block-head h3{font-size:15px;font-weight:600}
+.cfg-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;margin-bottom:14px}
+.cfg-li{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;font-size:13.5px}
+.cfg-li .li-nm{font-weight:600}
+.cfg-li .li-meta{color:var(--ink-soft);font-size:12px;margin-left:auto;text-align:right}
+.cfg-li .li-code{font-size:10px;font-weight:700;color:var(--brand-strong);background:var(--brand-tint);padding:2px 6px;border-radius:5px}
+.cfg-empty{padding:14px;text-align:center;color:var(--ink-soft);font-size:13px;border:1.5px dashed var(--line-strong);border-radius:8px}
+.cfg-add{display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
+.cfg-add .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cfg-btn{background:var(--brand);color:#fff;border:none;border-radius:9px;padding:11px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  box-shadow:0 3px 0 var(--brand-strong);transition:background .12s var(--ease),box-shadow .12s var(--ease),transform .12s var(--ease)}
+.cfg-btn:hover{background:var(--brand-strong);transform:translateY(-1px);box-shadow:0 4px 0 oklch(0.38 0.12 240)}
+.cfg-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brand-strong)}
+.cfg-btn:disabled{opacity:.6;cursor:not-allowed}
+.cfg-note{font-size:11.5px;color:var(--ink-faint);text-align:center}
 
-        .urgencia-btn.normal.selected {
-            background: linear-gradient(135deg, #F59E0B, #D97706);
-            color: white;
-            transform: scale(1.05);
-            box-shadow: 0 8px 20px rgba(245,158,11,0.3);
-        }
-
-        .urgencia-btn.urgente {
-            border-color: #EF4444;
-            color: #EF4444;
-            background: rgba(239,68,68,0.1);
-        }
-
-        .urgencia-btn.urgente.selected {
-            background: linear-gradient(135deg, #EF4444, #DC2626);
-            color: white;
-            transform: scale(1.05);
-            box-shadow: 0 8px 20px rgba(239,68,68,0.3);
-        }
-
-        .header-gradient {
-            background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1);
-            background-size: 300% 300%;
-            animation: gradientShift 4s ease infinite;
-        }
-
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        .btn-enviar {
-            background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1);
-            background-size: 300% 300%;
-            animation: gradientShift 3s ease infinite;
-            transition: all 0.3s ease;
-        }
-
-        .btn-enviar:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 15px 35px rgba(255,107,107,0.4);
-        }
-    </style>
+.hint{font-size:12px;color:var(--ink-faint);margin-top:8px}
+.req{color:var(--red);font-weight:700}
+</style>
 </head>
-<body class="min-h-screen">
-    <div class="container mx-auto max-w-4xl p-6">
-        <!-- Header -->
-        <div class="header-gradient text-white p-8 rounded-t-3xl text-center mb-0">
-            <h1 class="text-4xl font-bold mb-4">🍽️ Sistema de Pedidos</h1>
-            <p class="text-xl opacity-90">Polo Gastronómico</p>
-        </div>
+<body>
+<div class="wrap">
 
-        <!-- Form Container -->
-        <div class="bg-white rounded-b-3xl shadow-2xl">
-            <form id="formPedidos" class="p-8">
-                <!-- Selección de Local -->
-                <div class="mb-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
-                        📍 Selecciona tu Local
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Parrilla">
-                            <div class="text-3xl mb-2">🥩</div>
-                            <div class="font-semibold">Parrilla</div>
-                        </div>
-                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Pizzería">
-                            <div class="text-3xl mb-2">🍕</div>
-                            <div class="font-semibold">Pizzería</div>
-                        </div>
-                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Heladería">
-                            <div class="text-3xl mb-2">🍦</div>
-                            <div class="font-semibold">Heladería</div>
-                        </div>
-                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Cafetería">
-                            <div class="text-3xl mb-2">☕️</div>
-                            <div class="font-semibold">Cafetería</div>
-                        </div>
-                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Hamburguesería">
-                            <div class="text-3xl mb-2">🍔</div>
-                            <div class="font-semibold">Hamburguesería</div>
-                        </div>
-                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Eventos">
-                            <div class="text-3xl mb-2">🎉</div>
-                            <div class="font-semibold">Eventos</div>
-                        </div>
-                        <div class="local-button bg-gray-50 p-4 rounded-xl cursor-pointer border-2 border-gray-200" data-local="Shopping">
-                            <div class="text-3xl mb-2">🛎️</div>
-                            <div class="font-semibold">Shopping</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Información del Pedido -->
-                <div class="mb-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
-                        📝 Información del Pedido
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Encargado del Local</label>
-                            <input type="text" id="encargado" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Nombre completo" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Email del Encargado</label>
-                            <input type="email" id="email" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="email@local.com" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Semana del Pedido</label>
-                            <input type="week" id="semana" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Entrega Deseada</label>
-                            <input type="date" id="fecha_entrega" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Productos -->
-                <div class="mb-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
-                        🛒 Productos a Pedir
-                    </h2>
-                    <div class="bg-gray-50 p-6 rounded-xl">
-                        <div id="productos-container">
-                            <div class="producto-row p-6 mb-4">
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
-                                        <input type="text" name="producto[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Ej: Carne molida" required>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
-                                        <input type="number" name="cantidad[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="10" min="0.1" step="0.1" required>
-                                    </div>
-                                    <div class="flex items-end gap-2">
-                                        <div class="flex-1">
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Unidad</label>
-                                            <select name="medida[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
-                                                <option value="">Seleccionar...</option>
-                                                <option value="kg">Kilogramos (kg)</option>
-                                                <option value="g">Gramos (g)</option>
-                                                <option value="l">Litros (l)</option>
-                                                <option value="ml">Mililitros (ml)</option>
-                                                <option value="unidades">Unidades</option>
-                                                <option value="paquetes">Paquetes</option>
-                                                <option value="cajas">Cajas</option>
-                                                <option value="bolsas">Bolsas</option>
-                                                <option value="latas">Latas</option>
-                                                <option value="botellas">Botellas</option>
-                                            </select>
-                                        </div>
-                                        <button type="button" class="btn-eliminar bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl transition-colors hidden" onclick="eliminarProducto(this)">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="button" class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-xl transition-all duration-300 font-semibold text-lg" onclick="agregarProducto()">
-                            <i class="fas fa-plus mr-2"></i> Agregar Otro Producto
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Urgencia -->
-                <div class="mb-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b-4 border-blue-500">
-                        ⚡ Nivel de Urgencia
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="urgencia-btn baja p-6 rounded-xl cursor-pointer border-2 text-center font-semibold" data-urgencia="Baja">
-                            <div class="text-2xl mb-2">🟢</div>
-                            <div>BAJA</div>
-                            <small class="block text-sm mt-1 opacity-75">Puede esperar</small>
-                        </div>
-                        <div class="urgencia-btn normal p-6 rounded-xl cursor-pointer border-2 text-center font-semibold selected" data-urgencia="Normal">
-                            <div class="text-2xl mb-2">🟡</div>
-                            <div>NORMAL</div>
-                            <small class="block text-sm mt-1 opacity-75">Necesario pronto</small>
-                        </div>
-                        <div class="urgencia-btn urgente p-6 rounded-xl cursor-pointer border-2 text-center font-semibold" data-urgencia="Urgente">
-                            <div class="text-2xl mb-2">🔴</div>
-                            <div>URGENTE</div>
-                            <small class="block text-sm mt-1 opacity-75">Prioritario</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resumen -->
-                <div class="mb-8">
-                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-xl text-center">
-                        <div class="text-lg mb-2">Resumen del Pedido:</div>
-                        <div class="text-2xl font-bold" id="totalProductos">0 productos</div>
-                    </div>
-                </div>
-
-                <!-- Observaciones -->
-                <div class="mb-8">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones Especiales</label>
-                    <textarea id="observaciones" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" rows="4" placeholder="Cualquier información adicional sobre el pedido..."></textarea>
-                </div>
-
-                <!-- Botón Enviar -->
-                <button type="submit" class="btn-enviar w-full text-white px-8 py-6 rounded-xl font-bold text-xl uppercase tracking-wider">
-                    <i class="fas fa-rocket mr-3"></i>Enviar Pedido Semanal
-                </button>
-
-                <!-- Mensaje de Confirmación -->
-                <div id="mensajeConfirmacion" class="hidden bg-green-500 text-white p-6 rounded-xl text-center mt-6">
-                    <i class="fas fa-check-circle mr-2"></i>
-                    ¡Pedido enviado exitosamente! Recibirás una confirmación por email.
-                </div>
-            </form>
-        </div>
+  <header class="hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-row">
+      <div class="mark">DP</div>
+      <div class="hero-txt">
+        <h1>Pedidos Semanales</h1>
+        <p>Polo Gastronómico · Docks del Puerto</p>
+      </div>
+      <div class="conn"><span class="dot" id="connDot"></span><span id="connTxt">Listo</span></div>
+      <button class="gear" id="cfgBtn" type="button" aria-label="Configuración" title="Configuración">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
+    <div class="hero-foot">
+      <span>Puerto de Frutos · Tigre</span>
+      <span class="hero-sep"></span>
+      <span>Requisición semanal de insumos</span>
+    </div>
+  </header>
 
-    <script>
-        // <script>
-  // ⚠️ IMPORTANTE: Reemplaza esta URL con la URL de tu Google Apps Script
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwo7hOofjYGzqHpJBpjZVdtqHupp2hPbb88J54oAgEsJd4-8J_xBnADEZzTzhORvG9D/exec';
+  <!-- 1. Local -->
+  <section>
+    <div class="shead">
+      <div><p class="skicker">Ubicación</p><h2>Elegí tu local</h2></div>
+      <span class="snum" id="localPick">Sin seleccionar</span>
+    </div>
+    <div class="locales" id="locales"></div>
+  </section>
 
-                
-        let localSeleccionado = '';
-        let urgenciaSeleccionada = 'Normal';
+  <!-- 2. Datos -->
+  <section>
+    <div class="shead"><div><p class="skicker">Solicitante</p><h2>Datos del pedido</h2></div></div>
+    <div class="grid2">
+      <div class="field">
+        <label>Encargado <span class="req">*</span><span class="auto" id="encAuto" hidden>auto</span></label>
+        <input type="text" id="encargado" placeholder="Nombre y apellido" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Email <span class="req">*</span></label>
+        <input type="email" id="email" placeholder="email@local.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Semana del pedido <span class="req">*</span></label>
+        <input type="week" id="semana">
+      </div>
+      <div class="field">
+        <label>Fecha de entrega deseada <span class="req">*</span></label>
+        <input type="date" id="fecha_entrega">
+      </div>
+    </div>
+  </section>
 
-        // Selección de local
-        document.querySelectorAll('.local-button').forEach(button => {
-            button.addEventListener('click', function() {
-                document.querySelectorAll('.local-button').forEach(btn => btn.classList.remove('selected'));
-                this.classList.add('selected');
-                localSeleccionado = this.dataset.local;
-                
-                // Vibración si está disponible
-                if (navigator.vibrate) {
-                    navigator.vibrate(50);
-                }
-            });
-        });
+  <!-- 3. Productos -->
+  <section>
+    <div class="shead">
+      <div><p class="skicker">Mercadería</p><h2>Productos a pedir</h2></div>
+      <span class="snum" id="itemCount">0 ítems</span>
+    </div>
+    <div class="search-wrap">
+      <div class="search-row">
+        <input type="text" id="prodSearch" placeholder="Buscá un producto del catálogo..." autocomplete="off">
+        <button type="button" class="free" id="freeBtn">+ Libre</button>
+      </div>
+      <div class="suggest" id="suggest"></div>
+    </div>
+    <p class="hint" id="catHint">Elegí primero un local para cargar su catálogo. Si un producto no está, usá <b>+ Libre</b>.</p>
+    <div class="items" id="items"></div>
+  </section>
 
-        // Selección de urgencia
-        document.querySelectorAll('.urgencia-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                document.querySelectorAll('.urgencia-btn').forEach(btn => btn.classList.remove('selected'));
-                this.classList.add('selected');
-                urgenciaSeleccionada = this.dataset.urgencia;
-            });
-        });
+  <!-- 4. Urgencia -->
+  <section>
+    <div class="shead"><div><p class="skicker">Prioridad</p><h2>Nivel de urgencia</h2></div></div>
+    <div class="urg" id="urg">
+      <button type="button" class="urgb" data-u="Baja"><span class="pip"></span>Baja<small>Puede esperar</small></button>
+      <button type="button" class="urgb" data-u="Normal" aria-pressed="true"><span class="pip"></span>Normal<small>Esta semana</small></button>
+      <button type="button" class="urgb" data-u="Urgente"><span class="pip"></span>Urgente<small>Prioritario</small></button>
+    </div>
+  </section>
 
-        // Agregar producto
-        function agregarProducto() {
-            const container = document.getElementById('productos-container');
-            const nuevoProducto = document.createElement('div');
-            nuevoProducto.className = 'producto-row p-6 mb-4';
-            nuevoProducto.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
-                        <input type="text" name="producto[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Ej: Aceite de oliva" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
-                        <input type="number" name="cantidad[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="5" min="0.1" step="0.1" required>
-                    </div>
-                    <div class="flex items-end gap-2">
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Unidad</label>
-                            <select name="medida[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
-                                <option value="">Seleccionar...</option>
-                                <option value="kg">Kilogramos (kg)</option>
-                                <option value="g">Gramos (g)</option>
-                                <option value="l">Litros (l)</option>
-                                <option value="ml">Mililitros (ml)</option>
-                                <option value="unidades">Unidades</option>
-                                <option value="paquetes">Paquetes</option>
-                                <option value="cajas">Cajas</option>
-                                <option value="bolsas">Bolsas</option>
-                                <option value="latas">Latas</option>
-                                <option value="botellas">Botellas</option>
-                            </select>
-                        </div>
-                        <button type="button" class="btn-eliminar bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl transition-colors" onclick="eliminarProducto(this)">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-            container.appendChild(nuevoProducto);
-            actualizarBotonesEliminar();
-            actualizarResumen();
-        }
+  <!-- 5. Observaciones -->
+  <section>
+    <div class="shead"><div><p class="skicker">Notas</p><h2>Observaciones</h2><span class="snum">opcional</span></div></div>
+    <textarea id="observaciones" placeholder="Aclaraciones para gerencia o el proveedor..."></textarea>
+  </section>
 
-        // Eliminar producto
-        function eliminarProducto(boton) {
-            boton.closest('.producto-row').remove();
-            actualizarBotonesEliminar();
-            actualizarResumen();
-        }
+  <!-- Summary -->
+  <div class="summary">
+    <div>
+      <div class="s-l">Resumen del pedido</div>
+      <div class="s-big" id="sumCount">0 productos</div>
+      <div class="s-est" id="sumEst">Total estimado: <b>—</b></div>
+    </div>
+    <div class="s-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/><path d="M9 12l2 2 4-4"/></svg>
+    </div>
+  </div>
 
-        // Actualizar botones eliminar
-        function actualizarBotonesEliminar() {
-            const productos = document.querySelectorAll('.producto-row');
-            const botones = document.querySelectorAll('.btn-eliminar');
-            
-            if (productos.length === 1) {
-                botones.forEach(btn => btn.classList.add('hidden'));
-            } else {
-                botones.forEach(btn => btn.classList.remove('hidden'));
-            }
-        }
+  <p class="foot"><b>Docks del Puerto</b> · Polo Gastronómico<br>Puerto de Frutos, Tigre · Buenos Aires</p>
 
-        // Actualizar resumen
-        function actualizarResumen() {
-            const productos = document.querySelectorAll('.producto-row');
-            let totalCantidad = 0;
-            
-            productos.forEach(producto => {
-                const cantidad = parseFloat(producto.querySelector('input[name="cantidad[]"]').value) || 0;
-                totalCantidad += cantidad;
-            });
-            
-            document.getElementById('totalProductos').textContent = `${productos.length} productos (${totalCantidad.toFixed(1)} unidades totales)`;
-        }
+</div>
 
-        // Event listeners para actualizar resumen
-        document.addEventListener('input', function(e) {
-            if (e.target.name === 'cantidad[]' || e.target.name === 'producto[]') {
-                actualizarResumen();
-            }
-        });
+<!-- Sticky submit -->
+<div class="bar">
+  <div class="bar-in">
+    <button type="button" class="send" id="send" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      Enviar pedido
+    </button>
+    <div class="bar-meta"><b id="barCount">0</b>productos</div>
+  </div>
+</div>
 
-        // Función para generar ID de pedido
-        function generarIdPedido() {
-            const fecha = new Date();
-            const timestamp = fecha.getTime();
-            return `PED${timestamp.toString().slice(-6)}`;
-        }
+<!-- Configuración -->
+<div class="cfg" id="cfg" hidden>
+  <div class="cfg-panel">
+    <div class="cfg-head">
+      <div><p class="skicker">Administración</p><h2>Configuración</h2></div>
+      <button class="cfg-close" id="cfgClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="cfg-body">
+      <div class="field">
+        <label>Local a configurar</label>
+        <select id="cfgLocal"></select>
+      </div>
 
-        // Función para formatear semana
-        function formatearSemana(semanaValue) {
-            if (!semanaValue) return '';
-            const [year, week] = semanaValue.split('-W');
-            const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-            const fecha = new Date(year, 0, 1 + (week - 1) * 7);
-            const mes = meses[fecha.getMonth()];
-            return `Semana ${week} - ${mes} ${year}`;
-        }
+      <div class="cfg-block">
+        <div class="cfg-block-head">
+          <h3>Catálogo de productos</h3>
+          <span class="snum" id="cfgCatCount"></span>
+        </div>
+        <div class="cfg-list" id="cfgCatList"></div>
+        <div class="cfg-add">
+          <input id="cfgPNombre" placeholder="Nombre del producto *">
+          <div class="row2">
+            <input id="cfgPCat" placeholder="Categoría (ej: Carnes)">
+            <select id="cfgPUnidad"></select>
+          </div>
+          <input id="cfgPProv" placeholder="Proveedor (opcional)">
+          <button class="cfg-btn" id="cfgAddProd" type="button">+ Agregar al catálogo</button>
+        </div>
+      </div>
 
-        // Enviar formulario
-        document.getElementById('formPedidos').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            if (!localSeleccionado) {
-                alert('Por favor selecciona tu local');
-                return;
-            }
+      <div class="cfg-block">
+        <div class="cfg-block-head">
+          <h3>Responsables</h3>
+          <span class="snum" id="cfgRespCount"></span>
+        </div>
+        <div class="cfg-list" id="cfgRespList"></div>
+        <div class="cfg-add">
+          <input id="cfgRNombre" placeholder="Nombre del responsable *">
+          <input id="cfgREmail" placeholder="Email (opcional)" type="email">
+          <button class="cfg-btn" id="cfgAddResp" type="button">+ Agregar responsable</button>
+        </div>
+      </div>
 
-            // Recopilar productos con medidas
-            const productosItems = document.querySelectorAll('.producto-row');
-            let productosTexto = [];
-            let productosArray = [];
-            
-            productosItems.forEach(item => {
-                const producto = item.querySelector('input[name="producto[]"]').value;
-                const cantidad = item.querySelector('input[name="cantidad[]"]').value;
-                const medida = item.querySelector('select[name="medida[]"]').value;
-                
-                if (producto && cantidad && medida) {
-                    const productoCompleto = `${producto} - ${cantidad} ${medida}`;
-                    productosTexto.push(productoCompleto);
-                    productosArray.push({
-                        producto: producto,
-                        cantidad: parseFloat(cantidad),
-                        medida: medida
-                    });
-                }
-            });
+      <p class="cfg-note">Los cambios se guardan directo en la planilla de Google Sheets.</p>
+    </div>
+  </div>
+</div>
 
-            // Estructura completa para las 17 columnas del Excel
-            const ahora = new Date();
-            const formData = {
-                // Columna 1: ID_Pedido
-                id_pedido: generarIdPedido(),
-                
-                // Columna 2: Fecha_Hora
-                fecha_hora: ahora.toLocaleString('es-ES'),
-                
-                // Columna 3: Local
-                local: localSeleccionado,
-                
-                // Columna 4: Encargado
-                encargado: document.getElementById('encargado').value,
-                
-                // Columna 5: Semana_Pedido
-                semana_pedido: formatearSemana(document.getElementById('semana').value),
-                
-                // Columna 6: Email_Encargado
-                email_encargado: document.getElementById('email').value,
-                
-                // Columna 7: Estado
-                estado: 'Recibido',
-                
-                // Columna 8: Urgencia
-                urgencia: urgenciaSeleccionada,
-                
-                // Columna 9: Productos_Solicitados
-                productos_solicitados: productosTexto.join(', '),
-                
-                // Columna 10: Total_Productos
-                total_productos: productosArray.length,
-                
-                // Columna 11: Total_Estimado (vacío para gerencia)
-                total_estimado: '',
-                
-                // Columna 12: Fecha_Entrega
-                fecha_entrega: document.getElementById('fecha_entrega').value,
-                
-                // Columna 13: Observaciones
-                observaciones: document.getElementById('observaciones').value || '',
-                
-                // Columna 14: Proveedor_Asignado (vacío para gerencia)
-                proveedor_asignado: '',
-                
-                // Columna 15: Comprado
-                comprado: 'NO',
-                
-                // Columna 16: Entregado
-                entregado: 'NO',
-                
-                // Columna 17: Notas_Gerencia (vacío para gerencia)
-                notas_gerencia: ''
-            };
+<div class="toast" id="toast"></div>
 
-            // Enviar a Google Sheets
-            enviarAGoogleSheets(formData);
-        });
+<script>
+"use strict";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwo7hOofjYGzqHpJBpjZVdtqHupp2hPbb88J54oAgEsJd4-8J_xBnADEZzTzhORvG9D/exec";
 
-        // Función para enviar a Google Sheets
-        function enviarAGoogleSheets(data) {
-            const btnEnviar = document.querySelector('.btn-enviar');
-            const textoOriginal = btnEnviar.innerHTML;
-            btnEnviar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...';
-            btnEnviar.disabled = true;
+/* ---- Locales (Pizzería fuera, GreenFresh dentro) ---- */
+const LOCALES = [
+  { id:"Parrilla",       emoji:"🥩", accent:"oklch(0.58 0.16 35)" },
+  { id:"GreenFresh",     emoji:"🥗", accent:"oklch(0.62 0.13 150)" },
+  { id:"Heladería",      emoji:"🍦", accent:"oklch(0.72 0.12 350)" },
+  { id:"Cafetería",      emoji:"☕", accent:"oklch(0.55 0.07 60)" },
+  { id:"Brooklyn", emoji:"🍔", accent:"oklch(0.70 0.13 60)" },
+  { id:"Eventos",        emoji:"🎉", accent:"oklch(0.58 0.12 300)" },
+  { id:"Shopping",       emoji:"🛍️", accent:"oklch(0.55 0.11 225)" },
+];
 
-            if (SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbxk6tEtKiDnIMzAOmw525z5HO8NwWhZCHg_RyqKYpuC1WBvfyPIdOHI2woc851Qyw9J/exec') {
-                alert('⚠️ ERROR: Necesitas configurar la URL del Google Apps Script.\n\nContacta al administrador del sistema.');
-                btnEnviar.innerHTML = textoOriginal;
-                btnEnviar.disabled = false;
-                return;
-            }
+/* ---- Encargados por local (snapshot de CONFIGURACIÓN; el script puede sobreescribir) ---- */
+let CONFIG = {
+  "Parrilla":{enc:"",email:""},
+  "GreenFresh":{enc:"",email:""},
+  "Heladería":{enc:"Nadia",email:"Nadia@heladeria.com"},
+  "Cafetería":{enc:"Ayelen",email:"Ayelen@cafeteria.com"},
+  "Brooklyn":{enc:"Mariela",email:"roberto@hamburguesas.com"},
+  "Eventos":{enc:"Ruth Coronel",email:"patricia@eventos.com"},
+  "Shopping":{enc:"Dario Cabrera",email:"diego@shopping.com"},
+};
 
-            fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            })
-            .then(() => {
-                // Mostrar mensaje de éxito
-                document.getElementById('mensajeConfirmacion').classList.remove('hidden');
-                
-                // Limpiar formulario
-                document.getElementById('formPedidos').reset();
-                document.querySelectorAll('.local-button').forEach(btn => btn.classList.remove('selected'));
-                document.querySelectorAll('.urgencia-btn').forEach(btn => btn.classList.remove('selected'));
-                document.querySelector('.urgencia-btn.normal').classList.add('selected');
-                
-                localSeleccionado = '';
-                urgenciaSeleccionada = 'Normal';
-                
-                // Resetear productos a uno solo
-                const container = document.getElementById('productos-container');
-                container.innerHTML = `
-                    <div class="producto-row p-6 mb-4">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
-                                <input type="text" name="producto[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="Ej: Carne molida" required>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
-                                <input type="number" name="cantidad[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="10" min="0.1" step="0.1" required>
-                            </div>
-                            <div class="flex items-end gap-2">
-                                <div class="flex-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Unidad</label>
-                                    <select name="medida[]" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" required>
-                                        <option value="">Seleccionar...</option>
-                                        <option value="kg">Kilogramos (kg)</option>
-                                        <option value="g">Gramos (g)</option>
-                                        <option value="l">Litros (l)</option>
-                                        <option value="ml">Mililitros (ml)</option>
-                                        <option value="unidades">Unidades</option>
-                                        <option value="paquetes">Paquetes</option>
-                                        <option value="cajas">Cajas</option>
-                                        <option value="bolsas">Bolsas</option>
-                                        <option value="latas">Latas</option>
-                                        <option value="botellas">Botellas</option>
-                                    </select>
-                                </div>
-                                <button type="button" class="btn-eliminar bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl transition-colors hidden" onclick="eliminarProducto(this)">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                actualizarResumen();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                
-                setTimeout(() => {
-                    document.getElementById('mensajeConfirmacion').classList.add('hidden');
-                }, 5000);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al enviar el pedido. Por favor intenta nuevamente.');
-            })
-            .finally(() => {
-                btnEnviar.innerHTML = textoOriginal;
-                btnEnviar.disabled = false;
-            });
-        }
+/* ---- Catálogo (snapshot de CATÁLOGO PRODUCTOS; el script puede sobreescribir) ---- */
+let CATALOG = {
+  "Parrilla":[
+    p("PAR001","Asado","kg","Distribuidora Florida",8500,"Carnes"),
+    p("PAR002","Chorizo","kg","Frigorífico Central",6200,"Achuras"),
+    p("PAR003","Morcilla","kg","Frigorífico Central",5800,"Achuras"),
+    p("PAR004","Chinchulín","kg","Carbones Del Sur",3500,"Achuras"),
+    p("PAR005","Entraña","kg","Distribuidora Milano",1200,"Carnes"),
+    p("PAR006","Bife de Chorizo","kg","Distribuidora Milano",4500,"Carnes"),
+    p("PAR007","Pata y Muslo","kg","Distribuidora Milano",2800,"Carnes"),
+    p("PAR008","Tapa de Empanadas","kg","Distribuidora Milano",3200,"Vegetales"),
+    p("PAR009","Supremas de Pollo","kg","Lácteos Premium",3800,"Carnes"),
+    p("PAR010","Vino La Linda Malbec","unidad","Dos Hermanos",4200,"Vinos"),
+    p("PAR011","D V Catena Cabernet","unidad","Repostería Central",150,"Vinos"),
+  ],
+  "GreenFresh":[
+    p("GRE001","Pechuga de Pollo","kg","Distribuidora Milano",7000,"Proteínas"),
+    p("GRE002","Mix de Hojas Verdes","kg","Vegetales Frescos",2200,"Vegetales"),
+    p("GRE003","Quinoa","kg","Almacén Natural",5400,"Granos"),
+    p("GRE004","Palta","unidad","Vegetales Frescos",900,"Frutas"),
+    p("GRE005","Tomate Cherry","kg","Vegetales Frescos",2600,"Vegetales"),
+    p("GRE006","Huevos","docena","Granja del Sol",3200,"Proteínas"),
+    p("GRE007","Arroz Integral","kg","Almacén Natural",1900,"Granos"),
+    p("GRE008","Batata","kg","Vegetales Frescos",1500,"Vegetales"),
+    p("GRE009","Garbanzos","kg","Almacén Natural",2100,"Legumbres"),
+    p("GRE010","Salmón","kg","Pescadería del Puerto",16000,"Proteínas"),
+    p("GRE011","Aceite de Oliva","litro","Almacén Natural",8200,"Aderezos"),
+    p("GRE012","Yogur Natural","litro","Lácteos Premium",2400,"Lácteos"),
+  ],
+  "Heladería":[],
+  "Cafetería":[
+    p("CAF001","Café en Grano","kg","Café Colombia",12000,"Café"),
+    p("CAF002","Leche","litro","Lácteos Premium",1800,"Lácteos"),
+    p("CAF003","Azúcar","kg","Azúcar Central",800,"Endulzantes"),
+    p("CAF004","Medialunas","docena","Panadería Artesanal",2500,"Panadería"),
+  ],
+  "Brooklyn":[
+    p("HAM001","Pan de Hamburguesa","unidad","Panadería Gourmet",450,"Panadería"),
+    p("HAM002","Carne Molida","kg","Frigorífico Central",7500,"Carnes"),
+    p("HAM003","Queso Cheddar","kg","Lácteos Premium",5200,"Lácteos"),
+    p("HAM004","Papas","kg","Vegetales Frescos",1800,"Vegetales"),
+  ],
+  "Eventos":[
+    p("EVE001","Vajilla Descartable","set","Eventos Premium",1200,"Vajilla"),
+    p("EVE002","Manteles","unidad","Eventos Premium",2800,"Decoración"),
+    p("EVE003","Flores Decorativas","arreglo","Florería Central",4500,"Decoración"),
+  ],
+  "Shopping":[
+    p("SHO001","Productos Generales","unidad","Distribuidora General",2500,"General"),
+  ],
+};
+function p(codigo,nombre,unidad,proveedor,precio,categoria){
+  return {codigo,nombre,unidad,proveedor,precio,categoria};
+}
 
-        // Inicializar
-        actualizarResumen();
-    </script>
+const UNITS = ["kg","g","litro","ml","unidad","docena","paquete","caja","bolsa","lata","botella","set","arreglo"];
+function unitOptions(sel){
+  const list = UNITS.includes(sel) ? UNITS : [sel,...UNITS];
+  return list.map(u=>`<option value="${esc(u)}" ${u===sel?'selected':''}>${esc(u)}</option>`).join("");
+}
+
+/* ---- Responsables por local (para Configuración) ---- */
+let RESP = {};
+
+/* ---- State ---- */
+const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false };
+let uid = 0;
+
+/* ---- Helpers ---- */
+const $ = s => document.querySelector(s);
+const fmt = n => new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:0}).format(n);
+function toast(msg,type){const t=$("#toast");t.className="toast show "+(type||"");
+  t.innerHTML=(type==="ok"?icoCheck:type==="err"?icoX:"")+`<span>${msg}</span>`;
+  clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),3200);}
+const icoCheck='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+const icoX='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+const icoTrash='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
+
+/* ---- Render locales ---- */
+function renderLocales(){
+  $("#locales").innerHTML = LOCALES.map(l=>`
+    <button type="button" class="local" data-local="${l.id}" style="--accent:${l.accent}" aria-pressed="false">
+      <span class="ico">${l.emoji}</span>
+      <span class="nm">${l.id}</span>
+      <span class="chk">${'✓'}</span>
+    </button>`).join("");
+  $("#locales").querySelectorAll(".local").forEach(b=>{
+    b.addEventListener("click",()=>selectLocal(b.dataset.local));
+  });
+}
+function selectLocal(id){
+  state.local=id;
+  $("#locales").querySelectorAll(".local").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.local===id)));
+  $("#localPick").textContent=id;
+  // autocompletar encargado/email si no fueron tocados
+  const c=CONFIG[id]||{};
+  if(!state.encTouched){ $("#encargado").value=c.enc||""; }
+  if(!state.emailTouched){ $("#email").value=c.email||""; }
+  $("#encAuto").hidden = !(c.enc && !state.encTouched);
+  const cat=CATALOG[id]||[];
+  $("#catHint").innerHTML = cat.length
+    ? `Catálogo de <b>${id}</b>: ${cat.length} productos. Escribí para buscar, o <b>+ Libre</b> para otro.`
+    : `<b>${id}</b> no tiene catálogo cargado todavía. Cargá los productos con <b>+ Libre</b>.`;
+  $("#prodSearch").value=""; closeSuggest();
+  syncSend();
+  if(navigator.vibrate) navigator.vibrate(8);
+}
+
+/* ---- Product search / suggest ---- */
+const search=$("#prodSearch"), suggest=$("#suggest");
+let sgIndex=-1, sgData=[];
+search.addEventListener("input",()=>renderSuggest(search.value));
+search.addEventListener("focus",()=>{ if(search.value.trim()) renderSuggest(search.value); });
+search.addEventListener("keydown",e=>{
+  if(!suggest.classList.contains("open"))return;
+  if(e.key==="ArrowDown"){e.preventDefault();sgIndex=Math.min(sgIndex+1,sgData.length-1);paintActive();}
+  else if(e.key==="ArrowUp"){e.preventDefault();sgIndex=Math.max(sgIndex-1,0);paintActive();}
+  else if(e.key==="Enter"){e.preventDefault();if(sgData[sgIndex])addFromCatalog(sgData[sgIndex]);}
+  else if(e.key==="Escape"){closeSuggest();}
+});
+document.addEventListener("click",e=>{ if(!e.target.closest(".search-wrap")) closeSuggest(); });
+
+function renderSuggest(q){
+  q=q.trim().toLowerCase();
+  if(!state.local){ suggest.innerHTML=`<div class="sg empty">Elegí un local primero</div>`; suggest.classList.add("open"); sgData=[]; return; }
+  if(!q){ closeSuggest(); return; }
+  const cat=CATALOG[state.local]||[];
+  sgData=cat.filter(x=>x.nombre.toLowerCase().includes(q)||(x.categoria||"").toLowerCase().includes(q)).slice(0,8);
+  sgIndex = sgData.length?0:-1;
+  if(!sgData.length){
+    suggest.innerHTML=`<div class="sg empty">Sin coincidencias · usá "+ Libre" para "${esc(search.value.trim())}"</div>`;
+  }else{
+    suggest.innerHTML=sgData.map((x,i)=>`
+      <div class="sg ${i===0?'active':''}" data-i="${i}">
+        <div class="sg-main">
+          <div class="sg-nm">${esc(x.nombre)}</div>
+          <div class="sg-meta">${esc(x.categoria||'')}${x.proveedor?' · '+esc(x.proveedor):''}</div>
+        </div>
+        <div class="sg-unit">${esc(x.unidad)}</div>
+      </div>`).join("");
+    suggest.querySelectorAll(".sg[data-i]").forEach(el=>el.addEventListener("click",()=>addFromCatalog(sgData[+el.dataset.i])));
+  }
+  suggest.classList.add("open");
+}
+function paintActive(){suggest.querySelectorAll(".sg[data-i]").forEach(el=>el.classList.toggle("active",+el.dataset.i===sgIndex));
+  const a=suggest.querySelector(".sg.active");if(a)a.scrollIntoView({block:"nearest"});}
+function closeSuggest(){suggest.classList.remove("open");sgIndex=-1;}
+
+function addFromCatalog(rec){
+  if(!rec)return;
+  const ex=state.items.find(i=>i.codigo===rec.codigo && !i.free);
+  if(ex){ ex.qty+=1; toast(`+1 ${rec.nombre}`); }
+  else state.items.push({_id:++uid,codigo:rec.codigo,nombre:rec.nombre,unidad:rec.unidad,
+    proveedor:rec.proveedor,categoria:rec.categoria||"",precio:rec.precio,qty:1,free:false});
+  search.value=""; closeSuggest(); renderItems(); search.focus();
+}
+function addFree(){
+  const name=search.value.trim();
+  if(!name){ toast("Escribí el nombre del producto","err"); search.focus(); return; }
+  state.items.push({_id:++uid,codigo:"",nombre:name,unidad:"unidad",proveedor:"",categoria:"",precio:0,qty:1,free:true});
+  search.value=""; closeSuggest(); renderItems(); search.focus();
+}
+$("#freeBtn").addEventListener("click",addFree);
+
+/* ---- Items render ---- */
+function renderItems(){
+  const box=$("#items");
+  if(!state.items.length){ box.innerHTML=`<div class="items-empty">Todavía no agregaste productos.</div>`; }
+  else box.innerHTML=state.items.map(it=>`
+    <div class="item" data-id="${it._id}">
+      <div class="it-wrap">
+        <div class="it-nm">${esc(it.nombre)} ${it.free?'<span class="tag free">libre</span>':`<span class="tag">${esc(it.codigo)}</span>`}</div>
+        <div class="it-sub">${it.free?'Producto libre':esc(it.proveedor||'Sin proveedor')}</div>
+      </div>
+      <input class="qty" type="number" min="0.1" step="0.1" value="${it.qty}" data-act="qty" inputmode="decimal" aria-label="Cantidad">
+      <select class="unit" data-act="unit" aria-label="Unidad">${unitOptions(it.unidad)}</select>
+      <button type="button" class="del" data-act="del" aria-label="Eliminar">${icoTrash}</button>
+    </div>`).join("");
+  box.querySelectorAll(".item").forEach(row=>{
+    const id=+row.dataset.id, it=state.items.find(x=>x._id===id);
+    row.querySelector('[data-act="qty"]').addEventListener("input",e=>{it.qty=parseFloat(e.target.value)||0;updateSummary();});
+    row.querySelector('[data-act="unit"]').addEventListener("change",e=>{it.unidad=e.target.value;updateSummary();});
+    row.querySelector('[data-act="del"]').addEventListener("click",()=>{state.items=state.items.filter(x=>x._id!==id);renderItems();});
+  });
+  updateSummary();
+}
+function updateSummary(){
+  const n=state.items.length;
+  const provs=new Set(state.items.map(i=>i.proveedor).filter(Boolean)).size;
+  $("#sumCount").textContent=`${n} producto${n===1?'':'s'}`;
+  $("#itemCount").textContent=`${n} ítem${n===1?'':'s'}`;
+  $("#barCount").textContent=n;
+  $("#sumEst").innerHTML = n
+    ? `Pedido para la próxima semana${provs?` · <b>${provs}</b> proveedor${provs===1?'':'es'}`:''}`
+    : `Cargá los productos que necesitás`;
+  syncSend();
+}
+
+/* ---- Urgency ---- */
+$("#urg").querySelectorAll(".urgb").forEach(b=>b.addEventListener("click",()=>{
+  state.urgencia=b.dataset.u;
+  $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+}));
+
+/* ---- Field tracking ---- */
+$("#encargado").addEventListener("input",()=>{state.encTouched=true;$("#encAuto").hidden=true;syncSend();});
+$("#email").addEventListener("input",()=>{state.emailTouched=true;syncSend();});
+["semana","fecha_entrega"].forEach(id=>$("#"+id).addEventListener("input",syncSend));
+
+function valid(){
+  return state.local && $("#encargado").value.trim() && /\S+@\S+\.\S+/.test($("#email").value)
+    && $("#semana").value && $("#fecha_entrega").value && state.items.length>0
+    && state.items.every(i=>i.qty>0);
+}
+function syncSend(){ $("#send").disabled=!valid(); }
+
+/* ---- Submit ---- */
+$("#send").addEventListener("click",submit);
+function submit(){
+  if(!valid()){ toast("Completá local, datos y al menos un producto","err"); return; }
+  const items=state.items;
+  const productosTexto=items.map(i=>`${i.nombre} - ${trim(i.qty)} ${i.unidad}`).join(", ");
+  const proveedores=[...new Set(items.map(i=>i.proveedor).filter(Boolean))].join(", ");
+  const ahora=new Date();
+  const payload={
+    id_pedido:"PED"+ahora.getTime().toString().slice(-6),
+    fecha_hora:ahora.toLocaleString("es-AR"),
+    local:state.local,
+    encargado:$("#encargado").value.trim(),
+    semana_pedido:formatSemana($("#semana").value),
+    email_encargado:$("#email").value.trim(),
+    estado:"Recibido",
+    urgencia:state.urgencia,
+    productos_solicitados:productosTexto,
+    total_productos:items.length,
+    total_estimado:"",
+    fecha_entrega:$("#fecha_entrega").value,
+    observaciones:$("#observaciones").value.trim(),
+    proveedor_asignado:proveedores,
+    comprado:"NO",
+    entregado:"NO",
+    notas_gerencia:"",
+    // Detalle estructurado (1 objeto por producto) -> hoja PEDIDOS_DETALLE
+    items:items.map(i=>({
+      codigo:i.codigo||"", producto:i.nombre, categoria:i.categoria||"",
+      cantidad:trim(i.qty), unidad:i.unidad, proveedor:i.proveedor||"", libre:!!i.free
+    }))
+  };
+  const btn=$("#send"); const orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML=`<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Enviando...`;
+  fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+    .then(()=>{ toast("Pedido enviado","ok"); resetForm(); })
+    .catch(()=>{ toast("Error de red, reintentá","err"); })
+    .finally(()=>{ btn.innerHTML=orig; syncSend(); });
+}
+function resetForm(){
+  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false;
+  $("#observaciones").value=""; renderItems();
+  $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
+  if(state.local) selectLocal(state.local);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ---- Utils ---- */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function trim(n){return Number.isInteger(n)?n:parseFloat(n.toFixed(2));}
+function formatSemana(v){
+  if(!v)return""; const [y,w]=v.split("-W");
+  const m=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const f=new Date(y,0,1+(w-1)*7); return `Semana ${w} - ${m[f.getMonth()]} ${y}`;
+}
+
+/* ---- Live data (best-effort; cae al snapshot si el script no responde) ---- */
+async function warmData(){
+  try{
+    const r=await fetch(`${SCRIPT_URL}?action=getBootstrap`,{method:"GET"});
+    if(!r.ok)throw 0;
+    const d=await r.json();
+    if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
+    if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
+    if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
+    setConn(true,"En vivo");
+  }catch{ setConn(true,"Catálogo local"); }
+}
+const LOCAL_ALIAS = { "Hamburguesería":"Brooklyn", "Hamburgueseria":"Brooklyn" };
+function aliasKeys(obj){
+  const out={};
+  for(const k in obj){ out[LOCAL_ALIAS[k]||k]=obj[k]; }
+  return out;
+}
+function normalizeCatalog(raw){
+  const out={}; for(const k in raw){ out[k]=raw[k].map(x=>p(x.codigo||"",x.nombre||x.producto||"",x.unidad||"unidad",x.proveedor||"",+x.precio||0,x.categoria||"")); }
+  return out;
+}
+function setConn(ok,txt){ $("#connDot").classList.toggle("off",!ok); $("#connTxt").textContent=txt; }
+
+/* ---- Configuración ---- */
+const cfg=$("#cfg");
+function openCfg(){
+  const sel=$("#cfgLocal");
+  sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
+  $("#cfgPUnidad").innerHTML=UNITS.map(u=>`<option value="${u}">${u}</option>`).join("");
+  sel.value=state.local||LOCALES[0].id;
+  renderCfg();
+  cfg.hidden=false;
+}
+function closeCfg(){ cfg.hidden=true; }
+function cfgLocalVal(){ return $("#cfgLocal").value; }
+function renderCfg(){
+  const local=cfgLocalVal();
+  const cat=CATALOG[local]||[];
+  $("#cfgCatCount").textContent=`${cat.length} producto${cat.length===1?'':'s'}`;
+  $("#cfgCatList").innerHTML = cat.length
+    ? cat.map(x=>`<div class="cfg-li"><span class="li-code">${esc(x.codigo||'—')}</span><span class="li-nm">${esc(x.nombre)}</span><span class="li-meta">${esc(x.categoria||'')} · ${esc(x.unidad)}</span></div>`).join("")
+    : `<div class="cfg-empty">Sin productos en el catálogo. Agregá el primero.</div>`;
+  const resp=RESP[local]||(CONFIG[local]&&CONFIG[local].enc?[{nombre:CONFIG[local].enc,email:CONFIG[local].email}]:[]);
+  $("#cfgRespCount").textContent=`${resp.length} responsable${resp.length===1?'':'s'}`;
+  $("#cfgRespList").innerHTML = resp.length
+    ? resp.map(x=>`<div class="cfg-li"><span class="li-nm">${esc(x.nombre||'—')}</span><span class="li-meta">${esc(x.email||'')}</span></div>`).join("")
+    : `<div class="cfg-empty">Sin responsables cargados.</div>`;
+}
+async function apiPost(payload){
+  // no-cors: no podemos leer la respuesta; confirmamos releyendo el bootstrap.
+  await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+}
+async function refreshData(){
+  try{
+    const r=await fetch(`${SCRIPT_URL}?action=getBootstrap&t=${Date.now()}`);
+    const d=await r.json();
+    if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
+    if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
+    if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
+    return true;
+  }catch{ return false; }
+}
+async function addProducto(){
+  const local=cfgLocalVal();
+  const nombre=$("#cfgPNombre").value.trim();
+  if(!nombre){ toast("Escribí el nombre del producto","err"); return; }
+  const payload={action:"addProducto",local,nombre,
+    categoria:$("#cfgPCat").value.trim(),unidad:$("#cfgPUnidad").value,proveedor:$("#cfgPProv").value.trim()};
+  const btn=$("#cfgAddProd"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
+  // optimista
+  (CATALOG[local]=CATALOG[local]||[]).push(p("",nombre,payload.unidad,payload.proveedor,0,payload.categoria));
+  renderCfg();
+  try{ await apiPost(payload); await sleep(900); await refreshData(); toast("Producto agregado al catálogo","ok"); }
+  catch{ toast("Error al guardar","err"); }
+  finally{ renderCfg(); $("#cfgPNombre").value="";$("#cfgPCat").value="";$("#cfgPProv").value=""; btn.disabled=false; btn.textContent=o; }
+}
+async function addResponsable(){
+  const local=cfgLocalVal();
+  const nombre=$("#cfgRNombre").value.trim();
+  if(!nombre){ toast("Escribí el nombre del responsable","err"); return; }
+  const payload={action:"addResponsable",local,nombre,email:$("#cfgREmail").value.trim()};
+  const btn=$("#cfgAddResp"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
+  (RESP[local]=RESP[local]||[]).push({nombre,email:payload.email});
+  renderCfg();
+  try{ await apiPost(payload); await sleep(900); await refreshData(); toast("Responsable agregado","ok"); }
+  catch{ toast("Error al guardar","err"); }
+  finally{ renderCfg(); $("#cfgRNombre").value="";$("#cfgREmail").value=""; btn.disabled=false; btn.textContent=o; }
+}
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+$("#cfgBtn").addEventListener("click",openCfg);
+$("#cfgClose").addEventListener("click",closeCfg);
+cfg.addEventListener("click",e=>{ if(e.target===cfg) closeCfg(); });
+$("#cfgLocal").addEventListener("change",renderCfg);
+$("#cfgAddProd").addEventListener("click",addProducto);
+$("#cfgAddResp").addEventListener("click",addResponsable);
+
+/* ---- Init ---- */
+renderLocales(); renderItems(); syncSend();
+setConn(true,"Catálogo local");
+warmData();
+</script>
+<style>.spin{animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
 </html>
-    <script id="html_badge_script1">
-        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
-            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDlxvMBJRWVueEYvtJN%2FtpHk2AHLwTIvJVFsCRlgKKENcqOvjYcncwEAKXBAp8T%2FaaKmnmBUR%2FoPY6cJE5JAELV9v4wNfkN3RxsXCNc45CxrzBhznrYT1TJV9xmU1ajzyFxmkd7H6IymggdNJMsmH2sdJDQrLICYr3VOvmEafuVL%2BS8UVzAsywwxm%2F4mBy5KUv2pw44oxJGGqJuRpi6x7jYxwCp5SOE65YOHLEXIYfBtleGA6rvoSl4VHMZtII7%2B2ESPm4JhS9bZffD2iUgIMbaoeMYNp8fBGhGFsYxUNR8eCAOrUP0vRtPZqv1fcGlXG3gwRUoIFb9wHcAF7ztDAPM2if4lsPeicZeOuqjlNaCK1ein3NVEflDkWKpGjpTlumRZUSivEHGLLG4t2HxFNj75m9cgZpg7SYECpjB7WczJWSfWvDpUgt4EnVcGEy6RJoZoRNwxtIcL4bAOZtIuFmJJyJGpTf8O1oN7VextsvwDoNJGXFAiKanwWb49Wva7kr41M0lgeizisUS3hRu3G%2Fuw%3D";
-        window.__genspark_locale = "es-ES";
-        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDlxvMBJRWVueEYvtJN/tpHk2AHLwTIvJVFsCRlgKKENcqOvjYcncwEAKXBAp8T/aaKmnmBUR/oPY6cJE5JAELV9v4wNfkN3RxsXCNc45CxrzBhznrYT1TJV9xmU1ajzyFxmkd7H6IymggdNJMsmH2sdJDQrLICYr3VOvmEafuVL+S8UVzAsywwxm/4mBy5KUv2pw44oxJGGqJuRpi6x7jYxwCp5SOE65YOHLEXIYfBtleGA6rvoSl4VHMZtII7+2ESPm4JhS9bZffD2iUgIMbaoeMYNp8fBGhGFsYxUNR8eCAOrUP0vRtPZqv1fcGlXG3gwRUoIFb9wHcAF7ztDAPM2if4lsPeicZeOuqjlNaCK1ein3NVEflDkWKpGjpTlumRZUSivEHGLLG4t2HxFNj75m9cgZpg7SYECpjB7WczJWSfWvDpUgt4EnVcGEy6RJoZoRNwxtIcL4bAOZtIuFmJJyJGpTf8O1oN7VextsvwDoNJGXFAiKanwWb49Wva7kr41M0lgeizisUS3hRu3G/uw=";
-    </script>
-    
-    <script id="html_notice_dialog_script" src="https://www.genspark.ai/notice_dialog.js"></script>
