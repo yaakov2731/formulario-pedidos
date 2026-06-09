@@ -488,10 +488,10 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwo7hOofjYGzqHpJBpjZ
 
 /* ---- Locales (Pizzería fuera, GreenFresh dentro) ---- */
 const LOCALES = [
-  { id:"Parrilla",       emoji:"🥩", accent:"oklch(0.58 0.16 35)" },
+  { id:"Umo Grill",      emoji:"🥩", accent:"oklch(0.58 0.16 35)" },
   { id:"GreenFresh",     emoji:"🥗", accent:"oklch(0.62 0.13 150)" },
-  { id:"Heladería",      emoji:"🍦", accent:"oklch(0.72 0.12 350)" },
-  { id:"Cafetería",      emoji:"☕", accent:"oklch(0.55 0.07 60)" },
+  { id:"Puerto Gelato",  emoji:"🍦", accent:"oklch(0.72 0.12 350)" },
+  { id:"Trento Café",    emoji:"☕", accent:"oklch(0.55 0.07 60)" },
   { id:"Brooklyn", emoji:"🍔", accent:"oklch(0.70 0.13 60)" },
   { id:"Eventos",        emoji:"🎉", accent:"oklch(0.58 0.12 300)" },
   { id:"Shopping",       emoji:"🛍️", accent:"oklch(0.55 0.11 225)" },
@@ -499,10 +499,10 @@ const LOCALES = [
 
 /* ---- Encargados por local (snapshot de CONFIGURACIÓN; el script puede sobreescribir) ---- */
 let CONFIG = {
-  "Parrilla":{enc:"",email:""},
+  "Umo Grill":{enc:"",email:""},
   "GreenFresh":{enc:"",email:""},
-  "Heladería":{enc:"Nadia",email:"Nadia@heladeria.com"},
-  "Cafetería":{enc:"Ayelen",email:"Ayelen@cafeteria.com"},
+  "Puerto Gelato":{enc:"Nadia",email:"Nadia@heladeria.com"},
+  "Trento Café":{enc:"Ayelen",email:"Ayelen@cafeteria.com"},
   "Brooklyn":{enc:"Mariela",email:"roberto@hamburguesas.com"},
   "Eventos":{enc:"Ruth Coronel",email:"patricia@eventos.com"},
   "Shopping":{enc:"Dario Cabrera",email:"diego@shopping.com"},
@@ -510,7 +510,7 @@ let CONFIG = {
 
 /* ---- Catálogo (snapshot de CATÁLOGO PRODUCTOS; el script puede sobreescribir) ---- */
 let CATALOG = {
-  "Parrilla":[
+  "Umo Grill":[
     p("PAR001","Asado","kg","Distribuidora Florida",8500,"Carnes"),
     p("PAR002","Chorizo","kg","Frigorífico Central",6200,"Achuras"),
     p("PAR003","Morcilla","kg","Frigorífico Central",5800,"Achuras"),
@@ -537,8 +537,8 @@ let CATALOG = {
     p("GRE011","Aceite de Oliva","litro","Almacén Natural",8200,"Aderezos"),
     p("GRE012","Yogur Natural","litro","Lácteos Premium",2400,"Lácteos"),
   ],
-  "Heladería":[],
-  "Cafetería":[
+  "Puerto Gelato":[],
+  "Trento Café":[
     p("CAF001","Café en Grano","kg","Café Colombia",12000,"Café"),
     p("CAF002","Leche","litro","Lácteos Premium",1800,"Lácteos"),
     p("CAF003","Azúcar","kg","Azúcar Central",800,"Endulzantes"),
@@ -792,7 +792,12 @@ async function warmData(){
     setConn(true,"En vivo");
   }catch{ setConn(true,"Catálogo local"); }
 }
-const LOCAL_ALIAS = { "Hamburguesería":"Brooklyn", "Hamburgueseria":"Brooklyn" };
+const LOCAL_ALIAS = {
+  "Hamburguesería":"Brooklyn", "Hamburgueseria":"Brooklyn",
+  "Parrilla":"Umo Grill",
+  "Heladería":"Puerto Gelato", "Heladeria":"Puerto Gelato",
+  "Cafetería":"Trento Café", "Cafeteria":"Trento Café"
+};
 function aliasKeys(obj){
   const out={};
   for(const k in obj){ out[LOCAL_ALIAS[k]||k]=obj[k]; }

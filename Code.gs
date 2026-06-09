@@ -57,8 +57,10 @@ function doPost(e) {
 
 /* Prefijo de código por local (para autogenerar Código en el catálogo). */
 var LOCAL_PREFIX = {
-  'Parrilla': 'PAR', 'GreenFresh': 'GRE', 'Heladería': 'HEL', 'Heladeria': 'HEL',
-  'Cafetería': 'CAF', 'Cafeteria': 'CAF', 'Brooklyn': 'HAM', 'Hamburguesería': 'HAM',
+  'Parrilla': 'PAR', 'Umo Grill': 'PAR', 'GreenFresh': 'GRE',
+  'Heladería': 'HEL', 'Heladeria': 'HEL', 'Puerto Gelato': 'HEL',
+  'Cafetería': 'CAF', 'Cafeteria': 'CAF', 'Trento Café': 'CAF', 'Trento Cafe': 'CAF',
+  'Brooklyn': 'HAM', 'Hamburguesería': 'HAM',
   'Eventos': 'EVE', 'Shopping': 'SHO'
 };
 function prefixFor_(local) {
@@ -382,8 +384,12 @@ function setupGreenFresh() {
   addGreenFreshCatalog_();
   addGreenFreshConfig_();
   deactivatePizzeria_();
-  renameLocal_('Hamburguesería', 'Brooklyn'); // la hamburguesería se llama Brooklyn
-  SpreadsheetApp.getActive().toast('GreenFresh + Brooklyn configurados, Pizzería desactivada', 'Setup OK', 6);
+  // Nombres reales de los locales
+  renameLocal_('Hamburguesería', 'Brooklyn');
+  renameLocal_('Parrilla', 'Umo Grill');
+  renameLocal_('Heladería', 'Puerto Gelato');
+  renameLocal_('Cafetería', 'Trento Café');
+  SpreadsheetApp.getActive().toast('Locales renombrados, GreenFresh agregado, Pizzería desactivada', 'Setup OK', 6);
 }
 
 /** Renombra un local en CATÁLOGO (Local_Aplicable) y CONFIGURACIÓN (Local). */
