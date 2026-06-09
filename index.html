@@ -64,7 +64,7 @@ body{
   box-shadow:0 4px 12px oklch(0.2 0.05 250 / 0.25),inset 0 1px 0 #fff}
 .hero-txt h1{font-size:19px;font-weight:700;letter-spacing:-0.015em;line-height:1.15}
 .hero-txt p{font-size:13px;color:oklch(1 0 0 / 0.82);margin-top:2px}
-.conn{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;
+.conn{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;white-space:nowrap;
   color:oklch(1 0 0 / 0.92);background:oklch(1 0 0 / 0.14);border:1px solid oklch(1 0 0 / 0.22);
   padding:6px 11px;border-radius:999px;backdrop-filter:blur(4px)}
 .dot{width:7px;height:7px;border-radius:50%;background:oklch(0.85 0.16 150);box-shadow:0 0 0 3px oklch(0.85 0.16 150 / 0.3)}
@@ -220,9 +220,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .foot b{color:var(--ink-soft);font-weight:600}
 
 /* Submit (sticky) */
-.bar{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-  background:color-mix(in oklch,var(--bg) 86%,transparent);backdrop-filter:blur(10px);
-  border-top:1px solid var(--line)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:11px 16px calc(11px + env(safe-area-inset-bottom));
+  background:var(--surface);border-top:1px solid var(--line);
+  box-shadow:0 -4px 16px oklch(0.4 0.03 240 / 0.06)}
 .bar-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px}
 .send{flex:none;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;
   background:var(--brand);color:#fff;border:none;border-radius:10px;padding:11px 22px;
@@ -285,6 +285,33 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .cfg-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brand-strong)}
 .cfg-btn:disabled{opacity:.6;cursor:not-allowed}
 .cfg-note{font-size:11.5px;color:var(--ink-faint);text-align:center}
+
+/* Compactación mobile: menos scroll en iPhone */
+@media(max-width:560px){
+  .wrap{padding:12px 11px 92px}
+  .hero{padding:15px;border-radius:14px;margin-bottom:12px}
+  .hero-row{gap:11px}
+  .mark{width:42px;height:42px;border-radius:12px;font-size:16px}
+  .hero-txt h1{font-size:16.5px}
+  .hero-txt p{font-size:12px}
+  .hero-foot{margin-top:11px;padding-top:9px;font-size:10.5px}
+  section{padding:14px 13px;margin-bottom:10px;border-radius:12px}
+  .shead{margin-bottom:12px;gap:10px}
+  .shead::before{width:30px;height:30px;border-radius:9px;font-size:13px}
+  .shead h2{font-size:15.5px}
+  .skicker{font-size:10px}
+  .locales{gap:8px;grid-template-columns:repeat(auto-fill,minmax(98px,1fr))}
+  .local{padding:10px;gap:6px}
+  .local .ico{width:30px;height:30px;font-size:17px}
+  .grid2{gap:11px}
+  .summary{padding:14px 15px;margin-bottom:11px}
+  .summary .s-big{font-size:20px}
+  .summary .s-badge{width:42px;height:42px}
+  .urg{gap:8px}
+  .urgb{padding:11px 6px}
+  textarea{min-height:72px}
+  .foot{font-size:11px}
+}
 
 .hint{font-size:12px;color:var(--ink-faint);margin-top:8px}
 .req{color:var(--red);font-weight:700}
