@@ -24,9 +24,12 @@ var SHEET_CONFIG   = 'CONFIGURACIÓN';
 var SHEET_PEDIDOS  = 'PEDIDOS RECIBIDOS';
 var SHEET_DETALLE  = 'PEDIDOS_DETALLE';
 var SHEET_RESUMEN  = 'RESUMEN POR PROVEEDOR';
+var SHEET_STOCK    = 'CONTROL STOCK';
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
   'Código','Producto','Categoría','Cantidad','Unidad','Proveedor','Estado','Comprado','Entregado'];
+var STOCK_HEADERS = ['ID_Conteo','Fecha_Hora','Local','Encargado','Código','Producto','Categoría',
+  'Unidad','Stock_Actual','Stock_Mínimo','Diferencia_vs_Mínimo','Estado_Stock','Observaciones'];
 
 /* ============================== WEB API ============================== */
 
@@ -47,6 +50,7 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
     if (data.action === 'addProducto')   { return json(addProductoCatalogo_(data)); }
     if (data.action === 'addResponsable'){ return json(addResponsableConfig_(data)); }
+    if (data.action === 'saveStock')     { return json(saveStockConteo_(data)); }
     appendPedido_(data);
     appendDetalle_(data);   // capa normalizada: 1 fila por producto
     return json({ ok: true, id_pedido: data.id_pedido || '' });
@@ -137,6 +141,8 @@ function readCatalog_() {
   var iUni   = idx_(head, ['unidad_medida', 'unidad']);
   var iPre   = idx_(head, ['precio_unitario', 'precio']);
   var iProv  = idx_(head, ['proveedor']);
+  var iStock = idx_(head, ['stock_actual', 'stock actual']);
+  var iMin   = idx_(head, ['stock_mínimo', 'stock_minimo', 'stock mínimo', 'stock minimo']);
   var iEstado = idx_(head, ['estado']);
 
   var out = {};
@@ -154,7 +160,9 @@ function readCatalog_() {
       unidad:    iUni  > -1 ? String(row[iUni]  || 'unidad').trim() : 'unidad',
       proveedor: iProv > -1 ? String(row[iProv] || '').trim() : '',
       precio:    iPre  > -1 ? (parseFloat(row[iPre]) || 0) : 0,
-      categoria: iCat  > -1 ? String(row[iCat]  || '').trim() : ''
+      categoria: iCat  > -1 ? String(row[iCat]  || '').trim() : '',
+      stock_actual: iStock > -1 ? numberOrBlank_(row[iStock]) : '',
+      stock_minimo: iMin > -1 ? numberOrBlank_(row[iMin]) : ''
     });
   }
   return out;
@@ -298,6 +306,123 @@ function formatDetalleSheet_(sh) {
 function applyList_(sh, col, vals) {
   var rule = SpreadsheetApp.newDataValidation().requireValueInList(vals, true).setAllowInvalid(false).build();
   sh.getRange(2, col, sh.getMaxRows() - 1, 1).setDataValidation(rule);
+}
+
+/* ============================== CONTROL STOCK ============================== */
+
+function saveStockConteo_(d) {
+  if (!d.local) return { ok: false, error: 'Falta local' };
+  if (!d.items || !d.items.length) return { ok: false, error: 'Faltan productos de stock' };
+
+  var rows = [];
+  var conteoId = d.id_stock || ('STK' + new Date().getTime().toString().slice(-6));
+  var fechaHora = d.fecha_hora || new Date().toLocaleString('es-AR');
+
+  d.items.forEach(function (it) {
+    var actual = numberOrNull_(it.stock_actual);
+    if (actual === null) return;
+    var minimo = numberOrNull_(it.stock_minimo);
+    rows.push([
+      conteoId,
+      fechaHora,
+      d.local,
+      d.encargado || '',
+      it.codigo || '',
+      it.producto || '',
+      it.categoria || '',
+      it.unidad || '',
+      actual,
+      minimo === null ? '' : minimo,
+      minimo === null ? '' : round2_(actual - minimo),
+      estadoStock_(actual, minimo),
+      it.observaciones || ''
+    ]);
+  });
+
+  if (!rows.length) return { ok: false, error: 'No hay valores de stock para guardar' };
+
+  var sh = ss_().getSheetByName(SHEET_STOCK) || createStockSheet_();
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, STOCK_HEADERS.length).setValues(rows);
+  updateCatalogStock_(d.local, d.items, fechaHora);
+  return { ok: true, id_stock: conteoId, rows: rows.length };
+}
+
+function createStockSheet_() {
+  var ss = ss_();
+  var sh = ss.getSheetByName(SHEET_STOCK) || ss.insertSheet(SHEET_STOCK);
+  formatStockSheet_(sh);
+  return sh;
+}
+
+function formatStockSheet_(sh) {
+  sh.clear();
+  sh.getRange(1, 1, 1, STOCK_HEADERS.length).setValues([STOCK_HEADERS])
+    .setFontWeight('bold').setFontColor('#ffffff').setBackground('#0f5e7a').setVerticalAlignment('middle');
+  sh.setFrozenRows(1);
+  sh.setRowHeight(1, 30);
+  var widths = [100, 145, 120, 160, 90, 220, 120, 90, 95, 95, 110, 110, 240];
+  for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
+  var rules = sh.getConditionalFormatRules();
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo('Bajo mínimo').setBackground('#fff1d6').setFontColor('#8a5b00')
+    .setRanges([sh.getRange('L2:L')]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo('Sin stock').setBackground('#fde1e1').setFontColor('#a01b1b')
+    .setRanges([sh.getRange('L2:L')]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo('OK').setBackground('#d9f2e3').setFontColor('#1b6b3a')
+    .setRanges([sh.getRange('L2:L')]).build());
+  sh.setConditionalFormatRules(rules);
+}
+
+function updateCatalogStock_(local, items, fechaHora) {
+  var sh = ss_().getSheetByName(SHEET_CATALOGO);
+  if (!sh) return;
+
+  var values = sh.getDataRange().getValues();
+  if (values.length < 2) return;
+
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var iCod   = idx_(head, ['código', 'codigo']);
+  var iNom   = idx_(head, ['producto', 'nombre']);
+  var iLocal = idx_(head, ['local_aplicable', 'local']);
+  var iStock = idx_(head, ['stock_actual', 'stock actual']);
+  var iMin   = idx_(head, ['stock_mínimo', 'stock_minimo', 'stock mínimo', 'stock minimo']);
+  var iFecha = idx_(head, ['fecha']);
+  var iNotas = idx_(head, ['notas']);
+
+  if (iLocal === -1 || iStock === -1) return;
+
+  var itemMap = {};
+  items.forEach(function (it) {
+    var actual = numberOrNull_(it.stock_actual);
+    if (actual === null) return;
+    var keyByCode = String(local).trim().toLowerCase() + '||' + String(it.codigo || '').trim().toLowerCase();
+    var keyByName = String(local).trim().toLowerCase() + '||' + String(it.producto || '').trim().toLowerCase();
+    itemMap[keyByCode] = it;
+    itemMap[keyByName] = it;
+  });
+
+  for (var r = 1; r < values.length; r++) {
+    var rowLocal = String(values[r][iLocal] || '').trim().toLowerCase();
+    var rowCode = iCod > -1 ? String(values[r][iCod] || '').trim().toLowerCase() : '';
+    var rowName = iNom > -1 ? String(values[r][iNom] || '').trim().toLowerCase() : '';
+    var rec = itemMap[rowLocal + '||' + rowCode] || itemMap[rowLocal + '||' + rowName];
+    if (!rec) continue;
+
+    var actual = numberOrNull_(rec.stock_actual);
+    var minimo = numberOrNull_(rec.stock_minimo);
+    if (actual !== null) sh.getRange(r + 1, iStock + 1).setValue(actual);
+    if (iMin > -1 && minimo !== null) sh.getRange(r + 1, iMin + 1).setValue(minimo);
+    if (iFecha > -1) sh.getRange(r + 1, iFecha + 1).setValue(fechaHora);
+    if (iNotas > -1) sh.getRange(r + 1, iNotas + 1).setValue('Conteo manual desde formulario');
+  }
+}
+
+function estadoStock_(actual, minimo) {
+  if (actual <= 0) return 'Sin stock';
+  if (minimo !== null && actual <= minimo) return 'Bajo mínimo';
+  return 'OK';
 }
 
 /* ============================== SETUP PLANTILLA PRO ============================== */
@@ -528,4 +653,19 @@ function idx_(headerLower, names) {
     if (p > -1) return p;
   }
   return -1;
+}
+
+function numberOrNull_(value) {
+  if (value === '' || value === null || typeof value === 'undefined') return null;
+  var num = parseFloat(String(value).replace(',', '.'));
+  return isNaN(num) ? null : num;
+}
+
+function numberOrBlank_(value) {
+  var num = numberOrNull_(value);
+  return num === null ? '' : num;
+}
+
+function round2_(num) {
+  return Math.round(num * 100) / 100;
 }

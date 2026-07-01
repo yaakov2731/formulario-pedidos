@@ -10,9 +10,10 @@ celular; el pedido se registra en un Google Sheet maestro que gerencia consolida
 - **`index.html`** — formulario inteligente (single-file, sin build). Desplegado en
   GitHub Pages. Conectado al catálogo: autocompleta encargado/email por local,
   typeahead de productos con proveedor + precio + código, total estimado en vivo,
-  carga libre para productos fuera de catálogo. Responsive iPhone / iPad / PC.
+  carga libre para productos fuera de catálogo, lectura operativa de stock del pedido
+  y carga manual de stock real por local. Responsive iPhone / iPad / PC.
 - **`Code.gs`** — Apps Script v2 (backend). Sirve el catálogo y la config al form,
-  recibe los pedidos y los escribe en la hoja `PEDIDOS RECIBIDOS`.
+  recibe los pedidos, registra conteos de stock y escribe en `PEDIDOS RECIBIDOS`.
 
 ## Configuración (⚙ en el header)
 
@@ -20,6 +21,8 @@ Pantalla de administración dentro del form. Por local permite:
 - **Agregar productos al catálogo** (nombre, categoría, unidad, proveedor) → escribe en
   `CATÁLOGO PRODUCTOS` con código autogenerado (PAR001, CAF005, ...).
 - **Agregar responsables** (nombre, email) → escribe en `CONFIGURACIÓN`.
+- **Cargar stock real** (stock actual y mínimo por producto) → actualiza el catálogo del
+  local y deja trazabilidad en `CONTROL STOCK`.
 
 Los cambios van directo a la planilla (vía `Code.gs`: acciones `addProducto` /
 `addResponsable`). El form refresca el catálogo solo. Requiere `Code.gs` v2 desplegado.
@@ -33,7 +36,7 @@ Hamburguesería · Eventos · Shopping.
 
 Hojas relevantes: `CATÁLOGO PRODUCTOS`, `CONFIGURACIÓN`, `PEDIDOS RECIBIDOS`,
 `PEDIDOS_DETALLE` (nueva, normalizada), `RESUMEN POR PROVEEDOR` (nueva),
-`ÓRDENES DE COMPRA`, `DASHBOARD GERENCIAL`, `CONTROL STOCK`.
+`ÓRDENES DE COMPRA`, `DASHBOARD GERENCIAL`, `CONTROL STOCK` (conteos manuales por local).
 
 ### Modelo de datos (clave)
 

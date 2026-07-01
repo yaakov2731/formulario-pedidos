@@ -252,6 +252,18 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   transition:background .15s var(--ease),transform .4s var(--ease)}
 .gear:hover{background:oklch(1 0 0 / 0.24);transform:rotate(45deg)}
 .gear svg{width:18px;height:18px}
+.hero-action{flex:none;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:10px;
+  border:1px solid oklch(1 0 0 / 0.22);background:oklch(1 0 0 / 0.14);color:#fff;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+  transition:background .15s var(--ease),transform .12s var(--ease)}
+.hero-action:hover{background:oklch(1 0 0 / 0.24);transform:translateY(-1px)}
+.hero-action svg{width:15px;height:15px}
+.hero-actions{display:flex;align-items:center;gap:8px;margin-left:12px}
+.inline-btn{flex:none;display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  box-shadow:0 2px 0 var(--line-strong);transition:background .12s var(--ease),transform .12s var(--ease),box-shadow .12s var(--ease)}
+.inline-btn:hover{background:var(--surface);transform:translateY(-1px);box-shadow:0 3px 0 var(--line-strong)}
+.inline-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line-strong)}
+.inline-btn svg{width:15px;height:15px}
 
 /* Config overlay */
 .cfg{position:fixed;inset:0;z-index:70;background:oklch(0.3 0.03 240 / 0.45);backdrop-filter:blur(3px);
@@ -286,6 +298,38 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .cfg-btn:disabled{opacity:.6;cursor:not-allowed}
 .cfg-note{font-size:11.5px;color:var(--ink-faint);text-align:center}
 
+/* Stock */
+.stock-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.stock-card{background:linear-gradient(180deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow-sm)}
+.stock-card .k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.stock-card .v{font-size:24px;font-weight:700;letter-spacing:-0.03em;line-height:1.05;margin-top:6px}
+.stock-card .m{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.stock-card.good .v{color:var(--green)}
+.stock-card.warn .v{color:oklch(0.58 0.14 75)}
+.stock-card.bad .v{color:var(--red)}
+.stock-list{display:flex;flex-direction:column;gap:8px}
+.stock-empty{padding:16px;border:1.5px dashed var(--line-strong);border-radius:12px;text-align:center;color:var(--ink-soft);font-size:13px}
+.stock-line{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.stock-line-main{flex:1;min-width:0}
+.stock-line-name{font-size:14px;font-weight:600;line-height:1.25}
+.stock-line-meta{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.stock-line-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.stock-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.stock-pill.ok{background:var(--green-tint);color:oklch(0.40 0.11 150)}
+.stock-pill.warn{background:var(--amber-tint);color:oklch(0.50 0.12 75)}
+.stock-pill.bad{background:var(--red-tint);color:oklch(0.46 0.15 25)}
+.stock-pill.soft{background:var(--surface-2);color:var(--ink-soft)}
+.stock-metric{font-size:12px;color:var(--ink-soft);text-align:right}
+.stock-grid{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow:auto}
+.stock-row{display:grid;grid-template-columns:minmax(0,1fr) 120px 120px;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.stock-row-main{min-width:0}
+.stock-row-name{font-size:14px;font-weight:600;line-height:1.25}
+.stock-row-meta{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.stock-input-wrap label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+.stock-caption{font-size:12px;color:var(--ink-soft);padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.stock-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stock-toolbar .snum{margin-left:auto}
+
 /* Compactación mobile: menos scroll en iPhone */
 @media(max-width:560px){
   .wrap{padding:12px 11px 92px}
@@ -311,6 +355,13 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .urgb{padding:11px 6px}
   textarea{min-height:72px}
   .foot{font-size:11px}
+  .hero-actions{margin-left:auto}
+  .hero-action span{display:none}
+  .hero-action{width:34px;padding:0;justify-content:center}
+  .stock-overview{grid-template-columns:1fr}
+  .stock-line{flex-direction:column}
+  .stock-line-side{align-items:flex-start}
+  .stock-row{grid-template-columns:1fr}
 }
 
 .hint{font-size:12px;color:var(--ink-faint);margin-top:8px}
@@ -329,9 +380,15 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
         <p>Polo Gastronómico · Docks del Puerto</p>
       </div>
       <div class="conn"><span class="dot" id="connDot"></span><span id="connTxt">Listo</span></div>
-      <button class="gear" id="cfgBtn" type="button" aria-label="Configuración" title="Configuración">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
+      <div class="hero-actions">
+        <button class="hero-action" id="stockBtn" type="button" aria-label="Cargar stock real" title="Cargar stock real">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4"/><path d="M20 12H4"/><path d="M20 17H4"/><path d="M15 4v16"/></svg>
+          <span>Stock real</span>
+        </button>
+        <button class="gear" id="cfgBtn" type="button" aria-label="Configuración" title="Configuración">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
     </div>
     <div class="hero-foot">
       <span>Puerto de Frutos · Tigre</span>
@@ -389,7 +446,21 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     <div class="items" id="items"></div>
   </section>
 
-  <!-- 4. Urgencia -->
+  <!-- 4. Stock -->
+  <section>
+    <div class="shead">
+      <div><p class="skicker">Stock</p><h2>Lectura operativa del pedido</h2></div>
+      <button type="button" class="inline-btn" id="stockInlineBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Cargar stock real
+      </button>
+    </div>
+    <div class="stock-overview" id="stockOverview"></div>
+    <div class="stock-list" id="stockList"></div>
+    <p class="hint" id="stockHint">Elegí un local y cargá productos para ver la cobertura real del pedido.</p>
+  </section>
+
+  <!-- 5. Urgencia -->
   <section>
     <div class="shead"><div><p class="skicker">Prioridad</p><h2>Nivel de urgencia</h2></div></div>
     <div class="urg" id="urg">
@@ -399,7 +470,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     </div>
   </section>
 
-  <!-- 5. Observaciones -->
+  <!-- 6. Observaciones -->
   <section>
     <div class="shead"><div><p class="skicker">Notas</p><h2>Observaciones</h2><span class="snum">opcional</span></div></div>
     <textarea id="observaciones" placeholder="Aclaraciones para gerencia o el proveedor..."></textarea>
@@ -482,6 +553,38 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 
 <div class="toast" id="toast"></div>
 
+<div class="cfg" id="stockModal" hidden>
+  <div class="cfg-panel">
+    <div class="cfg-head">
+      <div><p class="skicker">Operación</p><h2>Control de stock por local</h2></div>
+      <button class="cfg-close" id="stockClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="cfg-body">
+      <div class="stock-toolbar">
+        <div class="field">
+          <label>Local</label>
+          <select id="stockLocal"></select>
+        </div>
+        <span class="snum" id="stockCatalogMeta"></span>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Encargado que registra</label>
+          <input type="text" id="stockEncargado" placeholder="Nombre y apellido">
+        </div>
+        <div class="field">
+          <label>Observación general</label>
+          <input type="text" id="stockObs" placeholder="Conteo parcial, cierre, faltantes...">
+        </div>
+      </div>
+      <div class="stock-caption">Cargá el stock real disponible de cada producto. Se guarda en Google Sheets y actualiza la lectura del pedido para ese local.</div>
+      <div class="stock-grid" id="stockGrid"></div>
+      <button class="cfg-btn" id="stockSave" type="button">Guardar stock real</button>
+      <p class="cfg-note">Cada guardado actualiza el catálogo del local y deja trazabilidad en la pestaña CONTROL STOCK.</p>
+    </div>
+  </div>
+</div>
+
 <script>
 "use strict";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwo7hOofjYGzqHpJBpjZVdtqHupp2hPbb88J54oAgEsJd4-8J_xBnADEZzTzhORvG9D/exec";
@@ -559,8 +662,8 @@ let CATALOG = {
     p("SHO001","Productos Generales","unidad","Distribuidora General",2500,"General"),
   ],
 };
-function p(codigo,nombre,unidad,proveedor,precio,categoria){
-  return {codigo,nombre,unidad,proveedor,precio,categoria};
+function p(codigo,nombre,unidad,proveedor,precio,categoria,stock_actual,stock_minimo){
+  return {codigo,nombre,unidad,proveedor,precio,categoria,stock_actual,stock_minimo};
 }
 
 const UNITS = ["kg","g","litro","ml","unidad","docena","paquete","caja","bolsa","lata","botella","set","arreglo"];
@@ -585,6 +688,7 @@ function toast(msg,type){const t=$("#toast");t.className="toast show "+(type||""
 const icoCheck='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 const icoX='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
 const icoTrash='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
+const icoStock='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><path d="M15 4v16"/></svg>';
 
 /* ---- Render locales ---- */
 function renderLocales(){
@@ -612,6 +716,7 @@ function selectLocal(id){
     ? `Catálogo de <b>${id}</b>: ${cat.length} productos. Escribí para buscar, o <b>+ Libre</b> para otro.`
     : `<b>${id}</b> no tiene catálogo cargado todavía. Cargá los productos con <b>+ Libre</b>.`;
   $("#prodSearch").value=""; closeSuggest();
+  renderStockIntelligence();
   syncSend();
   if(navigator.vibrate) navigator.vibrate(8);
 }
@@ -688,11 +793,12 @@ function renderItems(){
     </div>`).join("");
   box.querySelectorAll(".item").forEach(row=>{
     const id=+row.dataset.id, it=state.items.find(x=>x._id===id);
-    row.querySelector('[data-act="qty"]').addEventListener("input",e=>{it.qty=parseFloat(e.target.value)||0;updateSummary();});
-    row.querySelector('[data-act="unit"]').addEventListener("change",e=>{it.unidad=e.target.value;updateSummary();});
+    row.querySelector('[data-act="qty"]').addEventListener("input",e=>{it.qty=parseFloat(e.target.value)||0;updateSummary(); renderStockIntelligence();});
+    row.querySelector('[data-act="unit"]').addEventListener("change",e=>{it.unidad=e.target.value;updateSummary(); renderStockIntelligence();});
     row.querySelector('[data-act="del"]').addEventListener("click",()=>{state.items=state.items.filter(x=>x._id!==id);renderItems();});
   });
   updateSummary();
+  renderStockIntelligence();
 }
 function updateSummary(){
   const n=state.items.length;
@@ -779,6 +885,84 @@ function formatSemana(v){
   const m=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const f=new Date(y,0,1+(w-1)*7); return `Semana ${w} - ${m[f.getMonth()]} ${y}`;
 }
+function num(v){ const n=parseFloat(String(v).replace(",", ".")); return Number.isFinite(n)?n:null; }
+function qtyText(v,unidad){
+  const n=num(v);
+  return `${n===null?esc(v):esc(trim(n))} ${esc(unidad||"")}`.trim();
+}
+function getCatalogMap(local){
+  const map=new Map();
+  (CATALOG[local]||[]).forEach(item=>{
+    if(item.codigo) map.set(`code:${item.codigo}`,item);
+    map.set(`name:${String(item.nombre||"").toLowerCase()}`,item);
+  });
+  return map;
+}
+function stockMetaForItem(it){
+  if(!state.local || it.free) return {status:"soft",label:it.free?"Sin referencia":"Sin datos",message:"Producto libre sin stock asociado",side:""};
+  const map=getCatalogMap(state.local);
+  const rec=map.get(`code:${it.codigo}`)||map.get(`name:${String(it.nombre||"").toLowerCase()}`);
+  if(!rec) return {status:"soft",label:"Sin dato",message:"No figura en el catálogo del local",side:""};
+  const stock=num(rec.stock_actual);
+  const minimo=num(rec.stock_minimo);
+  const pedido=num(it.qty);
+  if(stock===null) return {status:"soft",label:"Sin conteo",message:"Falta cargar stock real",side:minimo!==null?`Mínimo ${qtyText(minimo,rec.unidad)}`:""};
+  if(rec.unidad && it.unidad && rec.unidad !== it.unidad){
+    return {status:"soft",label:"Unidad distinta",message:`Stock cargado en ${rec.unidad}`,side:`Pedido en ${it.unidad}`};
+  }
+  const saldo=trim(stock-pedido);
+  if(stock - pedido < 0) return {status:"bad",label:"Faltante",message:`Stock ${qtyText(stock,rec.unidad)} · pedido ${qtyText(pedido,it.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
+  if(minimo!==null && stock - pedido < minimo) return {status:"warn",label:"Bajo mínimo",message:`Stock ${qtyText(stock,rec.unidad)} · mínimo ${qtyText(minimo,rec.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
+  return {status:"ok",label:"Cubierto",message:`Stock ${qtyText(stock,rec.unidad)} disponible`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
+}
+function renderStockIntelligence(){
+  const overview=$("#stockOverview"), list=$("#stockList"), hint=$("#stockHint");
+  if(!state.local){
+    overview.innerHTML="";
+    list.innerHTML=`<div class="stock-empty">Elegí primero un local para activar la lectura de stock.</div>`;
+    hint.textContent="El control toma el catálogo y el stock real del local seleccionado.";
+    return;
+  }
+  if(!state.items.length){
+    const cat=CATALOG[state.local]||[];
+    const withStock=cat.filter(x=>num(x.stock_actual)!==null).length;
+    const low=cat.filter(x=>{ const s=num(x.stock_actual), m=num(x.stock_minimo); return s!==null && m!==null && s<=m; }).length;
+    overview.innerHTML = [
+      metricCard("Catálogo activo", cat.length, "productos del local", ""),
+      metricCard("Con conteo", withStock, "productos con stock real", "good"),
+      metricCard("Críticos", low, "debajo del mínimo", low?"warn":"")
+    ].join("");
+    list.innerHTML=`<div class="stock-empty">Agregá productos al pedido para ver cobertura, faltantes y saldo proyectado.</div>`;
+    hint.textContent="Podés actualizar el stock real antes de armar el pedido para mejorar la lectura operativa.";
+    return;
+  }
+  const metrics={ok:0,warn:0,bad:0,soft:0};
+  const lines=state.items.map(it=>{
+    const meta=stockMetaForItem(it);
+    metrics[meta.status]=(metrics[meta.status]||0)+1;
+    return `
+      <div class="stock-line">
+        <div class="stock-line-main">
+          <div class="stock-line-name">${esc(it.nombre)}</div>
+          <div class="stock-line-meta">Pedido: ${qtyText(it.qty,it.unidad)}${it.proveedor?` · ${esc(it.proveedor)}`:""}</div>
+        </div>
+        <div class="stock-line-side">
+          <span class="stock-pill ${meta.status}">${esc(meta.label)}</span>
+          <div class="stock-metric">${esc(meta.message)}${meta.side?`<br>${esc(meta.side)}`:""}</div>
+        </div>
+      </div>`;
+  }).join("");
+  overview.innerHTML = [
+    metricCard("Cubiertos", metrics.ok, "sin tensión operativa", "good"),
+    metricCard("Bajo mínimo", metrics.warn, "conviene reponer", metrics.warn?"warn":""),
+    metricCard("Sin stock / sin dato", metrics.bad + metrics.soft, "requieren revisión", (metrics.bad + metrics.soft)?"bad":"")
+  ].join("");
+  list.innerHTML=lines;
+  hint.textContent="La lectura compara el pedido contra el último stock real guardado para este local.";
+}
+function metricCard(label,value,meta,cls){
+  return `<div class="stock-card ${cls||""}"><div class="k">${esc(label)}</div><div class="v">${esc(value)}</div><div class="m">${esc(meta)}</div></div>`;
+}
 
 /* ---- Live data (best-effort; cae al snapshot si el script no responde) ---- */
 async function warmData(){
@@ -790,6 +974,7 @@ async function warmData(){
     if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
     if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
     setConn(true,"En vivo");
+    renderStockIntelligence();
   }catch{ setConn(true,"Catálogo local"); }
 }
 const LOCAL_ALIAS = {
@@ -804,7 +989,7 @@ function aliasKeys(obj){
   return out;
 }
 function normalizeCatalog(raw){
-  const out={}; for(const k in raw){ out[k]=raw[k].map(x=>p(x.codigo||"",x.nombre||x.producto||"",x.unidad||"unidad",x.proveedor||"",+x.precio||0,x.categoria||"")); }
+  const out={}; for(const k in raw){ out[k]=raw[k].map(x=>p(x.codigo||"",x.nombre||x.producto||"",x.unidad||"unidad",x.proveedor||"",+x.precio||0,x.categoria||"",x.stock_actual,x.stock_minimo)); }
   return out;
 }
 function setConn(ok,txt){ $("#connDot").classList.toggle("off",!ok); $("#connTxt").textContent=txt; }
@@ -845,6 +1030,7 @@ async function refreshData(){
     if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
     if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
     if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
+    renderStockIntelligence();
     return true;
   }catch{ return false; }
 }
@@ -882,9 +1068,95 @@ $("#cfgLocal").addEventListener("change",renderCfg);
 $("#cfgAddProd").addEventListener("click",addProducto);
 $("#cfgAddResp").addEventListener("click",addResponsable);
 
+/* ---- Stock modal ---- */
+const stockModal=$("#stockModal");
+function openStock(){
+  const sel=$("#stockLocal");
+  sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
+  sel.value=state.local||LOCALES[0].id;
+  $("#stockEncargado").value=$("#encargado").value.trim() || (CONFIG[sel.value]&&CONFIG[sel.value].enc) || "";
+  $("#stockObs").value="";
+  renderStockModal();
+  stockModal.hidden=false;
+}
+function closeStock(){ stockModal.hidden=true; }
+function stockLocalVal(){ return $("#stockLocal").value; }
+function renderStockModal(){
+  const local=stockLocalVal();
+  const cat=CATALOG[local]||[];
+  $("#stockCatalogMeta").textContent=`${cat.length} producto${cat.length===1?"":"s"}`;
+  $("#stockEncargado").value=$("#stockEncargado").value.trim() || $("#encargado").value.trim() || (CONFIG[local]&&CONFIG[local].enc) || "";
+  $("#stockGrid").innerHTML = cat.length ? cat.map((item,idx)=>`
+    <div class="stock-row" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
+      <div class="stock-row-main">
+        <div class="stock-row-name">${esc(item.nombre)}</div>
+        <div class="stock-row-meta">${esc(item.codigo||"—")} · ${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}</div>
+      </div>
+      <div class="stock-input-wrap">
+        <label>Mínimo</label>
+        <input type="number" step="0.1" value="${item.stock_minimo ?? ""}" data-field="minimo" inputmode="decimal" aria-label="Stock mínimo ${esc(item.nombre)}">
+      </div>
+      <div class="stock-input-wrap">
+        <label>Real (${esc(item.unidad||"unidad")})</label>
+        <input type="number" step="0.1" value="${item.stock_actual ?? ""}" data-field="actual" inputmode="decimal" aria-label="Stock real ${esc(item.nombre)}">
+      </div>
+    </div>`).join("") : `<div class="stock-empty">Este local no tiene catálogo cargado todavía.</div>`;
+}
+async function saveStock(){
+  const local=stockLocalVal();
+  const rows=[...$("#stockGrid").querySelectorAll(".stock-row")];
+  const items=rows.map(row=>{
+    const code=row.dataset.code||"";
+    const name=row.dataset.name||"";
+    const cat=(CATALOG[local]||[]).find(x=>(x.codigo||"")===code || x.nombre===name) || {};
+    const actual=row.querySelector('[data-field="actual"]').value.trim();
+    const minimo=row.querySelector('[data-field="minimo"]').value.trim();
+    return {
+      codigo:cat.codigo||code,
+      producto:cat.nombre||name,
+      categoria:cat.categoria||"",
+      unidad:cat.unidad||"unidad",
+      stock_actual:actual,
+      stock_minimo:minimo,
+      observaciones:$("#stockObs").value.trim()
+    };
+  }).filter(it=>it.stock_actual!=="");
+  if(!items.length){ toast("Cargá al menos un valor de stock real","err"); return; }
+  const payload={
+    action:"saveStock",
+    id_stock:"STK"+Date.now().toString().slice(-6),
+    fecha_hora:new Date().toLocaleString("es-AR"),
+    local,
+    encargado:$("#stockEncargado").value.trim() || $("#encargado").value.trim(),
+    observaciones:$("#stockObs").value.trim(),
+    items
+  };
+  const btn=$("#stockSave"); const orig=btn.textContent;
+  btn.disabled=true; btn.textContent="Guardando...";
+  try{
+    await apiPost(payload);
+    await sleep(1000);
+    await refreshData();
+    toast("Stock real actualizado","ok");
+    closeStock();
+    if(state.local===local) renderStockIntelligence();
+  }catch{
+    toast("Error al guardar stock","err");
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+$("#stockBtn").addEventListener("click",openStock);
+$("#stockInlineBtn").addEventListener("click",openStock);
+$("#stockClose").addEventListener("click",closeStock);
+stockModal.addEventListener("click",e=>{ if(e.target===stockModal) closeStock(); });
+$("#stockLocal").addEventListener("change",renderStockModal);
+$("#stockSave").addEventListener("click",saveStock);
+
 /* ---- Init ---- */
 renderLocales(); renderItems(); syncSend();
 setConn(true,"Catálogo local");
+renderStockIntelligence();
 warmData();
 </script>
 <style>.spin{animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>
