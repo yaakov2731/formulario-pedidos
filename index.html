@@ -258,12 +258,6 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .hero-action:hover{background:oklch(1 0 0 / 0.24);transform:translateY(-1px)}
 .hero-action svg{width:15px;height:15px}
 .hero-actions{display:flex;align-items:center;gap:8px;margin-left:12px}
-.inline-btn{flex:none;display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);
-  background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;
-  box-shadow:0 2px 0 var(--line-strong);transition:background .12s var(--ease),transform .12s var(--ease),box-shadow .12s var(--ease)}
-.inline-btn:hover{background:var(--surface);transform:translateY(-1px);box-shadow:0 3px 0 var(--line-strong)}
-.inline-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line-strong)}
-.inline-btn svg{width:15px;height:15px}
 
 /* Config overlay */
 .cfg{position:fixed;inset:0;z-index:70;background:oklch(0.3 0.03 240 / 0.45);backdrop-filter:blur(3px);
@@ -299,7 +293,11 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .cfg-note{font-size:11.5px;color:var(--ink-faint);text-align:center}
 
 /* Stock */
-.stock-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.stock-actions{display:grid;grid-template-columns:minmax(0,220px) 1fr;gap:12px;margin-bottom:14px}
+.stock-cta{min-height:108px;justify-content:space-between}
+.stock-cta .nm{font-size:15px}
+.stock-cta .sub{font-size:11.5px;color:var(--ink-soft);line-height:1.35}
+.stock-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .stock-card{background:linear-gradient(180deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow-sm)}
 .stock-card .k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
 .stock-card .v{font-size:24px;font-weight:700;letter-spacing:-0.03em;line-height:1.05;margin-top:6px}
@@ -307,6 +305,10 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .stock-card.good .v{color:var(--green)}
 .stock-card.warn .v{color:oklch(0.58 0.14 75)}
 .stock-card.bad .v{color:var(--red)}
+.stock-panel{background:linear-gradient(180deg,var(--surface),oklch(0.985 0.004 235));border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow-sm)}
+.stock-panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:12px}
+.stock-panel-head h3{font-size:15px;font-weight:700;letter-spacing:-0.01em}
+.stock-panel-head p{font-size:11.5px;color:var(--ink-soft);margin-top:3px}
 .stock-list{display:flex;flex-direction:column;gap:8px}
 .stock-empty{padding:16px;border:1.5px dashed var(--line-strong);border-radius:12px;text-align:center;color:var(--ink-soft);font-size:13px}
 .stock-line{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm)}
@@ -320,15 +322,21 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .stock-pill.bad{background:var(--red-tint);color:oklch(0.46 0.15 25)}
 .stock-pill.soft{background:var(--surface-2);color:var(--ink-soft)}
 .stock-metric{font-size:12px;color:var(--ink-soft);text-align:right}
+.stock-dash{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.stock-dash-card{padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-sm)}
+.stock-dash-card .label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.stock-dash-card .value{font-size:18px;font-weight:700;letter-spacing:-0.02em;margin-top:4px}
+.stock-dash-card .meta{font-size:12px;color:var(--ink-soft);margin-top:4px}
 .stock-grid{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow:auto}
-.stock-row{display:grid;grid-template-columns:minmax(0,1fr) 120px 120px;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.stock-row{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm)}
 .stock-row-main{min-width:0}
 .stock-row-name{font-size:14px;font-weight:600;line-height:1.25}
 .stock-row-meta{font-size:12px;color:var(--ink-soft);margin-top:4px}
 .stock-input-wrap label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
 .stock-caption{font-size:12px;color:var(--ink-soft);padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
-.stock-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stock-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
 .stock-toolbar .snum{margin-left:auto}
+.stock-search{margin-top:2px}
 
 /* Compactación mobile: menos scroll en iPhone */
 @media(max-width:560px){
@@ -358,10 +366,13 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .hero-actions{margin-left:auto}
   .hero-action span{display:none}
   .hero-action{width:34px;padding:0;justify-content:center}
+  .stock-actions{grid-template-columns:1fr}
   .stock-overview{grid-template-columns:1fr}
   .stock-line{flex-direction:column}
   .stock-line-side{align-items:flex-start}
+  .stock-dash{grid-template-columns:1fr}
   .stock-row{grid-template-columns:1fr}
+  .stock-toolbar{grid-template-columns:1fr}
 }
 
 .hint{font-size:12px;color:var(--ink-faint);margin-top:8px}
@@ -449,14 +460,28 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   <!-- 4. Stock -->
   <section>
     <div class="shead">
-      <div><p class="skicker">Stock</p><h2>Lectura operativa del pedido</h2></div>
-      <button type="button" class="inline-btn" id="stockInlineBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-        Cargar stock real
-      </button>
+      <div><p class="skicker">Stock</p><h2>Conteo y lectura operativa</h2></div>
+      <span class="snum" id="stockSectionMeta">Sin conteo</span>
     </div>
-    <div class="stock-overview" id="stockOverview"></div>
-    <div class="stock-list" id="stockList"></div>
+    <div class="stock-actions">
+      <button type="button" class="local stock-cta" id="stockInlineBtn" aria-label="Cargar stock real">
+        <span class="ico">📦</span>
+        <span class="nm">Cargar stock real</span>
+        <span class="sub">Conteo parcial o cierre, rápido y preciso desde el iPhone.</span>
+      </button>
+      <div class="stock-overview" id="stockOverview"></div>
+    </div>
+    <div class="stock-panel">
+      <div class="stock-panel-head">
+        <div>
+          <h3>Impacto del pedido sobre el stock</h3>
+          <p>Comparación entre lo pedido y el último conteo cargado del local.</p>
+        </div>
+        <span class="snum" id="stockPendingMeta">0 cruces</span>
+      </div>
+      <div class="stock-list" id="stockList"></div>
+      <div class="stock-dash" id="stockDash"></div>
+    </div>
     <p class="hint" id="stockHint">Elegí un local y cargá productos para ver la cobertura real del pedido.</p>
   </section>
 
@@ -565,7 +590,13 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
           <label>Local</label>
           <select id="stockLocal"></select>
         </div>
-        <span class="snum" id="stockCatalogMeta"></span>
+        <div class="field">
+          <label>Tipo de conteo</label>
+          <select id="stockType">
+            <option value="Conteo parcial">Conteo parcial</option>
+            <option value="Cierre">Cierre</option>
+          </select>
+        </div>
       </div>
       <div class="grid2">
         <div class="field">
@@ -577,10 +608,12 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
           <input type="text" id="stockObs" placeholder="Conteo parcial, cierre, faltantes...">
         </div>
       </div>
-      <div class="stock-caption">Cargá el stock real disponible de cada producto. Se guarda en Google Sheets y actualiza la lectura del pedido para ese local.</div>
+      <input class="stock-search" id="stockSearch" type="text" placeholder="Filtrá productos para contar más rápido...">
+      <div class="stock-caption">Cargá solo stock real. El sistema guarda el conteo, actualiza el catálogo del local y refresca la lectura operativa del pedido.</div>
+      <span class="snum" id="stockCatalogMeta"></span>
       <div class="stock-grid" id="stockGrid"></div>
       <button class="cfg-btn" id="stockSave" type="button">Guardar stock real</button>
-      <p class="cfg-note">Cada guardado actualiza el catálogo del local y deja trazabilidad en la pestaña CONTROL STOCK.</p>
+      <p class="cfg-note">Cada guardado deja trazabilidad en CONTROL STOCK y alimenta el DASHBOARD STOCK.</p>
     </div>
   </div>
 </div>
@@ -899,40 +932,45 @@ function getCatalogMap(local){
   return map;
 }
 function stockMetaForItem(it){
-  if(!state.local || it.free) return {status:"soft",label:it.free?"Sin referencia":"Sin datos",message:"Producto libre sin stock asociado",side:""};
+  if(!state.local || it.free) return {status:"soft",label:it.free?"Libre":"Sin dato",message:"Sin referencia directa de stock",side:""};
   const map=getCatalogMap(state.local);
   const rec=map.get(`code:${it.codigo}`)||map.get(`name:${String(it.nombre||"").toLowerCase()}`);
   if(!rec) return {status:"soft",label:"Sin dato",message:"No figura en el catálogo del local",side:""};
   const stock=num(rec.stock_actual);
-  const minimo=num(rec.stock_minimo);
   const pedido=num(it.qty);
-  if(stock===null) return {status:"soft",label:"Sin conteo",message:"Falta cargar stock real",side:minimo!==null?`Mínimo ${qtyText(minimo,rec.unidad)}`:""};
+  if(stock===null) return {status:"soft",label:"Sin conteo",message:"Falta cargar stock real",side:""};
   if(rec.unidad && it.unidad && rec.unidad !== it.unidad){
     return {status:"soft",label:"Unidad distinta",message:`Stock cargado en ${rec.unidad}`,side:`Pedido en ${it.unidad}`};
   }
   const saldo=trim(stock-pedido);
+  if(stock <= 0) return {status:"bad",label:"Sin stock",message:`Stock ${qtyText(stock,rec.unidad)} · pedido ${qtyText(pedido,it.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
   if(stock - pedido < 0) return {status:"bad",label:"Faltante",message:`Stock ${qtyText(stock,rec.unidad)} · pedido ${qtyText(pedido,it.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
-  if(minimo!==null && stock - pedido < minimo) return {status:"warn",label:"Bajo mínimo",message:`Stock ${qtyText(stock,rec.unidad)} · mínimo ${qtyText(minimo,rec.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
+  if(stock - pedido === 0) return {status:"warn",label:"Justo",message:`El pedido consume todo el stock disponible`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
   return {status:"ok",label:"Cubierto",message:`Stock ${qtyText(stock,rec.unidad)} disponible`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
 }
 function renderStockIntelligence(){
-  const overview=$("#stockOverview"), list=$("#stockList"), hint=$("#stockHint");
+  const overview=$("#stockOverview"), list=$("#stockList"), hint=$("#stockHint"), dash=$("#stockDash");
   if(!state.local){
     overview.innerHTML="";
     list.innerHTML=`<div class="stock-empty">Elegí primero un local para activar la lectura de stock.</div>`;
+    dash.innerHTML="";
+    $("#stockSectionMeta").textContent="Sin conteo";
+    $("#stockPendingMeta").textContent="0 cruces";
     hint.textContent="El control toma el catálogo y el stock real del local seleccionado.";
     return;
   }
+  const cat=CATALOG[state.local]||[];
+  const withCount=cat.filter(x=>num(x.stock_actual)!==null).length;
+  $("#stockSectionMeta").textContent = withCount ? `${withCount} con conteo` : "Sin conteo";
   if(!state.items.length){
-    const cat=CATALOG[state.local]||[];
-    const withStock=cat.filter(x=>num(x.stock_actual)!==null).length;
-    const low=cat.filter(x=>{ const s=num(x.stock_actual), m=num(x.stock_minimo); return s!==null && m!==null && s<=m; }).length;
     overview.innerHTML = [
       metricCard("Catálogo activo", cat.length, "productos del local", ""),
-      metricCard("Con conteo", withStock, "productos con stock real", "good"),
-      metricCard("Críticos", low, "debajo del mínimo", low?"warn":"")
+      metricCard("Con conteo", withCount, "stock real cargado", withCount?"good":""),
+      metricCard("Sin stock", cat.filter(x=>num(x.stock_actual)===0).length, "productos agotados", cat.some(x=>num(x.stock_actual)===0)?"bad":"")
     ].join("");
     list.innerHTML=`<div class="stock-empty">Agregá productos al pedido para ver cobertura, faltantes y saldo proyectado.</div>`;
+    dash.innerHTML = dashboardCardsForLocal(cat);
+    $("#stockPendingMeta").textContent="0 cruces";
     hint.textContent="Podés actualizar el stock real antes de armar el pedido para mejorar la lectura operativa.";
     return;
   }
@@ -953,15 +991,43 @@ function renderStockIntelligence(){
       </div>`;
   }).join("");
   overview.innerHTML = [
-    metricCard("Cubiertos", metrics.ok, "sin tensión operativa", "good"),
-    metricCard("Bajo mínimo", metrics.warn, "conviene reponer", metrics.warn?"warn":""),
-    metricCard("Sin stock / sin dato", metrics.bad + metrics.soft, "requieren revisión", (metrics.bad + metrics.soft)?"bad":"")
+    metricCard("Cubiertos", metrics.ok, "pedido absorbido por stock", "good"),
+    metricCard("Justos", metrics.warn, "consumen todo el stock", metrics.warn?"warn":""),
+    metricCard("En revisión", metrics.bad + metrics.soft, "faltantes o sin conteo", (metrics.bad + metrics.soft)?"bad":"")
   ].join("");
   list.innerHTML=lines;
+  dash.innerHTML = dashboardCardsForPedido(metrics, cat);
+  $("#stockPendingMeta").textContent=`${state.items.length} cruces`;
   hint.textContent="La lectura compara el pedido contra el último stock real guardado para este local.";
 }
 function metricCard(label,value,meta,cls){
   return `<div class="stock-card ${cls||""}"><div class="k">${esc(label)}</div><div class="v">${esc(value)}</div><div class="m">${esc(meta)}</div></div>`;
+}
+function dashboardCardsForLocal(cat){
+  const totalStock=cat.reduce((sum,x)=>sum+(num(x.stock_actual)||0),0);
+  const withZero=cat.filter(x=>num(x.stock_actual)===0).length;
+  return [
+    dashCard("Stock total visible", trim(totalStock), "suma de cantidades cargadas"),
+    dashCard("Productos sin conteo", cat.length - cat.filter(x=>num(x.stock_actual)!==null).length, "todavía no relevados"),
+    dashCard("Agotados", withZero, "stock real en cero"),
+    dashCard("Lectura recomendada", withZero ? "Reponer" : "Operativo", withZero ? "hay productos sin stock" : "sin faltantes en catálogo")
+  ].join("");
+}
+function dashboardCardsForPedido(metrics, cat){
+  const requestedQty=state.items.reduce((sum,it)=>sum+(num(it.qty)||0),0);
+  const visibleStock=state.items.reduce((sum,it)=>{
+    const rec=(getCatalogMap(state.local).get(`code:${it.codigo}`)||getCatalogMap(state.local).get(`name:${String(it.nombre||"").toLowerCase()}`));
+    return sum + (rec ? (num(rec.stock_actual)||0) : 0);
+  },0);
+  return [
+    dashCard("Pedido cargado", trim(requestedQty), "cantidad total solicitada"),
+    dashCard("Stock leído", trim(visibleStock), "solo productos del pedido"),
+    dashCard("Productos cubiertos", metrics.ok, "sin tensión operativa"),
+    dashCard("Acción inmediata", metrics.bad ? "Comprar" : (metrics.soft ? "Contar" : "OK"), metrics.bad ? "hay faltantes reales" : (metrics.soft ? "faltan conteos" : "pedido cubierto"))
+  ].join("");
+}
+function dashCard(label,value,meta){
+  return `<div class="stock-dash-card"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="meta">${esc(meta)}</div></div>`;
 }
 
 /* ---- Live data (best-effort; cae al snapshot si el script no responde) ---- */
@@ -1076,6 +1142,8 @@ function openStock(){
   sel.value=state.local||LOCALES[0].id;
   $("#stockEncargado").value=$("#encargado").value.trim() || (CONFIG[sel.value]&&CONFIG[sel.value].enc) || "";
   $("#stockObs").value="";
+  $("#stockSearch").value="";
+  $("#stockType").value="Conteo parcial";
   renderStockModal();
   stockModal.hidden=false;
 }
@@ -1084,23 +1152,25 @@ function stockLocalVal(){ return $("#stockLocal").value; }
 function renderStockModal(){
   const local=stockLocalVal();
   const cat=CATALOG[local]||[];
-  $("#stockCatalogMeta").textContent=`${cat.length} producto${cat.length===1?"":"s"}`;
+  const q=$("#stockSearch").value.trim().toLowerCase();
+  const filtered = q ? cat.filter(item=>
+    item.nombre.toLowerCase().includes(q) ||
+    String(item.codigo||"").toLowerCase().includes(q) ||
+    String(item.categoria||"").toLowerCase().includes(q)
+  ) : cat;
+  $("#stockCatalogMeta").textContent=`${filtered.length} de ${cat.length} producto${cat.length===1?"":"s"}`;
   $("#stockEncargado").value=$("#stockEncargado").value.trim() || $("#encargado").value.trim() || (CONFIG[local]&&CONFIG[local].enc) || "";
-  $("#stockGrid").innerHTML = cat.length ? cat.map((item,idx)=>`
+  $("#stockGrid").innerHTML = filtered.length ? filtered.map(item=>`
     <div class="stock-row" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
       <div class="stock-row-main">
         <div class="stock-row-name">${esc(item.nombre)}</div>
-        <div class="stock-row-meta">${esc(item.codigo||"—")} · ${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}</div>
-      </div>
-      <div class="stock-input-wrap">
-        <label>Mínimo</label>
-        <input type="number" step="0.1" value="${item.stock_minimo ?? ""}" data-field="minimo" inputmode="decimal" aria-label="Stock mínimo ${esc(item.nombre)}">
+        <div class="stock-row-meta">${esc(item.codigo||"—")} · ${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${item.stock_actual!==""&&item.stock_actual!=null?` · último ${esc(trim(num(item.stock_actual)||0))} ${esc(item.unidad||"")}`:""}</div>
       </div>
       <div class="stock-input-wrap">
         <label>Real (${esc(item.unidad||"unidad")})</label>
         <input type="number" step="0.1" value="${item.stock_actual ?? ""}" data-field="actual" inputmode="decimal" aria-label="Stock real ${esc(item.nombre)}">
       </div>
-    </div>`).join("") : `<div class="stock-empty">Este local no tiene catálogo cargado todavía.</div>`;
+    </div>`).join("") : `<div class="stock-empty">${cat.length ? "No hay coincidencias para ese filtro." : "Este local no tiene catálogo cargado todavía."}</div>`;
 }
 async function saveStock(){
   const local=stockLocalVal();
@@ -1110,14 +1180,12 @@ async function saveStock(){
     const name=row.dataset.name||"";
     const cat=(CATALOG[local]||[]).find(x=>(x.codigo||"")===code || x.nombre===name) || {};
     const actual=row.querySelector('[data-field="actual"]').value.trim();
-    const minimo=row.querySelector('[data-field="minimo"]').value.trim();
     return {
       codigo:cat.codigo||code,
       producto:cat.nombre||name,
       categoria:cat.categoria||"",
       unidad:cat.unidad||"unidad",
       stock_actual:actual,
-      stock_minimo:minimo,
       observaciones:$("#stockObs").value.trim()
     };
   }).filter(it=>it.stock_actual!=="");
@@ -1127,6 +1195,7 @@ async function saveStock(){
     id_stock:"STK"+Date.now().toString().slice(-6),
     fecha_hora:new Date().toLocaleString("es-AR"),
     local,
+    tipo_conteo:$("#stockType").value,
     encargado:$("#stockEncargado").value.trim() || $("#encargado").value.trim(),
     observaciones:$("#stockObs").value.trim(),
     items
@@ -1151,6 +1220,7 @@ $("#stockInlineBtn").addEventListener("click",openStock);
 $("#stockClose").addEventListener("click",closeStock);
 stockModal.addEventListener("click",e=>{ if(e.target===stockModal) closeStock(); });
 $("#stockLocal").addEventListener("change",renderStockModal);
+$("#stockSearch").addEventListener("input",renderStockModal);
 $("#stockSave").addEventListener("click",saveStock);
 
 /* ---- Init ---- */

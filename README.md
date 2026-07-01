@@ -21,8 +21,9 @@ Pantalla de administración dentro del form. Por local permite:
 - **Agregar productos al catálogo** (nombre, categoría, unidad, proveedor) → escribe en
   `CATÁLOGO PRODUCTOS` con código autogenerado (PAR001, CAF005, ...).
 - **Agregar responsables** (nombre, email) → escribe en `CONFIGURACIÓN`.
-- **Cargar stock real** (stock actual y mínimo por producto) → actualiza el catálogo del
-  local y deja trazabilidad en `CONTROL STOCK`.
+- **Cargar stock real** (conteo parcial o cierre, solo stock real por producto) →
+  actualiza el catálogo del local, deja trazabilidad en `CONTROL STOCK` y alimenta
+  `DASHBOARD STOCK`.
 
 Los cambios van directo a la planilla (vía `Code.gs`: acciones `addProducto` /
 `addResponsable`). El form refresca el catálogo solo. Requiere `Code.gs` v2 desplegado.

@@ -25,11 +25,12 @@ var SHEET_PEDIDOS  = 'PEDIDOS RECIBIDOS';
 var SHEET_DETALLE  = 'PEDIDOS_DETALLE';
 var SHEET_RESUMEN  = 'RESUMEN POR PROVEEDOR';
 var SHEET_STOCK    = 'CONTROL STOCK';
+var SHEET_STOCK_DASH = 'DASHBOARD STOCK';
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
   'Código','Producto','Categoría','Cantidad','Unidad','Proveedor','Estado','Comprado','Entregado'];
-var STOCK_HEADERS = ['ID_Conteo','Fecha_Hora','Local','Encargado','Código','Producto','Categoría',
-  'Unidad','Stock_Actual','Stock_Mínimo','Diferencia_vs_Mínimo','Estado_Stock','Observaciones'];
+var STOCK_HEADERS = ['ID_Conteo','Fecha_Hora','Local','Encargado','Tipo_Conteo','Código','Producto','Categoría',
+  'Unidad','Stock_Real','Estado_Stock','Observaciones'];
 
 /* ============================== WEB API ============================== */
 
@@ -269,6 +270,7 @@ function appendDetalle_(d) {
     ];
   });
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, DETALLE_HEADERS.length).setValues(rows);
+  buildStockDashboard_();
 }
 
 function createDetalleSheet_() {
@@ -317,25 +319,24 @@ function saveStockConteo_(d) {
   var rows = [];
   var conteoId = d.id_stock || ('STK' + new Date().getTime().toString().slice(-6));
   var fechaHora = d.fecha_hora || new Date().toLocaleString('es-AR');
+  var tipoConteo = d.tipo_conteo || 'Conteo parcial';
 
   d.items.forEach(function (it) {
     var actual = numberOrNull_(it.stock_actual);
     if (actual === null) return;
-    var minimo = numberOrNull_(it.stock_minimo);
     rows.push([
       conteoId,
       fechaHora,
       d.local,
       d.encargado || '',
+      tipoConteo,
       it.codigo || '',
       it.producto || '',
       it.categoria || '',
       it.unidad || '',
       actual,
-      minimo === null ? '' : minimo,
-      minimo === null ? '' : round2_(actual - minimo),
-      estadoStock_(actual, minimo),
-      it.observaciones || ''
+      estadoStock_(actual),
+      d.observaciones || it.observaciones || ''
     ]);
   });
 
@@ -343,7 +344,8 @@ function saveStockConteo_(d) {
 
   var sh = ss_().getSheetByName(SHEET_STOCK) || createStockSheet_();
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, STOCK_HEADERS.length).setValues(rows);
-  updateCatalogStock_(d.local, d.items, fechaHora);
+  updateCatalogStock_(d.local, d.items, fechaHora, tipoConteo);
+  buildStockDashboard_();
   return { ok: true, id_stock: conteoId, rows: rows.length };
 }
 
@@ -360,22 +362,19 @@ function formatStockSheet_(sh) {
     .setFontWeight('bold').setFontColor('#ffffff').setBackground('#0f5e7a').setVerticalAlignment('middle');
   sh.setFrozenRows(1);
   sh.setRowHeight(1, 30);
-  var widths = [100, 145, 120, 160, 90, 220, 120, 90, 95, 95, 110, 110, 240];
+  var widths = [100, 145, 120, 160, 110, 90, 220, 120, 90, 95, 110, 240];
   for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
   var rules = sh.getConditionalFormatRules();
   rules.push(SpreadsheetApp.newConditionalFormatRule()
-    .whenTextEqualTo('Bajo mínimo').setBackground('#fff1d6').setFontColor('#8a5b00')
-    .setRanges([sh.getRange('L2:L')]).build());
-  rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo('Sin stock').setBackground('#fde1e1').setFontColor('#a01b1b')
-    .setRanges([sh.getRange('L2:L')]).build());
+    .setRanges([sh.getRange('K2:K')]).build());
   rules.push(SpreadsheetApp.newConditionalFormatRule()
-    .whenTextEqualTo('OK').setBackground('#d9f2e3').setFontColor('#1b6b3a')
-    .setRanges([sh.getRange('L2:L')]).build());
+    .whenTextEqualTo('Disponible').setBackground('#d9f2e3').setFontColor('#1b6b3a')
+    .setRanges([sh.getRange('K2:K')]).build());
   sh.setConditionalFormatRules(rules);
 }
 
-function updateCatalogStock_(local, items, fechaHora) {
+function updateCatalogStock_(local, items, fechaHora, tipoConteo) {
   var sh = ss_().getSheetByName(SHEET_CATALOGO);
   if (!sh) return;
 
@@ -387,7 +386,6 @@ function updateCatalogStock_(local, items, fechaHora) {
   var iNom   = idx_(head, ['producto', 'nombre']);
   var iLocal = idx_(head, ['local_aplicable', 'local']);
   var iStock = idx_(head, ['stock_actual', 'stock actual']);
-  var iMin   = idx_(head, ['stock_mínimo', 'stock_minimo', 'stock mínimo', 'stock minimo']);
   var iFecha = idx_(head, ['fecha']);
   var iNotas = idx_(head, ['notas']);
 
@@ -411,18 +409,15 @@ function updateCatalogStock_(local, items, fechaHora) {
     if (!rec) continue;
 
     var actual = numberOrNull_(rec.stock_actual);
-    var minimo = numberOrNull_(rec.stock_minimo);
     if (actual !== null) sh.getRange(r + 1, iStock + 1).setValue(actual);
-    if (iMin > -1 && minimo !== null) sh.getRange(r + 1, iMin + 1).setValue(minimo);
     if (iFecha > -1) sh.getRange(r + 1, iFecha + 1).setValue(fechaHora);
-    if (iNotas > -1) sh.getRange(r + 1, iNotas + 1).setValue('Conteo manual desde formulario');
+    if (iNotas > -1) sh.getRange(r + 1, iNotas + 1).setValue(tipoConteo + ' desde formulario');
   }
 }
 
-function estadoStock_(actual, minimo) {
+function estadoStock_(actual) {
   if (actual <= 0) return 'Sin stock';
-  if (minimo !== null && actual <= minimo) return 'Bajo mínimo';
-  return 'OK';
+  return 'Disponible';
 }
 
 /* ============================== SETUP PLANTILLA PRO ============================== */
@@ -440,7 +435,9 @@ function setupPlantillaPro() {
   if (sh.getLastRow() === 0) formatDetalleSheet_(sh); else formatDetalleSheet_(sh);
   migrarPedidosViejos_();
   buildResumenProveedor_();
-  ss.toast('Plantilla pro lista: PEDIDOS_DETALLE + RESUMEN POR PROVEEDOR', 'Setup OK', 6);
+  createStockSheet_();
+  buildStockDashboard_();
+  ss.toast('Plantilla pro lista: detalle, resumen y dashboard stock', 'Setup OK', 6);
 }
 
 /** Parsea PEDIDOS RECIBIDOS (texto) y vuelca a DETALLE los que falten. */
@@ -495,6 +492,130 @@ function buildResumenProveedor_() {
   sh.getRange('A3').setFontWeight('bold');
   sh.setColumnWidths(1, 5, 160);
   sh.setFrozenRows(3);
+}
+
+function buildStockDashboard_() {
+  var ss = ss_();
+  var dash = ss.getSheetByName(SHEET_STOCK_DASH) || ss.insertSheet(SHEET_STOCK_DASH);
+  var catalog = readCatalog_();
+  var stockMap = latestStockMap_();
+  var demandMap = pendingDemandMap_();
+  var records = [];
+  var localSummary = {};
+
+  Object.keys(catalog).forEach(function (local) {
+    (catalog[local] || []).forEach(function (item) {
+      var key = keyFor_(local, item.codigo, item.nombre);
+      var stockRec = stockMap[key] || {};
+      var demandRec = demandMap[key] || { cantidad: 0, pedidos: 0 };
+      var stockReal = numberOrZero_(stockRec.stock_real, item.stock_actual);
+      var pedidosPend = numberOrZero_(demandRec.cantidad, 0);
+      var saldo = round2_(stockReal - pedidosPend);
+      var status = saldo < 0 ? 'Faltante' : (stockReal <= 0 ? 'Sin stock' : (pedidosPend > 0 ? 'Cubierto' : 'Disponible'));
+      records.push([
+        local,
+        item.codigo || '',
+        item.nombre || '',
+        item.categoria || '',
+        item.unidad || '',
+        stockReal,
+        demandRec.pedidos || 0,
+        pedidosPend,
+        saldo,
+        status,
+        stockRec.tipo_conteo || '',
+        stockRec.fecha_hora || ''
+      ]);
+
+      if (!localSummary[local]) {
+        localSummary[local] = { productos: 0, conStock: 0, sinStock: 0, pedidos: 0, faltantes: 0 };
+      }
+      localSummary[local].productos += 1;
+      if (stockReal > 0) localSummary[local].conStock += 1; else localSummary[local].sinStock += 1;
+      localSummary[local].pedidos += demandRec.pedidos || 0;
+      if (saldo < 0) localSummary[local].faltantes += 1;
+    });
+  });
+
+  dash.clear();
+  dash.setHiddenGridlines(true);
+  dash.getRange('A1:L1').merge().setValue('DASHBOARD STOCK · OPERACIÓN DE PEDIDOS')
+    .setFontWeight('bold').setFontSize(16).setFontColor('#ffffff')
+    .setBackground('#0f5e7a').setHorizontalAlignment('left').setVerticalAlignment('middle');
+  dash.setRowHeight(1, 34);
+  dash.getRange('A2:L2').merge().setValue('Vista combinada de stock real cargado y pedidos pendientes por producto y local.')
+    .setBackground('#eaf2f6').setFontColor('#41576b').setFontSize(10);
+
+  var totalProductos = records.length;
+  var conConteo = records.filter(function (r) { return r[5] > 0; }).length;
+  var faltantes = records.filter(function (r) { return r[8] < 0; }).length;
+  var pedidosPendientes = records.reduce(function (sum, r) { return sum + (r[7] || 0); }, 0);
+  var cards = [
+    ['Productos activos', totalProductos, 'Catálogo del sistema'],
+    ['Con stock cargado', conConteo, 'Conteo real disponible'],
+    ['Faltantes operativos', faltantes, 'Pedido supera stock'],
+    ['Pedido pendiente', pedidosPendientes, 'Unidades solicitadas']
+  ];
+  for (var i = 0; i < cards.length; i++) {
+    var col = 1 + (i * 3);
+    dash.getRange(4, col, 1, 3).merge().setValue(cards[i][0]).setBackground('#dfeaf1').setFontWeight('bold').setFontColor('#365165');
+    dash.getRange(5, col, 1, 2).merge().setValue(cards[i][1]).setFontWeight('bold').setFontSize(20).setBackground('#ffffff').setFontColor('#1c3448');
+    dash.getRange(5, col + 2).setValue(cards[i][2]).setWrap(true).setBackground('#ffffff').setFontColor('#5b7082').setFontSize(10);
+    dash.getRange(4, col, 2, 3).setBorder(true, true, true, true, false, false, '#cbd9e4', SpreadsheetApp.BorderStyle.SOLID);
+  }
+
+  var localRows = Object.keys(localSummary).sort().map(function (local) {
+    var s = localSummary[local];
+    return [local, s.productos, s.conStock, s.sinStock, s.pedidos, s.faltantes];
+  });
+  dash.getRange('A8:F8').setValues([['Local', 'Productos', 'Con stock', 'Sin stock', 'Pedidos abiertos', 'Faltantes']])
+    .setBackground('#103f59').setFontColor('#ffffff').setFontWeight('bold');
+  if (localRows.length) {
+    dash.getRange(9, 1, localRows.length, 6).setValues(localRows);
+  }
+
+  dash.getRange('A' + (10 + localRows.length) + ':L' + (10 + localRows.length)).setValues([[
+    'Local', 'Código', 'Producto', 'Categoría', 'Unidad', 'Stock real',
+    'Pedidos', 'Cantidad pedida', 'Saldo', 'Estado', 'Último conteo', 'Fecha'
+  ]]).setBackground('#103f59').setFontColor('#ffffff').setFontWeight('bold');
+  if (records.length) {
+    dash.getRange(11 + localRows.length, 1, records.length, 12).setValues(records);
+  }
+
+  var lastRow = dash.getLastRow();
+  if (lastRow >= 9) {
+    dash.getRange(9, 1, lastRow - 8, 12).setBorder(true, true, true, true, false, false, '#d7e1e8', SpreadsheetApp.BorderStyle.SOLID);
+  }
+  if (records.length) {
+    var detailStart = 11 + localRows.length;
+    var detailEnd = detailStart + records.length - 1;
+    dash.getRange('J' + detailStart + ':J' + detailEnd).setFontWeight('bold');
+    var rules = dash.getConditionalFormatRules();
+    rules = rules.filter(function (rule) {
+      var ranges = rule.getRanges();
+      for (var k = 0; k < ranges.length; k++) {
+        if (ranges[k].getSheet().getName() === SHEET_STOCK_DASH) return false;
+      }
+      return true;
+    });
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('Faltante').setBackground('#fde1e1').setFontColor('#a01b1b')
+      .setRanges([dash.getRange('J' + detailStart + ':J' + detailEnd)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('Cubierto').setBackground('#fff1d6').setFontColor('#8a5b00')
+      .setRanges([dash.getRange('J' + detailStart + ':J' + detailEnd)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('Disponible').setBackground('#d9f2e3').setFontColor('#1b6b3a')
+      .setRanges([dash.getRange('J' + detailStart + ':J' + detailEnd)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('Sin stock').setBackground('#fde1e1').setFontColor('#a01b1b')
+      .setRanges([dash.getRange('J' + detailStart + ':J' + detailEnd)]).build());
+    dash.setConditionalFormatRules(rules);
+  }
+
+  var widths = [120, 90, 220, 120, 90, 90, 80, 100, 90, 110, 110, 145];
+  for (var c = 0; c < widths.length; c++) dash.setColumnWidth(c + 1, widths[c]);
+  dash.setFrozenRows(8);
 }
 
 /* ============================== SETUP GREENFRESH ============================== */
@@ -655,10 +776,55 @@ function idx_(headerLower, names) {
   return -1;
 }
 
+function keyFor_(local, codigo, nombre) {
+  return String(local || '').trim().toLowerCase() + '||' +
+    (String(codigo || '').trim().toLowerCase() || String(nombre || '').trim().toLowerCase());
+}
+
+function latestStockMap_() {
+  var sh = ss_().getSheetByName(SHEET_STOCK);
+  if (!sh || sh.getLastRow() < 2) return {};
+  var values = sh.getDataRange().getValues();
+  var out = {};
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    var local = row[2], codigo = row[5], producto = row[6];
+    out[keyFor_(local, codigo, producto)] = {
+      fecha_hora: row[1],
+      tipo_conteo: row[4],
+      stock_real: numberOrZero_(row[9], 0)
+    };
+  }
+  return out;
+}
+
+function pendingDemandMap_() {
+  var sh = ss_().getSheetByName(SHEET_DETALLE);
+  if (!sh || sh.getLastRow() < 2) return {};
+  var values = sh.getDataRange().getValues();
+  var out = {};
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    var estado = String(row[12] || '').trim().toLowerCase();
+    if (estado === 'entregado' || estado === 'cancelado') continue;
+    var key = keyFor_(row[3], row[6], row[7]);
+    if (!out[key]) out[key] = { cantidad: 0, pedidos: 0 };
+    out[key].cantidad += numberOrZero_(row[9], 0);
+    out[key].pedidos += 1;
+  }
+  return out;
+}
+
 function numberOrNull_(value) {
   if (value === '' || value === null || typeof value === 'undefined') return null;
   var num = parseFloat(String(value).replace(',', '.'));
   return isNaN(num) ? null : num;
+}
+
+function numberOrZero_(value, fallback) {
+  var num = numberOrNull_(value);
+  if (num === null) return typeof fallback === 'number' ? fallback : 0;
+  return num;
 }
 
 function numberOrBlank_(value) {
