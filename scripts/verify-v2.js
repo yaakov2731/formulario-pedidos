@@ -1,0 +1,114 @@
+const fs = require("fs");
+const path = require("path");
+
+const root = process.cwd();
+const indexPath = path.join(root, "index.html");
+const codePath = path.join(root, "Code.gs");
+
+function fail(message) {
+  console.error(`FAIL: ${message}`);
+  process.exitCode = 1;
+}
+
+function pass(message) {
+  console.log(`OK: ${message}`);
+}
+
+function read(file) {
+  return fs.readFileSync(file, "utf8");
+}
+
+function expectContains(source, needle, label) {
+  if (!source.includes(needle)) fail(`${label} missing: ${needle}`);
+  else pass(label);
+}
+
+function expectRegex(source, regex, label) {
+  if (!regex.test(source)) fail(`${label} missing: ${regex}`);
+  else pass(label);
+}
+
+function main() {
+  if (!fs.existsSync(indexPath)) {
+    fail("index.html not found");
+    return;
+  }
+  if (!fs.existsSync(codePath)) {
+    fail("Code.gs not found");
+    return;
+  }
+
+  const html = read(indexPath);
+  const code = read(codePath);
+
+  expectRegex(html, /const SCRIPT_URL = "https:\/\/script\.google\.com\/macros\/s\/.+\/exec";/, "SCRIPT_URL configured");
+
+  ["pedido", "stock", "recepcion", "produccion", "dashboard"].forEach((tab) => {
+    expectContains(html, `data-tab="${tab}"`, `tab ${tab}`);
+  });
+
+  [
+    "id=\"recepGrid\"",
+    "id=\"prodGrid\"",
+    "id=\"dashRiskList\"",
+    "id=\"dashPedidoList\"",
+    "id=\"dashOpenList\"",
+    "id=\"recepSearch\"",
+    "id=\"prodInsumoSearch\"",
+    "id=\"recepMore\"",
+    "id=\"prodMore\"",
+  ].forEach((id) => expectContains(html, id, `frontend control ${id}`));
+
+  [
+    "function saveReception()",
+    "function saveProduction()",
+    "function renderDashboard()",
+    "function renderRecepcionModule()",
+    "function renderProduccionModule()",
+    "function localOperationalMetrics()",
+    "applyReceptionOptimistic(",
+    "applyProductionOptimistic(",
+  ].forEach((needle) => expectContains(html, needle, `frontend logic ${needle}`));
+
+  [
+    "var SHEET_RECEPCION = 'CONTROL RECEPCION';",
+    "var SHEET_PRODUCCION = 'CONTROL PRODUCCION';",
+    "var SHEET_VIEW_REC = 'VISTA RECEPCION';",
+    "var SHEET_VIEW_PROD = 'VISTA PRODUCCION';",
+    "var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';",
+    "var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';",
+    "if (data.action === 'saveReception')",
+    "if (data.action === 'saveProduction')",
+    "function saveRecepcion_(d) {",
+    "function saveProduccion_(d) {",
+    "function buildVistaRecepcion_() {",
+    "function buildVistaProduccion_() {",
+    "function buildLocalPedidoViews_() {",
+    "function buildLocalStockViews_() {",
+    "function operationalLocals_() {",
+    "function buildFrontendOperationalSnapshot_() {",
+    "function buildOpenItemsByLocal_() {",
+    "function refreshMovementViews_() {",
+    "function ensureVersion2Sheets_() {",
+    "function applyCatalogColumnUpdates_(",
+  ].forEach((needle) => expectContains(code, needle, `backend logic ${needle}`));
+
+  [
+    "{ from: 'Hamburguesería', to: 'Brooklyn' }",
+    "{ from: 'Parrilla', to: 'Umo Grill' }",
+    "{ from: 'Heladería', to: 'Puerto Gelato' }",
+    "{ from: 'Cafetería', to: 'Trento Café' }",
+  ].forEach((needle) => expectContains(code, needle, `legacy normalization ${needle}`));
+
+  expectContains(code, "totalRecepcionMovimientos: recepcion.total_movimientos || 0", "dashboard uses full reception history");
+  expectContains(code, "totalProduccionMovimientos: produccion.total_movimientos || 0", "dashboard uses full production history");
+
+  if (process.exitCode) {
+    console.error("\nV2 verification failed.");
+    process.exit(process.exitCode);
+  }
+
+  console.log("\nV2 verification passed.");
+}
+
+main();

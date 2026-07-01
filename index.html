@@ -159,6 +159,18 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   background:var(--surface-2);border:1px solid var(--line);padding:3px 7px;border-radius:6px}
 .sg.empty{color:var(--ink-soft);font-size:13px;justify-content:center;cursor:default}
 .sg.empty:hover{background:none}
+.quick-pick{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,var(--surface),var(--surface-2))}
+.quick-pick-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:8px}
+.quick-pick-head strong{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-strong)}
+.quick-pick-head span{font-size:11.5px;color:var(--ink-soft)}
+.quick-pick-list{display:flex;flex-direction:column;gap:7px;max-height:260px;overflow:auto}
+.quick-pick-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.quick-pick-main{min-width:0}
+.quick-pick-name{font-size:13.5px;font-weight:600;line-height:1.2}
+.quick-pick-meta{font-size:11.5px;color:var(--ink-soft);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quick-pick-btn{height:34px;padding:0 11px;border:none;border-radius:9px;background:var(--brand);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 3px 0 var(--brand-strong)}
+.quick-pick-btn:hover{background:var(--brand-strong)}
+.quick-pick-empty{padding:14px;border:1.5px dashed var(--line-strong);border-radius:10px;text-align:center;color:var(--ink-soft);font-size:12.5px}
 
 /* Items */
 .items{margin-top:14px;display:flex;flex-direction:column;gap:8px}
@@ -292,6 +304,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .cfg-btn:hover{background:var(--brand-strong);transform:translateY(-1px);box-shadow:0 4px 0 oklch(0.38 0.12 240)}
 .cfg-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brand-strong)}
 .cfg-btn:disabled{opacity:.6;cursor:not-allowed}
+.cfg-btn.alt{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);box-shadow:0 3px 0 var(--line-strong)}
+.cfg-btn.alt:hover{background:var(--surface);box-shadow:0 4px 0 var(--line-strong)}
+.cfg-btn.alt:active{box-shadow:0 1px 0 var(--line-strong)}
 .cfg-note{font-size:11.5px;color:var(--ink-faint);text-align:center}
 
 /* Stock */
@@ -342,6 +357,76 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .stock-more{margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .stock-more:hover{background:var(--surface)}
 
+/* Workspace V2 */
+.workspace{padding:16px;background:
+  radial-gradient(120% 180% at 100% 0%, oklch(0.96 0.03 220), transparent 55%),
+  linear-gradient(180deg, var(--surface), oklch(0.982 0.006 235));
+}
+.workspace-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.workspace-head h2{font-size:18px;font-weight:700;letter-spacing:-0.02em}
+.workspace-head p{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.workspace-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-strong);max-width:100%}
+.workspace-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.workspace-stat{min-width:0;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--shadow-sm)}
+.workspace-stat .k{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.workspace-stat .v{font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.05;margin-top:5px;overflow-wrap:anywhere}
+.workspace-stat .m{font-size:11.5px;color:var(--ink-soft);margin-top:3px}
+.live-warning{display:none;align-items:flex-start;gap:10px;padding:12px 13px;margin:0 0 14px;border-radius:12px;border:1px solid color-mix(in oklch,var(--amber) 35%,var(--line));background:var(--amber-tint);color:oklch(0.38 0.09 70)}
+.live-warning.show{display:flex}
+.live-warning strong{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.live-warning span{display:block;font-size:12px;line-height:1.35;margin-top:2px}
+.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.tabbtn{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:5px;min-width:0;padding:12px 11px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;text-align:left;box-shadow:0 3px 0 var(--line-strong);transition:transform .12s var(--ease),box-shadow .12s var(--ease),border-color .12s var(--ease),background .12s var(--ease)}
+.tabbtn:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--line-strong)}
+.tabbtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line-strong)}
+.tabbtn[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-tint);box-shadow:0 3px 0 color-mix(in oklch,var(--brand) 45%,var(--line-strong))}
+.tabbtn .t1{font-size:13px;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
+.tabbtn .t2{font-size:11px;color:var(--ink-soft);line-height:1.25;overflow-wrap:anywhere}
+.tab-panel[hidden]{display:none}
+.pedido-shell{padding:16px;background:
+  radial-gradient(120% 180% at 100% 0%, oklch(0.96 0.03 220), transparent 55%),
+  linear-gradient(180deg, var(--surface), oklch(0.982 0.006 235))}
+.pedido-shell-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.pedido-shell-head h2{font-size:18px;font-weight:700;letter-spacing:-0.02em}
+.pedido-shell-head p{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.pedido-local-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-strong);max-width:100%}
+.pedido-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pedido-step-btn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;padding:12px 11px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);text-align:left;box-shadow:0 3px 0 var(--line-strong);cursor:pointer;transition:transform .12s var(--ease),box-shadow .12s var(--ease),border-color .12s var(--ease),background .12s var(--ease)}
+.pedido-step-btn:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--line-strong)}
+.pedido-step-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line-strong)}
+.pedido-step-btn strong{font-size:12.5px;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
+.pedido-step-btn span{font-size:10.5px;color:var(--ink-soft);line-height:1.25;overflow-wrap:anywhere}
+.pedido-step-btn[data-state="active"]{border-color:var(--brand);background:var(--brand-tint);box-shadow:0 3px 0 color-mix(in oklch,var(--brand) 45%,var(--line-strong))}
+.pedido-step-btn[data-state="done"]{border-color:color-mix(in oklch,var(--green) 35%,var(--line));background:var(--green-tint)}
+.pedido-screen{scroll-margin-top:16px}
+.pedido-screen[hidden]{display:none}
+.pedido-nav{display:flex;align-items:center;gap:8px;min-width:0;width:100%}
+.nav-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:11px 16px;border:none;border-radius:10px;background:var(--brand);color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 3px 0 var(--brand-strong),var(--shadow-sm)}
+.nav-btn:hover{background:var(--brand-strong)}
+.nav-btn:active{box-shadow:0 1px 0 var(--brand-strong);transform:translateY(2px)}
+.nav-btn.alt{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);box-shadow:0 3px 0 var(--line-strong)}
+.nav-btn.alt:hover{background:var(--surface)}
+.nav-btn.alt:active{box-shadow:0 1px 0 var(--line-strong)}
+.bar-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.module-card{min-width:0;padding:14px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--shadow-sm)}
+.module-card .k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.module-card .v{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.05;margin-top:6px;overflow-wrap:anywhere}
+.module-card .m{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.module-stack{display:flex;flex-direction:column;gap:10px}
+.op-grid{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow:auto}
+.op-row{display:grid;grid-template-columns:minmax(0,1fr) 128px;gap:10px;align-items:center;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-sm)}
+.op-row-main{min-width:0}
+.op-row-name{font-size:14px;font-weight:600;line-height:1.25}
+.op-row-meta{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.op-form{display:flex;flex-direction:column;gap:12px}
+.op-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.event-list{display:flex;flex-direction:column;gap:8px}
+.event-item{min-width:0;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-sm)}
+.event-item strong{display:block;font-size:13.5px}
+.event-item span{display:block;font-size:12px;color:var(--ink-soft);margin-top:3px;overflow-wrap:anywhere}
+
 /* Compactación mobile: menos scroll en iPhone */
 @media(max-width:560px){
   .wrap{padding:12px 11px 92px}
@@ -365,6 +450,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .grid2{gap:11px}
   .search-row{flex-direction:column}
   .search-row .free{width:100%}
+  .quick-pick{padding:10px}
+  .quick-pick-item{grid-template-columns:1fr}
+  .quick-pick-btn{width:100%}
   .summary{padding:14px 15px;margin-bottom:11px}
   .summary .s-big{font-size:20px}
   .summary .s-badge{width:42px;height:42px}
@@ -378,14 +466,53 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .bar-in{flex-direction:column;align-items:stretch;gap:8px}
   .bar-meta{order:0;text-align:center}
   .send{width:100%;margin-left:0}
+  .bar-actions{margin-left:0;display:grid;grid-template-columns:1fr}
+  .pedido-nav{flex-direction:column}
+  .nav-btn,.nav-btn.alt{width:100%}
+  .workspace{padding:13px}
+  .workspace-head{gap:8px;margin-bottom:11px}
+  .workspace-head h2{font-size:16px}
+  .workspace-head p{font-size:11.5px}
+  .workspace-badge{padding:7px 10px;font-size:10px}
+  .workspace-stats{grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+  .workspace-stat{padding:10px}
+  .workspace-stat .k{font-size:9.5px}
+  .workspace-stat .v{font-size:16px}
+  .workspace-stat .m{font-size:11px}
+  .pedido-shell{padding:13px}
+  .pedido-shell-head{gap:8px;margin-bottom:11px;flex-direction:column}
+  .pedido-shell-head h2{font-size:16px}
+  .pedido-shell-head p{font-size:11.5px}
+  .pedido-local-pill{padding:7px 10px;font-size:10px}
+  .pedido-progress{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .pedido-step-btn{padding:10px 9px;gap:3px;border-radius:11px}
+  .pedido-step-btn strong{font-size:12px}
+  .pedido-step-btn span{font-size:10px}
+  .tabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .tabbtn{padding:10px 9px;gap:4px;border-radius:11px}
+  .tabbtn .t1{font-size:12px}
+  .tabbtn .t2{font-size:10px}
   .stock-actions{grid-template-columns:1fr}
   .stock-overview{grid-template-columns:1fr}
+  .stock-card{padding:11px 12px}
+  .stock-card .v{font-size:21px}
+  .stock-panel{padding:12px}
   .stock-panel-head{flex-direction:column;align-items:flex-start}
+  .stock-panel-head h3{font-size:14px}
+  .stock-panel-head p{font-size:11px}
   .stock-line{flex-direction:column}
   .stock-line-side{align-items:flex-start}
   .stock-dash{grid-template-columns:1fr}
   .stock-row{grid-template-columns:1fr}
+  .stock-row,.op-row,.event-item{padding:11px}
+  .stock-grid,.op-grid{max-height:min(44vh,360px)}
   .stock-toolbar{grid-template-columns:1fr}
+  .module-grid,.dash-grid{grid-template-columns:1fr}
+  .module-card{padding:12px}
+  .module-card .v{font-size:21px}
+  .op-actions{grid-template-columns:1fr}
+  .workspace-head{flex-direction:column}
+  .op-row{grid-template-columns:1fr}
   .cfg{padding:10px 8px}
   .cfg-body{padding:14px 12px 18px}
   .cfg-head{padding:15px 12px}
@@ -399,6 +526,10 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .urg{grid-template-columns:1fr}
   .summary{padding:13px}
   .summary .s-big{font-size:18px}
+  .pedido-progress{grid-template-columns:1fr}
+  .tabs{grid-template-columns:1fr 1fr}
+  .tabbtn .t2{display:none}
+  .workspace-stats{grid-template-columns:1fr}
 }
 
 .hint{font-size:12px;color:var(--ink-faint);margin-top:8px}
@@ -443,8 +574,45 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     <div class="locales" id="locales"></div>
   </section>
 
+  <section class="workspace">
+    <div class="workspace-head">
+      <div>
+        <p class="skicker">Centro operativo</p>
+        <h2 id="workspaceTitle">V2 semanal por local</h2>
+        <p id="workspaceMeta">Seleccioná un local para abrir pedido, stock, recepción, producción y métricas en una sola vista.</p>
+      </div>
+      <span class="workspace-badge" id="workspaceBadge">Modo pedido</span>
+    </div>
+    <div class="live-warning" id="liveWarning">
+      <div>
+        <strong>Backend desactualizado</strong>
+        <span id="liveWarningText">La app cargó una versión anterior del Apps Script. Algunas acciones V2 quedan bloqueadas hasta desplegar el backend nuevo.</span>
+      </div>
+    </div>
+    <div class="workspace-stats" id="workspaceStats"></div>
+    <div class="tabs" id="tabNav">
+      <button type="button" class="tabbtn" data-tab="pedido" aria-pressed="true"><span class="t1">Pedido</span><span class="t2">Carga semanal</span></button>
+      <button type="button" class="tabbtn" data-tab="stock" aria-pressed="false"><span class="t1">Stock</span><span class="t2">Conteo real</span></button>
+      <button type="button" class="tabbtn" data-tab="recepcion" aria-pressed="false"><span class="t1">Recepción</span><span class="t2">Ingreso recibido</span></button>
+      <button type="button" class="tabbtn" data-tab="produccion" aria-pressed="false"><span class="t1">Producción</span><span class="t2">Consumo y lote</span></button>
+      <button type="button" class="tabbtn" data-tab="dashboard" aria-pressed="false"><span class="t1">Dashboard</span><span class="t2">Métricas reales</span></button>
+    </div>
+  </section>
+
+  <section class="pedido-shell tab-panel" data-tab="pedido">
+    <div class="pedido-shell-head">
+      <div>
+        <p class="skicker">Flujo guiado</p>
+        <h2 id="pedidoFlowTitle">Pedido por pantallas</h2>
+        <p id="pedidoFlowMeta">Avanzá paso por paso para cargar el pedido sin perderte en un formulario largo.</p>
+      </div>
+      <span class="pedido-local-pill" id="pedidoLocalPill">Local pendiente</span>
+    </div>
+    <div class="pedido-progress" id="pedidoProgress"></div>
+  </section>
+
   <!-- 2. Datos -->
-  <section>
+  <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="datos">
     <div class="shead"><div><p class="skicker">Solicitante</p><h2>Datos del pedido</h2></div></div>
     <div class="grid2">
       <div class="field">
@@ -467,7 +635,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   </section>
 
   <!-- 3. Productos -->
-  <section>
+  <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="productos">
     <div class="shead">
       <div><p class="skicker">Mercadería</p><h2>Productos a pedir</h2></div>
       <span class="snum" id="itemCount">0 ítems</span>
@@ -479,12 +647,19 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
       </div>
       <div class="suggest" id="suggest"></div>
     </div>
+    <div class="quick-pick">
+      <div class="quick-pick-head">
+        <strong>Selector rápido</strong>
+        <span id="quickPickMeta">Elegí un local</span>
+      </div>
+      <div class="quick-pick-list" id="quickPickList"></div>
+    </div>
     <p class="hint" id="catHint">Elegí primero un local para cargar su catálogo. Si un producto no está, usá <b>+ Libre</b>.</p>
     <div class="items" id="items"></div>
   </section>
 
   <!-- 4. Stock -->
-  <section>
+  <section class="tab-panel" data-tab="stock">
     <div class="shead">
       <div><p class="skicker">Stock</p><h2>Conteo y lectura operativa</h2></div>
       <span class="snum" id="stockSectionMeta">Sin conteo</span>
@@ -512,7 +687,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   </section>
 
   <!-- 5. Urgencia -->
-  <section>
+  <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="cierre">
     <div class="shead"><div><p class="skicker">Prioridad</p><h2>Nivel de urgencia</h2></div></div>
     <div class="urg" id="urg">
       <button type="button" class="urgb" data-u="Baja"><span class="pip"></span>Baja<small>Puede esperar</small></button>
@@ -522,13 +697,132 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   </section>
 
   <!-- 6. Observaciones -->
-  <section>
+  <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="cierre">
     <div class="shead"><div><p class="skicker">Notas</p><h2>Observaciones</h2><span class="snum">opcional</span></div></div>
     <textarea id="observaciones" placeholder="Aclaraciones para gerencia o el proveedor..."></textarea>
   </section>
 
   <!-- Summary -->
-  <div class="summary">
+  <section class="tab-panel" data-tab="recepcion" hidden>
+    <div class="shead">
+      <div><p class="skicker">Recepción</p><h2>Ingreso de mercadería</h2></div>
+      <span class="snum" id="recepMeta">Sin movimientos</span>
+    </div>
+    <div class="module-grid" id="recepCards"></div>
+    <div class="stock-panel" style="margin-top:12px">
+      <div class="stock-panel-head">
+        <div>
+          <h3>Registrar recepción</h3>
+          <p>Sumá lo recibido por local sin salir de la operación semanal.</p>
+        </div>
+      </div>
+      <div class="op-form">
+        <div class="grid2">
+          <div class="field"><label>Proveedor</label><input id="recepProveedor" type="text" placeholder="Proveedor o remito"></div>
+          <div class="field"><label>Encargado</label><input id="recepEncargado" type="text" placeholder="Quién recibe"></div>
+        </div>
+        <div class="field"><label>Observaciones</label><input id="recepObs" type="text" placeholder="Faltantes, cambio, devolución, diferencia..."></div>
+        <input class="stock-search" id="recepSearch" type="text" placeholder="Filtrá productos para recibir más rápido...">
+        <span class="snum" id="recepCatalogMeta"></span>
+        <div class="op-grid" id="recepGrid"></div>
+        <button class="stock-more" id="recepMore" type="button" hidden>Mostrar más productos</button>
+        <div class="op-actions">
+          <button class="cfg-btn alt" id="recepClear" type="button">Limpiar carga</button>
+          <button class="cfg-btn" id="recepSave" type="button">Guardar recepción</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-panel" data-tab="produccion" hidden>
+    <div class="shead">
+      <div><p class="skicker">Producción</p><h2>Parte productivo por local</h2></div>
+      <span class="snum" id="prodMeta">Sin partes</span>
+    </div>
+    <div class="module-grid" id="prodCards"></div>
+    <div class="stock-panel" style="margin-top:12px">
+      <div class="stock-panel-head">
+        <div>
+          <h3>Registrar producción</h3>
+          <p>Descontá insumos usados y dejá trazabilidad del lote elaborado.</p>
+        </div>
+      </div>
+      <div class="op-form">
+        <div class="grid2">
+          <div class="field"><label>Producto elaborado</label><input id="prodNombre" type="text" placeholder="Ej: prep pizza, salsa, base burger"></div>
+          <div class="field"><label>Cantidad producida</label><input id="prodCantidad" type="number" step="0.1" placeholder="0"></div>
+          <div class="field"><label>Lote</label><input id="prodLote" type="text" placeholder="Código interno o turno"></div>
+          <div class="field"><label>Encargado</label><input id="prodEncargado" type="text" placeholder="Quién produjo"></div>
+        </div>
+        <div class="field"><label>Observaciones</label><input id="prodObs" type="text" placeholder="Merma, ajuste, desvío, cambio..."></div>
+        <input class="stock-search" id="prodInsumoSearch" type="text" placeholder="Filtrá insumos para producir más rápido...">
+        <span class="snum" id="prodCatalogMeta"></span>
+        <div class="op-grid" id="prodGrid"></div>
+        <button class="stock-more" id="prodMore" type="button" hidden>Mostrar más productos</button>
+        <div class="op-actions">
+          <button class="cfg-btn alt" id="prodClear" type="button">Limpiar carga</button>
+          <button class="cfg-btn" id="prodSave" type="button">Guardar producción</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-panel" data-tab="dashboard" hidden>
+    <div class="shead">
+      <div><p class="skicker">Dashboard</p><h2>Lectura ejecutiva del local</h2></div>
+      <span class="snum" id="dashMeta">Sin local</span>
+    </div>
+    <div class="dash-grid" id="dashCards"></div>
+    <div class="module-stack" style="margin-top:12px">
+      <div class="stock-panel">
+        <div class="stock-panel-head">
+          <div>
+            <h3>Riesgos del local</h3>
+            <p>Quiebres y faltas de conteo que impactan la operación diaria.</p>
+          </div>
+        </div>
+        <div class="event-list" id="dashRiskList"></div>
+      </div>
+      <div class="stock-panel">
+        <div class="stock-panel-head">
+          <div>
+            <h3>Pedido actual en revisión</h3>
+            <p>Productos del pedido que hoy no están cubiertos por stock real.</p>
+          </div>
+        </div>
+        <div class="event-list" id="dashPedidoList"></div>
+      </div>
+      <div class="stock-panel">
+        <div class="stock-panel-head">
+          <div>
+            <h3>Pedidos abiertos en planilla</h3>
+            <p>Líneas recientes que ya siguen activas para este local.</p>
+          </div>
+        </div>
+        <div class="event-list" id="dashOpenList"></div>
+      </div>
+      <div class="stock-panel">
+        <div class="stock-panel-head">
+          <div>
+            <h3>Últimos movimientos de recepción</h3>
+            <p>Ingreso real informado por la operación.</p>
+          </div>
+        </div>
+        <div class="event-list" id="dashRecepList"></div>
+      </div>
+      <div class="stock-panel">
+        <div class="stock-panel-head">
+          <div>
+            <h3>Últimos movimientos de producción</h3>
+            <p>Consumo de insumos y salidas productivas del local.</p>
+          </div>
+        </div>
+        <div class="event-list" id="dashProdList"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="summary tab-panel pedido-screen" data-tab="pedido" data-pedido-step="resumen">
     <div>
       <div class="s-l">Resumen del pedido</div>
       <div class="s-big" id="sumCount">0 productos</div>
@@ -544,13 +838,19 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 </div>
 
 <!-- Sticky submit -->
-<div class="bar">
+<div class="bar tab-panel" data-tab="pedido">
   <div class="bar-in">
-    <button type="button" class="send" id="send" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-      Enviar pedido
-    </button>
     <div class="bar-meta"><b id="barCount">0</b>productos</div>
+    <div class="bar-actions">
+      <div class="pedido-nav">
+        <button type="button" class="nav-btn alt" id="pedidoBack" hidden>Volver</button>
+        <button type="button" class="nav-btn" id="pedidoNext">Continuar</button>
+      </div>
+      <button type="button" class="send" id="send" disabled hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        Enviar pedido
+      </button>
+    </div>
   </div>
 </div>
 
@@ -647,7 +947,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 
 <script>
 "use strict";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby1QUnaoMJvFIj2GHeH76VZnRDZ6vXkbsfQQgslalGUZuuj92McPdwKG5rm1MjWKJyS/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzA9fk969AAZmOY4fshAkqMnFF1LqLE3s7bMUnDvFmQWFbsadJCI3KXHmKIXY8_FVZD/exec";
 
 /* ---- Locales (Pizzería fuera, GreenFresh dentro) ---- */
 const LOCALES = [
@@ -734,10 +1034,15 @@ function unitOptions(sel){
 
 /* ---- Responsables por local (para Configuración) ---- */
 let RESP = {};
+let RECEPCIONES = { latest:[], byLocal:{} };
+let PRODUCCION = { latest:[], byLocal:{} };
+let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
+let LIVE_META = { version:"", capabilities:{} };
 
 /* ---- State ---- */
-const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false };
+const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"pedido", pedidoStep:"datos" };
 let uid = 0;
+let bootstrapRefreshTimer = null;
 
 /* ---- Helpers ---- */
 const $ = s => document.querySelector(s);
@@ -749,6 +1054,192 @@ const icoCheck='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const icoX='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
 const icoTrash='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
 const icoStock='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><path d="M15 4v16"/></svg>';
+
+const TAB_META = {
+  pedido:{ badge:"Modo pedido", title:"Pedido semanal por local", desc:"Prepará la requisición con cobertura de stock integrada antes de enviar." },
+  stock:{ badge:"Modo stock", title:"Conteo real y lectura operativa", desc:"Actualizá stock real del local para medir cobertura del pedido y faltantes." },
+  recepcion:{ badge:"Modo recepción", title:"Ingreso recibido del local", desc:"Registrá mercadería recibida y actualizá stock sin tocar la planilla manualmente." },
+  produccion:{ badge:"Modo producción", title:"Consumo de insumos y lote", desc:"Trazá producción semanal con descuentos automáticos sobre el stock real." },
+  dashboard:{ badge:"Modo dashboard", title:"Métricas ejecutivas por local", desc:"Leé pedido, stock, recepción y producción desde una sola cabina operativa." }
+};
+const PEDIDO_STEPS = [
+  { id:"datos", title:"Datos", meta:"Local, encargado y entrega" },
+  { id:"productos", title:"Productos", meta:"Selección rápida del pedido" },
+  { id:"cierre", title:"Cierre", meta:"Urgencia y observaciones" },
+  { id:"resumen", title:"Resumen", meta:"Control final y envío" }
+];
+
+function snapshotStampText(){
+  const stamp = SNAPSHOT && SNAPSHOT.generated_at ? String(SNAPSHOT.generated_at).trim() : "";
+  return stamp ? `Actualizado ${stamp}` : "";
+}
+
+function workspaceMetaText(tab){
+  const base = (TAB_META[tab] && TAB_META[tab].desc) || "";
+  const stamp = snapshotStampText();
+  if(!stamp || tab==="pedido") return base;
+  return `${base} ${base.endsWith(".") ? "" : "· "}${stamp}`;
+}
+
+function pedidoStepIndex(step){
+  return Math.max(0, PEDIDO_STEPS.findIndex(x=>x.id===step));
+}
+
+function renderPedidoFlow(){
+  const step = state.pedidoStep;
+  const current = PEDIDO_STEPS[pedidoStepIndex(step)] || PEDIDO_STEPS[0];
+  const progress=$("#pedidoProgress");
+  const localPill=$("#pedidoLocalPill");
+  $("#pedidoFlowTitle").textContent = `${current.title} del pedido`;
+  $("#pedidoFlowMeta").textContent = current.meta;
+  localPill.textContent = state.local ? `${state.local} activo` : "Local pendiente";
+  progress.innerHTML = PEDIDO_STEPS.map((item, index)=>{
+    const currentIndex = pedidoStepIndex(step);
+    const stateName = index < currentIndex ? "done" : index === currentIndex ? "active" : "todo";
+    return `<button type="button" class="pedido-step-btn" data-step="${item.id}" data-state="${stateName}" aria-pressed="${index===currentIndex ? "true" : "false"}"><strong>${esc(item.title)}</strong><span>${esc(item.meta)}</span></button>`;
+  }).join("");
+  progress.querySelectorAll(".pedido-step-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>setPedidoStep(btn.dataset.step));
+  });
+  document.querySelectorAll('[data-pedido-step]').forEach(panel=>{
+    panel.hidden = panel.dataset.pedidoStep !== step;
+  });
+  const isSummary = step === "resumen";
+  $("#pedidoBack").hidden = pedidoStepIndex(step) === 0;
+  $("#pedidoNext").hidden = isSummary;
+  $("#send").hidden = !isSummary;
+}
+
+function scrollPedidoIntoView(){
+  const target = document.querySelector(`.pedido-screen[data-pedido-step="${state.pedidoStep}"]`) || document.querySelector(".pedido-shell");
+  if(target) target.scrollIntoView({ block:"start", behavior:"smooth" });
+}
+
+function setPedidoStep(step, opts={}){
+  if(!PEDIDO_STEPS.some(x=>x.id===step)) step = "datos";
+  state.pedidoStep = step;
+  renderPedidoFlow();
+  if(opts.scroll !== false) scrollPedidoIntoView();
+}
+
+function canAdvancePedidoStep(){
+  if(state.pedidoStep === "datos"){
+    if(!state.local){ toast("Elegí un local para seguir","err"); return false; }
+    if(!$("#encargado").value.trim()){ toast("Completá el encargado","err"); $("#encargado").focus(); return false; }
+    if(!/\S+@\S+\.\S+/.test($("#email").value)){ toast("Completá un email válido","err"); $("#email").focus(); return false; }
+    if(!$("#semana").value){ toast("Elegí la semana del pedido","err"); $("#semana").focus(); return false; }
+    if(!$("#fecha_entrega").value){ toast("Elegí la fecha de entrega","err"); $("#fecha_entrega").focus(); return false; }
+  }
+  if(state.pedidoStep === "productos"){
+    if(!state.items.length){ toast("Agregá al menos un producto","err"); $("#prodSearch").focus(); return false; }
+    if(state.items.some(i=>!(i.qty>0))){ toast("Revisá las cantidades del pedido","err"); return false; }
+  }
+  return true;
+}
+
+function nextPedidoStep(){
+  if(!canAdvancePedidoStep()) return;
+  const next = PEDIDO_STEPS[pedidoStepIndex(state.pedidoStep)+1];
+  if(next) setPedidoStep(next.id);
+}
+
+function previousPedidoStep(){
+  const prev = PEDIDO_STEPS[pedidoStepIndex(state.pedidoStep)-1];
+  if(prev) setPedidoStep(prev.id);
+}
+
+function setTab(tab){
+  state.tab = TAB_META[tab] ? tab : "pedido";
+  $("#tabNav").querySelectorAll(".tabbtn").forEach(btn=>btn.setAttribute("aria-pressed", String(btn.dataset.tab===state.tab)));
+  document.querySelectorAll(".tab-panel").forEach(panel=>{
+    const isTab = panel.dataset.tab === state.tab;
+    panel.hidden = !isTab;
+  });
+  $("#workspaceBadge").textContent = TAB_META[state.tab].badge;
+  $("#workspaceTitle").textContent = TAB_META[state.tab].title;
+  $("#workspaceMeta").textContent = workspaceMetaText(state.tab);
+  if(state.tab==="pedido") renderPedidoFlow();
+  if(state.tab==="recepcion") renderRecepcionModule();
+  if(state.tab==="produccion") renderProduccionModule();
+  if(state.tab==="dashboard") renderDashboard();
+}
+
+function renderWorkspaceStats(){
+  const box=$("#workspaceStats");
+  if(!state.local){
+    box.innerHTML = [
+      workspaceStatCard("Local", "—", "seleccioná uno"),
+      workspaceStatCard("Pedido", "0", "sin carga"),
+      workspaceStatCard("Stock", "—", "sin lectura"),
+      workspaceStatCard("Operación", "—", "sin contexto")
+    ].join("");
+    return;
+  }
+  const metrics=localOperationalMetrics();
+  box.innerHTML = [
+    workspaceStatCard("Local", state.local, `${metrics.cat.length} productos activos`),
+    workspaceStatCard("Cobertura", `${metrics.coveragePct}%`, state.items.length ? `${metrics.okRows.length + metrics.warnRows.length} de ${state.items.length} líneas cubiertas` : "sin pedido cargado"),
+    workspaceStatCard("Abiertos", metrics.snapshotLocal.pedidos||0, metrics.snapshotLocal.faltantes ? `${metrics.snapshotLocal.faltantes} faltantes en planilla` : "sin faltantes abiertos"),
+    workspaceStatCard("Flujo", metrics.recepSummary.movimientos + metrics.prodSummary.movimientos, `${metrics.recepSummary.movimientos} recep · ${metrics.prodSummary.movimientos} prod`)
+  ].join("");
+}
+
+function workspaceStatCard(label, value, meta){
+  return `<div class="workspace-stat"><div class="k">${esc(label)}</div><div class="v">${esc(value)}</div><div class="m">${esc(meta)}</div></div>`;
+}
+function capabilityEnabled(name){
+  return !!(LIVE_META.capabilities && LIVE_META.capabilities[name]);
+}
+function renderLiveWarning(){
+  const box=$("#liveWarning");
+  const txt=$("#liveWarningText");
+  if(!box || !txt) return;
+  if(!LIVE_META.version && !Object.keys(LIVE_META.capabilities||{}).length){
+    box.classList.remove("show");
+    return;
+  }
+  const missing=[];
+  if(!capabilityEnabled("recepcion")) missing.push("recepción");
+  if(!capabilityEnabled("produccion")) missing.push("producción");
+  if(!capabilityEnabled("bootstrap_v2")) missing.push("bootstrap V2");
+  if(!missing.length){
+    box.classList.remove("show");
+    return;
+  }
+  txt.textContent = `El /exec activo no tiene ${missing.join(", ")}. Pedido y stock siguen operativos, pero las funciones V2 nuevas quedan bloqueadas hasta desplegar el backend actualizado.`;
+  box.classList.add("show");
+}
+function setLiveMeta(meta){
+  LIVE_META = meta || { version:"", capabilities:{} };
+  const hasV2 = !!(LIVE_META.capabilities && LIVE_META.capabilities.bootstrap_v2);
+  setConn(true, hasV2 ? `En vivo V2${LIVE_META.version ? ` · ${LIVE_META.version}` : ""}` : "En vivo");
+  renderLiveWarning();
+}
+function renderRecepCardsOnly(local){
+  const cards=$("#recepCards");
+  if(!cards || !local) return;
+  const localSummary=(RECEPCIONES.byLocal&&RECEPCIONES.byLocal[local])||{movimientos:0,cantidad:0};
+  const draftSummary=recepDraftStats(local);
+  $("#recepMeta").textContent=`${localSummary.movimientos||0} movimientos`;
+  cards.innerHTML = [
+    metricCard("Recepciones", localSummary.movimientos||0, "movimientos del local", ""),
+    metricCard("Cantidad recibida", trim(localSummary.cantidad||0), "unidades acumuladas", "good"),
+    metricCard("Borrador", draftSummary.items, `${draftSummary.total} unidades listas`, draftSummary.items?"warn":"")
+  ].join("");
+}
+function renderProdCardsOnly(local){
+  const cards=$("#prodCards");
+  if(!cards || !local) return;
+  const localSummary=(PRODUCCION.byLocal&&PRODUCCION.byLocal[local])||{movimientos:0,cantidad_usada:0,cantidad_producida:0};
+  const draftSummary=prodDraftStats(local);
+  $("#prodMeta").textContent=`${localSummary.movimientos||0} partes`;
+  cards.innerHTML = [
+    metricCard("Partes", localSummary.movimientos||0, "eventos de producción", ""),
+    metricCard("Insumos usados", trim(localSummary.cantidad_usada||0), "cantidad consumida", "warn"),
+    metricCard("Producción", trim(localSummary.cantidad_producida||0), "salida informada", "good"),
+    metricCard("Borrador", draftSummary.items, `${draftSummary.totalUsada} usadas · ${trim(draftSummary.totalProducida)} prod`, draftSummary.items?"warn":"")
+  ].join("");
+}
 
 /* ---- Render locales ---- */
 function renderLocales(){
@@ -764,6 +1255,8 @@ function renderLocales(){
 }
 function selectLocal(id){
   state.local=id;
+  recepUi.visibleLimit=40;
+  prodUi.visibleLimit=40;
   $("#locales").querySelectorAll(".local").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.local===id)));
   $("#localPick").textContent=id;
   // autocompletar encargado/email si no fueron tocados
@@ -776,7 +1269,13 @@ function selectLocal(id){
     ? `Catálogo de <b>${id}</b>: ${cat.length} productos. Escribí para buscar, o <b>+ Libre</b> para otro.`
     : `<b>${id}</b> no tiene catálogo cargado todavía. Cargá los productos con <b>+ Libre</b>.`;
   $("#prodSearch").value=""; closeSuggest();
+  renderQuickCatalog();
   renderStockIntelligence();
+  renderRecepcionModule();
+  renderProduccionModule();
+  renderDashboard();
+  renderWorkspaceStats();
+  renderPedidoFlow();
   syncSend();
   if(navigator.vibrate) navigator.vibrate(8);
 }
@@ -785,6 +1284,7 @@ function selectLocal(id){
 const search=$("#prodSearch"), suggest=$("#suggest");
 let sgIndex=-1, sgData=[];
 search.addEventListener("input",()=>renderSuggest(search.value));
+search.addEventListener("input",()=>renderQuickCatalog());
 search.addEventListener("focus",()=>{ if(search.value.trim()) renderSuggest(search.value); });
 search.addEventListener("keydown",e=>{
   if(!suggest.classList.contains("open"))return;
@@ -827,15 +1327,53 @@ function addFromCatalog(rec){
   if(ex){ ex.qty+=1; toast(`+1 ${rec.nombre}`); }
   else state.items.push({_id:++uid,codigo:rec.codigo,nombre:rec.nombre,unidad:rec.unidad,
     proveedor:rec.proveedor,categoria:rec.categoria||"",precio:rec.precio,qty:1,free:false});
-  search.value=""; closeSuggest(); renderItems(); search.focus();
+  search.value=""; closeSuggest(); renderItems(); renderQuickCatalog(); search.focus();
 }
 function addFree(){
   const name=search.value.trim();
   if(!name){ toast("Escribí el nombre del producto","err"); search.focus(); return; }
   state.items.push({_id:++uid,codigo:"",nombre:name,unidad:"unidad",proveedor:"",categoria:"",precio:0,qty:1,free:true});
-  search.value=""; closeSuggest(); renderItems(); search.focus();
+  search.value=""; closeSuggest(); renderItems(); renderQuickCatalog(); search.focus();
 }
 $("#freeBtn").addEventListener("click",addFree);
+
+function renderQuickCatalog(){
+  const box=$("#quickPickList");
+  const meta=$("#quickPickMeta");
+  if(!state.local){
+    meta.textContent="Elegí un local";
+    box.innerHTML=`<div class="quick-pick-empty">Seleccioná un local para sumar varios productos rápido.</div>`;
+    return;
+  }
+  const cat=CATALOG[state.local]||[];
+  const q=search.value.trim().toLowerCase();
+  const filtered=(q
+    ? cat.filter(x=>x.nombre.toLowerCase().includes(q) || String(x.categoria||"").toLowerCase().includes(q) || String(x.proveedor||"").toLowerCase().includes(q))
+    : cat
+  ).slice(0, 12);
+  meta.textContent = q ? `${filtered.length} resultados rápidos` : `${Math.min(cat.length,12)} visibles de ${cat.length}`;
+  if(!filtered.length){
+    box.innerHTML=`<div class="quick-pick-empty">No hay coincidencias. Usá <b>+ Libre</b> si el producto no está cargado.</div>`;
+    return;
+  }
+  box.innerHTML = filtered.map(item=>{
+    const current = state.items.find(x=>!x.free && x.codigo===item.codigo);
+    return `
+      <div class="quick-pick-item">
+        <div class="quick-pick-main">
+          <div class="quick-pick-name">${esc(item.nombre)}</div>
+          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${current?` · en pedido ${esc(trim(current.qty))} ${esc(current.unidad)}`:""}</div>
+        </div>
+        <button type="button" class="quick-pick-btn" data-code="${esc(item.codigo||"")}">${current?"+1 más":"Agregar"}</button>
+      </div>`;
+  }).join("");
+  box.querySelectorAll(".quick-pick-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const item=filtered.find(x=>String(x.codigo||"")===btn.dataset.code);
+      addFromCatalog(item);
+    });
+  });
+}
 
 /* ---- Items render ---- */
 function renderItems(){
@@ -855,7 +1393,7 @@ function renderItems(){
     const id=+row.dataset.id, it=state.items.find(x=>x._id===id);
     row.querySelector('[data-act="qty"]').addEventListener("input",e=>{it.qty=parseFloat(e.target.value)||0;updateSummary(); renderStockIntelligence();});
     row.querySelector('[data-act="unit"]').addEventListener("change",e=>{it.unidad=e.target.value;updateSummary(); renderStockIntelligence();});
-    row.querySelector('[data-act="del"]').addEventListener("click",()=>{state.items=state.items.filter(x=>x._id!==id);renderItems();});
+    row.querySelector('[data-act="del"]').addEventListener("click",()=>{state.items=state.items.filter(x=>x._id!==id);renderItems(); renderQuickCatalog();});
   });
   updateSummary();
   renderStockIntelligence();
@@ -869,6 +1407,8 @@ function updateSummary(){
   $("#sumEst").innerHTML = n
     ? `Pedido para la próxima semana${provs?` · <b>${provs}</b> proveedor${provs===1?'':'es'}`:''}`
     : `Cargá los productos que necesitás`;
+  renderWorkspaceStats();
+  renderPedidoFlow();
   syncSend();
 }
 
@@ -892,6 +1432,18 @@ function syncSend(){ $("#send").disabled=!valid(); }
 
 /* ---- Submit ---- */
 $("#send").addEventListener("click",submit);
+$("#pedidoNext").addEventListener("click",nextPedidoStep);
+$("#pedidoBack").addEventListener("click",previousPedidoStep);
+function fastSendPayload(payload){
+  const body = JSON.stringify(payload);
+  if(navigator.sendBeacon){
+    try{
+      return navigator.sendBeacon(SCRIPT_URL, new Blob([body], { type:"application/json" }));
+    }catch{}
+  }
+  fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body});
+  return true;
+}
 function submit(){
   if(!valid()){ toast("Completá local, datos y al menos un producto","err"); return; }
   const items=state.items;
@@ -924,16 +1476,26 @@ function submit(){
   };
   const btn=$("#send"); const orig=btn.innerHTML;
   btn.disabled=true; btn.innerHTML=`<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Enviando...`;
-  fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
-    .then(()=>{ toast("Pedido enviado","ok"); resetForm(); })
-    .catch(()=>{ toast("Error de red, reintentá","err"); })
-    .finally(()=>{ btn.innerHTML=orig; syncSend(); });
+  try{
+    const sent = fastSendPayload(payload);
+    if(!sent){
+      toast("No se pudo enviar, reintentá","err");
+    }else{
+      toast("Pedido enviado","ok");
+      resetForm();
+    }
+  }catch{
+    toast("Error de red, reintentá","err");
+  }finally{
+    btn.innerHTML=orig; syncSend();
+  }
 }
 function resetForm(){
-  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false;
+  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="datos";
   $("#observaciones").value=""; renderItems();
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
   if(state.local) selectLocal(state.local);
+  renderPedidoFlow();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -974,6 +1536,48 @@ function stockMetaForItem(it){
   if(stock - pedido < 0) return {status:"bad",label:"Faltante",message:`Stock ${qtyText(stock,rec.unidad)} · pedido ${qtyText(pedido,it.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
   if(stock - pedido === 0) return {status:"warn",label:"Justo",message:`El pedido consume todo el stock disponible`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
   return {status:"ok",label:"Cubierto",message:`Stock ${qtyText(stock,rec.unidad)} disponible`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
+}
+function localOperationalMetrics(){
+  const cat=state.local ? (CATALOG[state.local]||[]) : [];
+  const recepSummary=(RECEPCIONES.byLocal&&RECEPCIONES.byLocal[state.local])||{movimientos:0,cantidad:0};
+  const prodSummary=(PRODUCCION.byLocal&&PRODUCCION.byLocal[state.local])||{movimientos:0,cantidad_usada:0,cantidad_producida:0};
+  const snapshotLocal=(SNAPSHOT.byLocal&&SNAPSHOT.byLocal[state.local])||{productos:0,conStock:0,sinStock:0,pedidos:0,faltantes:0};
+  const noStock=cat.filter(x=>num(x.stock_actual)!==null && num(x.stock_actual)<=0).length;
+  const noCount=cat.filter(x=>num(x.stock_actual)===null).length;
+  const itemSummaries=state.items.map(it=>({ it, meta:stockMetaForItem(it) }));
+  const reviewRows=itemSummaries.filter(row=>row.meta.status==="bad" || row.meta.status==="soft" || row.meta.status==="warn");
+  const riskRows=itemSummaries.filter(row=>row.meta.status==="bad");
+  const softRows=itemSummaries.filter(row=>row.meta.status==="soft");
+  const okRows=itemSummaries.filter(row=>row.meta.status==="ok");
+  const warnRows=itemSummaries.filter(row=>row.meta.status==="warn");
+  const pedidoUnits=trim(state.items.reduce((sum,it)=>sum+(num(it.qty)||0),0));
+  const coveragePct=state.items.length ? Math.round(((okRows.length + warnRows.length) / state.items.length) * 100) : 0;
+  const visibleBalance=trim(itemSummaries.reduce((sum,row)=>{
+    if(row.meta.status==="soft") return sum;
+    const side=row.meta.side||"";
+    const match=side.match(/-?[\d.,]+/);
+    if(!match) return sum;
+    return sum + (parseFloat(match[0].replace(",", ".")) || 0);
+  },0));
+  const pressure = riskRows.length ? "Comprar" : (softRows.length ? "Contar" : (warnRows.length ? "Ajustado" : "Operativo"));
+  return {
+    cat,
+    recepSummary,
+    prodSummary,
+    snapshotLocal,
+    noStock,
+    noCount,
+    itemSummaries,
+    reviewRows,
+    riskRows,
+    softRows,
+    okRows,
+    warnRows,
+    pedidoUnits,
+    coveragePct,
+    visibleBalance,
+    pressure
+  };
 }
 function renderStockIntelligence(){
   const overview=$("#stockOverview"), list=$("#stockList"), hint=$("#stockHint"), dash=$("#stockDash");
@@ -1057,6 +1661,250 @@ function dashCard(label,value,meta){
   return `<div class="stock-dash-card"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="meta">${esc(meta)}</div></div>`;
 }
 
+function renderRecepcionModule(){
+  const box=$("#recepGrid"), cards=$("#recepCards");
+  if(!state.local){
+    cards.innerHTML="";
+    box.innerHTML=`<div class="stock-empty">Elegí un local para cargar recepción.</div>`;
+    $("#recepMeta").textContent="Sin local";
+    $("#recepCatalogMeta").textContent="";
+    $("#recepMore").hidden=true;
+    return;
+  }
+  const drafts=ensureRecepDrafts(state.local);
+  renderRecepCardsOnly(state.local);
+  $("#recepProveedor").value = drafts.proveedor || "";
+  $("#recepEncargado").value = drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "";
+  $("#recepObs").value = drafts.observaciones || "";
+  $("#recepSearch").value = recepUi.queryByLocal[state.local] || "";
+  const allRows=(CATALOG[state.local]||[]);
+  const q=(recepUi.queryByLocal[state.local]||"").trim().toLowerCase();
+  const filtered = q ? allRows.filter(item=>
+    item.nombre.toLowerCase().includes(q) ||
+    String(item.codigo||"").toLowerCase().includes(q) ||
+    String(item.categoria||"").toLowerCase().includes(q) ||
+    String(item.proveedor||"").toLowerCase().includes(q)
+  ) : allRows;
+  const visible = filtered.slice(0, recepUi.visibleLimit);
+  $("#recepCatalogMeta").textContent=`${visible.length} de ${filtered.length} filtrados · ${allRows.length} total`;
+  box.innerHTML = visible.length ? visible.map(item=>`
+    <div class="op-row" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
+      <div class="op-row-main">
+        <div class="op-row-name">${esc(item.nombre)}</div>
+        <div class="op-row-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""} · ${esc(item.unidad||"unidad")}</div>
+      </div>
+      <input type="number" step="0.1" value="${drafts.items[stockKey(item.codigo,item.nombre)]||""}" data-field="recepcion" placeholder="0">
+    </div>`).join("") : `<div class="stock-empty">${allRows.length ? "No hay coincidencias para ese filtro." : "Este local no tiene catálogo cargado."}</div>`;
+  $("#recepMore").hidden = visible.length >= filtered.length;
+}
+
+function renderProduccionModule(){
+  const box=$("#prodGrid"), cards=$("#prodCards");
+  if(!state.local){
+    cards.innerHTML="";
+    box.innerHTML=`<div class="stock-empty">Elegí un local para cargar producción.</div>`;
+    $("#prodMeta").textContent="Sin local";
+    $("#prodCatalogMeta").textContent="";
+    $("#prodMore").hidden=true;
+    return;
+  }
+  const drafts=ensureProdDrafts(state.local);
+  renderProdCardsOnly(state.local);
+  $("#prodNombre").value = drafts.producto_elaborado || "";
+  $("#prodCantidad").value = drafts.cantidad_producida || "";
+  $("#prodLote").value = drafts.lote || "";
+  $("#prodEncargado").value = drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "";
+  $("#prodObs").value = drafts.observaciones || "";
+  $("#prodInsumoSearch").value = prodUi.queryByLocal[state.local] || "";
+  const allRows=(CATALOG[state.local]||[]);
+  const q=(prodUi.queryByLocal[state.local]||"").trim().toLowerCase();
+  const filtered = q ? allRows.filter(item=>
+    item.nombre.toLowerCase().includes(q) ||
+    String(item.codigo||"").toLowerCase().includes(q) ||
+    String(item.categoria||"").toLowerCase().includes(q) ||
+    String(item.proveedor||"").toLowerCase().includes(q)
+  ) : allRows;
+  const visible = filtered.slice(0, prodUi.visibleLimit);
+  $("#prodCatalogMeta").textContent=`${visible.length} de ${filtered.length} filtrados · ${allRows.length} total`;
+  box.innerHTML = visible.length ? visible.map(item=>`
+    <div class="op-row" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
+      <div class="op-row-main">
+        <div class="op-row-name">${esc(item.nombre)}</div>
+        <div class="op-row-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""} · ${esc(item.unidad||"unidad")}</div>
+      </div>
+      <input type="number" step="0.1" value="${drafts.items[stockKey(item.codigo,item.nombre)]||""}" data-field="produccion" placeholder="0">
+    </div>`).join("") : `<div class="stock-empty">${allRows.length ? "No hay coincidencias para ese filtro." : "Este local no tiene catálogo cargado."}</div>`;
+  $("#prodMore").hidden = visible.length >= filtered.length;
+}
+
+function renderDashboard(){
+  const cards=$("#dashCards"), recep=$("#dashRecepList"), prod=$("#dashProdList");
+  const riskList=$("#dashRiskList"), pedidoList=$("#dashPedidoList"), openList=$("#dashOpenList");
+  if(!state.local){
+    $("#dashMeta").textContent="Sin local";
+    cards.innerHTML="";
+    riskList.innerHTML=`<div class="stock-empty">Elegí un local para ver alertas.</div>`;
+    pedidoList.innerHTML=`<div class="stock-empty">Elegí un local para ver alertas.</div>`;
+    openList.innerHTML=`<div class="stock-empty">Elegí un local para ver pedidos abiertos.</div>`;
+    recep.innerHTML=`<div class="stock-empty">Elegí un local para ver movimientos.</div>`;
+    prod.innerHTML=`<div class="stock-empty">Elegí un local para ver movimientos.</div>`;
+    return;
+  }
+  const metrics=localOperationalMetrics();
+  const localCat=metrics.cat;
+  $("#dashMeta").textContent = snapshotStampText() ? `${state.local} · ${snapshotStampText()}` : state.local;
+  cards.innerHTML = [
+    metricCard("Catálogo", localCat.length, "productos activos", ""),
+    metricCard("Abiertos", metrics.snapshotLocal.pedidos||0, metrics.snapshotLocal.faltantes ? `${metrics.snapshotLocal.faltantes} faltantes en planilla` : "pedido histórico bajo control", metrics.snapshotLocal.faltantes?"bad":""),
+    metricCard("Cobertura", `${metrics.coveragePct}%`, state.items.length ? `${metrics.okRows.length + metrics.warnRows.length} líneas cubiertas` : "sin pedido cargado", metrics.riskRows.length?"warn":"good"),
+    metricCard("Recepción", metrics.recepSummary.movimientos||0, `+${trim(metrics.recepSummary.cantidad||0)} unidades`, "good"),
+    metricCard("Producción", metrics.prodSummary.movimientos||0, `${trim(metrics.prodSummary.cantidad_producida||0)} salida`, "warn"),
+    metricCard("Pedido", trim(metrics.pedidoUnits), `${state.items.length} líneas activas`, ""),
+    metricCard("Saldo visible", trim(metrics.visibleBalance), metrics.softRows.length ? `${metrics.softRows.length} sin referencia exacta` : "stock menos pedido visible", metrics.visibleBalance < 0 ? "bad" : ""),
+    metricCard("Acción", metrics.pressure, metrics.riskRows.length ? `${metrics.riskRows.length} faltantes reales` : (metrics.softRows.length ? `${metrics.softRows.length} por contar` : "sin alertas críticas"), metrics.pressure==="Comprar"?"bad":(metrics.pressure==="Contar"?"warn":"good"))
+  ].join("");
+  const localRisks = localCat.filter(item=>{
+    const stock=num(item.stock_actual);
+    return stock===null || stock<=0;
+  }).slice(0,5);
+  riskList.innerHTML = localRisks.length ? localRisks.map(item=>{
+    const stock=num(item.stock_actual);
+    const label = stock===null ? "Sin conteo" : "Sin stock";
+    const detail = stock===null
+      ? `${item.categoria||"Sin categoría"} · falta relevar stock real`
+      : `${item.categoria||"Sin categoría"} · agotado en ${item.unidad||"unidad"}`;
+    return `
+      <div class="event-item">
+        <strong>${esc(item.nombre)}</strong>
+        <span>${esc(label)} · ${esc(detail)}</span>
+      </div>`;
+  }).join("") : `<div class="stock-empty">El local no tiene quiebres críticos ni faltas de conteo visibles.</div>`;
+  const pedidoRiesgos = metrics.reviewRows.slice(0,5);
+  pedidoList.innerHTML = pedidoRiesgos.length ? pedidoRiesgos.map(row=>`
+    <div class="event-item">
+      <strong>${esc(row.it.nombre)}</strong>
+      <span>${esc(row.meta.label)} · ${esc(row.meta.message)}${row.meta.side?` · ${esc(row.meta.side)}`:""}</span>
+    </div>`).join("") : `<div class="stock-empty">El pedido actual no muestra tensiones de cobertura.</div>`;
+  const openRows=((SNAPSHOT.openItemsByLocal&&SNAPSHOT.openItemsByLocal[state.local])||[]).slice(0,5);
+  openList.innerHTML = openRows.length ? openRows.map(row=>`
+    <div class="event-item">
+      <strong>${esc(row.producto)}</strong>
+      <span>${esc(trim(num(row.cantidad)||0))} ${esc(row.unidad||"")} · ${esc(row.urgencia||"Normal")} · ${esc(row.proveedor||"Sin proveedor")}</span>
+    </div>`).join("") : `<div class="stock-empty">No hay líneas abiertas recientes para este local.</div>`;
+  const recepRows=(RECEPCIONES.latest||[]).filter(x=>x.local===state.local).slice(0,5);
+  recep.innerHTML = recepRows.length ? recepRows.map(row=>`
+    <div class="event-item">
+      <strong>${esc(row.producto)}</strong>
+      <span>${esc(row.fecha_hora)} · ${esc(trim(num(row.cantidad_recibida)||0))} ${esc(row.unidad||"")} · ${esc(row.proveedor||"Sin proveedor")}</span>
+    </div>`).join("") : `<div class="stock-empty">Todavía no hay recepciones cargadas para este local.</div>`;
+  const prodRows=(PRODUCCION.latest||[]).filter(x=>x.local===state.local).slice(0,5);
+  prod.innerHTML = prodRows.length ? prodRows.map(row=>`
+    <div class="event-item">
+      <strong>${esc(row.producto_elaborado || row.insumo)}</strong>
+      <span>${esc(row.fecha_hora)} · usa ${esc(trim(num(row.cantidad_usada)||0))} ${esc(row.unidad||"")} · lote ${esc(row.lote||"—")}</span>
+    </div>`).join("") : `<div class="stock-empty">Todavía no hay partes productivos cargados para este local.</div>`;
+}
+
+async function saveReception(){
+  if(!state.local){ toast("Elegí un local primero","err"); return; }
+  if(!capabilityEnabled("recepcion")){
+    toast("Recepción bloqueada: el Apps Script publicado todavía no tiene V2","err");
+    return;
+  }
+  const drafts=ensureRecepDrafts(state.local);
+  const items=(CATALOG[state.local]||[]).map(item=>{
+    const rec=(getCatalogMap(state.local).get(`code:${item.codigo}`)||getCatalogMap(state.local).get(`name:${String(item.nombre||"").toLowerCase()}`)||{});
+    return {
+      codigo:item.codigo||"",
+      producto:item.nombre||"",
+      categoria:rec.categoria||"",
+      unidad:rec.unidad||"unidad",
+      proveedor:rec.proveedor||$("#recepProveedor").value.trim(),
+      cantidad_recibida:drafts.items[stockKey(item.codigo,item.nombre)]||""
+    };
+  }).filter(it=>num(it.cantidad_recibida)>0);
+  if(!items.length){ toast("Cargá al menos una cantidad recibida","err"); return; }
+  const payload={
+    action:"saveReception",
+    id_recepcion:"REC"+Date.now().toString().slice(-6),
+    fecha_hora:new Date().toLocaleString("es-AR"),
+    local:state.local,
+    rebuild_views:false,
+    encargado:$("#recepEncargado").value.trim() || $("#encargado").value.trim(),
+    proveedor:$("#recepProveedor").value.trim(),
+    observaciones:$("#recepObs").value.trim(),
+    items
+  };
+  const btn=$("#recepSave"), orig=btn.textContent;
+  btn.disabled=true; btn.textContent="Guardando...";
+  try{
+    await apiPost(payload);
+    applyReceptionOptimistic(state.local, items);
+    clearRecepDrafts(state.local);
+    toast("Recepción registrada","ok");
+    renderRecepcionModule();
+    renderStockIntelligence();
+    renderDashboard();
+    renderWorkspaceStats();
+    queueBootstrapRefresh(900);
+  }catch{
+    toast("Error al guardar recepción","err");
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
+async function saveProduction(){
+  if(!state.local){ toast("Elegí un local primero","err"); return; }
+  if(!capabilityEnabled("produccion")){
+    toast("Producción bloqueada: el Apps Script publicado todavía no tiene V2","err");
+    return;
+  }
+  if(!$("#prodNombre").value.trim()){ toast("Indicá el producto elaborado","err"); $("#prodNombre").focus(); return; }
+  const drafts=ensureProdDrafts(state.local);
+  const items=(CATALOG[state.local]||[]).map(item=>{
+    const rec=(getCatalogMap(state.local).get(`code:${item.codigo}`)||getCatalogMap(state.local).get(`name:${String(item.nombre||"").toLowerCase()}`)||{});
+    return {
+      codigo:item.codigo||"",
+      insumo:item.nombre||"",
+      categoria:rec.categoria||"",
+      unidad:rec.unidad||"unidad",
+      cantidad_usada:drafts.items[stockKey(item.codigo,item.nombre)]||""
+    };
+  }).filter(it=>num(it.cantidad_usada)>0);
+  if(!items.length){ toast("Cargá al menos un insumo consumido","err"); return; }
+  const payload={
+    action:"saveProduction",
+    id_produccion:"PROD"+Date.now().toString().slice(-6),
+    fecha_hora:new Date().toLocaleString("es-AR"),
+    local:state.local,
+    rebuild_views:false,
+    encargado:$("#prodEncargado").value.trim() || $("#encargado").value.trim(),
+    producto_elaborado:$("#prodNombre").value.trim(),
+    cantidad_producida:$("#prodCantidad").value,
+    lote:$("#prodLote").value.trim(),
+    observaciones:$("#prodObs").value.trim(),
+    items
+  };
+  const btn=$("#prodSave"), orig=btn.textContent;
+  btn.disabled=true; btn.textContent="Guardando...";
+  try{
+    await apiPost(payload);
+    applyProductionOptimistic(state.local, payload);
+    clearProdDrafts(state.local);
+    toast("Producción registrada","ok");
+    renderProduccionModule();
+    renderStockIntelligence();
+    renderDashboard();
+    renderWorkspaceStats();
+    queueBootstrapRefresh(900);
+  }catch{
+    toast("Error al guardar producción","err");
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
 /* ---- Live data (best-effort; cae al snapshot si el script no responde) ---- */
 async function warmData(){
   try{
@@ -1066,9 +1914,20 @@ async function warmData(){
     if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
     if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
     if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
-    setConn(true,"En vivo");
+    if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
+    if(d&&d.produccion){ PRODUCCION=d.produccion; }
+    if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
+    setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
     renderStockIntelligence();
-  }catch{ setConn(true,"Catálogo local"); }
+    renderRecepcionModule();
+    renderProduccionModule();
+    renderDashboard();
+    renderWorkspaceStats();
+  }catch{
+    LIVE_META = { version:"", capabilities:{} };
+    renderLiveWarning();
+    setConn(true,"Catálogo local");
+  }
 }
 const LOCAL_ALIAS = {
   "Hamburguesería":"Brooklyn", "Hamburgueseria":"Brooklyn",
@@ -1116,6 +1975,13 @@ async function apiPost(payload){
   // no-cors: no podemos leer la respuesta; confirmamos releyendo el bootstrap.
   await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
 }
+function queueBootstrapRefresh(delay=900){
+  clearTimeout(bootstrapRefreshTimer);
+  bootstrapRefreshTimer = setTimeout(()=>{
+    bootstrapRefreshTimer = null;
+    refreshData();
+  }, delay);
+}
 async function refreshData(){
   try{
     const r=await fetch(`${SCRIPT_URL}?action=getBootstrap&t=${Date.now()}`);
@@ -1123,9 +1989,21 @@ async function refreshData(){
     if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
     if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
     if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
+    if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
+    if(d&&d.produccion){ PRODUCCION=d.produccion; }
+    if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
+    setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
     renderStockIntelligence();
+    renderRecepcionModule();
+    renderProduccionModule();
+    renderDashboard();
+    renderWorkspaceStats();
     return true;
-  }catch{ return false; }
+  }catch{
+    LIVE_META = { version:"", capabilities:{} };
+    renderLiveWarning();
+    return false;
+  }
 }
 async function addProducto(){
   const local=cfgLocalVal();
@@ -1164,6 +2042,8 @@ $("#cfgAddResp").addEventListener("click",addResponsable);
 /* ---- Stock modal ---- */
 const stockModal=$("#stockModal");
 const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null };
+const recepUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{} };
+const prodUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{} };
 function openStock(){
   const sel=$("#stockLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
@@ -1180,6 +2060,109 @@ function openStock(){
 function closeStock(){ stockModal.hidden=true; }
 function stockLocalVal(){ return $("#stockLocal").value; }
 function stockKey(code,name){ return `${code||""}||${String(name||"").toLowerCase()}`; }
+function ensureRecepDrafts(local){
+  if(recepUi.drafts[local]) return recepUi.drafts[local];
+  const drafts={ proveedor:"", encargado:(CONFIG[local]&&CONFIG[local].enc)||"", observaciones:"", items:{} };
+  (CATALOG[local]||[]).forEach(item=>{
+    drafts.items[stockKey(item.codigo,item.nombre)] = "";
+  });
+  recepUi.drafts[local]=drafts;
+  return drafts;
+}
+function ensureProdDrafts(local){
+  if(prodUi.drafts[local]) return prodUi.drafts[local];
+  const drafts={ producto_elaborado:"", cantidad_producida:"", lote:"", encargado:(CONFIG[local]&&CONFIG[local].enc)||"", observaciones:"", items:{} };
+  (CATALOG[local]||[]).forEach(item=>{
+    drafts.items[stockKey(item.codigo,item.nombre)] = "";
+  });
+  prodUi.drafts[local]=drafts;
+  return drafts;
+}
+function clearRecepDrafts(local){
+  delete recepUi.drafts[local];
+  recepUi.queryByLocal[local]="";
+}
+function clearProdDrafts(local){
+  delete prodUi.drafts[local];
+  prodUi.queryByLocal[local]="";
+}
+function applyReceptionOptimistic(local, items){
+  if(!items.length) return;
+  const map=new Map(items.map(it=>[stockKey(it.codigo,it.producto), num(it.cantidad_recibida)||0]));
+  (CATALOG[local]||[]).forEach(item=>{
+    const add=map.get(stockKey(item.codigo,item.nombre));
+    if(!add) return;
+    item.stock_actual = trim((num(item.stock_actual)||0) + add);
+  });
+  if(!RECEPCIONES.byLocal) RECEPCIONES.byLocal={};
+  if(!RECEPCIONES.latest) RECEPCIONES.latest=[];
+  const summary=RECEPCIONES.byLocal[local] || {movimientos:0,cantidad:0};
+  summary.movimientos += 1;
+  summary.cantidad += items.reduce((sum,it)=>sum+(num(it.cantidad_recibida)||0),0);
+  RECEPCIONES.byLocal[local]=summary;
+  const now=new Date().toLocaleString("es-AR");
+  items.slice(0,3).reverse().forEach(it=>{
+    RECEPCIONES.latest.unshift({
+      local, producto:it.producto, proveedor:it.proveedor||"", unidad:it.unidad||"unidad",
+      cantidad_recibida:it.cantidad_recibida, fecha_hora:now
+    });
+  });
+  RECEPCIONES.latest = RECEPCIONES.latest.slice(0,60);
+}
+function applyProductionOptimistic(local, payload){
+  const items=payload.items||[];
+  if(!items.length) return;
+  const map=new Map(items.map(it=>[stockKey(it.codigo,it.insumo), num(it.cantidad_usada)||0]));
+  (CATALOG[local]||[]).forEach(item=>{
+    const used=map.get(stockKey(item.codigo,item.nombre));
+    if(!used) return;
+    item.stock_actual = trim((num(item.stock_actual)||0) - used);
+  });
+  if(!PRODUCCION.byLocal) PRODUCCION.byLocal={};
+  if(!PRODUCCION.latest) PRODUCCION.latest=[];
+  const summary=PRODUCCION.byLocal[local] || {movimientos:0,cantidad_usada:0,cantidad_producida:0};
+  summary.movimientos += 1;
+  summary.cantidad_usada += items.reduce((sum,it)=>sum+(num(it.cantidad_usada)||0),0);
+  summary.cantidad_producida += (num(payload.cantidad_producida)||0);
+  PRODUCCION.byLocal[local]=summary;
+  const now=new Date().toLocaleString("es-AR");
+  items.slice(0,3).reverse().forEach(it=>{
+    PRODUCCION.latest.unshift({
+      local, producto_elaborado:payload.producto_elaborado||"", insumo:it.insumo, unidad:it.unidad||"unidad",
+      cantidad_usada:it.cantidad_usada, lote:payload.lote||"", fecha_hora:now
+    });
+  });
+  PRODUCCION.latest = PRODUCCION.latest.slice(0,60);
+}
+function recepDraftStats(local){
+  const drafts=ensureRecepDrafts(local);
+  const filled = Object.values(drafts.items).filter(v=>num(v)>0);
+  return {
+    items: filled.length,
+    total: trim(filled.reduce((sum,v)=>sum+(num(v)||0),0))
+  };
+}
+function prodDraftStats(local){
+  const drafts=ensureProdDrafts(local);
+  const filled = Object.values(drafts.items).filter(v=>num(v)>0);
+  return {
+    items: filled.length,
+    totalUsada: trim(filled.reduce((sum,v)=>sum+(num(v)||0),0)),
+    totalProducida: num(drafts.cantidad_producida)||0
+  };
+}
+function clearReceptionDraftForm(){
+  if(!state.local) return;
+  clearRecepDrafts(state.local);
+  renderRecepcionModule();
+  renderWorkspaceStats();
+}
+function clearProductionDraftForm(){
+  if(!state.local) return;
+  clearProdDrafts(state.local);
+  renderProduccionModule();
+  renderWorkspaceStats();
+}
 function syncCatalogStockFromDrafts(local){
   const drafts=ensureStockDrafts(local);
   (CATALOG[local]||[]).forEach(item=>{
@@ -1261,9 +2244,10 @@ async function saveStock(){
     await apiPost(payload);
     syncCatalogStockFromDrafts(local);
     if(state.local===local) renderStockIntelligence();
+    if(state.local===local) renderWorkspaceStats();
     toast("Stock real actualizado","ok");
     closeStock();
-    setTimeout(()=>{ refreshData(); },150);
+    queueBootstrapRefresh(1100);
   }catch{
     toast("Error al guardar stock","err");
   }finally{
@@ -1291,11 +2275,61 @@ $("#stockGrid").addEventListener("input",e=>{
 });
 $("#stockMore").addEventListener("click",()=>{ stockUi.visibleLimit += 80; renderStockModal(); });
 $("#stockSave").addEventListener("click",saveStock);
+$("#tabNav").querySelectorAll(".tabbtn").forEach(btn=>btn.addEventListener("click",()=>setTab(btn.dataset.tab)));
+$("#recepSave").addEventListener("click",saveReception);
+$("#prodSave").addEventListener("click",saveProduction);
+$("#recepClear").addEventListener("click",clearReceptionDraftForm);
+$("#prodClear").addEventListener("click",clearProductionDraftForm);
+$("#recepProveedor").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).proveedor=$("#recepProveedor").value; });
+$("#recepEncargado").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).encargado=$("#recepEncargado").value; });
+$("#recepObs").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).observaciones=$("#recepObs").value; });
+$("#recepSearch").addEventListener("input",()=>{
+  if(!state.local) return;
+  recepUi.queryByLocal[state.local]=$("#recepSearch").value;
+  recepUi.visibleLimit=80;
+  clearTimeout(recepUi.filterTimer);
+  recepUi.filterTimer=setTimeout(()=>renderRecepcionModule(),120);
+});
+$("#recepGrid").addEventListener("input",e=>{
+  if(e.target.dataset.field!=="recepcion") return;
+  const row=e.target.closest(".op-row");
+  if(!row || !state.local) return;
+  ensureRecepDrafts(state.local).items[stockKey(row.dataset.code||"", row.dataset.name||"")] = e.target.value;
+  renderRecepCardsOnly(state.local);
+  renderWorkspaceStats();
+});
+$("#recepMore").addEventListener("click",()=>{ recepUi.visibleLimit += 80; renderRecepcionModule(); });
+$("#prodNombre").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).producto_elaborado=$("#prodNombre").value; });
+$("#prodCantidad").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).cantidad_producida=$("#prodCantidad").value; });
+$("#prodLote").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).lote=$("#prodLote").value; });
+$("#prodEncargado").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).encargado=$("#prodEncargado").value; });
+$("#prodObs").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).observaciones=$("#prodObs").value; });
+$("#prodInsumoSearch").addEventListener("input",()=>{
+  if(!state.local) return;
+  prodUi.queryByLocal[state.local]=$("#prodInsumoSearch").value;
+  prodUi.visibleLimit=80;
+  clearTimeout(prodUi.filterTimer);
+  prodUi.filterTimer=setTimeout(()=>renderProduccionModule(),120);
+});
+$("#prodGrid").addEventListener("input",e=>{
+  if(e.target.dataset.field!=="produccion") return;
+  const row=e.target.closest(".op-row");
+  if(!row || !state.local) return;
+  ensureProdDrafts(state.local).items[stockKey(row.dataset.code||"", row.dataset.name||"")] = e.target.value;
+  renderProdCardsOnly(state.local);
+  renderWorkspaceStats();
+});
+$("#prodMore").addEventListener("click",()=>{ prodUi.visibleLimit += 80; renderProduccionModule(); });
 
 /* ---- Init ---- */
 renderLocales(); renderItems(); syncSend();
 setConn(true,"Catálogo local");
 renderStockIntelligence();
+renderRecepcionModule();
+renderProduccionModule();
+renderDashboard();
+renderWorkspaceStats();
+setTab("pedido");
 warmData();
 </script>
 <style>.spin{animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>

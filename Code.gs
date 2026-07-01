@@ -25,16 +25,27 @@ var SHEET_PEDIDOS  = 'PEDIDOS RECIBIDOS';
 var SHEET_DETALLE  = 'PEDIDOS_DETALLE';
 var SHEET_RESUMEN  = 'RESUMEN POR PROVEEDOR';
 var SHEET_STOCK    = 'CONTROL STOCK';
+var SHEET_RECEPCION = 'CONTROL RECEPCION';
+var SHEET_PRODUCCION = 'CONTROL PRODUCCION';
 var SHEET_STOCK_DASH = 'DASHBOARD STOCK';
 var SHEET_HOME     = 'INICIO OPERATIVO';
 var SHEET_VIEW_PED = 'VISTA PEDIDOS';
 var SHEET_VIEW_STK = 'VISTA STOCK';
 var SHEET_VIEW_BUY = 'VISTA COMPRAS';
+var SHEET_VIEW_REC = 'VISTA RECEPCION';
+var SHEET_VIEW_PROD = 'VISTA PRODUCCION';
+var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
+var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
+var APP_VERSION = '2.1.0';
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
   'Código','Producto','Categoría','Cantidad','Unidad','Proveedor','Estado','Comprado','Entregado'];
 var STOCK_HEADERS = ['ID_Conteo','Fecha_Hora','Local','Encargado','Tipo_Conteo','Código','Producto','Categoría',
   'Unidad','Stock_Real','Estado_Stock','Observaciones'];
+var RECEPCION_HEADERS = ['ID_Recepcion','Fecha_Hora','Local','Encargado','Proveedor','Código','Producto','Categoría',
+  'Unidad','Cantidad_Recibida','Estado','Observaciones'];
+var PRODUCCION_HEADERS = ['ID_Produccion','Fecha_Hora','Local','Encargado','Producto_Elaborado','Lote','Código_Insumo',
+  'Insumo','Categoría','Unidad','Cantidad_Usada','Cantidad_Producida','Estado','Observaciones'];
 
 /* ============================== WEB API ============================== */
 
@@ -42,9 +53,19 @@ function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'ping';
   try {
     if (action === 'getBootstrap') {
-      return json({ ok: true, config: readConfig_(), responsables: readResponsables_(), catalog: readCatalog_() });
+      return json({
+        ok: true,
+        version: APP_VERSION,
+        capabilities: appCapabilities_(),
+        config: readConfig_(),
+        responsables: readResponsables_(),
+        catalog: readCatalog_(),
+        recepciones: readRecepcionResumen_(),
+        produccion: readProduccionResumen_(),
+        snapshot: buildFrontendOperationalSnapshot_()
+      });
     }
-    return json({ ok: true, status: 'online', version: '2.0' });
+    return json({ ok: true, status: 'online', version: APP_VERSION, capabilities: appCapabilities_() });
   } catch (err) {
     return json({ ok: false, error: String(err) });
   }
@@ -56,6 +77,8 @@ function doPost(e) {
     if (data.action === 'addProducto')   { return json(addProductoCatalogo_(data)); }
     if (data.action === 'addResponsable'){ return json(addResponsableConfig_(data)); }
     if (data.action === 'saveStock')     { return json(saveStockConteo_(data)); }
+    if (data.action === 'saveReception') { return json(saveRecepcion_(data)); }
+    if (data.action === 'saveProduction'){ return json(saveProduccion_(data)); }
     appendPedido_(data);
     appendDetalle_(data);   // capa normalizada: 1 fila por producto
     return json({ ok: true, id_pedido: data.id_pedido || '' });
@@ -134,6 +157,19 @@ function json(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function appCapabilities_() {
+  return {
+    pedido: true,
+    stock: true,
+    recepcion: true,
+    produccion: true,
+    dashboard_v2: true,
+    local_alias_normalization: true,
+    movement_views: true,
+    bootstrap_v2: true
+  };
+}
+
 /* ============================== READ CATALOG ============================== */
 
 function readCatalog_() {
@@ -183,7 +219,7 @@ function readConfig_() {
   if (!sh) return {};
   var values = sh.getDataRange().getValues();
   var out = {};
-  var start = -1, cLocal = 0, cEnc = 1, cEmail = 2;
+  var start = -1, cLocal = 0, cEnc = 1, cEmail = 2, cAct = -1;
   for (var r = 0; r < values.length; r++) {
     var rowLower = values[r].map(function (c) { return String(c).trim().toLowerCase(); });
     if (rowLower.indexOf('local') > -1 && rowLower.indexOf('encargado') > -1) {
@@ -191,6 +227,7 @@ function readConfig_() {
       cLocal = rowLower.indexOf('local');
       cEnc   = rowLower.indexOf('encargado');
       cEmail = rowLower.indexOf('email');
+      cAct   = rowLower.indexOf('activo');
       break;
     }
   }
@@ -199,6 +236,7 @@ function readConfig_() {
     var local = normalizeLocalName_(values[i][cLocal]);
     if (!local) break;                 // fin del bloque de encargados
     if (local.charAt(0) === '🔧' || local.charAt(0) === '🔗') break;
+    if (cAct > -1 && !isActiveFlag_(values[i][cAct])) continue;
     if (!out[local]) out[local] = {    // primero gana = encargado oficial (default del form)
       enc:   cEnc   > -1 ? String(values[i][cEnc]   || '').trim() : '',
       email: cEmail > -1 ? String(values[i][cEmail] || '').trim() : ''
@@ -212,11 +250,11 @@ function readResponsables_() {
   var sh = ss_().getSheetByName(SHEET_CONFIG);
   if (!sh) return {};
   var values = sh.getDataRange().getValues();
-  var out = {}, start = -1, cLocal = 0, cEnc = 1, cEmail = 2;
+  var out = {}, start = -1, cLocal = 0, cEnc = 1, cEmail = 2, cAct = -1;
   for (var r = 0; r < values.length; r++) {
     var low = values[r].map(function (c) { return String(c).trim().toLowerCase(); });
     if (low.indexOf('local') > -1 && low.indexOf('encargado') > -1) {
-      start = r + 1; cLocal = low.indexOf('local'); cEnc = low.indexOf('encargado'); cEmail = low.indexOf('email'); break;
+      start = r + 1; cLocal = low.indexOf('local'); cEnc = low.indexOf('encargado'); cEmail = low.indexOf('email'); cAct = low.indexOf('activo'); break;
     }
   }
   if (start === -1) return {};
@@ -224,6 +262,7 @@ function readResponsables_() {
     var local = normalizeLocalName_(values[i][cLocal]);
     if (!local) break;
     if (local.charAt(0) === '🔧' || local.charAt(0) === '🔗') break;
+    if (cAct > -1 && !isActiveFlag_(values[i][cAct])) continue;
     if (!out[local]) out[local] = [];
     out[local].push({
       nombre: cEnc   > -1 ? String(values[i][cEnc]   || '').trim() : '',
@@ -407,27 +446,319 @@ function updateCatalogStock_(local, items, fechaHora, tipoConteo) {
     if (actual === null) return;
     var keyByCode = String(local).trim().toLowerCase() + '||' + String(it.codigo || '').trim().toLowerCase();
     var keyByName = String(local).trim().toLowerCase() + '||' + String(it.producto || '').trim().toLowerCase();
-    itemMap[keyByCode] = it;
-    itemMap[keyByName] = it;
+    itemMap[keyByCode] = { stock: actual, fecha: fechaHora, notas: tipoConteo + ' desde formulario' };
+    itemMap[keyByName] = { stock: actual, fecha: fechaHora, notas: tipoConteo + ' desde formulario' };
   });
 
-  var changed = false;
+  var changedStock = false;
+  var changedFecha = false;
+  var changedNotas = false;
+  var changedRows = [];
   for (var r = 1; r < values.length; r++) {
     var rowLocal = String(values[r][iLocal] || '').trim().toLowerCase();
     var rowCode = iCod > -1 ? String(values[r][iCod] || '').trim().toLowerCase() : '';
     var rowName = iNom > -1 ? String(values[r][iNom] || '').trim().toLowerCase() : '';
     var rec = itemMap[rowLocal + '||' + rowCode] || itemMap[rowLocal + '||' + rowName];
     if (!rec) continue;
-
-    var actual = numberOrNull_(rec.stock_actual);
-    if (actual !== null) {
-      values[r][iStock] = actual;
-      changed = true;
+    changedRows.push(r + 1);
+    values[r][iStock] = rec.stock;
+    changedStock = true;
+    if (iFecha > -1) {
+      values[r][iFecha] = rec.fecha;
+      changedFecha = true;
     }
-    if (iFecha > -1) values[r][iFecha] = fechaHora;
-    if (iNotas > -1) values[r][iNotas] = tipoConteo + ' desde formulario';
+    if (iNotas > -1) {
+      values[r][iNotas] = rec.notas;
+      changedNotas = true;
+    }
   }
-  if (changed) sh.getDataRange().setValues(values);
+  applyCatalogColumnUpdates_(sh, values, changedRows, iStock, iFecha, iNotas, changedStock, changedFecha, changedNotas);
+}
+
+function saveRecepcion_(d) {
+  if (!d.local) return { ok: false, error: 'Falta local' };
+  if (!d.items || !d.items.length) return { ok: false, error: 'Faltan productos recibidos' };
+  d.local = normalizeLocalName_(d.local);
+
+  var recepcionId = d.id_recepcion || ('REC' + new Date().getTime().toString().slice(-6));
+  var fechaHora = d.fecha_hora || new Date().toLocaleString('es-AR');
+  var rows = [];
+
+  d.items.forEach(function (it) {
+    var cantidad = numberOrNull_(it.cantidad_recibida);
+    if (cantidad === null || cantidad <= 0) return;
+    rows.push([
+      recepcionId,
+      fechaHora,
+      d.local,
+      d.encargado || '',
+      it.proveedor || d.proveedor || '',
+      it.codigo || '',
+      it.producto || '',
+      it.categoria || '',
+      it.unidad || 'unidad',
+      cantidad,
+      'Recepcionado',
+      d.observaciones || it.observaciones || ''
+    ]);
+  });
+
+  if (!rows.length) return { ok: false, error: 'No hay cantidades recibidas para guardar' };
+
+  var sh = ss_().getSheetByName(SHEET_RECEPCION) || createRecepcionSheet_();
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, RECEPCION_HEADERS.length).setValues(rows);
+  if (d.update_catalog_stock !== false) addReceivedStockToCatalog_(d.local, d.items, fechaHora);
+  if (d.rebuild_views !== false) refreshMovementViews_();
+  return { ok: true, id_recepcion: recepcionId, rows: rows.length };
+}
+
+function saveProduccion_(d) {
+  if (!d.local) return { ok: false, error: 'Falta local' };
+  if (!d.items || !d.items.length) return { ok: false, error: 'Faltan insumos de producción' };
+  d.local = normalizeLocalName_(d.local);
+
+  var produccionId = d.id_produccion || ('PROD' + new Date().getTime().toString().slice(-6));
+  var fechaHora = d.fecha_hora || new Date().toLocaleString('es-AR');
+  var rows = [];
+
+  d.items.forEach(function (it) {
+    var cantidadUsada = numberOrNull_(it.cantidad_usada);
+    if (cantidadUsada === null || cantidadUsada <= 0) return;
+    rows.push([
+      produccionId,
+      fechaHora,
+      d.local,
+      d.encargado || '',
+      d.producto_elaborado || it.producto_elaborado || '',
+      d.lote || '',
+      it.codigo || '',
+      it.insumo || it.producto || '',
+      it.categoria || '',
+      it.unidad || 'unidad',
+      cantidadUsada,
+      numberOrZero_(d.cantidad_producida, 0),
+      'Producido',
+      d.observaciones || it.observaciones || ''
+    ]);
+  });
+
+  if (!rows.length) return { ok: false, error: 'No hay cantidades usadas para guardar' };
+
+  var sh = ss_().getSheetByName(SHEET_PRODUCCION) || createProduccionSheet_();
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, PRODUCCION_HEADERS.length).setValues(rows);
+  descontarProduccionDelCatalogo_(d.local, d.items, fechaHora, d.producto_elaborado || '');
+  if (d.rebuild_views !== false) refreshMovementViews_();
+  return { ok: true, id_produccion: produccionId, rows: rows.length };
+}
+
+function createRecepcionSheet_() {
+  var sh = ss_().getSheetByName(SHEET_RECEPCION) || ss_().insertSheet(SHEET_RECEPCION);
+  formatRecepcionSheet_(sh);
+  return sh;
+}
+
+function createProduccionSheet_() {
+  var sh = ss_().getSheetByName(SHEET_PRODUCCION) || ss_().insertSheet(SHEET_PRODUCCION);
+  formatProduccionSheet_(sh);
+  return sh;
+}
+
+function formatRecepcionSheet_(sh) {
+  sh.clear();
+  sh.getRange(1, 1, 1, RECEPCION_HEADERS.length).setValues([RECEPCION_HEADERS])
+    .setFontWeight('bold').setFontColor('#ffffff').setBackground('#0F5E7A').setVerticalAlignment('middle');
+  sh.setFrozenRows(1);
+  sh.setRowHeight(1, 30);
+  var widths = [100, 145, 120, 150, 160, 90, 220, 120, 90, 110, 110, 240];
+  for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
+}
+
+function formatProduccionSheet_(sh) {
+  sh.clear();
+  sh.getRange(1, 1, 1, PRODUCCION_HEADERS.length).setValues([PRODUCCION_HEADERS])
+    .setFontWeight('bold').setFontColor('#ffffff').setBackground('#1F6E5A').setVerticalAlignment('middle');
+  sh.setFrozenRows(1);
+  sh.setRowHeight(1, 30);
+  var widths = [105, 145, 120, 150, 180, 100, 90, 200, 120, 90, 110, 120, 110, 240];
+  for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
+}
+
+function addReceivedStockToCatalog_(local, items, fechaHora) {
+  var sh = ss_().getSheetByName(SHEET_CATALOGO);
+  if (!sh || sh.getLastRow() < 2) return;
+  var values = sh.getDataRange().getValues();
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var iCod = idx_(head, ['código', 'codigo']);
+  var iNom = idx_(head, ['producto', 'nombre']);
+  var iLocal = idx_(head, ['local_aplicable', 'local']);
+  var iStock = idx_(head, ['stock_actual', 'stock actual']);
+  var iFecha = idx_(head, ['fecha']);
+  var iNotas = idx_(head, ['notas']);
+  if (iLocal === -1 || iStock === -1) return;
+
+  var map = {};
+  items.forEach(function (it) {
+    var qty = numberOrNull_(it.cantidad_recibida);
+    if (qty === null || qty <= 0) return;
+    map[keyFor_(local, it.codigo, it.producto)] = qty;
+  });
+
+  var changedStock = false;
+  var changedFecha = false;
+  var changedNotas = false;
+  var changedRows = [];
+  for (var r = 1; r < values.length; r++) {
+    var key = keyFor_(values[r][iLocal], iCod > -1 ? values[r][iCod] : '', iNom > -1 ? values[r][iNom] : '');
+    var add = map[key];
+    if (!add) continue;
+    changedRows.push(r + 1);
+    values[r][iStock] = round2_(numberOrZero_(values[r][iStock], 0) + add);
+    changedStock = true;
+    if (iFecha > -1) {
+      values[r][iFecha] = fechaHora;
+      changedFecha = true;
+    }
+    if (iNotas > -1) {
+      values[r][iNotas] = 'Recepción desde app';
+      changedNotas = true;
+    }
+  }
+  applyCatalogColumnUpdates_(sh, values, changedRows, iStock, iFecha, iNotas, changedStock, changedFecha, changedNotas);
+}
+
+function descontarProduccionDelCatalogo_(local, items, fechaHora, productoElaborado) {
+  var sh = ss_().getSheetByName(SHEET_CATALOGO);
+  if (!sh || sh.getLastRow() < 2) return;
+  var values = sh.getDataRange().getValues();
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var iCod = idx_(head, ['código', 'codigo']);
+  var iNom = idx_(head, ['producto', 'nombre']);
+  var iLocal = idx_(head, ['local_aplicable', 'local']);
+  var iStock = idx_(head, ['stock_actual', 'stock actual']);
+  var iFecha = idx_(head, ['fecha']);
+  var iNotas = idx_(head, ['notas']);
+  if (iLocal === -1 || iStock === -1) return;
+
+  var map = {};
+  items.forEach(function (it) {
+    var qty = numberOrNull_(it.cantidad_usada);
+    if (qty === null || qty <= 0) return;
+    map[keyFor_(local, it.codigo, it.insumo || it.producto)] = qty;
+  });
+
+  var changedStock = false;
+  var changedFecha = false;
+  var changedNotas = false;
+  var changedRows = [];
+  for (var r = 1; r < values.length; r++) {
+    var key = keyFor_(values[r][iLocal], iCod > -1 ? values[r][iCod] : '', iNom > -1 ? values[r][iNom] : '');
+    var useQty = map[key];
+    if (!useQty) continue;
+    changedRows.push(r + 1);
+    values[r][iStock] = round2_(numberOrZero_(values[r][iStock], 0) - useQty);
+    changedStock = true;
+    if (iFecha > -1) {
+      values[r][iFecha] = fechaHora;
+      changedFecha = true;
+    }
+    if (iNotas > -1) {
+      values[r][iNotas] = 'Producción: ' + (productoElaborado || 'consumo de insumo');
+      changedNotas = true;
+    }
+  }
+  applyCatalogColumnUpdates_(sh, values, changedRows, iStock, iFecha, iNotas, changedStock, changedFecha, changedNotas);
+}
+
+function readRecepcionResumen_() {
+  var sh = ss_().getSheetByName(SHEET_RECEPCION);
+  if (!sh || sh.getLastRow() < 2) return { latest: [], byLocal: {}, total_movimientos: 0 };
+  var values = sh.getDataRange().getValues();
+  var events = {};
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    var id = String(row[0] || '').trim();
+    if (!id) continue;
+    if (!events[id]) {
+      events[id] = {
+        id: id,
+        fecha_hora: row[1],
+        local: normalizeLocalName_(row[2]),
+        encargado: row[3],
+        proveedor: row[4],
+        producto: row[6],
+        categoria: row[7],
+        unidad: row[8],
+        cantidad_recibida: 0,
+        estado: row[10],
+        observaciones: row[11],
+        items: 0
+      };
+    }
+    events[id].cantidad_recibida += numberOrZero_(row[9], 0);
+    events[id].items += 1;
+    if (events[id].items > 1) {
+      events[id].producto = events[id].items + ' productos';
+      events[id].unidad = 'unidades';
+    }
+  }
+  var allEvents = Object.keys(events).map(function (id) { return events[id]; });
+  var latest = allEvents
+    .sort(function (a, b) { return comparableDateTime_(b.fecha_hora) - comparableDateTime_(a.fecha_hora); })
+    .slice(0, 60);
+  var byLocal = {};
+  allEvents.forEach(function (event) {
+    if (!byLocal[event.local]) byLocal[event.local] = { movimientos: 0, cantidad: 0 };
+    byLocal[event.local].movimientos += 1;
+    byLocal[event.local].cantidad += numberOrZero_(event.cantidad_recibida, 0);
+  });
+  return { latest: latest, byLocal: byLocal, total_movimientos: allEvents.length };
+}
+
+function readProduccionResumen_() {
+  var sh = ss_().getSheetByName(SHEET_PRODUCCION);
+  if (!sh || sh.getLastRow() < 2) return { latest: [], byLocal: {}, total_movimientos: 0 };
+  var values = sh.getDataRange().getValues();
+  var events = {};
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    var id = String(row[0] || '').trim();
+    if (!id) continue;
+    if (!events[id]) {
+      events[id] = {
+        id: id,
+        fecha_hora: row[1],
+        local: normalizeLocalName_(row[2]),
+        encargado: row[3],
+        producto_elaborado: row[4],
+        lote: row[5],
+        insumo: row[7],
+        categoria: row[8],
+        unidad: row[9],
+        cantidad_usada: 0,
+        cantidad_producida: numberOrZero_(row[11], 0),
+        estado: row[12],
+        observaciones: row[13],
+        items: 0
+      };
+    }
+    events[id].cantidad_usada += numberOrZero_(row[10], 0);
+    events[id].items += 1;
+    if (events[id].items > 1) {
+      events[id].insumo = events[id].items + ' insumos';
+    }
+  }
+  var allEvents = Object.keys(events).map(function (id) { return events[id]; });
+  var latest = allEvents
+    .sort(function (a, b) { return comparableDateTime_(b.fecha_hora) - comparableDateTime_(a.fecha_hora); })
+    .slice(0, 60);
+  var byLocal = {};
+  allEvents.forEach(function (event) {
+    if (!byLocal[event.local]) byLocal[event.local] = { movimientos: 0, cantidad_usada: 0, cantidad_producida: 0 };
+    byLocal[event.local].movimientos += 1;
+    byLocal[event.local].cantidad_usada += numberOrZero_(event.cantidad_usada, 0);
+    byLocal[event.local].cantidad_producida += numberOrZero_(event.cantidad_producida, 0);
+  });
+  return { latest: latest, byLocal: byLocal, total_movimientos: allEvents.length };
 }
 
 function onOpen() {
@@ -435,6 +766,7 @@ function onOpen() {
     .createMenu('Docks V2')
     .addItem('Aplicar interfaz corporativa', 'setupVersion2UI')
     .addItem('Reconstruir vistas operativas', 'refreshOperationalViews_')
+    .addItem('Reconstruir stock, recepción y producción', 'refreshMovementViews_')
     .addItem('Setup plantilla pro', 'setupPlantillaPro')
     .addToUi();
 }
@@ -458,9 +790,23 @@ function setupPlantillaPro() {
   if (!sh) { sh = ss.insertSheet(SHEET_DETALLE); }
   if (sh.getLastRow() === 0) formatDetalleSheet_(sh); else formatDetalleSheet_(sh);
   migrarPedidosViejos_();
-  createStockSheet_();
+  ensureVersion2Sheets_();
   setupVersion2UI();
   ss.toast('Plantilla pro lista: interfaz v2 operativa aplicada', 'Setup OK', 6);
+}
+
+function ensureVersion2Sheets_() {
+  createStockSheet_();
+  createRecepcionSheet_();
+  createProduccionSheet_();
+  ensureSheet_(SHEET_HOME);
+  ensureSheet_(SHEET_STOCK_DASH);
+  ensureSheet_(SHEET_VIEW_PED);
+  ensureSheet_(SHEET_VIEW_STK);
+  ensureSheet_(SHEET_VIEW_REC);
+  ensureSheet_(SHEET_VIEW_PROD);
+  ensureSheet_(SHEET_VIEW_BUY);
+  ensureSheet_(SHEET_RESUMEN);
 }
 
 /** Parsea PEDIDOS RECIBIDOS (texto) y vuelca a DETALLE los que falten. */
@@ -530,6 +876,20 @@ function refreshOperationalViews_() {
   buildVistaPedidos_();
   buildVistaStock_();
   buildVistaCompras_();
+  buildVistaRecepcion_();
+  buildVistaProduccion_();
+  buildLocalPedidoViews_();
+  buildLocalStockViews_();
+  applyCorporateTabTheme_();
+}
+
+function refreshMovementViews_() {
+  buildStockDashboard_();
+  buildInicioOperativo_();
+  buildVistaStock_();
+  buildVistaRecepcion_();
+  buildVistaProduccion_();
+  buildLocalStockViews_();
   applyCorporateTabTheme_();
 }
 
@@ -537,12 +897,14 @@ function refreshStockViews_() {
   buildStockDashboard_();
   buildInicioOperativo_();
   buildVistaStock_();
+  buildLocalStockViews_();
+  applyCorporateTabTheme_();
 }
 
 function buildInicioOperativo_() {
   var sh = ensureSheet_(SHEET_HOME);
   var snap = computeOperationalSnapshot_();
-  clearPresentationSheet_(sh, 10);
+  clearPresentationSheet_(sh, 12);
 
   sh.getRange('A1:H1').merge().setValue('Docks del Puerto · Abastecimiento')
     .setBackground('#103F59').setFontColor('#ffffff').setFontWeight('bold').setFontSize(18)
@@ -558,23 +920,29 @@ function buildInicioOperativo_() {
     ['Productos sin stock', snap.totalSinStock, 'catalogo con stock real en cero'],
     ['Locales con riesgo', snap.localesConRiesgo, 'faltantes o sin stock'],
     ['Conteos cargados', snap.totalConConteo, 'productos con stock actualizado'],
-    ['Faltantes operativos', snap.totalFaltantes, 'pedido supera stock disponible']
+    ['Faltantes operativos', snap.totalFaltantes, 'pedido supera stock disponible'],
+    ['Recepciones', snap.totalRecepcionMovimientos, 'movimientos registrados'],
+    ['Producción', snap.totalProduccionMovimientos, 'partes productivos']
   ];
   paintCards_(sh, 5, 1, 3, cards);
 
-  sh.getRange('A10:D10').merge().setValue('Pedidos urgentes').setBackground('#103F59').setFontColor('#ffffff').setFontWeight('bold');
-  sh.getRange('E10:H10').merge().setValue('Ultimos conteos').setBackground('#103F59').setFontColor('#ffffff').setFontWeight('bold');
-  sh.getRange('A11:D11').setValues([['Local', 'Producto', 'Cantidad', 'Urgencia']]).setBackground('#DCE8EF').setFontWeight('bold').setFontColor('#365165');
-  sh.getRange('E11:H11').setValues([['Fecha', 'Local', 'Producto', 'Tipo']]).setBackground('#DCE8EF').setFontWeight('bold').setFontColor('#365165');
+  sh.getRange('A14:D14').merge().setValue('Pedidos urgentes').setBackground('#103F59').setFontColor('#ffffff').setFontWeight('bold');
+  sh.getRange('E14:H14').merge().setValue('Ultimos conteos').setBackground('#103F59').setFontColor('#ffffff').setFontWeight('bold');
+  sh.getRange('I14:L14').merge().setValue('Recepción y producción').setBackground('#103F59').setFontColor('#ffffff').setFontWeight('bold');
+  sh.getRange('A15:D15').setValues([['Local', 'Producto', 'Cantidad', 'Urgencia']]).setBackground('#DCE8EF').setFontWeight('bold').setFontColor('#365165');
+  sh.getRange('E15:H15').setValues([['Fecha', 'Local', 'Producto', 'Tipo']]).setBackground('#DCE8EF').setFontWeight('bold').setFontColor('#365165');
+  sh.getRange('I15:L15').setValues([['Fecha', 'Local', 'Movimiento', 'Detalle']]).setBackground('#DCE8EF').setFontWeight('bold').setFontColor('#365165');
 
   var urgentes = topUrgentRows_(8);
   var conteos = latestStockRows_(8);
-  if (urgentes.length) sh.getRange(12, 1, urgentes.length, 4).setValues(urgentes);
-  if (conteos.length) sh.getRange(12, 5, conteos.length, 4).setValues(conteos);
+  var movs = latestOpsRows_(8);
+  if (urgentes.length) sh.getRange(16, 1, urgentes.length, 4).setValues(urgentes);
+  if (conteos.length) sh.getRange(16, 5, conteos.length, 4).setValues(conteos);
+  if (movs.length) sh.getRange(16, 9, movs.length, 4).setValues(movs);
 
-  sh.getRange('A22:H22').merge().setValue('Accesos recomendados: VISTA PEDIDOS · VISTA STOCK · VISTA COMPRAS · DASHBOARD STOCK')
+  sh.getRange('A26:L26').merge().setValue('Accesos recomendados: VISTA PEDIDOS · VISTA STOCK · VISTA RECEPCION · VISTA PRODUCCION · VISTA COMPRAS · DASHBOARD STOCK')
     .setBackground('#EAF2F6').setFontColor('#41576B').setFontWeight('bold');
-  sh.setColumnWidths(1, 8, 145);
+  sh.setColumnWidths(1, 12, 145);
   sh.setFrozenRows(3);
 }
 
@@ -641,12 +1009,154 @@ function buildVistaCompras_() {
   sh.setColumnWidths(1, 6, 170);
 }
 
+function buildVistaRecepcion_() {
+  var sh = ensureSheet_(SHEET_VIEW_REC);
+  clearPresentationSheet_(sh, RECEPCION_HEADERS.length);
+
+  sh.getRange(1, 1, 1, RECEPCION_HEADERS.length).merge().setValue('Vista Recepción · Ingreso Operativo')
+    .setBackground('#0F5E7A').setFontColor('#ffffff').setFontWeight('bold').setFontSize(16);
+  sh.getRange(2, 1, 1, RECEPCION_HEADERS.length).merge().setValue('Recepciones registradas desde la app, listas para control por local y proveedor.')
+    .setBackground('#EAF2F6').setFontColor('#41576B').setFontSize(10);
+
+  var rows = recepcionRows_();
+  sh.getRange(4, 1, 1, RECEPCION_HEADERS.length).setValues([RECEPCION_HEADERS]).setBackground('#0F5E7A').setFontColor('#ffffff').setFontWeight('bold');
+  if (rows.length) sh.getRange(5, 1, rows.length, RECEPCION_HEADERS.length).setValues(rows);
+  applyBanding_(sh, 4, Math.max(rows.length + 1, 2), RECEPCION_HEADERS.length);
+  sh.setFrozenRows(4);
+}
+
+function buildVistaProduccion_() {
+  var sh = ensureSheet_(SHEET_VIEW_PROD);
+  clearPresentationSheet_(sh, PRODUCCION_HEADERS.length);
+
+  sh.getRange(1, 1, 1, PRODUCCION_HEADERS.length).merge().setValue('Vista Producción · Consumo de Insumos')
+    .setBackground('#1F6E5A').setFontColor('#ffffff').setFontWeight('bold').setFontSize(16);
+  sh.getRange(2, 1, 1, PRODUCCION_HEADERS.length).merge().setValue('Partes productivos registrados desde la app con trazabilidad de insumos usados.')
+    .setBackground('#EAF2F6').setFontColor('#41576B').setFontSize(10);
+
+  var rows = produccionRows_();
+  sh.getRange(4, 1, 1, PRODUCCION_HEADERS.length).setValues([PRODUCCION_HEADERS]).setBackground('#1F6E5A').setFontColor('#ffffff').setFontWeight('bold');
+  if (rows.length) sh.getRange(5, 1, rows.length, PRODUCCION_HEADERS.length).setValues(rows);
+  applyBanding_(sh, 4, Math.max(rows.length + 1, 2), PRODUCCION_HEADERS.length);
+  sh.setFrozenRows(4);
+}
+
+function buildLocalPedidoViews_() {
+  var rows = activePedidoRows_();
+  operationalLocals_().forEach(function (local) {
+    var sh = ensureSheet_(localSheetName_(SHEET_LOCAL_PED_PREFIX, local));
+    var localRows = rows.filter(function (row) { return normalizeLocalName_(row[3]) === local; });
+    clearPresentationSheet_(sh, DETALLE_HEADERS.length);
+
+    sh.getRange(1, 1, 1, DETALLE_HEADERS.length).merge().setValue(local + ' · Pedido Semanal')
+      .setBackground('#0F5E7A').setFontColor('#ffffff').setFontWeight('bold').setFontSize(16);
+    sh.getRange(2, 1, 1, DETALLE_HEADERS.length).merge().setValue('Vista automática del pedido abierto del local. Se reconstruye desde la base técnica sin edición manual.')
+      .setBackground('#EAF2F6').setFontColor('#41576B').setFontSize(10);
+
+    var totalCantidad = 0;
+    var urgentes = 0;
+    var proveedores = {};
+    localRows.forEach(function (row) {
+      totalCantidad += numberOrZero_(row[9], 0);
+      if (String(row[5] || '').trim().toLowerCase() === 'urgente') urgentes += 1;
+      var proveedor = String(row[11] || '').trim();
+      if (proveedor) proveedores[proveedor] = true;
+    });
+    paintCards_(sh, 4, 1, 3, [
+      ['Líneas abiertas', localRows.length, 'productos activos del pedido'],
+      ['Unidades pedidas', round2_(totalCantidad), 'cantidad total pendiente'],
+      ['Urgentes', urgentes, 'urgencia alta dentro del local'],
+      ['Proveedores', Object.keys(proveedores).length, 'proveedores involucrados']
+    ]);
+
+    sh.getRange(9, 1, 1, DETALLE_HEADERS.length).setValues([DETALLE_HEADERS]).setBackground('#0F5E7A').setFontColor('#ffffff').setFontWeight('bold');
+    if (localRows.length) {
+      sh.getRange(10, 1, localRows.length, DETALLE_HEADERS.length).setValues(localRows);
+      applyBanding_(sh, 9, localRows.length + 1, DETALLE_HEADERS.length);
+    } else {
+      sh.getRange(10, 1, 1, DETALLE_HEADERS.length).merge().setValue('Este local no tiene líneas de pedido abiertas en este momento.')
+        .setHorizontalAlignment('center').setBackground('#F8FBFD').setFontColor('#5B7082');
+    }
+    sh.setFrozenRows(9);
+    var widths = [90, 140, 150, 110, 120, 90, 80, 220, 120, 90, 90, 160, 110, 90, 90];
+    for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
+  });
+}
+
+function buildLocalStockViews_() {
+  var snap = computeOperationalSnapshot_();
+  var recepLatest = readRecepcionResumen_().latest || [];
+  var prodLatest = readProduccionResumen_().latest || [];
+  operationalLocals_().forEach(function (local) {
+    var sh = ensureSheet_(localSheetName_(SHEET_LOCAL_STK_PREFIX, local));
+    var records = snap.records.filter(function (row) { return row[0] === local; });
+    var summary = snap.localSummary[local] || { productos: 0, conStock: 0, sinStock: 0, faltantes: 0 };
+    clearPresentationSheet_(sh, 12);
+
+    sh.getRange('A1:L1').merge().setValue(local + ' · Stock y Operación')
+      .setBackground('#1F6E5A').setFontColor('#ffffff').setFontWeight('bold').setFontSize(16);
+    sh.getRange('A2:L2').merge().setValue('Lectura automática del stock real, cobertura del pedido y últimos movimientos del local.')
+      .setBackground('#EAF2F6').setFontColor('#41576B').setFontSize(10);
+
+    paintCards_(sh, 4, 1, 3, [
+      ['Productos activos', summary.productos, 'catálogo visible del local'],
+      ['Con stock', summary.conStock, 'productos con stock real positivo'],
+      ['Sin stock', summary.sinStock, 'productos agotados o sin saldo'],
+      ['Faltantes', summary.faltantes, 'pedido por encima del stock real']
+    ]);
+
+    sh.getRange('A9:L9').setValues([['Local', 'Codigo', 'Producto', 'Categoria', 'Unidad', 'Stock real', 'Pedidos', 'Cantidad pedida', 'Saldo', 'Estado', 'Ultimo conteo', 'Fecha']])
+      .setBackground('#1F6E5A').setFontColor('#ffffff').setFontWeight('bold');
+    if (records.length) {
+      sh.getRange(10, 1, records.length, 12).setValues(records);
+      applyBanding_(sh, 9, records.length + 1, 12);
+    } else {
+      sh.getRange('A10:L10').merge().setValue('Este local todavía no tiene catálogo operativo para cruzar stock y pedido.')
+        .setHorizontalAlignment('center').setBackground('#F8FBFD').setFontColor('#5B7082');
+    }
+
+    var recepRows = recepLatest.filter(function (row) { return row.local === local; }).slice(0, 5).map(function (row) {
+      return [row.fecha_hora, row.proveedor || 'Sin proveedor', row.producto, row.cantidad_recibida, row.unidad, row.estado || 'Recepcionado'];
+    });
+    var recepStart = Math.max(records.length ? 12 + records.length : 13, 14);
+    sh.getRange(recepStart, 1, 1, 6).setValues([['Fecha', 'Proveedor', 'Producto', 'Cantidad', 'Unidad', 'Estado']])
+      .setBackground('#2D7D9A').setFontColor('#ffffff').setFontWeight('bold');
+    if (recepRows.length) {
+      sh.getRange(recepStart + 1, 1, recepRows.length, 6).setValues(recepRows);
+      applyBanding_(sh, recepStart, recepRows.length + 1, 6);
+    } else {
+      sh.getRange(recepStart + 1, 1, 1, 6).merge().setValue('Sin recepciones registradas para este local.')
+        .setHorizontalAlignment('center').setBackground('#F8FBFD').setFontColor('#5B7082');
+    }
+
+    var prodRows = prodLatest.filter(function (row) { return row.local === local; }).slice(0, 5).map(function (row) {
+      return [row.fecha_hora, row.producto_elaborado || '', row.insumo, row.cantidad_usada, row.cantidad_producida, row.lote || ''];
+    });
+    var prodStart = recepStart + Math.max(recepRows.length, 1) + 4;
+    sh.getRange(prodStart, 1, 1, 6).setValues([['Fecha', 'Producto elaborado', 'Insumo', 'Cantidad usada', 'Cantidad producida', 'Lote']])
+      .setBackground('#2B7A68').setFontColor('#ffffff').setFontWeight('bold');
+    if (prodRows.length) {
+      sh.getRange(prodStart + 1, 1, prodRows.length, 6).setValues(prodRows);
+      applyBanding_(sh, prodStart, prodRows.length + 1, 6);
+    } else {
+      sh.getRange(prodStart + 1, 1, 1, 6).merge().setValue('Sin partes productivos registrados para este local.')
+        .setHorizontalAlignment('center').setBackground('#F8FBFD').setFontColor('#5B7082');
+    }
+
+    var widths = [120, 90, 220, 120, 90, 90, 80, 100, 90, 110, 110, 145];
+    for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
+    sh.setFrozenRows(9);
+  });
+}
+
 function buildStockDashboard_() {
   var ss = ss_();
   var dash = ss.getSheetByName(SHEET_STOCK_DASH) || ss.insertSheet(SHEET_STOCK_DASH);
   var snap = computeOperationalSnapshot_();
   var records = snap.records;
   var localSummary = snap.localSummary;
+  var recep = readRecepcionResumen_();
+  var prod = readProduccionResumen_();
 
   dash.clear();
   dash.setHiddenGridlines(true);
@@ -661,40 +1171,45 @@ function buildStockDashboard_() {
     ['Productos activos', snap.totalProductos, 'Catalogo del sistema'],
     ['Con stock cargado', snap.totalConConteo, 'Conteo real disponible'],
     ['Faltantes operativos', snap.totalFaltantes, 'Pedido supera stock'],
-    ['Pedido pendiente', snap.totalPedidoCantidad, 'Unidades solicitadas']
+    ['Pedido pendiente', snap.totalPedidoCantidad, 'Unidades solicitadas'],
+    ['Recepciones', snap.totalRecepcionCantidad, 'Ingreso real acumulado'],
+    ['Producción', snap.totalProduccionCantidad, 'Salida productiva registrada']
   ];
   for (var i = 0; i < cards.length; i++) {
-    var col = 1 + (i * 3);
-    dash.getRange(4, col, 1, 3).merge().setValue(cards[i][0]).setBackground('#dfeaf1').setFontWeight('bold').setFontColor('#365165');
-    dash.getRange(5, col, 1, 2).merge().setValue(cards[i][1]).setFontWeight('bold').setFontSize(20).setBackground('#ffffff').setFontColor('#1c3448');
-    dash.getRange(5, col + 2).setValue(cards[i][2]).setWrap(true).setBackground('#ffffff').setFontColor('#5b7082').setFontSize(10);
-    dash.getRange(4, col, 2, 3).setBorder(true, true, true, true, false, false, '#cbd9e4', SpreadsheetApp.BorderStyle.SOLID);
+    var col = 1 + ((i % 4) * 3);
+    var row = i < 4 ? 4 : 7;
+    dash.getRange(row, col, 1, 3).merge().setValue(cards[i][0]).setBackground('#dfeaf1').setFontWeight('bold').setFontColor('#365165');
+    dash.getRange(row + 1, col, 1, 2).merge().setValue(cards[i][1]).setFontWeight('bold').setFontSize(20).setBackground('#ffffff').setFontColor('#1c3448');
+    dash.getRange(row + 1, col + 2).setValue(cards[i][2]).setWrap(true).setBackground('#ffffff').setFontColor('#5b7082').setFontSize(10);
+    dash.getRange(row, col, 2, 3).setBorder(true, true, true, true, false, false, '#cbd9e4', SpreadsheetApp.BorderStyle.SOLID);
   }
 
   var localRows = Object.keys(localSummary).sort().map(function (local) {
     var s = localSummary[local];
-    return [local, s.productos, s.conStock, s.sinStock, s.pedidos, s.faltantes];
+    var rl = recep.byLocal[local] || { movimientos: 0, cantidad: 0 };
+    var pl = prod.byLocal[local] || { movimientos: 0, cantidad_producida: 0 };
+    return [local, s.productos, s.conStock, s.sinStock, s.pedidos, s.faltantes, rl.movimientos, rl.cantidad, pl.movimientos, pl.cantidad_producida];
   });
-  dash.getRange('A8:F8').setValues([['Local', 'Productos', 'Con stock', 'Sin stock', 'Pedidos abiertos', 'Faltantes']])
+  dash.getRange('A10:J10').setValues([['Local', 'Productos', 'Con stock', 'Sin stock', 'Pedidos abiertos', 'Faltantes', 'Recepciones', 'Cant. recibida', 'Producción', 'Cant. producida']])
     .setBackground('#103f59').setFontColor('#ffffff').setFontWeight('bold');
   if (localRows.length) {
-    dash.getRange(9, 1, localRows.length, 6).setValues(localRows);
+    dash.getRange(11, 1, localRows.length, 10).setValues(localRows);
   }
 
-  dash.getRange('A' + (10 + localRows.length) + ':L' + (10 + localRows.length)).setValues([[
+  dash.getRange('A' + (12 + localRows.length) + ':L' + (12 + localRows.length)).setValues([[
     'Local', 'Código', 'Producto', 'Categoría', 'Unidad', 'Stock real',
     'Pedidos', 'Cantidad pedida', 'Saldo', 'Estado', 'Último conteo', 'Fecha'
   ]]).setBackground('#103f59').setFontColor('#ffffff').setFontWeight('bold');
   if (records.length) {
-    dash.getRange(11 + localRows.length, 1, records.length, 12).setValues(records);
+    dash.getRange(13 + localRows.length, 1, records.length, 12).setValues(records);
   }
 
   var lastRow = dash.getLastRow();
-  if (lastRow >= 9) {
-    dash.getRange(9, 1, lastRow - 8, 12).setBorder(true, true, true, true, false, false, '#d7e1e8', SpreadsheetApp.BorderStyle.SOLID);
+  if (lastRow >= 10) {
+    dash.getRange(10, 1, lastRow - 9, 12).setBorder(true, true, true, true, false, false, '#d7e1e8', SpreadsheetApp.BorderStyle.SOLID);
   }
   if (records.length) {
-    var detailStart = 11 + localRows.length;
+    var detailStart = 13 + localRows.length;
     var detailEnd = detailStart + records.length - 1;
     dash.getRange('J' + detailStart + ':J' + detailEnd).setFontWeight('bold');
     var rules = dash.getConditionalFormatRules();
@@ -722,7 +1237,7 @@ function buildStockDashboard_() {
 
   var widths = [120, 90, 220, 120, 90, 90, 80, 100, 90, 110, 110, 145];
   for (var c = 0; c < widths.length; c++) dash.setColumnWidth(c + 1, widths[c]);
-  dash.setFrozenRows(8);
+  dash.setFrozenRows(10);
 }
 
 /* ============================== SETUP GREENFRESH ============================== */
@@ -883,6 +1398,13 @@ function idx_(headerLower, names) {
   return -1;
 }
 
+function isActiveFlag_(value) {
+  var normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return true;
+  return normalized === 'sí' || normalized === 'si' || normalized === 's' ||
+    normalized === 'yes' || normalized === 'y' || normalized === 'true' || normalized === '1';
+}
+
 function keyFor_(local, codigo, nombre) {
   return normalizeLocalName_(local).toLowerCase() + '||' +
     (String(codigo || '').trim().toLowerCase() || String(nombre || '').trim().toLowerCase());
@@ -937,6 +1459,8 @@ function computeOperationalSnapshot_() {
   var catalog = readCatalog_();
   var stockMap = latestStockMap_();
   var demandMap = pendingDemandMap_();
+  var recepcion = readRecepcionResumen_();
+  var produccion = readProduccionResumen_();
   var records = [];
   var localSummary = {};
   var totalProductos = 0;
@@ -1000,7 +1524,63 @@ function computeOperationalSnapshot_() {
     totalPedidoCantidad: round2_(totalPedidoCantidad),
     totalPedidosAbiertos: activePedidoRows_().length,
     localesConRiesgo: localesConRiesgo
+    ,
+    totalRecepcionMovimientos: recepcion.total_movimientos || 0,
+    totalRecepcionCantidad: Object.keys(recepcion.byLocal).reduce(function (sum, local) {
+      return sum + numberOrZero_(recepcion.byLocal[local].cantidad, 0);
+    }, 0),
+    totalProduccionMovimientos: produccion.total_movimientos || 0,
+    totalProduccionCantidad: Object.keys(produccion.byLocal).reduce(function (sum, local) {
+      return sum + numberOrZero_(produccion.byLocal[local].cantidad_producida, 0);
+    }, 0)
   };
+}
+
+function buildFrontendOperationalSnapshot_() {
+  var snap = computeOperationalSnapshot_();
+  return {
+    generated_at: Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd HH:mm:ss'),
+    totals: {
+      productos: snap.totalProductos,
+      con_stock: snap.totalConConteo,
+      sin_stock: snap.totalSinStock,
+      faltantes: snap.totalFaltantes,
+      pedidos_abiertos: snap.totalPedidosAbiertos,
+      cantidad_pedida: snap.totalPedidoCantidad,
+      locales_con_riesgo: snap.localesConRiesgo,
+      recepciones: snap.totalRecepcionMovimientos,
+      produccion: snap.totalProduccionMovimientos
+    },
+    byLocal: snap.localSummary,
+    openItemsByLocal: buildOpenItemsByLocal_()
+  };
+}
+
+function buildOpenItemsByLocal_() {
+  var rows = activePedidoRows_();
+  var out = {};
+  rows.forEach(function (row) {
+    var local = normalizeLocalName_(row[3]);
+    if (local === 'Pizzería') return;
+    if (!local) return;
+    if (!out[local]) out[local] = [];
+    out[local].push({
+      fecha_hora: row[1],
+      semana: row[2],
+      producto: row[7],
+      cantidad: numberOrZero_(row[9], 0),
+      unidad: row[10] || '',
+      proveedor: row[11] || '',
+      urgencia: row[5] || 'Normal',
+      estado: row[12] || 'Pendiente'
+    });
+  });
+  Object.keys(out).forEach(function (local) {
+    out[local] = out[local]
+      .sort(function (a, b) { return comparableDateTime_(b.fecha_hora) - comparableDateTime_(a.fecha_hora); })
+      .slice(0, 8);
+  });
+  return out;
 }
 
 function activePedidoRows_() {
@@ -1014,6 +1594,18 @@ function activePedidoRows_() {
     out.push(values[r].slice(0, DETALLE_HEADERS.length));
   }
   return out;
+}
+
+function recepcionRows_() {
+  var sh = ss_().getSheetByName(SHEET_RECEPCION);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getDataRange().getValues().slice(1).reverse();
+}
+
+function produccionRows_() {
+  var sh = ss_().getSheetByName(SHEET_PRODUCCION);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getDataRange().getValues().slice(1).reverse();
 }
 
 function comprasRows_() {
@@ -1064,8 +1656,94 @@ function latestStockRows_(limit) {
   });
 }
 
+function latestOpsRows_(limit) {
+  var recep = readRecepcionResumen_().latest.map(function (row) {
+    return {
+      stamp: comparableDateTime_(row.fecha_hora),
+      values: [row.fecha_hora, row.local, 'Recepción', row.producto + ' · ' + row.cantidad_recibida + ' ' + row.unidad]
+    };
+  });
+  var prod = readProduccionResumen_().latest.map(function (row) {
+    return {
+      stamp: comparableDateTime_(row.fecha_hora),
+      values: [row.fecha_hora, row.local, 'Producción', (row.producto_elaborado || row.insumo) + ' · lote ' + (row.lote || '—')]
+    };
+  });
+  return recep.concat(prod)
+    .sort(function (a, b) { return b.stamp - a.stamp; })
+    .slice(0, limit || 8)
+    .map(function (row) { return row.values; });
+}
+
+function operationalLocals_() {
+  var catalog = readCatalog_();
+  var config = readConfig_();
+  var demandRows = activePedidoRows_();
+  var recep = readRecepcionResumen_().byLocal || {};
+  var prod = readProduccionResumen_().byLocal || {};
+  var map = {};
+
+  Object.keys(catalog).forEach(function (local) { map[local] = true; });
+  Object.keys(config).forEach(function (local) { map[local] = true; });
+  Object.keys(recep).forEach(function (local) { map[local] = true; });
+  Object.keys(prod).forEach(function (local) { map[local] = true; });
+  demandRows.forEach(function (row) {
+    var local = normalizeLocalName_(row[3]);
+    if (local) map[local] = true;
+  });
+
+  return Object.keys(map).sort();
+}
+
+function localSheetName_(prefix, local) {
+  return sanitizeSheetName_(prefix + local);
+}
+
+function sanitizeSheetName_(value) {
+  return String(value || '')
+    .replace(/[\\\/\?\*\[\]:]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 99);
+}
+
 function ensureSheet_(name) {
   return ss_().getSheetByName(name) || ss_().insertSheet(name);
+}
+
+function applyCatalogColumnUpdates_(sh, values, changedRows, iStock, iFecha, iNotas, changedStock, changedFecha, changedNotas) {
+  if (!values || values.length < 2 || !changedRows || !changedRows.length) return;
+  var rowGroups = contiguousRowGroups_(changedRows);
+  rowGroups.forEach(function (group) {
+    if (changedStock && iStock > -1) {
+      sh.getRange(group.start, iStock + 1, group.length, 1).setValues(values.slice(group.start - 1, group.start - 1 + group.length).map(function (row) { return [row[iStock]]; }));
+    }
+    if (changedFecha && iFecha > -1) {
+      sh.getRange(group.start, iFecha + 1, group.length, 1).setValues(values.slice(group.start - 1, group.start - 1 + group.length).map(function (row) { return [row[iFecha]]; }));
+    }
+    if (changedNotas && iNotas > -1) {
+      sh.getRange(group.start, iNotas + 1, group.length, 1).setValues(values.slice(group.start - 1, group.start - 1 + group.length).map(function (row) { return [row[iNotas]]; }));
+    }
+  });
+}
+
+function contiguousRowGroups_(rows) {
+  if (!rows || !rows.length) return [];
+  var sorted = rows.slice().sort(function (a, b) { return a - b; });
+  var groups = [];
+  var start = sorted[0];
+  var prev = sorted[0];
+  for (var i = 1; i < sorted.length; i++) {
+    if (sorted[i] === prev || sorted[i] === prev + 1) {
+      prev = sorted[i];
+      continue;
+    }
+    groups.push({ start: start, length: prev - start + 1 });
+    start = sorted[i];
+    prev = sorted[i];
+  }
+  groups.push({ start: start, length: prev - start + 1 });
+  return groups;
 }
 
 function clearPresentationSheet_(sh, cols) {
@@ -1081,16 +1759,29 @@ function clearPresentationSheet_(sh, cols) {
 }
 
 function normalizeLegacyLocalNames_() {
-  renameLocalAcrossSheet_(SHEET_CATALOGO, ['local_aplicable', 'local'], 'Hamburguesería', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_CATALOGO, ['local_aplicable', 'local'], 'Hamburgueseria', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_CONFIG, ['local'], 'Hamburguesería', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_CONFIG, ['local'], 'Hamburgueseria', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_PEDIDOS, ['local'], 'Hamburguesería', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_PEDIDOS, ['local'], 'Hamburgueseria', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_DETALLE, ['local'], 'Hamburguesería', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_DETALLE, ['local'], 'Hamburgueseria', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_STOCK, ['local'], 'Hamburguesería', 'Brooklyn');
-  renameLocalAcrossSheet_(SHEET_STOCK, ['local'], 'Hamburgueseria', 'Brooklyn');
+  var renameSpecs = [
+    { from: 'Hamburguesería', to: 'Brooklyn' },
+    { from: 'Hamburgueseria', to: 'Brooklyn' },
+    { from: 'Parrilla', to: 'Umo Grill' },
+    { from: 'Heladería', to: 'Puerto Gelato' },
+    { from: 'Heladeria', to: 'Puerto Gelato' },
+    { from: 'Cafetería', to: 'Trento Café' },
+    { from: 'Cafeteria', to: 'Trento Café' }
+  ];
+  var sheetSpecs = [
+    { name: SHEET_CATALOGO, headers: ['local_aplicable', 'local'] },
+    { name: SHEET_CONFIG, headers: ['local'] },
+    { name: SHEET_PEDIDOS, headers: ['local'] },
+    { name: SHEET_DETALLE, headers: ['local'] },
+    { name: SHEET_STOCK, headers: ['local'] },
+    { name: SHEET_RECEPCION, headers: ['local'] },
+    { name: SHEET_PRODUCCION, headers: ['local'] }
+  ];
+  sheetSpecs.forEach(function (sheetSpec) {
+    renameSpecs.forEach(function (renameSpec) {
+      renameLocalAcrossSheet_(sheetSpec.name, sheetSpec.headers, renameSpec.from, renameSpec.to);
+    });
+  });
 }
 
 function renameLocalAcrossSheet_(sheetName, headerNames, from, to) {
@@ -1135,15 +1826,22 @@ function applyCorporateTabTheme_() {
   tabColors[SHEET_VIEW_PED] = '#0F5E7A';
   tabColors[SHEET_VIEW_STK] = '#1F6E5A';
   tabColors[SHEET_VIEW_BUY] = '#8A5B00';
+  tabColors[SHEET_VIEW_REC] = '#2D7D9A';
+  tabColors[SHEET_VIEW_PROD] = '#2B7A68';
   tabColors[SHEET_STOCK_DASH] = '#355C7D';
   tabColors[SHEET_RESUMEN] = '#4F6D7A';
   tabColors[SHEET_DETALLE] = '#7A8B99';
   tabColors[SHEET_STOCK] = '#7A8B99';
+  tabColors[SHEET_RECEPCION] = '#7A8B99';
+  tabColors[SHEET_PRODUCCION] = '#7A8B99';
   tabColors[SHEET_PEDIDOS] = '#95A5A6';
   tabColors[SHEET_CATALOGO] = '#95A5A6';
   tabColors[SHEET_CONFIG] = '#95A5A6';
 
-  var order = [SHEET_HOME, SHEET_STOCK_DASH, SHEET_VIEW_PED, SHEET_VIEW_STK, SHEET_VIEW_BUY, SHEET_RESUMEN, SHEET_DETALLE, SHEET_STOCK, SHEET_PEDIDOS, SHEET_CATALOGO, SHEET_CONFIG];
+  var order = [
+    SHEET_HOME, SHEET_STOCK_DASH, SHEET_VIEW_PED, SHEET_VIEW_STK, SHEET_VIEW_REC, SHEET_VIEW_PROD, SHEET_VIEW_BUY,
+    SHEET_RESUMEN, SHEET_DETALLE, SHEET_STOCK, SHEET_RECEPCION, SHEET_PRODUCCION, SHEET_PEDIDOS, SHEET_CATALOGO, SHEET_CONFIG
+  ];
   for (var i = 0; i < order.length; i++) {
     var sh = ss.getSheetByName(order[i]);
     if (!sh) continue;
@@ -1151,6 +1849,11 @@ function applyCorporateTabTheme_() {
     ss.setActiveSheet(sh);
     ss.moveActiveSheet(i + 1);
   }
+  ss.getSheets().forEach(function (sheet) {
+    var name = sheet.getName();
+    if (name.indexOf(SHEET_LOCAL_PED_PREFIX) === 0) sheet.setTabColor('#2D7D9A');
+    if (name.indexOf(SHEET_LOCAL_STK_PREFIX) === 0) sheet.setTabColor('#2B7A68');
+  });
   var home = ss.getSheetByName(SHEET_HOME);
   if (home) ss.setActiveSheet(home);
 }
@@ -1170,6 +1873,16 @@ function numberOrZero_(value, fallback) {
 function numberOrBlank_(value) {
   var num = numberOrNull_(value);
   return num === null ? '' : num;
+}
+
+function comparableDateTime_(value) {
+  var txt = String(value || '').trim();
+  if (!txt) return 0;
+  var iso = Date.parse(txt);
+  if (!isNaN(iso)) return iso;
+  var m = txt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4]), Number(m[5]), Number(m[6] || 0)).getTime();
+  return 0;
 }
 
 function round2_(num) {

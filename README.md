@@ -30,14 +30,22 @@ Los cambios van directo a la planilla (vía `Code.gs`: acciones `addProducto` /
 
 ## Locales
 
-Parrilla · GreenFresh (viandas saludables) · Heladería · Cafetería ·
-Hamburguesería · Eventos · Shopping.
+Umo Grill · GreenFresh (viandas saludables) · Puerto Gelato · Trento Café ·
+Brooklyn · Eventos · Shopping.
 
 ## Google Sheet (backend)
 
 Hojas relevantes: `CATÁLOGO PRODUCTOS`, `CONFIGURACIÓN`, `PEDIDOS RECIBIDOS`,
 `PEDIDOS_DETALLE` (nueva, normalizada), `RESUMEN POR PROVEEDOR` (nueva),
 `ÓRDENES DE COMPRA`, `DASHBOARD GERENCIAL`, `CONTROL STOCK` (conteos manuales por local).
+
+Además, la V2 puede reconstruir vistas derivadas automáticas por local:
+- `LOCAL PEDIDO · <Local>` — pedido abierto del local con KPIs y detalle operativo.
+- `LOCAL STOCK · <Local>` — stock real, cobertura, últimas recepciones y producción.
+
+Estas pestañas se generan desde la base técnica; no son hojas para editar manualmente.
+El `getBootstrap` V2 también expone un `snapshot` operativo para el frontend, con
+totales, resumen por local y líneas abiertas recientes por local.
 
 ### Modelo de datos (clave)
 
@@ -59,6 +67,42 @@ re-parsear texto. El form escribe ambas en cada envío.
    Ejecutar como *yo*, Acceso *Cualquiera*. Copiar la URL `/exec`.
 4. Si la URL cambió, actualizar `SCRIPT_URL` en `index.html`.
 5. **Frontend:** push a `main` → GitHub Pages publica automáticamente.
+
+## Verificación local V2
+
+Antes de desplegar, podés correr una comprobación estructural rápida:
+
+```powershell
+node .\scripts\verify-v2.js
+```
+
+La verificación confirma que sigan presentes:
+- los módulos `Pedido`, `Stock`, `Recepción`, `Producción` y `Dashboard`,
+- los endpoints nuevos de Apps Script,
+- las hojas y vistas V2,
+- las pestañas automáticas por local para pedido y stock,
+- el snapshot operativo con líneas abiertas por local,
+- la normalización de aliases viejos de locales,
+- y las rutas críticas del guardado y dashboard operativo.
+
+## Verificación live del deploy
+
+Para comparar el `/exec` publicado contra la estructura V2 local:
+
+```powershell
+node .\scripts\verify-live-v2.js
+```
+
+Ese chequeo usa el `SCRIPT_URL` actual de `index.html` y valida:
+- `ping` y `getBootstrap`,
+- presencia de `recepciones` y `produccion`,
+- presencia de `snapshot` operativo y capacidades V2 activas,
+- y normalización de locales viejos (`Parrilla`, `Heladería`, `Cafetería`, `Pizzería`).
+
+## Cierre operativo
+
+El procedimiento completo de publicación y validación final quedó resumido en
+[DEPLOY-V2.md](C:\Users\jcbru\OneDrive\Documents\pedidos%20Semanales\DEPLOY-V2.md).
 
 ## Notas técnicas
 
