@@ -73,6 +73,7 @@ var LOCAL_PREFIX = {
   'Eventos': 'EVE', 'Shopping': 'SHO'
 };
 function prefixFor_(local) {
+  local = normalizeLocalName_(local);
   if (LOCAL_PREFIX[local]) return LOCAL_PREFIX[local];
   return (String(local).replace(/[^A-Za-zÁÉÍÓÚÑ]/g, '').toUpperCase() + 'XXX').slice(0, 3);
 }
@@ -80,6 +81,7 @@ function prefixFor_(local) {
 /* Agrega un producto al CATÁLOGO con código autogenerado. */
 function addProductoCatalogo_(d) {
   if (!d.local || !d.nombre) return { ok: false, error: 'Faltan local o nombre' };
+  d.local = normalizeLocalName_(d.local);
   var sh = ss_().getSheetByName(SHEET_CATALOGO);
   if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CATALOGO };
   var values = sh.getDataRange().getValues();
@@ -105,6 +107,7 @@ function addProductoCatalogo_(d) {
 /* Agrega un responsable/encargado a CONFIGURACIÓN. */
 function addResponsableConfig_(d) {
   if (!d.local || !d.nombre) return { ok: false, error: 'Faltan local o nombre' };
+  d.local = normalizeLocalName_(d.local);
   var sh = ss_().getSheetByName(SHEET_CONFIG);
   if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CONFIG };
   var values = sh.getDataRange().getValues();
@@ -153,7 +156,7 @@ function readCatalog_() {
   var out = {};
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
-    var local = String(row[iLocal] || '').trim();
+    var local = normalizeLocalName_(row[iLocal]);
     var nombre = String(row[iNom] || '').trim();
     if (!local || !nombre) continue;
     var estado = iEstado > -1 ? String(row[iEstado] || '').toLowerCase() : '';
@@ -193,7 +196,7 @@ function readConfig_() {
   }
   if (start === -1) return {};
   for (var i = start; i < values.length; i++) {
-    var local = String(values[i][cLocal] || '').trim();
+    var local = normalizeLocalName_(values[i][cLocal]);
     if (!local) break;                 // fin del bloque de encargados
     if (local.charAt(0) === '🔧' || local.charAt(0) === '🔗') break;
     if (!out[local]) out[local] = {    // primero gana = encargado oficial (default del form)
@@ -218,7 +221,7 @@ function readResponsables_() {
   }
   if (start === -1) return {};
   for (var i = start; i < values.length; i++) {
-    var local = String(values[i][cLocal] || '').trim();
+    var local = normalizeLocalName_(values[i][cLocal]);
     if (!local) break;
     if (local.charAt(0) === '🔧' || local.charAt(0) === '🔗') break;
     if (!out[local]) out[local] = [];
@@ -235,6 +238,7 @@ function readResponsables_() {
 function appendPedido_(d) {
   var sh = ss_().getSheetByName(SHEET_PEDIDOS);
   if (!sh) throw new Error('No existe la hoja "' + SHEET_PEDIDOS + '"');
+  d.local = normalizeLocalName_(d.local);
   // Mismo orden de 17 columnas que ya usa la hoja.
   var row = [
     d.id_pedido || '',
@@ -264,6 +268,7 @@ function appendPedido_(d) {
 function appendDetalle_(d) {
   if (!d.items || !d.items.length) return;
   var sh = ss_().getSheetByName(SHEET_DETALLE) || createDetalleSheet_();
+  d.local = normalizeLocalName_(d.local);
   var hoy = d.fecha_hora || new Date().toLocaleString('es-AR');
   var rows = d.items.map(function (it) {
     return [
@@ -319,6 +324,7 @@ function applyList_(sh, col, vals) {
 function saveStockConteo_(d) {
   if (!d.local) return { ok: false, error: 'Falta local' };
   if (!d.items || !d.items.length) return { ok: false, error: 'Faltan productos de stock' };
+  d.local = normalizeLocalName_(d.local);
 
   var rows = [];
   var conteoId = d.id_stock || ('STK' + new Date().getTime().toString().slice(-6));
@@ -507,6 +513,7 @@ function buildResumenProveedor_() {
 }
 
 function setupVersion2UI() {
+  normalizeLegacyLocalNames_();
   refreshOperationalViews_();
   SpreadsheetApp.getActive().toast('Interfaz corporativa v2 aplicada', 'Docks V2', 5);
 }
@@ -866,8 +873,19 @@ function idx_(headerLower, names) {
 }
 
 function keyFor_(local, codigo, nombre) {
-  return String(local || '').trim().toLowerCase() + '||' +
+  return normalizeLocalName_(local).toLowerCase() + '||' +
     (String(codigo || '').trim().toLowerCase() || String(nombre || '').trim().toLowerCase());
+}
+
+function normalizeLocalName_(local) {
+  var value = String(local || '').trim();
+  if (!value) return '';
+  var low = value.toLowerCase();
+  if (low === 'hamburguesería' || low === 'hamburgueseria') return 'Brooklyn';
+  if (low === 'parrilla') return 'Umo Grill';
+  if (low === 'heladería' || low === 'heladeria') return 'Puerto Gelato';
+  if (low === 'cafetería' || low === 'cafeteria') return 'Trento Café';
+  return value;
 }
 
 function latestStockMap_() {
@@ -1048,6 +1066,33 @@ function clearPresentationSheet_(sh, cols) {
   sh.setFrozenColumns(0);
   if (cols && cols > 0) {
     for (var c = 1; c <= cols; c++) sh.setColumnWidth(c, 140);
+  }
+}
+
+function normalizeLegacyLocalNames_() {
+  renameLocalAcrossSheet_(SHEET_CATALOGO, ['local_aplicable', 'local'], 'Hamburguesería', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_CATALOGO, ['local_aplicable', 'local'], 'Hamburgueseria', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_CONFIG, ['local'], 'Hamburguesería', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_CONFIG, ['local'], 'Hamburgueseria', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_PEDIDOS, ['local'], 'Hamburguesería', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_PEDIDOS, ['local'], 'Hamburgueseria', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_DETALLE, ['local'], 'Hamburguesería', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_DETALLE, ['local'], 'Hamburgueseria', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_STOCK, ['local'], 'Hamburguesería', 'Brooklyn');
+  renameLocalAcrossSheet_(SHEET_STOCK, ['local'], 'Hamburgueseria', 'Brooklyn');
+}
+
+function renameLocalAcrossSheet_(sheetName, headerNames, from, to) {
+  var sh = ss_().getSheetByName(sheetName);
+  if (!sh || sh.getLastRow() < 2) return;
+  var values = sh.getDataRange().getValues();
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var col = idx_(head, headerNames);
+  if (col === -1) return;
+  for (var r = 1; r < values.length; r++) {
+    if (String(values[r][col] || '').trim().toLowerCase() === String(from).trim().toLowerCase()) {
+      sh.getRange(r + 1, col + 1).setValue(to);
+    }
   }
 }
 
