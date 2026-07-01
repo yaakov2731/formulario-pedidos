@@ -355,7 +355,7 @@ function saveStockConteo_(d) {
   var sh = ss_().getSheetByName(SHEET_STOCK) || createStockSheet_();
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, STOCK_HEADERS.length).setValues(rows);
   updateCatalogStock_(d.local, d.items, fechaHora, tipoConteo);
-  refreshOperationalViews_();
+  refreshStockViews_();
   return { ok: true, id_stock: conteoId, rows: rows.length };
 }
 
@@ -411,6 +411,7 @@ function updateCatalogStock_(local, items, fechaHora, tipoConteo) {
     itemMap[keyByName] = it;
   });
 
+  var changed = false;
   for (var r = 1; r < values.length; r++) {
     var rowLocal = String(values[r][iLocal] || '').trim().toLowerCase();
     var rowCode = iCod > -1 ? String(values[r][iCod] || '').trim().toLowerCase() : '';
@@ -419,10 +420,14 @@ function updateCatalogStock_(local, items, fechaHora, tipoConteo) {
     if (!rec) continue;
 
     var actual = numberOrNull_(rec.stock_actual);
-    if (actual !== null) sh.getRange(r + 1, iStock + 1).setValue(actual);
-    if (iFecha > -1) sh.getRange(r + 1, iFecha + 1).setValue(fechaHora);
-    if (iNotas > -1) sh.getRange(r + 1, iNotas + 1).setValue(tipoConteo + ' desde formulario');
+    if (actual !== null) {
+      values[r][iStock] = actual;
+      changed = true;
+    }
+    if (iFecha > -1) values[r][iFecha] = fechaHora;
+    if (iNotas > -1) values[r][iNotas] = tipoConteo + ' desde formulario';
   }
+  if (changed) sh.getDataRange().setValues(values);
 }
 
 function onOpen() {
@@ -526,6 +531,12 @@ function refreshOperationalViews_() {
   buildVistaStock_();
   buildVistaCompras_();
   applyCorporateTabTheme_();
+}
+
+function refreshStockViews_() {
+  buildStockDashboard_();
+  buildInicioOperativo_();
+  buildVistaStock_();
 }
 
 function buildInicioOperativo_() {

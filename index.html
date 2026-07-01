@@ -1180,6 +1180,14 @@ function openStock(){
 function closeStock(){ stockModal.hidden=true; }
 function stockLocalVal(){ return $("#stockLocal").value; }
 function stockKey(code,name){ return `${code||""}||${String(name||"").toLowerCase()}`; }
+function syncCatalogStockFromDrafts(local){
+  const drafts=ensureStockDrafts(local);
+  (CATALOG[local]||[]).forEach(item=>{
+    const draft=drafts[stockKey(item.codigo,item.nombre)];
+    if(!draft) return;
+    item.stock_actual = draft.stock_actual === "" ? "" : (num(draft.stock_actual) ?? draft.stock_actual);
+  });
+}
 function ensureStockDrafts(local){
   if(stockUi.drafts[local]) return stockUi.drafts[local];
   const drafts={};
@@ -1250,11 +1258,11 @@ async function saveStock(){
   btn.disabled=true; btn.textContent="Guardando...";
   try{
     await apiPost(payload);
-    await sleep(1000);
-    await refreshData();
+    syncCatalogStockFromDrafts(local);
+    if(state.local===local) renderStockIntelligence();
     toast("Stock real actualizado","ok");
     closeStock();
-    if(state.local===local) renderStockIntelligence();
+    setTimeout(()=>{ refreshData(); },150);
   }catch{
     toast("Error al guardar stock","err");
   }finally{
