@@ -337,6 +337,8 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .stock-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
 .stock-toolbar .snum{margin-left:auto}
 .stock-search{margin-top:2px}
+.stock-more{margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.stock-more:hover{background:var(--surface)}
 
 /* Compactación mobile: menos scroll en iPhone */
 @media(max-width:560px){
@@ -612,6 +614,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
       <div class="stock-caption">Cargá solo stock real. El sistema guarda el conteo, actualiza el catálogo del local y refresca la lectura operativa del pedido.</div>
       <span class="snum" id="stockCatalogMeta"></span>
       <div class="stock-grid" id="stockGrid"></div>
+      <button class="stock-more" id="stockMore" type="button" hidden>Mostrar más productos</button>
       <button class="cfg-btn" id="stockSave" type="button">Guardar stock real</button>
       <p class="cfg-note">Cada guardado deja trazabilidad en CONTROL STOCK y alimenta el DASHBOARD STOCK.</p>
     </div>
@@ -1136,6 +1139,7 @@ $("#cfgAddResp").addEventListener("click",addResponsable);
 
 /* ---- Stock modal ---- */
 const stockModal=$("#stockModal");
+const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null };
 function openStock(){
   const sel=$("#stockLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
@@ -1144,51 +1148,69 @@ function openStock(){
   $("#stockObs").value="";
   $("#stockSearch").value="";
   $("#stockType").value="Conteo parcial";
+  stockUi.visibleLimit=40;
+  ensureStockDrafts(sel.value);
   renderStockModal();
   stockModal.hidden=false;
 }
 function closeStock(){ stockModal.hidden=true; }
 function stockLocalVal(){ return $("#stockLocal").value; }
+function stockKey(code,name){ return `${code||""}||${String(name||"").toLowerCase()}`; }
+function ensureStockDrafts(local){
+  if(stockUi.drafts[local]) return stockUi.drafts[local];
+  const drafts={};
+  (CATALOG[local]||[]).forEach(item=>{
+    drafts[stockKey(item.codigo,item.nombre)] = {
+      codigo:item.codigo||"",
+      producto:item.nombre||"",
+      categoria:item.categoria||"",
+      unidad:item.unidad||"unidad",
+      stock_actual:item.stock_actual ?? ""
+    };
+  });
+  stockUi.drafts[local]=drafts;
+  return drafts;
+}
 function renderStockModal(){
   const local=stockLocalVal();
   const cat=CATALOG[local]||[];
+  const drafts=ensureStockDrafts(local);
   const q=$("#stockSearch").value.trim().toLowerCase();
   const filtered = q ? cat.filter(item=>
     item.nombre.toLowerCase().includes(q) ||
     String(item.codigo||"").toLowerCase().includes(q) ||
     String(item.categoria||"").toLowerCase().includes(q)
   ) : cat;
-  $("#stockCatalogMeta").textContent=`${filtered.length} de ${cat.length} producto${cat.length===1?"":"s"}`;
+  const visible = filtered.slice(0, stockUi.visibleLimit);
+  $("#stockCatalogMeta").textContent=`${visible.length} de ${filtered.length} filtrados · ${cat.length} total`;
   $("#stockEncargado").value=$("#stockEncargado").value.trim() || $("#encargado").value.trim() || (CONFIG[local]&&CONFIG[local].enc) || "";
-  $("#stockGrid").innerHTML = filtered.length ? filtered.map(item=>`
+  $("#stockGrid").innerHTML = visible.length ? visible.map(item=>{
+    const draft = drafts[stockKey(item.codigo,item.nombre)] || {};
+    const actualVal = draft.stock_actual ?? item.stock_actual ?? "";
+    return `
     <div class="stock-row" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
       <div class="stock-row-main">
         <div class="stock-row-name">${esc(item.nombre)}</div>
-        <div class="stock-row-meta">${esc(item.codigo||"—")} · ${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${item.stock_actual!==""&&item.stock_actual!=null?` · último ${esc(trim(num(item.stock_actual)||0))} ${esc(item.unidad||"")}`:""}</div>
+        <div class="stock-row-meta">${esc(item.codigo||"—")} · ${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${actualVal!==""&&actualVal!=null?` · actual ${esc(trim(num(actualVal)||0))} ${esc(item.unidad||"")}`:""}</div>
       </div>
       <div class="stock-input-wrap">
         <label>Real (${esc(item.unidad||"unidad")})</label>
-        <input type="number" step="0.1" value="${item.stock_actual ?? ""}" data-field="actual" inputmode="decimal" aria-label="Stock real ${esc(item.nombre)}">
+        <input type="number" step="0.1" value="${actualVal}" data-field="actual" inputmode="decimal" aria-label="Stock real ${esc(item.nombre)}">
       </div>
-    </div>`).join("") : `<div class="stock-empty">${cat.length ? "No hay coincidencias para ese filtro." : "Este local no tiene catálogo cargado todavía."}</div>`;
+    </div>`;
+  }).join("") : `<div class="stock-empty">${cat.length ? "No hay coincidencias para ese filtro." : "Este local no tiene catálogo cargado todavía."}</div>`;
+  $("#stockMore").hidden = visible.length >= filtered.length;
 }
 async function saveStock(){
   const local=stockLocalVal();
-  const rows=[...$("#stockGrid").querySelectorAll(".stock-row")];
-  const items=rows.map(row=>{
-    const code=row.dataset.code||"";
-    const name=row.dataset.name||"";
-    const cat=(CATALOG[local]||[]).find(x=>(x.codigo||"")===code || x.nombre===name) || {};
-    const actual=row.querySelector('[data-field="actual"]').value.trim();
-    return {
-      codigo:cat.codigo||code,
-      producto:cat.nombre||name,
-      categoria:cat.categoria||"",
-      unidad:cat.unidad||"unidad",
-      stock_actual:actual,
-      observaciones:$("#stockObs").value.trim()
-    };
-  }).filter(it=>it.stock_actual!=="");
+  const items=Object.values(ensureStockDrafts(local)).map(it=>({
+    codigo:it.codigo||"",
+    producto:it.producto||"",
+    categoria:it.categoria||"",
+    unidad:it.unidad||"unidad",
+    stock_actual:String(it.stock_actual ?? "").trim(),
+    observaciones:$("#stockObs").value.trim()
+  })).filter(it=>it.stock_actual!=="");
   if(!items.length){ toast("Cargá al menos un valor de stock real","err"); return; }
   const payload={
     action:"saveStock",
@@ -1219,8 +1241,22 @@ $("#stockBtn").addEventListener("click",openStock);
 $("#stockInlineBtn").addEventListener("click",openStock);
 $("#stockClose").addEventListener("click",closeStock);
 stockModal.addEventListener("click",e=>{ if(e.target===stockModal) closeStock(); });
-$("#stockLocal").addEventListener("change",renderStockModal);
-$("#stockSearch").addEventListener("input",renderStockModal);
+$("#stockLocal").addEventListener("change",()=>{ stockUi.visibleLimit=40; ensureStockDrafts(stockLocalVal()); renderStockModal(); });
+$("#stockSearch").addEventListener("input",()=>{
+  clearTimeout(stockUi.filterTimer);
+  stockUi.filterTimer=setTimeout(()=>{ stockUi.visibleLimit=80; renderStockModal(); },120);
+});
+$("#stockGrid").addEventListener("input",e=>{
+  if(e.target.dataset.field!=="actual") return;
+  const row=e.target.closest(".stock-row");
+  if(!row) return;
+  const local=stockLocalVal();
+  const drafts=ensureStockDrafts(local);
+  const key=stockKey(row.dataset.code||"", row.dataset.name||"");
+  drafts[key] = drafts[key] || { codigo:row.dataset.code||"", producto:row.dataset.name||"", categoria:"", unidad:"unidad", stock_actual:"" };
+  drafts[key].stock_actual=e.target.value;
+});
+$("#stockMore").addEventListener("click",()=>{ stockUi.visibleLimit += 80; renderStockModal(); });
 $("#stockSave").addEventListener("click",saveStock);
 
 /* ---- Init ---- */
