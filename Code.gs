@@ -355,7 +355,7 @@ function saveStockConteo_(d) {
   var sh = ss_().getSheetByName(SHEET_STOCK) || createStockSheet_();
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, STOCK_HEADERS.length).setValues(rows);
   updateCatalogStock_(d.local, d.items, fechaHora, tipoConteo);
-  refreshStockViews_();
+  if (d.rebuild_views) refreshStockViews_();
   return { ok: true, id_stock: conteoId, rows: rows.length };
 }
 

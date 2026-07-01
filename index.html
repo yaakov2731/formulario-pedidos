@@ -1249,6 +1249,7 @@ async function saveStock(){
     id_stock:"STK"+Date.now().toString().slice(-6),
     fecha_hora:new Date().toLocaleString("es-AR"),
     local,
+    rebuild_views:false,
     tipo_conteo:$("#stockType").value,
     encargado:$("#stockEncargado").value.trim() || $("#encargado").value.trim(),
     observaciones:$("#stockObs").value.trim(),
