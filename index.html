@@ -505,9 +505,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
       radial-gradient(120% 140% at 100% 0%, oklch(0.95 0.03 220), transparent 55%),
       linear-gradient(180deg, oklch(0.975 0.006 230), oklch(0.94 0.01 235));
   }
-  .wrap{max-width:none;padding:0 0 156px}
+  .wrap{max-width:none;padding:0 0 176px}
   .hero{
-    position:sticky;top:0;z-index:48;
+    position:relative;top:auto;z-index:12;
     padding:14px 14px 12px;border-radius:0 0 18px 18px;margin:0 0 10px;
     box-shadow:0 8px 26px oklch(0.45 0.12 235 / 0.22),0 2px 6px oklch(0.45 0.12 235 / 0.14)
   }
@@ -550,7 +550,8 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     left:10px;right:10px;bottom:calc(74px + env(safe-area-inset-bottom));
     padding:8px 8px calc(8px + env(safe-area-inset-bottom));
     border:1px solid var(--line);border-radius:18px;
-    background:oklch(0.995 0.002 230 / 0.96);backdrop-filter:blur(16px)
+    background:oklch(0.995 0.002 230 / 0.96);backdrop-filter:blur(16px);
+    box-shadow:0 14px 32px oklch(0.4 0.03 240 / 0.12)
   }
   .bar-in{flex-direction:column;align-items:stretch;gap:7px}
   .bar-meta{order:0;text-align:center}
@@ -558,9 +559,29 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .bar-actions{margin-left:0;display:grid;grid-template-columns:1fr;gap:7px}
   .pedido-nav{display:grid;grid-template-columns:1fr 1fr}
   .nav-btn,.nav-btn.alt{width:100%;min-height:40px;padding:9px 12px;font-size:12.5px;border-radius:10px}
+  .tab-panel[data-tab]:not(.bar){
+    position:relative;
+    z-index:1;
+    margin-bottom:12px;
+  }
+  .tab-panel[data-tab="home"],
+  .tab-panel[data-tab="stock"],
+  .tab-panel[data-tab="recepcion"],
+  .tab-panel[data-tab="produccion"],
+  .tab-panel[data-tab="dashboard"]{
+    margin-bottom:92px;
+  }
+  .pedido-shell,
+  .pedido-screen,
+  .summary{
+    margin-bottom:10px;
+  }
+  .summary{
+    margin-bottom:154px;
+  }
   .workspace{
     position:relative;
-    padding:10px 10px 82px;
+    padding:10px 10px 10px;
     margin:0 10px 10px;border-radius:18px;
     background:linear-gradient(180deg, oklch(0.995 0.003 230), oklch(0.972 0.006 235))
   }
@@ -651,7 +672,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 }
 
 @media(max-width:380px){
-  .wrap{padding:0 0 158px}
+  .wrap{padding:0 0 182px}
   .hero-foot{flex-wrap:wrap;gap:6px 10px}
   .urg{grid-template-columns:1fr}
   .summary{padding:13px}
@@ -851,11 +872,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
       <button type="button" class="urgb" data-u="Normal" aria-pressed="true"><span class="pip"></span>Normal<small>Esta semana</small></button>
       <button type="button" class="urgb" data-u="Urgente"><span class="pip"></span>Urgente<small>Prioritario</small></button>
     </div>
-  </section>
-
-  <!-- 6. Observaciones -->
-  <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="cierre">
-    <div class="shead"><div><p class="skicker">Notas</p><h2>Observaciones</h2><span class="snum">opcional</span></div></div>
+    <div class="shead" style="margin-top:14px"><div><p class="skicker">Notas</p><h2>Observaciones</h2><span class="snum">opcional</span></div></div>
     <textarea id="observaciones" placeholder="Aclaraciones para gerencia o el proveedor..."></textarea>
   </section>
 
