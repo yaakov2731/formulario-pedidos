@@ -1516,28 +1516,51 @@ function notifyTelegramForPedido_(pedido) {
 }
 
 function buildTelegramPedidoMessage_(pedido) {
+  var local = normalizeLocalName_(pedido.local || '');
+  var urgencia = normalizeUrgenciaLabel_(pedido.urgencia || 'Normal');
+  var entrega = safeTelegramText_(pedido.fecha_entrega || 'Sin definir');
+  var semana = safeTelegramText_(pedido.semana_pedido || 'Sin definir');
+  var encargado = safeTelegramText_(pedido.encargado || 'Sin asignar');
+  var pedidoId = safeTelegramText_(pedido.id_pedido || '');
+  var observaciones = safeTelegramText_(pedido.observaciones || '');
+  var totalProductos = String(pedido.total_productos || (pedido.items || []).length || 0);
   var items = (pedido.items || []).map(function (it) {
     var qty = it.cantidad || '';
     var unidad = it.unidad || '';
-    return '- ' + safeTelegramText_(it.producto || 'Producto sin nombre') + ' - ' + safeTelegramText_(String(qty) + ' ' + unidad).trim();
+    var proveedor = safeTelegramText_(it.proveedor || '');
+    var producto = safeTelegramText_(it.producto || 'Producto sin nombre');
+    var cantidad = safeTelegramText_(String(qty) + ' ' + unidad).trim();
+    return '• ' + producto + ' — ' + cantidad + (proveedor ? ' <i>(' + proveedor + ')</i>' : '');
   }).slice(0, 20);
   if ((pedido.items || []).length > 20) {
-    items.push('- +' + ((pedido.items || []).length - 20) + ' producto(s) mas');
+    items.push('• +' + ((pedido.items || []).length - 20) + ' producto(s) adicionales');
   }
   return [
-    '<b>Nuevo pedido recibido</b>',
-    '<b>ID:</b> ' + safeTelegramText_(pedido.id_pedido || ''),
-    '<b>Local:</b> ' + safeTelegramText_(normalizeLocalName_(pedido.local || '')),
-    '<b>Encargado:</b> ' + safeTelegramText_(pedido.encargado || ''),
-    '<b>Semana:</b> ' + safeTelegramText_(pedido.semana_pedido || ''),
-    '<b>Entrega:</b> ' + safeTelegramText_(pedido.fecha_entrega || ''),
-    '<b>Urgencia:</b> ' + safeTelegramText_(pedido.urgencia || 'Normal'),
-    '<b>Total productos:</b> ' + safeTelegramText_(String(pedido.total_productos || (pedido.items || []).length || 0)),
-    pedido.observaciones ? '<b>Observaciones:</b> ' + safeTelegramText_(pedido.observaciones) : '',
+    '🧾 <b>NUEVO PEDIDO — Docks del Puerto</b>',
+    '━━━━━━━━━━━━━━━━━━',
+    '🏪 <b>Local:</b> ' + safeTelegramText_(local),
+    '👤 <b>Encargado:</b> ' + encargado,
+    '🆔 <b>ID Pedido:</b> <code>' + pedidoId + '</code>',
+    '📅 <b>Semana:</b> ' + semana,
+    '🚚 <b>Entrega deseada:</b> ' + entrega,
+    '🔴 <b>Urgencia:</b> ' + safeTelegramText_(urgencia),
+    '📦 <b>Total items:</b> ' + safeTelegramText_(totalProductos),
+    observaciones ? '📝 <b>Observaciones:</b> ' + observaciones : '',
     '',
-    '<b>Detalle</b>',
+    '🛒 <b>PRODUCTOS SOLICITADOS</b>',
+    '━━━━━━━━━━━━━━━━━━',
     items.join('\n')
   ].filter(function (line) { return line !== ''; }).join('\n');
+}
+
+function normalizeUrgenciaLabel_(value) {
+  var raw = String(value || '').trim().toLowerCase();
+  if (!raw) return 'NORMAL';
+  if (raw === 'urgente') return 'URGENTE';
+  if (raw === 'alta') return 'ALTA';
+  if (raw === 'media') return 'MEDIA';
+  if (raw === 'baja') return 'BAJA';
+  return String(value || '').trim().toUpperCase();
 }
 
 function safeTelegramText_(value) {
