@@ -399,6 +399,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .live-warning.show{display:flex}
 .live-warning strong{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .live-warning span{display:block;font-size:12px;line-height:1.35;margin-top:2px}
+.home-jump{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));color:var(--ink);font:inherit;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 8px 14px oklch(0.4 0.03 240 / 0.07),0 3px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.94)}
+.home-jump:active{transform:translateY(2px);box-shadow:0 4px 8px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08)}
+.home-jump span{font-size:12px;line-height:1}
 .tab-panel[hidden]{display:none}
 .pedido-shell{padding:16px;background:
   radial-gradient(120% 180% at 100% 0%, oklch(0.96 0.03 220), transparent 55%),
@@ -630,6 +633,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .pedido-shell-head h2{font-size:16px}
   .pedido-shell-head p{font-size:11.5px}
   .pedido-local-pill{padding:7px 10px;font-size:10px}
+  .home-jump{min-height:32px;padding:6px 9px;font-size:10.5px;border-radius:9px}
   .pedido-progress{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
   .pedido-step-btn{padding:8px 8px;gap:2px;border-radius:10px;box-shadow:0 6px 10px oklch(0.4 0.03 240 / 0.06),0 2px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.94)}
   .pedido-step-btn strong{font-size:11px}
@@ -780,6 +784,7 @@ body.compact-mobile-shell .pedido-shell-head{gap:7px;margin-bottom:10px;flex-dir
 body.compact-mobile-shell .pedido-shell-head h2{font-size:16px}
 body.compact-mobile-shell .pedido-shell-head p{font-size:11.5px}
 body.compact-mobile-shell .pedido-local-pill{padding:7px 10px;font-size:10px}
+body.compact-mobile-shell .home-jump{min-height:32px;padding:6px 9px;font-size:10.5px;border-radius:9px}
 body.compact-mobile-shell .pedido-progress{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 body.compact-mobile-shell .pedido-step-btn{padding:8px 8px;gap:2px;border-radius:10px;box-shadow:0 6px 10px oklch(0.4 0.03 240 / 0.06),0 2px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.94)}
 body.compact-mobile-shell .pedido-step-btn strong{font-size:11px}
@@ -873,7 +878,10 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
         <h2 id="pedidoFlowTitle">Pedido por pantallas</h2>
         <p id="pedidoFlowMeta">Avanzá paso por paso para cargar el pedido sin perderte en un formulario largo.</p>
       </div>
-      <span class="pedido-local-pill" id="pedidoLocalPill">Local pendiente</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <span class="pedido-local-pill" id="pedidoLocalPill">Local pendiente</span>
+        <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      </div>
     </div>
     <div class="pedido-progress" id="pedidoProgress"></div>
   </section>
@@ -929,6 +937,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   <section class="tab-panel" data-tab="stock">
     <div class="shead">
       <div><p class="skicker">Stock</p><h2>Conteo y lectura operativa</h2></div>
+      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
       <span class="snum" id="stockSectionMeta">Sin conteo</span>
     </div>
     <div class="stock-actions">
@@ -969,6 +978,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   <section class="tab-panel" data-tab="recepcion" hidden>
     <div class="shead">
       <div><p class="skicker">Recepción</p><h2>Ingreso de mercadería</h2></div>
+      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
       <span class="snum" id="recepMeta">Sin movimientos</span>
     </div>
     <div class="module-grid" id="recepCards"></div>
@@ -1000,6 +1010,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   <section class="tab-panel" data-tab="produccion" hidden>
     <div class="shead">
       <div><p class="skicker">Producción</p><h2>Parte productivo por local</h2></div>
+      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
       <span class="snum" id="prodMeta">Sin partes</span>
     </div>
     <div class="module-grid" id="prodCards"></div>
@@ -1033,6 +1044,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   <section class="tab-panel" data-tab="dashboard" hidden>
     <div class="shead">
       <div><p class="skicker">Admin</p><h2>Lectura ejecutiva del local</h2></div>
+      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
       <span class="snum" id="dashMeta">Sin local</span>
     </div>
     <div class="dash-grid" id="dashCards"></div>
@@ -1091,8 +1103,11 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
       <div class="s-big" id="sumCount">0 productos</div>
       <div class="s-est" id="sumEst">Total estimado: <b>—</b></div>
     </div>
-    <div class="s-badge" aria-hidden="true">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      <div class="s-badge" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/><path d="M9 12l2 2 4-4"/></svg>
+      </div>
     </div>
   </div>
 
@@ -1658,6 +1673,11 @@ search.addEventListener("keydown",e=>{
   else if(e.key==="Escape"){closeSuggest();}
 });
 document.addEventListener("click",e=>{ if(!e.target.closest(".search-wrap")) closeSuggest(); });
+document.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-go-home]");
+  if(!btn) return;
+  setTab("home");
+});
 
 function renderSuggest(q){
   q=q.trim().toLowerCase();
