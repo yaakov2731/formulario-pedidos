@@ -487,6 +487,25 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .op-row-meta{font-size:12px;color:var(--ink-soft);margin-top:4px}
 .op-form{display:flex;flex-direction:column;gap:12px;padding:2px 0}
 .op-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.recep-intake{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.recep-intake-btn{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:13px 14px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));color:var(--ink);font:inherit;text-align:left;cursor:pointer;box-shadow:0 10px 18px oklch(0.4 0.03 240 / 0.08),0 4px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.94);transition:transform .15s var(--ease),box-shadow .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease)}
+.recep-intake-btn:hover{transform:translateY(-2px);box-shadow:0 14px 22px oklch(0.4 0.03 240 / 0.10),0 5px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.98)}
+.recep-intake-btn:active{transform:translateY(3px);box-shadow:0 4px 8px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08)}
+.recep-intake-btn strong{font-size:13px;font-weight:800;letter-spacing:-0.01em}
+.recep-intake-btn span{font-size:11.5px;color:var(--ink-soft);line-height:1.35}
+.recep-photo-panel{padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--shadow-sm)}
+.recep-photo-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.recep-photo-head strong{font-size:13px;font-weight:800}
+.recep-photo-head span{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:3px}
+.recep-photo-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-strong);white-space:nowrap}
+.recep-photo-meta{margin-top:10px;font-size:12px;color:var(--ink-soft)}
+.recep-photo-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.recep-photo-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 11px;border-radius:12px;border:1px solid var(--line);background:oklch(1 0 0 / 0.72)}
+.recep-photo-item strong{display:block;font-size:13px;font-weight:700;line-height:1.2}
+.recep-photo-item span{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:3px}
+.recep-photo-qty{font-size:15px;font-weight:800;letter-spacing:-0.02em;white-space:nowrap}
+.recep-photo-qty small{display:block;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+.recep-photo-actions{display:flex;gap:10px;margin-top:10px}
 .dash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .event-list{display:flex;flex-direction:column;gap:8px}
 .event-item{position:relative;overflow:hidden;min-width:0;padding:13px;border-radius:16px;border:1px solid color-mix(in oklch,var(--line) 82%,#fff);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface));box-shadow:0 10px 18px oklch(0.4 0.03 240 / 0.07),inset 0 1px 0 oklch(1 0 0 / 0.96)}
@@ -654,7 +673,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .stock-row,.op-row,.event-item{padding:11px}
   .stock-grid,.op-grid{max-height:none;overflow:visible}
   .stock-toolbar{grid-template-columns:1fr}
-  .module-grid,.dash-grid{grid-template-columns:1fr}
+  .module-grid,.dash-grid,.recep-intake{grid-template-columns:1fr}
   .module-card{padding:12px}
   .module-card .v{font-size:21px}
   .op-actions{grid-template-columns:1fr}
@@ -1001,6 +1020,31 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
         </div>
       </div>
       <div class="op-form">
+        <div class="recep-intake">
+          <button class="recep-intake-btn" id="recepManualBtn" type="button">
+            <strong>Cargar a mano</strong>
+            <span>Seguís usando la grilla manual para entradas rápidas, parciales o correcciones.</span>
+          </button>
+          <button class="recep-intake-btn" id="recepPhotoBtn" type="button">
+            <strong>Cargar desde foto</strong>
+            <span>Subí una boleta y la app propone productos y cantidades sobre esta misma recepción.</span>
+          </button>
+        </div>
+        <input id="recepPhotoInput" type="file" accept="image/*" capture="environment" hidden>
+        <div class="recep-photo-panel" id="recepPhotoPanel">
+          <div class="recep-photo-head">
+            <div>
+              <strong>Asistente por foto</strong>
+              <span id="recepPhotoSubtext">Todavía no cargaste una boleta. La recepción manual sigue disponible abajo.</span>
+            </div>
+            <div class="recep-photo-chip" id="recepPhotoChip">Manual</div>
+          </div>
+          <div class="recep-photo-meta" id="recepPhotoMeta">La foto arma un borrador y vos confirmás antes de guardar.</div>
+          <div class="recep-photo-list" id="recepPhotoMatches"></div>
+          <div class="recep-photo-actions" id="recepPhotoActions" hidden>
+            <button class="cfg-btn alt" id="recepPhotoReset" type="button">Limpiar foto</button>
+          </div>
+        </div>
         <div class="grid2">
           <div class="field"><label>Proveedor</label><input id="recepProveedor" type="text" placeholder="Proveedor o remito"></div>
           <div class="field"><label>Encargado</label><input id="recepEncargado" type="text" placeholder="Quién recibe"></div>
@@ -1234,6 +1278,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 "use strict";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzA9fk969AAZmOY4fshAkqMnFF1LqLE3s7bMUnDvFmQWFbsadJCI3KXHmKIXY8_FVZD/exec";
@@ -1599,6 +1644,57 @@ function renderRecepCardsOnly(local){
     metricCard("Cantidad recibida", trim(localSummary.cantidad||0), "unidades acumuladas", "good"),
     metricCard("Borrador", draftSummary.items, `${draftSummary.total} unidades listas`, draftSummary.items?"warn":"")
   ].join("");
+}
+function renderRecepPhotoPanel(local){
+  const chip=$("#recepPhotoChip");
+  const sub=$("#recepPhotoSubtext");
+  const meta=$("#recepPhotoMeta");
+  const list=$("#recepPhotoMatches");
+  const actions=$("#recepPhotoActions");
+  if(!chip || !sub || !meta || !list || !actions) return;
+  if(!local){
+    chip.textContent="Manual";
+    sub.textContent="Elegí un local para habilitar la carga desde foto.";
+    meta.textContent="La recepción manual queda disponible cuando selecciones un local.";
+    list.innerHTML="";
+    actions.hidden=true;
+    return;
+  }
+  const photo=getRecepPhotoState(local);
+  if(recepUi.ocrBusy){
+    chip.textContent="OCR";
+    sub.textContent="Procesando la foto de la boleta...";
+    meta.textContent="Esto puede tardar unos segundos según el tamaño y la nitidez.";
+    list.innerHTML="";
+    actions.hidden=true;
+    return;
+  }
+  if(!photo){
+    chip.textContent="Manual";
+    sub.textContent="Todavía no cargaste una boleta. La recepción manual sigue disponible abajo.";
+    meta.textContent="La foto arma un borrador y vos confirmás antes de guardar.";
+    list.innerHTML="";
+    actions.hidden=true;
+    return;
+  }
+  chip.textContent=photo.matches.length ? "Foto lista" : "Revisar";
+  sub.textContent = photo.fileName
+    ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador`
+    : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador`;
+  meta.textContent = photo.matches.length
+    ? "Podés corregir cantidades en la grilla manual antes de guardar la recepción."
+    : "No encontré coincidencias claras en el catálogo. Probá con otra foto o cargá a mano.";
+  list.innerHTML = photo.matches.length
+    ? photo.matches.slice(0,6).map(match=>`
+      <div class="recep-photo-item">
+        <div>
+          <strong>${esc(match.producto)}</strong>
+          <span>${esc(match.sourceLine)}${match.proveedor?` · ${esc(match.proveedor)}`:""}</span>
+        </div>
+        <div class="recep-photo-qty">${esc(trim(num(match.cantidad_recibida)||0))}<small>${esc(match.unidad||"unidad")}</small></div>
+      </div>`).join("")
+    : "";
+  actions.hidden=false;
 }
 function renderProdCardsOnly(local){
   const cards=$("#prodCards");
@@ -2093,10 +2189,12 @@ function renderRecepcionModule(){
     $("#recepMeta").textContent="Sin local";
     $("#recepCatalogMeta").textContent="";
     $("#recepMore").hidden=true;
+    renderRecepPhotoPanel("");
     return;
   }
   const drafts=ensureRecepDrafts(state.local);
   renderRecepCardsOnly(state.local);
+  renderRecepPhotoPanel(state.local);
   $("#recepProveedor").value = drafts.proveedor || "";
   $("#recepEncargado").value = drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "";
   $("#recepObs").value = drafts.observaciones || "";
@@ -2281,6 +2379,42 @@ async function saveReception(){
     toast("Error al guardar recepción","err");
   }finally{
     btn.disabled=false; btn.textContent=orig;
+  }
+}
+async function loadReceptionFromPhoto(file){
+  if(!state.local){ toast("Elegí un local primero","err"); return; }
+  if(!file) return;
+  if(typeof Tesseract === "undefined" || !Tesseract || typeof Tesseract.recognize !== "function"){
+    toast("No pude cargar el lector OCR en este equipo","err");
+    return;
+  }
+  recepUi.ocrBusy=true;
+  renderRecepPhotoPanel(state.local);
+  try{
+    const result=await Tesseract.recognize(file, "spa+eng");
+    const text=(result && result.data && result.data.text) || "";
+    const parsed=parseReceiptPhotoText(text, state.local);
+    recepUi.photoByLocal[state.local]={
+      fileName:file.name||"boleta",
+      rawText:text,
+      matches:parsed.matches
+    };
+    applyPhotoMatchesToReceptionDraft(state.local, parsed);
+    if(parsed.proveedor){
+      $("#recepProveedor").value = ensureRecepDrafts(state.local).proveedor || parsed.proveedor;
+    }
+    renderRecepcionModule();
+    renderWorkspaceStats();
+    if(parsed.matches.length){
+      toast(`Foto procesada: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}`,"ok");
+    }else{
+      toast("Leí la foto, pero no encontré coincidencias claras. Podés completar a mano.","err");
+    }
+  }catch{
+    toast("No pude leer la foto. Probá con otra imagen o cargá a mano.","err");
+  }finally{
+    recepUi.ocrBusy=false;
+    renderRecepPhotoPanel(state.local);
   }
 }
 
@@ -2497,7 +2631,7 @@ $("#cfgAddResp").addEventListener("click",addResponsable);
 /* ---- Stock modal ---- */
 const stockModal=$("#stockModal");
 const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null };
-const recepUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{} };
+const recepUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, photoByLocal:{}, ocrBusy:false };
 const prodUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{} };
 function openStock(){
   const sel=$("#stockLocal");
@@ -2515,6 +2649,115 @@ function openStock(){
 function closeStock(){ stockModal.hidden=true; }
 function stockLocalVal(){ return $("#stockLocal").value; }
 function stockKey(code,name){ return `${code||""}||${String(name||"").toLowerCase()}`; }
+function normalizeLooseText(value){
+  return String(value||"")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase()
+    .replace(/[^a-z0-9%./,+ -]/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+function extractReceiptQty(line){
+  const lower=normalizeLooseText(line);
+  const unitHint=/\b(kg|kilo|kilos|gr|g|lt|lts|l|un|u|unidad|unidades|doc|pack|paq|bolsa|caja)\b/.test(lower);
+  const nums=(lower.match(/\d+(?:[.,]\d+)?/g)||[])
+    .map(raw=>parseFloat(raw.replace(",",".")))
+    .filter(n=>Number.isFinite(n) && n>0);
+  if(!nums.length) return null;
+  if(unitHint){
+    const preferred=nums.find(n=>n<=200);
+    if(preferred) return preferred;
+  }
+  const small=nums.find(n=>n<=100);
+  return small || nums[0];
+}
+function scoreCatalogMatch(line, item){
+  const lineNorm=normalizeLooseText(line);
+  const itemNorm=normalizeLooseText(item.nombre||"");
+  if(!lineNorm || !itemNorm) return 0;
+  let score=0;
+  if(lineNorm.includes(itemNorm)) score += 12;
+  const itemTokens=itemNorm.split(" ").filter(t=>t.length>2);
+  const lineTokens=new Set(lineNorm.split(" ").filter(t=>t.length>2));
+  itemTokens.forEach(token=>{ if(lineTokens.has(token)) score += 3; });
+  const provNorm=normalizeLooseText(item.proveedor||"");
+  if(provNorm && lineNorm.includes(provNorm)) score += 2;
+  return score;
+}
+function guessProveedorFromOcr(text, local){
+  const normalized=normalizeLooseText(text);
+  const providers=[...new Set((CATALOG[local]||[]).map(item=>String(item.proveedor||"").trim()).filter(Boolean))];
+  let best={ name:"", score:0 };
+  providers.forEach(name=>{
+    const score=scoreCatalogMatch(normalized, { nombre:name, proveedor:name });
+    if(score > best.score) best={ name, score };
+  });
+  return best.score >= 6 ? best.name : "";
+}
+function parseReceiptPhotoText(text, local){
+  const lines=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  const catalog=CATALOG[local]||[];
+  const matches=[];
+  const seen=new Set();
+  lines.forEach(line=>{
+    const qty=extractReceiptQty(line);
+    if(qty===null) return;
+    let best=null;
+    let bestScore=0;
+    catalog.forEach(item=>{
+      const score=scoreCatalogMatch(line, item);
+      if(score > bestScore){
+        best=item;
+        bestScore=score;
+      }
+    });
+    if(!best || bestScore < 6) return;
+    const key=stockKey(best.codigo,best.nombre);
+    if(seen.has(`${key}|${qty}`)) return;
+    seen.add(`${key}|${qty}`);
+    matches.push({
+      key,
+      codigo:best.codigo||"",
+      producto:best.nombre||"",
+      categoria:best.categoria||"",
+      unidad:best.unidad||"unidad",
+      proveedor:best.proveedor||"",
+      cantidad_recibida:qty,
+      score:bestScore,
+      sourceLine:line
+    });
+  });
+  const grouped=new Map();
+  matches.forEach(match=>{
+    const current=grouped.get(match.key);
+    if(current){
+      current.cantidad_recibida = trim((num(current.cantidad_recibida)||0) + (num(match.cantidad_recibida)||0));
+      current.sourceLine += ` | ${match.sourceLine}`;
+      current.score = Math.max(current.score, match.score);
+      return;
+    }
+    grouped.set(match.key, Object.assign({}, match, { cantidad_recibida:trim(num(match.cantidad_recibida)||0) }));
+  });
+  return {
+    rawText:text,
+    matches:[...grouped.values()].sort((a,b)=>b.score-a.score),
+    proveedor:guessProveedorFromOcr(text, local)
+  };
+}
+function getRecepPhotoState(local){
+  return recepUi.photoByLocal[local] || null;
+}
+function clearRecepPhotoState(local){
+  delete recepUi.photoByLocal[local];
+}
+function applyPhotoMatchesToReceptionDraft(local, parsed){
+  const drafts=ensureRecepDrafts(local);
+  parsed.matches.forEach(match=>{
+    drafts.items[match.key] = String(match.cantidad_recibida);
+  });
+  if(parsed.proveedor && !drafts.proveedor) drafts.proveedor = parsed.proveedor;
+}
 function ensureRecepDrafts(local){
   if(recepUi.drafts[local]) return recepUi.drafts[local];
   const drafts={ proveedor:"", encargado:(CONFIG[local]&&CONFIG[local].enc)||"", observaciones:"", items:{} };
@@ -2536,6 +2779,7 @@ function ensureProdDrafts(local){
 function clearRecepDrafts(local){
   delete recepUi.drafts[local];
   recepUi.queryByLocal[local]="";
+  clearRecepPhotoState(local);
 }
 function clearProdDrafts(local){
   delete prodUi.drafts[local];
@@ -2611,6 +2855,12 @@ function clearReceptionDraftForm(){
   clearRecepDrafts(state.local);
   renderRecepcionModule();
   renderWorkspaceStats();
+}
+function clearReceptionPhotoResult(){
+  if(!state.local) return;
+  clearRecepPhotoState(state.local);
+  $("#recepPhotoInput").value="";
+  renderRecepPhotoPanel(state.local);
 }
 function clearProductionDraftForm(){
   if(!state.local) return;
@@ -2751,6 +3001,19 @@ $("#recepSave").addEventListener("click",saveReception);
 $("#prodSave").addEventListener("click",saveProduction);
 $("#recepClear").addEventListener("click",clearReceptionDraftForm);
 $("#prodClear").addEventListener("click",clearProductionDraftForm);
+$("#recepManualBtn").addEventListener("click",()=>{
+  $("#recepSearch").focus();
+  toast("Recepción manual lista para cargar","ok");
+});
+$("#recepPhotoBtn").addEventListener("click",()=>{
+  if(!state.local){ toast("Elegí un local primero","err"); return; }
+  $("#recepPhotoInput").click();
+});
+$("#recepPhotoInput").addEventListener("change",async e=>{
+  const file=e.target.files && e.target.files[0];
+  await loadReceptionFromPhoto(file);
+});
+$("#recepPhotoReset").addEventListener("click",clearReceptionPhotoResult);
 $("#recepProveedor").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).proveedor=$("#recepProveedor").value; });
 $("#recepEncargado").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).encargado=$("#recepEncargado").value; });
 $("#recepObs").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).observaciones=$("#recepObs").value; });
