@@ -36,7 +36,8 @@ var SHEET_VIEW_REC = 'VISTA RECEPCION';
 var SHEET_VIEW_PROD = 'VISTA PRODUCCION';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
-var APP_VERSION = '2.1.0';
+var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
+var APP_VERSION = '2.2.0';
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
   'Código','Producto','Categoría','Cantidad','Unidad','Proveedor','Estado','Comprado','Entregado'];
@@ -65,6 +66,9 @@ function doGet(e) {
         snapshot: buildFrontendOperationalSnapshot_()
       });
     }
+    if (action === 'getPedidoStatus') {
+      return json(getPedidoStatus_((e && e.parameter && e.parameter.id_pedido) || ''));
+    }
     return json({ ok: true, status: 'online', version: APP_VERSION, capabilities: appCapabilities_() });
   } catch (err) {
     return json({ ok: false, error: String(err) });
@@ -79,9 +83,7 @@ function doPost(e) {
     if (data.action === 'saveStock')     { return json(saveStockConteo_(data)); }
     if (data.action === 'saveReception') { return json(saveRecepcion_(data)); }
     if (data.action === 'saveProduction'){ return json(saveProduccion_(data)); }
-    appendPedido_(data);
-    appendDetalle_(data);   // capa normalizada: 1 fila por producto
-    return json({ ok: true, id_pedido: data.id_pedido || '' });
+    return json(savePedido_(data));
   } catch (err) {
     return json({ ok: false, error: String(err) });
   }
@@ -158,6 +160,7 @@ function json(obj) {
 }
 
 function appCapabilities_() {
+  var telegram = getTelegramSettings_();
   return {
     pedido: true,
     stock: true,
@@ -166,7 +169,42 @@ function appCapabilities_() {
     dashboard_v2: true,
     local_alias_normalization: true,
     movement_views: true,
-    bootstrap_v2: true
+    bootstrap_v2: true,
+    pedido_status: true,
+    telegram_notify: telegram.enabled
+  };
+}
+
+function savePedido_(data) {
+  appendPedido_(data);
+  appendDetalle_(data);   // capa normalizada: 1 fila por producto
+  var telegram = notifyTelegramForPedido_(data);
+  return {
+    ok: true,
+    id_pedido: data.id_pedido || '',
+    telegram: telegram
+  };
+}
+
+function getPedidoStatus_(pedidoId) {
+  pedidoId = String(pedidoId || '').trim();
+  if (!pedidoId) return { ok: false, error: 'Falta id_pedido' };
+  var pedido = findPedidoRowById_(pedidoId);
+  var detalle = findDetalleRowsByPedidoId_(pedidoId);
+  var telegram = readTelegramLogByPedido_(pedidoId);
+  return {
+    ok: true,
+    found: !!pedido,
+    id_pedido: pedidoId,
+    pedido: pedido ? {
+      fecha_hora: pedido[1] || '',
+      local: pedido[2] || '',
+      encargado: pedido[3] || '',
+      semana: pedido[4] || '',
+      estado: pedido[6] || ''
+    } : null,
+    detalle_count: detalle.length,
+    telegram: telegram
   };
 }
 
@@ -319,6 +357,27 @@ function appendDetalle_(d) {
   });
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, DETALLE_HEADERS.length).setValues(rows);
   refreshOperationalViews_();
+}
+
+function findPedidoRowById_(pedidoId) {
+  var sh = ss_().getSheetByName(SHEET_PEDIDOS);
+  if (!sh || sh.getLastRow() < 2) return null;
+  var values = sh.getDataRange().getValues();
+  for (var r = values.length - 1; r >= 1; r--) {
+    if (String(values[r][0] || '').trim() === pedidoId) return values[r];
+  }
+  return null;
+}
+
+function findDetalleRowsByPedidoId_(pedidoId) {
+  var sh = ss_().getSheetByName(SHEET_DETALLE);
+  if (!sh || sh.getLastRow() < 2) return [];
+  var values = sh.getDataRange().getValues();
+  var out = [];
+  for (var r = values.length - 1; r >= 1; r--) {
+    if (String(values[r][0] || '').trim() === pedidoId) out.push(values[r]);
+  }
+  return out;
 }
 
 function createDetalleSheet_() {
@@ -1388,6 +1447,155 @@ function ss_() {
   var active = SpreadsheetApp.getActiveSpreadsheet();
   if (active) return active;
   return SpreadsheetApp.openById(SHEET_ID);
+}
+
+function getTelegramSettings_() {
+  var props = PropertiesService.getScriptProperties().getProperties();
+  var enabledFlag = String(props.TELEGRAM_ENABLED || '').trim().toLowerCase();
+  var token = String(props.TELEGRAM_BOT_TOKEN || '').trim();
+  var chatId = String(props.TELEGRAM_CHAT_ID || '').trim();
+  var enabled = !!token && !!chatId && enabledFlag !== 'false' && enabledFlag !== '0' && enabledFlag !== 'no';
+  return {
+    enabled: enabled,
+    token: token,
+    chat_id: chatId
+  };
+}
+
+function setTelegramConfig(botToken, chatId) {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    TELEGRAM_BOT_TOKEN: String(botToken || '').trim(),
+    TELEGRAM_CHAT_ID: String(chatId || '').trim(),
+    TELEGRAM_ENABLED: 'true'
+  }, true);
+}
+
+function disableTelegramNotifications() {
+  PropertiesService.getScriptProperties().setProperty('TELEGRAM_ENABLED', 'false');
+}
+
+function notifyTelegramForPedido_(pedido) {
+  var settings = getTelegramSettings_();
+  if (!settings.enabled) {
+    var skipped = { ok: false, skipped: true, reason: 'telegram_disabled' };
+    appendTelegramLog_(pedido, skipped);
+    return skipped;
+  }
+  var response;
+  try {
+    response = UrlFetchApp.fetch('https://api.telegram.org/bot' + settings.token + '/sendMessage', {
+      method: 'post',
+      payload: {
+        chat_id: settings.chat_id,
+        text: buildTelegramPedidoMessage_(pedido),
+        parse_mode: 'HTML',
+        disable_web_page_preview: 'true'
+      },
+      muteHttpExceptions: true
+    });
+    var code = response.getResponseCode();
+    var raw = response.getContentText() || '';
+    var parsed = parseJsonSafe_(raw);
+    var ok = code >= 200 && code < 300 && parsed && parsed.ok === true;
+    var result = {
+      ok: ok,
+      skipped: false,
+      status_code: code,
+      body: raw.slice(0, 500)
+    };
+    appendTelegramLog_(pedido, result);
+    return result;
+  } catch (err) {
+    var failed = { ok: false, skipped: false, error: String(err) };
+    appendTelegramLog_(pedido, failed);
+    return failed;
+  }
+}
+
+function buildTelegramPedidoMessage_(pedido) {
+  var items = (pedido.items || []).map(function (it) {
+    var qty = it.cantidad || '';
+    var unidad = it.unidad || '';
+    return '- ' + safeTelegramText_(it.producto || 'Producto sin nombre') + ' - ' + safeTelegramText_(String(qty) + ' ' + unidad).trim();
+  }).slice(0, 20);
+  if ((pedido.items || []).length > 20) {
+    items.push('- +' + ((pedido.items || []).length - 20) + ' producto(s) mas');
+  }
+  return [
+    '<b>Nuevo pedido recibido</b>',
+    '<b>ID:</b> ' + safeTelegramText_(pedido.id_pedido || ''),
+    '<b>Local:</b> ' + safeTelegramText_(normalizeLocalName_(pedido.local || '')),
+    '<b>Encargado:</b> ' + safeTelegramText_(pedido.encargado || ''),
+    '<b>Semana:</b> ' + safeTelegramText_(pedido.semana_pedido || ''),
+    '<b>Entrega:</b> ' + safeTelegramText_(pedido.fecha_entrega || ''),
+    '<b>Urgencia:</b> ' + safeTelegramText_(pedido.urgencia || 'Normal'),
+    '<b>Total productos:</b> ' + safeTelegramText_(String(pedido.total_productos || (pedido.items || []).length || 0)),
+    pedido.observaciones ? '<b>Observaciones:</b> ' + safeTelegramText_(pedido.observaciones) : '',
+    '',
+    '<b>Detalle</b>',
+    items.join('\n')
+  ].filter(function (line) { return line !== ''; }).join('\n');
+}
+
+function safeTelegramText_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function parseJsonSafe_(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
+}
+
+function ensureTelegramLogSheet_() {
+  var sh = ss_().getSheetByName(SHEET_TELEGRAM_LOG);
+  if (sh) return sh;
+  sh = ss_().insertSheet(SHEET_TELEGRAM_LOG);
+  sh.getRange(1, 1, 1, 8).setValues([[
+    'Fecha_Hora', 'ID_Pedido', 'Local', 'Telegram_OK', 'Skipped', 'Status_Code', 'Mensaje', 'Detalle'
+  ]]).setFontWeight('bold').setBackground('#355c7d').setFontColor('#ffffff');
+  sh.setFrozenRows(1);
+  return sh;
+}
+
+function appendTelegramLog_(pedido, result) {
+  var sh = ensureTelegramLogSheet_();
+  sh.appendRow([
+    Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd HH:mm:ss'),
+    pedido.id_pedido || '',
+    normalizeLocalName_(pedido.local || ''),
+    result.ok ? 'SÍ' : 'NO',
+    result.skipped ? 'SÍ' : 'NO',
+    result.status_code || '',
+    result.reason || result.error || '',
+    result.body || ''
+  ]);
+}
+
+function readTelegramLogByPedido_(pedidoId) {
+  var sh = ss_().getSheetByName(SHEET_TELEGRAM_LOG);
+  if (!sh || sh.getLastRow() < 2) return { configured: getTelegramSettings_().enabled, found: false };
+  var values = sh.getDataRange().getValues();
+  for (var r = values.length - 1; r >= 1; r--) {
+    if (String(values[r][1] || '').trim() !== pedidoId) continue;
+    return {
+      configured: getTelegramSettings_().enabled,
+      found: true,
+      fecha_hora: values[r][0] || '',
+      ok: String(values[r][3] || '').trim().toUpperCase() === 'SÍ',
+      skipped: String(values[r][4] || '').trim().toUpperCase() === 'SÍ',
+      status_code: values[r][5] || '',
+      message: values[r][6] || '',
+      detail: values[r][7] || ''
+    };
+  }
+  return { configured: getTelegramSettings_().enabled, found: false };
 }
 
 function idx_(headerLower, names) {

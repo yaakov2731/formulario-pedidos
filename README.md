@@ -66,7 +66,15 @@ re-parsear texto. El form escribe ambas en cada envío.
 3. **Implementar:** Implementar > Nueva implementación > Aplicación web >
    Ejecutar como *yo*, Acceso *Cualquiera*. Copiar la URL `/exec`.
 4. Si la URL cambió, actualizar `SCRIPT_URL` en `index.html`.
-5. **Frontend:** push a `main` → GitHub Pages publica automáticamente.
+5. **Telegram (opcional pero recomendado):** en Apps Script > Configuración del proyecto >
+   Propiedades del script, definir:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+   - `TELEGRAM_ENABLED=true`
+   También podés correr manualmente `setTelegramConfig(botToken, chatId)` desde el editor.
+6. El backend ahora expone `GET ?action=getPedidoStatus&id_pedido=...` para que el frontend
+   confirme que el pedido quedó grabado antes de mostrar éxito.
+7. **Frontend:** push a `main` → GitHub Pages publica automáticamente.
 
 ## Verificación local V2
 

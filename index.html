@@ -1854,17 +1854,8 @@ function syncSend(){ $("#send").disabled=!valid(); }
 $("#send").addEventListener("click",submit);
 $("#pedidoNext").addEventListener("click",nextPedidoStep);
 $("#pedidoBack").addEventListener("click",previousPedidoStep);
-function fastSendPayload(payload){
-  const body = JSON.stringify(payload);
-  if(navigator.sendBeacon){
-    try{
-      return navigator.sendBeacon(SCRIPT_URL, new Blob([body], { type:"application/json" }));
-    }catch{}
-  }
-  fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body});
-  return true;
-}
-function submit(){
+const OPAQUE_POST_HEADERS = { "Content-Type":"text/plain;charset=utf-8" };
+async function submit(){
   if(!valid()){ toast("Completá local, datos y al menos un producto","err"); return; }
   const items=state.items;
   const productosTexto=items.map(i=>`${i.nombre} - ${trim(i.qty)} ${i.unidad}`).join(", ");
@@ -1897,9 +1888,19 @@ function submit(){
   const btn=$("#send"); const orig=btn.innerHTML;
   btn.disabled=true; btn.innerHTML=`<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Enviando...`;
   try{
-    const sent = fastSendPayload(payload);
-    if(!sent){
-      toast("No se pudo enviar, reintentá","err");
+    await apiPost(payload);
+    const confirmed = await confirmPedidoPersisted(payload.id_pedido);
+    if(!confirmed.ok){
+      const refreshed = await refreshData();
+      if(refreshed){
+        toast("Pedido enviado. El backend publicado no confirma por ID todavia.","ok");
+        resetForm();
+      }else{
+        toast("No pude confirmar el pedido. Revisá la planilla antes de reenviar.","err");
+      }
+    }else if(!confirmed.telegramOk){
+      toast("Pedido guardado, pero Telegram no confirmó la notificación","err");
+      resetForm();
     }else{
       toast("Pedido enviado","ok");
       resetForm();
@@ -2401,8 +2402,17 @@ function renderCfg(){
     : `<div class="cfg-empty">Sin responsables cargados.</div>`;
 }
 async function apiPost(payload){
-  // no-cors: no podemos leer la respuesta; confirmamos releyendo el bootstrap.
-  await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:OPAQUE_POST_HEADERS,body:JSON.stringify(payload)});
+}
+async function backendGet(action, params={}){
+  const url = new URL(SCRIPT_URL);
+  url.searchParams.set("action", action);
+  Object.entries(params).forEach(([key,val])=>{
+    if(val !== undefined && val !== null && val !== "") url.searchParams.set(key, String(val));
+  });
+  const r = await fetch(url.toString(), { method:"GET" });
+  if(!r.ok) throw new Error(`GET ${action} failed`);
+  return r.json();
 }
 function queueBootstrapRefresh(delay=900){
   clearTimeout(bootstrapRefreshTimer);
@@ -2413,8 +2423,7 @@ function queueBootstrapRefresh(delay=900){
 }
 async function refreshData(){
   try{
-    const r=await fetch(`${SCRIPT_URL}?action=getBootstrap&t=${Date.now()}`);
-    const d=await r.json();
+    const d=await backendGet("getBootstrap",{ t:Date.now() });
     if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
     if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
     if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
@@ -2433,6 +2442,23 @@ async function refreshData(){
     renderLiveWarning();
     return false;
   }
+}
+async function confirmPedidoPersisted(idPedido, attempts=8, delayMs=900){
+  for(let attempt=0; attempt<attempts; attempt++){
+    try{
+      const status = await backendGet("getPedidoStatus", { id_pedido:idPedido, t:Date.now() });
+      if(status && status.ok && status.found){
+        queueBootstrapRefresh(120);
+        return {
+          ok:true,
+          telegramOk: !status.telegram || !status.telegram.configured || !status.telegram.found || status.telegram.ok === true || status.telegram.skipped === true,
+          status
+        };
+      }
+    }catch{}
+    await sleep(delayMs);
+  }
+  return { ok:false, telegramOk:false };
 }
 async function addProducto(){
   const local=cfgLocalVal();
