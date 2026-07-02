@@ -1547,31 +1547,41 @@ function buildTelegramGroupedItems_(items) {
   var maxItems = 20;
   var limitedItems = items.slice(0, maxItems);
   var grouped = {};
-  var order = [];
+  var categoryOrder = [];
   limitedItems.forEach(function (it) {
+    var categoriaRaw = String(it.categoria || '').trim();
     var proveedorRaw = String(it.proveedor || '').trim();
+    var categoriaKey = categoriaRaw || 'Sin categoria';
     var proveedorKey = proveedorRaw || 'Sin proveedor asignado';
-    if (!grouped[proveedorKey]) {
-      grouped[proveedorKey] = [];
-      order.push(proveedorKey);
+    if (!grouped[categoriaKey]) {
+      grouped[categoriaKey] = { providers: {}, providerOrder: [] };
+      categoryOrder.push(categoriaKey);
     }
-    grouped[proveedorKey].push(it);
+    if (!grouped[categoriaKey].providers[proveedorKey]) {
+      grouped[categoriaKey].providers[proveedorKey] = [];
+      grouped[categoriaKey].providerOrder.push(proveedorKey);
+    }
+    grouped[categoriaKey].providers[proveedorKey].push(it);
   });
 
   var lines = [];
-  order.forEach(function (proveedorKey) {
-    lines.push('▪️ <b>' + safeTelegramText_(proveedorKey) + '</b>');
-    grouped[proveedorKey].forEach(function (it) {
-      var qty = it.cantidad || '';
-      var unidad = it.unidad || '';
-      var producto = safeTelegramText_(it.producto || 'Producto sin nombre');
-      var cantidad = safeTelegramText_(String(qty) + ' ' + unidad).trim();
-      lines.push('• ' + producto + ' — ' + cantidad);
+  categoryOrder.forEach(function (categoriaKey, categoryIndex) {
+    if (categoryIndex > 0) lines.push('');
+    lines.push('📁 <b>' + safeTelegramText_(categoriaKey) + '</b>');
+    grouped[categoriaKey].providerOrder.forEach(function (proveedorKey) {
+      lines.push('▪️ <b>' + safeTelegramText_(proveedorKey) + '</b>');
+      grouped[categoriaKey].providers[proveedorKey].forEach(function (it) {
+        var qty = it.cantidad || '';
+        var unidad = it.unidad || '';
+        var producto = safeTelegramText_(it.producto || 'Producto sin nombre');
+        var cantidad = safeTelegramText_(String(qty) + ' ' + unidad).trim();
+        lines.push('• ' + producto + ' — ' + cantidad);
+      });
     });
-    lines.push('');
   });
 
   if (items.length > maxItems) {
+    if (lines.length) lines.push('');
     lines.push('• +' + (items.length - maxItems) + ' producto(s) adicionales');
   }
 
