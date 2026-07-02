@@ -871,6 +871,17 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
     </div>
   </section>
 
+  <section class="home-shell tab-panel" data-tab="local" hidden>
+    <div class="home-local-block">
+      <div class="shead">
+        <div><p class="skicker">Local activo</p><h2 id="localHubTitle">Local seleccionado</h2></div>
+        <button type="button" class="home-jump" data-go-home><span>⌂</span>Cambiar</button>
+      </div>
+      <p class="hint" id="localHubSub">Abrí una acción del local desde esta pantalla.</p>
+      <div class="local-actions-bar" id="localHubActions"></div>
+    </div>
+  </section>
+
   <section class="pedido-shell tab-panel" data-tab="pedido">
     <div class="pedido-shell-head">
       <div>
@@ -1336,6 +1347,7 @@ const ADMIN_PIN = "2731";
 
 const TAB_META = {
   home:{ badge:"Modo inicio", title:"Cabina operativa del local", desc:"Entrá directo a pedido, stock, recepción o producción desde una home compacta." },
+  local:{ badge:"Modo local", title:"Acciones del local", desc:"Abrí pedido, stock, recepción o producción desde la ficha del local." },
   pedido:{ badge:"Modo pedido", title:"Pedido semanal por local", desc:"Prepará la requisición con cobertura de stock integrada antes de enviar." },
   stock:{ badge:"Modo stock", title:"Conteo real y lectura operativa", desc:"Actualizá stock real del local para medir cobertura del pedido y faltantes." },
   recepcion:{ badge:"Modo recepción", title:"Ingreso recibido del local", desc:"Registrá mercadería recibida y actualizá stock sin tocar la planilla manualmente." },
@@ -1419,6 +1431,16 @@ function renderHome(){
   renderLocalActions();
 }
 
+function renderLocalHub(){
+  const title=$("#localHubTitle");
+  const sub=$("#localHubSub");
+  if(title) title.textContent = state.local ? state.local : "Local seleccionado";
+  if(sub) sub.textContent = state.local
+    ? `Abrí Pedido, Stock, Recepción, Producción o Enviar para ${state.local}.`
+    : "Elegí un local para abrir su pantalla operativa.";
+  renderLocalActions();
+}
+
 function renderPedidoFlow(){
   const step = state.pedidoStep;
   const current = PEDIDO_STEPS[pedidoStepIndex(step)] || PEDIDO_STEPS[0];
@@ -1497,12 +1519,14 @@ function setTab(tab){
   });
   document.body.classList.toggle("mobile-home-mode", isMobileViewport() && state.tab==="home");
   if(state.tab==="home") renderHome();
+  if(state.tab==="local") renderLocalHub();
   if(state.tab==="pedido") renderPedidoFlow();
   if(state.tab==="recepcion") renderRecepcionModule();
   if(state.tab==="produccion") renderProduccionModule();
   if(state.tab==="dashboard") renderDashboard();
   const focusMap = {
     home: '[data-tab="home"]',
+    local: '[data-tab="local"]',
     pedido: ".pedido-shell",
     stock: '[data-tab="stock"]',
     recepcion: '[data-tab="recepcion"]',
@@ -1603,29 +1627,34 @@ function renderLocales(){
   });
 }
 function renderLocalActions(){
-  const box=$("#localActionsBar");
-  if(!box) return;
+  const boxes=[ $("#localActionsBar"), $("#localHubActions") ].filter(Boolean);
+  if(!boxes.length) return;
   if(!state.local){
-    box.className="local-actions-bar";
-    box.innerHTML="";
+    boxes.forEach(box=>{
+      box.className="local-actions-bar";
+      box.innerHTML="";
+    });
     return;
   }
-  box.className="local-actions-bar show";
-  box.innerHTML = [
+  const html = [
     ['pedido','🧾','Pedido'],
     ['stock','📦','Stock'],
     ['recepcion','📥','Recepción'],
     ['produccion','🏭','Producción'],
     ['enviar','✈️','Enviar']
   ].map(([tab,ico,label])=>`<button type="button" class="local-action" data-go="${tab}"><span>${ico}</span>${label}</button>`).join("");
-  box.querySelectorAll(".local-action").forEach(btn=>{
-    btn.addEventListener("click",()=>{
-      if(btn.dataset.go==="enviar"){
-        setTab("pedido");
-        setPedidoStep("resumen");
-        return;
-      }
-      setTab(btn.dataset.go);
+  boxes.forEach(box=>{
+    box.className="local-actions-bar show";
+    box.innerHTML = html;
+    box.querySelectorAll(".local-action").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        if(btn.dataset.go==="enviar"){
+          setTab("pedido");
+          setPedidoStep("resumen");
+          return;
+        }
+        setTab(btn.dataset.go);
+      });
     });
   });
 }
@@ -1633,7 +1662,7 @@ function selectLocal(id, opts={}){
   state.local=id;
   recepUi.visibleLimit=40;
   prodUi.visibleLimit=40;
-  if(!opts.silent) setTab("home");
+  if(!opts.silent) setTab("local");
   renderLocales();
   renderLocalActions();
   $("#localPick").textContent=id;
