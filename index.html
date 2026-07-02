@@ -393,10 +393,12 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .live-warning strong{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .live-warning span{display:block;font-size:12px;line-height:1.35;margin-top:2px}
 .tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
-.tabbtn{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:5px;min-width:0;padding:12px 11px;border-radius:14px;border:1.5px solid color-mix(in oklch,var(--line) 82%,#fff);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));cursor:pointer;text-align:left;box-shadow:0 10px 18px oklch(0.4 0.03 240 / 0.08),0 4px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.96);transition:transform .15s var(--ease),box-shadow .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),filter .15s var(--ease)}
+.tabbtn{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;min-width:0;padding:12px 11px;border-radius:14px;border:1.5px solid color-mix(in oklch,var(--line) 82%,#fff);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));cursor:pointer;text-align:left;box-shadow:0 10px 18px oklch(0.4 0.03 240 / 0.08),0 4px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.96);transition:transform .15s var(--ease),box-shadow .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),filter .15s var(--ease)}
 .tabbtn:hover{transform:translateY(-2px);box-shadow:0 14px 22px oklch(0.4 0.03 240 / 0.10),0 5px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.98);filter:saturate(1.03)}
 .tabbtn:active{transform:translateY(3px);box-shadow:0 4px 8px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08)}
 .tabbtn[aria-pressed="true"]{border-color:color-mix(in oklch,var(--brand) 35%,var(--line));background:linear-gradient(180deg,color-mix(in oklch,var(--brand-tint) 72%,#fff),color-mix(in oklch,var(--brand) 12%,#fff));box-shadow:0 14px 24px oklch(0.45 0.12 235 / 0.14),0 5px 0 color-mix(in oklch,var(--brand) 48%,var(--line-strong)),inset 0 1px 0 oklch(1 0 0 / 0.90)}
+.tabbtn .ico{width:30px;height:30px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(180deg,oklch(1 0 0 / 0.96),var(--surface));border:1px solid color-mix(in oklch,var(--line) 84%,#fff);box-shadow:0 6px 12px oklch(0.4 0.03 240 / 0.08),inset 0 1px 0 oklch(1 0 0 / 0.95);font-size:15px;line-height:1}
+.tabbtn[aria-pressed="true"] .ico{background:linear-gradient(180deg,oklch(1 0 0 / 0.98),color-mix(in oklch,var(--brand-tint) 70%,#fff));border-color:color-mix(in oklch,var(--brand) 26%,var(--line))}
 .tabbtn .t1{font-size:13px;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
 .tabbtn .t2{font-size:11px;color:var(--ink-soft);line-height:1.25;overflow-wrap:anywhere}
 .tab-panel[hidden]{display:none}
@@ -606,6 +608,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     align-items:center;text-align:center;padding:9px 4px;gap:3px;border-radius:14px;
     min-height:52px;box-shadow:none;border:1px solid transparent;background:transparent
   }
+  .tabbtn .ico{width:26px;height:26px;border-radius:9px;font-size:13px;box-shadow:none}
   .tabbtn:hover,.tabbtn:active{transform:none;box-shadow:none}
   .tabbtn[aria-pressed="true"]{
     border-color:color-mix(in oklch,var(--brand) 25%,var(--line));
@@ -722,12 +725,12 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     </div>
     <div class="workspace-stats" id="workspaceStats"></div>
     <div class="tabs" id="tabNav">
-      <button type="button" class="tabbtn" data-tab="home" aria-pressed="true"><span class="t1">Inicio</span><span class="t2">Hub operativo</span></button>
-      <button type="button" class="tabbtn" data-tab="pedido" aria-pressed="false"><span class="t1">Pedido</span><span class="t2">Carga semanal</span></button>
-      <button type="button" class="tabbtn" data-tab="stock" aria-pressed="false"><span class="t1">Stock</span><span class="t2">Conteo real</span></button>
-      <button type="button" class="tabbtn" data-tab="recepcion" aria-pressed="false"><span class="t1">Recepción</span><span class="t2">Ingreso recibido</span></button>
-      <button type="button" class="tabbtn" data-tab="produccion" aria-pressed="false"><span class="t1">Producción</span><span class="t2">Consumo y lote</span></button>
-      <button type="button" class="tabbtn" data-tab="dashboard" aria-pressed="false" hidden><span class="t1">Admin</span><span class="t2">Métricas</span></button>
+      <button type="button" class="tabbtn" data-tab="home" aria-pressed="true"><span class="ico">⌂</span><span class="t1">Inicio</span><span class="t2">Hub operativo</span></button>
+      <button type="button" class="tabbtn" data-tab="pedido" aria-pressed="false"><span class="ico">🧾</span><span class="t1">Pedido</span><span class="t2">Carga semanal</span></button>
+      <button type="button" class="tabbtn" data-tab="stock" aria-pressed="false"><span class="ico">📦</span><span class="t1">Stock</span><span class="t2">Conteo real</span></button>
+      <button type="button" class="tabbtn" data-tab="recepcion" aria-pressed="false"><span class="ico">📥</span><span class="t1">Recepción</span><span class="t2">Ingreso recibido</span></button>
+      <button type="button" class="tabbtn" data-tab="produccion" aria-pressed="false"><span class="ico">🏭</span><span class="t1">Producción</span><span class="t2">Consumo y lote</span></button>
+      <button type="button" class="tabbtn" data-tab="dashboard" aria-pressed="false" hidden><span class="ico">🛡</span><span class="t1">Admin</span><span class="t2">Métricas</span></button>
     </div>
   </section>
 
