@@ -829,6 +829,8 @@ function onOpen() {
     .addItem('Reconstruir vistas operativas', 'refreshOperationalViews_')
     .addItem('Reconstruir stock, recepción y producción', 'refreshMovementViews_')
     .addItem('Setup plantilla pro', 'setupPlantillaPro')
+    .addSeparator()
+    .addItem('Resetear datos operativos', 'resetOperationalData')
     .addToUi();
 }
 
@@ -854,6 +856,46 @@ function setupPlantillaPro() {
   ensureVersion2Sheets_();
   setupVersion2UI();
   ss.toast('Plantilla pro lista: interfaz v2 operativa aplicada', 'Setup OK', 6);
+}
+
+function resetOperationalData() {
+  var ui = SpreadsheetApp.getUi();
+  var answer = ui.alert(
+    'Resetear datos operativos',
+    'Se van a borrar pedidos, detalle, stock, recepción, producción y log de Telegram. ' +
+    'No se toca catálogo, configuración ni fórmulas. ¿Continuar?',
+    ui.ButtonSet.YES_NO
+  );
+  if (answer !== ui.Button.YES) {
+    ui.alert('Reset cancelado');
+    return;
+  }
+
+  var sheetNames = [
+    SHEET_PEDIDOS,
+    SHEET_DETALLE,
+    SHEET_STOCK,
+    SHEET_RECEPCION,
+    SHEET_PRODUCCION,
+    SHEET_TELEGRAM_LOG
+  ];
+  sheetNames.forEach(function (sheetName) {
+    clearSheetDataRows_(sheetName);
+  });
+
+  setupPlantillaPro();
+  refreshMovementViews_();
+  refreshOperationalViews_();
+  ui.alert('Reset completo', 'Se limpiaron los datos operativos y se reconstruyeron las vistas.', ui.ButtonSet.OK);
+}
+
+function clearSheetDataRows_(sheetName) {
+  var sh = ss_().getSheetByName(sheetName);
+  if (!sh) return;
+  var lastRow = sh.getLastRow();
+  var lastColumn = sh.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return;
+  sh.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
 }
 
 function ensureVersion2Sheets_() {
