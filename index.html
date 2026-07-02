@@ -379,6 +379,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   radial-gradient(120% 180% at 100% 0%, oklch(0.96 0.03 220), transparent 55%),
   linear-gradient(180deg, var(--surface), oklch(0.982 0.006 235));
 }
+.app-shell{padding:14px 16px 12px}
 .workspace-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
 .workspace-head h2{font-size:18px;font-weight:700;letter-spacing:-0.02em}
 .workspace-head p{font-size:12px;color:var(--ink-soft);margin-top:4px}
@@ -436,6 +437,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .home-shell{padding:16px;background:
   radial-gradient(120% 180% at 100% 0%, oklch(0.96 0.035 220), transparent 55%),
   linear-gradient(180deg, oklch(0.994 0.004 230), oklch(0.978 0.008 235))}
+.home-local-block{padding:14px;border-radius:18px;border:1px solid var(--line);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));box-shadow:var(--shadow-sm);margin-bottom:14px}
 .home-hero{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:20px;padding:18px;background:
   radial-gradient(120% 160% at 100% 0%, oklch(0.78 0.08 210 / 0.30), transparent 50%),
   radial-gradient(120% 160% at 0% 100%, oklch(0.68 0.1 260 / 0.18), transparent 45%),
@@ -585,9 +587,10 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     margin:0 10px 10px;border-radius:18px;
     background:linear-gradient(180deg, oklch(0.995 0.003 230), oklch(0.972 0.006 235))
   }
-  .workspace-head{gap:8px;margin-bottom:10px}
+  .app-shell{padding:10px 10px 8px}
+  .workspace-head{gap:8px;margin-bottom:8px}
   .workspace-head h2{font-size:14.5px}
-  .workspace-head p{display:none}
+  .workspace-head p{display:block;font-size:11px}
   .workspace-badge{padding:7px 10px;font-size:10px;border-radius:999px}
   .workspace-stats{
     display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;padding-bottom:0;
@@ -600,6 +603,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .workspace-stat .v{font-size:16px}
   .workspace-stat .m{font-size:11px}
   .home-shell{padding:13px;margin:0 10px 10px;border-radius:18px}
+  .home-local-block{padding:12px;border-radius:16px;margin-bottom:10px}
   .home-hero{padding:16px;border-radius:18px}
   .home-title{font-size:21px}
   .home-sub{font-size:12px}
@@ -761,9 +765,10 @@ body.compact-mobile-shell .workspace{
   padding:10px 10px 10px;
   background:linear-gradient(180deg, oklch(0.995 0.003 230), oklch(0.972 0.006 235))
 }
+body.compact-mobile-shell .app-shell{padding:10px 10px 8px}
 body.compact-mobile-shell .workspace-head{gap:8px;margin-bottom:10px;flex-direction:column}
 body.compact-mobile-shell .workspace-head h2{font-size:14.5px}
-body.compact-mobile-shell .workspace-head p{display:none}
+body.compact-mobile-shell .workspace-head p{display:block;font-size:11px}
 body.compact-mobile-shell .workspace-badge{padding:7px 10px;font-size:10px;border-radius:999px}
 body.compact-mobile-shell .workspace-stats{
   display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;padding-bottom:0;
@@ -773,6 +778,7 @@ body.compact-mobile-shell .workspace-stat{min-width:0;padding:11px 12px;border-r
 body.compact-mobile-shell .workspace-stat .k{font-size:9.5px}
 body.compact-mobile-shell .workspace-stat .v{font-size:16px}
 body.compact-mobile-shell .workspace-stat .m{font-size:11px}
+body.compact-mobile-shell .home-local-block{padding:12px;border-radius:16px;margin-bottom:10px}
 body.compact-mobile-shell .home-hero{padding:16px;border-radius:18px}
 body.compact-mobile-shell .home-title{font-size:21px}
 body.compact-mobile-shell .home-sub{font-size:12px}
@@ -885,31 +891,15 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
     </div>
   </header>
 
-  <!-- 1. Local -->
-  <section>
-    <div class="shead">
-      <div><p class="skicker">Ubicación</p><h2>Elegí tu local</h2></div>
-      <span class="snum" id="localPick">Sin seleccionar</span>
-    </div>
-    <div class="locales" id="locales"></div>
-  </section>
-
-  <section class="workspace">
+  <section class="workspace app-shell">
     <div class="workspace-head">
       <div>
-        <p class="skicker">Centro operativo</p>
-        <h2 id="workspaceTitle">V2 semanal por local</h2>
-        <p id="workspaceMeta">Seleccioná un local para abrir pedido, stock, recepción, producción y métricas en una sola vista.</p>
+        <p class="skicker">App semanal</p>
+        <h2 id="workspaceTitle">Cabina operativa</h2>
+        <p id="workspaceMeta">Entrá a una pantalla puntual sin bajar por un formulario largo.</p>
       </div>
-      <span class="workspace-badge" id="workspaceBadge">Modo pedido</span>
+      <span class="workspace-badge" id="workspaceBadge">Inicio</span>
     </div>
-    <div class="live-warning" id="liveWarning">
-      <div>
-        <strong>Backend desactualizado</strong>
-        <span id="liveWarningText">La app cargó una versión anterior del Apps Script. Algunas acciones V2 quedan bloqueadas hasta desplegar el backend nuevo.</span>
-      </div>
-    </div>
-    <div class="workspace-stats" id="workspaceStats"></div>
     <div class="tabs" id="tabNav">
       <button type="button" class="tabbtn" data-tab="home" aria-pressed="true"><span class="ico">⌂</span><span class="t1">Inicio</span><span class="t2">Hub operativo</span></button>
       <button type="button" class="tabbtn" data-tab="pedido" aria-pressed="false"><span class="ico">🧾</span><span class="t1">Pedido</span><span class="t2">Carga semanal</span></button>
@@ -921,6 +911,13 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   </section>
 
   <section class="home-shell tab-panel" data-tab="home">
+    <div class="home-local-block">
+      <div class="shead">
+        <div><p class="skicker">Ubicación</p><h2>Elegí tu local</h2></div>
+        <span class="snum" id="localPick">Sin seleccionar</span>
+      </div>
+      <div class="locales" id="locales"></div>
+    </div>
     <div class="home-hero">
       <div class="home-kicker">Centro operativo</div>
       <div class="home-title" id="homeTitle">Entrá al flujo semanal del local.</div>
@@ -930,6 +927,13 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
         <span class="home-pill" id="homeStatusPill">Operación lista</span>
       </div>
     </div>
+    <div class="live-warning" id="liveWarning">
+      <div>
+        <strong>Backend desactualizado</strong>
+        <span id="liveWarningText">La app cargó una versión anterior del Apps Script. Algunas acciones V2 quedan bloqueadas hasta desplegar el backend nuevo.</span>
+      </div>
+    </div>
+    <div class="workspace-stats" id="workspaceStats"></div>
     <div class="home-grid" id="homeGrid"></div>
     <div class="home-section">
       <div class="home-section-head">
@@ -1439,6 +1443,10 @@ function syncCompactMobileShell(){
 }
 
 function scrollIntoAppView(selector){
+  if(document.body.classList.contains("compact-mobile-shell")){
+    window.scrollTo({ top:0, behavior:"smooth" });
+    return;
+  }
   const target = document.querySelector(selector);
   if(!target) return;
   if(isMobileViewport()){
