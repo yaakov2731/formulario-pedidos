@@ -494,6 +494,12 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 
 /* Compactación mobile: menos scroll en iPhone */
 @media(max-width:560px){
+  body:not(.mobile-home-mode) .workspace-stats{display:none}
+  body:not(.mobile-home-mode) .workspace{padding-bottom:12px}
+  body:not(.mobile-home-mode) .workspace-head{margin-bottom:0}
+  body:not(.mobile-home-mode) .workspace-badge{align-self:flex-start}
+  body:not(.mobile-home-mode) .home-shell{margin-top:0}
+  body:not(.mobile-home-mode) .hero{box-shadow:0 6px 16px oklch(0.45 0.12 235 / 0.18),0 1px 4px oklch(0.45 0.12 235 / 0.12)}
   body{
     background:
       radial-gradient(120% 140% at 100% 0%, oklch(0.95 0.03 220), transparent 55%),
@@ -1383,6 +1389,7 @@ function setTab(tab){
   $("#workspaceBadge").textContent = TAB_META[state.tab].badge;
   $("#workspaceTitle").textContent = TAB_META[state.tab].title;
   $("#workspaceMeta").textContent = workspaceMetaText(state.tab);
+  document.body.classList.toggle("mobile-home-mode", isMobileViewport() && state.tab==="home");
   if(state.tab==="home") renderHome();
   if(state.tab==="pedido") renderPedidoFlow();
   if(state.tab==="recepcion") renderRecepcionModule();
