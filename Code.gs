@@ -177,8 +177,9 @@ function appCapabilities_() {
 
 function savePedido_(data) {
   appendPedido_(data);
-  appendDetalle_(data);   // capa normalizada: 1 fila por producto
+  appendDetalle_(data, { skipRefresh: true });   // capa normalizada: 1 fila por producto
   var telegram = notifyTelegramForPedido_(data);
+  refreshOperationalViews_();
   return {
     ok: true,
     id_pedido: data.id_pedido || '',
@@ -342,8 +343,9 @@ function appendPedido_(d) {
 /* ============================== DETALLE NORMALIZADO ============================== */
 
 /** Escribe 1 fila por producto en PEDIDOS_DETALLE. La crea si no existe. */
-function appendDetalle_(d) {
+function appendDetalle_(d, opts) {
   if (!d.items || !d.items.length) return;
+  opts = opts || {};
   var sh = ss_().getSheetByName(SHEET_DETALLE) || createDetalleSheet_();
   d.local = normalizeLocalName_(d.local);
   var hoy = d.fecha_hora || new Date().toLocaleString('es-AR');
@@ -356,7 +358,7 @@ function appendDetalle_(d) {
     ];
   });
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, DETALLE_HEADERS.length).setValues(rows);
-  refreshOperationalViews_();
+  if (!opts.skipRefresh) refreshOperationalViews_();
 }
 
 function findPedidoRowById_(pedidoId) {
