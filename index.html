@@ -615,11 +615,13 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .home-hero{padding:16px;border-radius:18px}
   .home-title{font-size:21px}
   .home-sub{font-size:12px}
-  .home-grid{grid-template-columns:1fr;gap:10px}
-  .home-card{min-height:128px;padding:14px;border-radius:18px}
-  .home-card h3{font-size:15px;margin-top:12px}
-  .home-card p{font-size:11.5px}
-  .home-card strong{font-size:20px}
+  .home-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .home-card{min-height:98px;padding:12px;border-radius:16px}
+  .home-card-ico{width:34px;height:34px;border-radius:12px;font-size:18px}
+  .home-card h3{font-size:13px;margin-top:8px}
+  .home-card p{font-size:10px;line-height:1.2}
+  .home-card strong{font-size:16px}
+  .home-card small{font-size:10px}
   .home-mini{padding:11px 12px}
   .pedido-shell{
     padding:13px;
@@ -641,7 +643,6 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
     background:oklch(0.992 0.002 230 / 0.92);backdrop-filter:blur(14px);
     box-shadow:0 8px 18px oklch(0.4 0.03 240 / 0.10)
   }
-  .tabs.admin-visible{grid-template-columns:repeat(5,minmax(0,1fr))}
   .tabbtn{
     align-items:center;text-align:center;padding:7px 3px;gap:2px;border-radius:12px;
     min-height:42px;box-shadow:none;border:1px solid transparent;background:transparent
@@ -792,11 +793,13 @@ body.compact-mobile-shell .home-local-block{padding:12px;border-radius:16px;marg
 body.compact-mobile-shell .home-hero{padding:16px;border-radius:18px}
 body.compact-mobile-shell .home-title{font-size:21px}
 body.compact-mobile-shell .home-sub{font-size:12px}
-body.compact-mobile-shell .home-grid{grid-template-columns:1fr;gap:10px}
-body.compact-mobile-shell .home-card{min-height:128px;padding:14px;border-radius:18px}
-body.compact-mobile-shell .home-card h3{font-size:15px;margin-top:12px}
-body.compact-mobile-shell .home-card p{font-size:11.5px}
-body.compact-mobile-shell .home-card strong{font-size:20px}
+body.compact-mobile-shell .home-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body.compact-mobile-shell .home-card{min-height:98px;padding:12px;border-radius:16px}
+body.compact-mobile-shell .home-card-ico{width:34px;height:34px;border-radius:12px;font-size:18px}
+body.compact-mobile-shell .home-card h3{font-size:13px;margin-top:8px}
+body.compact-mobile-shell .home-card p{font-size:10px;line-height:1.2}
+body.compact-mobile-shell .home-card strong{font-size:16px}
+body.compact-mobile-shell .home-card small{font-size:10px}
 body.compact-mobile-shell .home-mini{padding:11px 12px}
 body.compact-mobile-shell .pedido-shell-head{gap:7px;margin-bottom:10px;flex-direction:column}
 body.compact-mobile-shell .pedido-shell-head h2{font-size:16px}
@@ -813,7 +816,6 @@ body.compact-mobile-shell .tabs{
   background:oklch(0.992 0.002 230 / 0.92);backdrop-filter:blur(14px);
   box-shadow:0 8px 18px oklch(0.4 0.03 240 / 0.10)
 }
-body.compact-mobile-shell .tabs.admin-visible{grid-template-columns:repeat(5,minmax(0,1fr))}
 body.compact-mobile-shell .tabbtn{
   align-items:center;text-align:center;padding:7px 3px;gap:2px;border-radius:12px;
   min-height:42px;box-shadow:none;border:1px solid transparent;background:transparent
@@ -916,7 +918,6 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
       <button type="button" class="tabbtn" data-tab="stock" aria-pressed="false"><span class="ico">📦</span><span class="t1">Stock</span><span class="t2">Conteo real</span></button>
       <button type="button" class="tabbtn" data-tab="recepcion" aria-pressed="false"><span class="ico">📥</span><span class="t1">Recepción</span><span class="t2">Ingreso recibido</span></button>
       <button type="button" class="tabbtn" data-tab="produccion" aria-pressed="false"><span class="ico">🏭</span><span class="t1">Producción</span><span class="t2">Consumo y lote</span></button>
-      <button type="button" class="tabbtn" data-tab="dashboard" aria-pressed="false" hidden><span class="ico">🛡</span><span class="t1">Admin</span><span class="t2">Métricas</span></button>
     </div>
   </section>
 
@@ -1470,10 +1471,8 @@ function scrollIntoAppView(selector){
 
 function setAdminMode(enabled){
   state.admin = !!enabled;
-  const adminTab = document.querySelector('.tabbtn[data-tab="dashboard"]');
   const nav = $("#tabNav");
-  if(adminTab) adminTab.hidden = !state.admin;
-  if(nav) nav.classList.toggle("admin-visible", state.admin);
+  if(nav) nav.classList.remove("admin-visible");
   $("#adminChip").classList.toggle("show", state.admin);
   $("#adminBtn").querySelector("span").textContent = state.admin ? "Salir Admin" : "Admin";
   if(!state.admin && state.tab === "dashboard") state.tab = "home";
