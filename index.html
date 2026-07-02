@@ -856,30 +856,6 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
       <div class="locales" id="locales"></div>
       <div class="local-actions-bar" id="localActionsBar"></div>
     </div>
-    <div class="home-hero">
-      <div class="home-kicker">Centro operativo</div>
-      <div class="home-title" id="homeTitle">Entrá al flujo semanal del local.</div>
-      <div class="home-sub" id="homeSub">Elegí un local y tocá una acción para entrar directo a otra pantalla, sin formulario largo.</div>
-      <div class="home-meta">
-        <span class="home-pill" id="homeLocalPill">Sin local activo</span>
-        <span class="home-pill" id="homeStatusPill">Operación lista</span>
-      </div>
-    </div>
-    <div class="live-warning" id="liveWarning">
-      <div>
-        <strong>Backend desactualizado</strong>
-        <span id="liveWarningText">La app cargó una versión anterior del Apps Script. Algunas acciones V2 quedan bloqueadas hasta desplegar el backend nuevo.</span>
-      </div>
-    </div>
-    <div class="workspace-stats" id="workspaceStats"></div>
-    <div class="home-grid" id="homeGrid"></div>
-    <div class="home-section">
-      <div class="home-section-head">
-        <h3>Lectura rápida</h3>
-        <span id="homeQuickMeta">Sin local</span>
-      </div>
-      <div class="home-mini-list" id="homeMiniList"></div>
-    </div>
   </section>
 
   <section class="pedido-shell tab-panel" data-tab="pedido">
@@ -1417,29 +1393,7 @@ function homeCard(label, meta, stat, action, icon, colors){
 }
 
 function renderHome(){
-  const grid=$("#homeGrid");
-  const list=$("#homeMiniList");
-  const metrics = state.local ? localOperationalMetrics() : null;
-  $("#homeTitle").textContent = state.local ? `${state.local} · operación semanal` : "Entrá al flujo semanal del local.";
-  $("#homeSub").textContent = state.local
-    ? "Cargá pedido, stock, recepción o producción desde pantallas separadas con contexto operativo real."
-    : "Elegí un local para abrir la home operativa y entrar directo al módulo que necesitás.";
-  $("#homeLocalPill").textContent = state.local ? `Local ${state.local}` : "Sin local activo";
-  $("#homeStatusPill").textContent = state.admin ? "Admin habilitado" : "Vista encargados";
-  grid.innerHTML = [
-    homeCard("Pedido","Carga semanal guiada por pasos",`${state.items.length} líneas`,"pedido","🧾",["oklch(0.59 0.13 240)","oklch(0.42 0.11 252)"]),
-    homeCard("Stock","Conteo real y cobertura",metrics ? `${metrics.coveragePct}%` : "Sin lectura","stock","📦",["oklch(0.69 0.12 170)","oklch(0.44 0.10 160)"]),
-    homeCard("Recepción","Ingreso real recibido",metrics ? `${metrics.recepSummary.movimientos} mov.` : "0 mov.","recepcion","📥",["oklch(0.76 0.12 85)","oklch(0.55 0.12 70)"]),
-    homeCard("Producción","Consumo y lote del local",metrics ? `${metrics.prodSummary.movimientos} partes` : "0 partes","produccion","🏭",["oklch(0.62 0.13 20)","oklch(0.46 0.12 10)"])
-  ].join("");
-  grid.querySelectorAll(".home-card").forEach(btn=>btn.addEventListener("click",()=>setTab(btn.dataset.action)));
-  $("#homeQuickMeta").textContent = state.local ? snapshotStampText() || "Actualización local" : "Sin local";
-  const openCount = metrics ? (metrics.snapshotLocal.pedidos||0) : 0;
-  list.innerHTML = [
-    `<div class="home-mini"><div><strong>Pedido en curso</strong><span>${state.local ? "Borrador actual del local" : "Seleccioná un local para empezar"}</span></div><b>${state.items.length}</b></div>`,
-    `<div class="home-mini"><div><strong>Faltantes abiertos</strong><span>${state.local ? "Líneas pendientes en planilla" : "Sin contexto operativo"}</span></div><b>${openCount}</b></div>`,
-    `<div class="home-mini"><div><strong>Stock cubierto</strong><span>${state.local ? "Cobertura sobre el pedido actual" : "Todavía sin pedido"}</span></div><b>${metrics ? `${metrics.coveragePct}%` : "—"}</b></div>`
-  ].join("");
+  renderLocalActions();
 }
 
 function renderPedidoFlow(){
@@ -1537,6 +1491,7 @@ function setTab(tab){
 
 function renderWorkspaceStats(){
   const box=$("#workspaceStats");
+  if(!box) return;
   if(!state.local){
     box.innerHTML = [
       workspaceStatCard("Local", "—", "seleccioná uno"),
