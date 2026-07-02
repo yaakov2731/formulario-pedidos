@@ -119,6 +119,12 @@ section{
 .local .chk{position:absolute;top:9px;right:9px;width:18px;height:18px;border-radius:50%;
   background:var(--accent,var(--brand));color:#fff;display:none;place-items:center;font-size:11px;font-weight:700}
 .local[aria-pressed="true"] .chk{display:grid}
+.local-menu{display:none;width:100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px}
+.local[aria-pressed="true"] .local-menu{display:grid}
+.local-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;width:100%;padding:8px 10px;border:none;border-radius:10px;background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface));color:var(--ink);font:inherit;font-size:11px;font-weight:800;box-shadow:0 8px 14px oklch(0.4 0.03 240 / 0.08),0 3px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.96);cursor:pointer}
+.local-action:hover{transform:translateY(-1px)}
+.local-action:active{transform:translateY(2px);box-shadow:0 4px 8px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08)}
+.local-action span{font-size:13px;line-height:1}
 
 /* Fields */
 .grid2{display:grid;grid-template-columns:1fr;gap:14px}
@@ -531,8 +537,11 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .skicker{font-size:10px}
   .locales{gap:9px;grid-template-columns:repeat(2,minmax(0,1fr))}
   .local{padding:12px 11px;gap:8px;min-height:96px;border-radius:14px}
+  .local[aria-pressed="true"]{grid-column:1 / -1}
   .local .ico{width:32px;height:32px;font-size:17px}
   .local .nm{font-size:13px}
+  .local-menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .local-action{min-height:34px;padding:8px 8px;font-size:10.5px}
   .grid2{gap:11px}
   .search-row{flex-direction:column}
   .search-row .free{width:100%}
@@ -723,8 +732,11 @@ body.compact-mobile-shell .shead h2{font-size:15.5px}
 body.compact-mobile-shell .skicker{font-size:10px}
 body.compact-mobile-shell .locales{gap:9px;grid-template-columns:repeat(2,minmax(0,1fr))}
 body.compact-mobile-shell .local{padding:12px 11px;gap:8px;min-height:96px;border-radius:14px}
+body.compact-mobile-shell .local[aria-pressed="true"]{grid-column:1 / -1}
 body.compact-mobile-shell .local .ico{width:32px;height:32px;font-size:17px}
 body.compact-mobile-shell .local .nm{font-size:13px}
+body.compact-mobile-shell .local-menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+body.compact-mobile-shell .local-action{min-height:34px;padding:8px 8px;font-size:10.5px}
 body.compact-mobile-shell .grid2{gap:11px}
 body.compact-mobile-shell .search-row{flex-direction:column}
 body.compact-mobile-shell .search-row .free{width:100%}
@@ -1685,20 +1697,35 @@ function renderProdCardsOnly(local){
 /* ---- Render locales ---- */
 function renderLocales(){
   $("#locales").innerHTML = LOCALES.map(l=>`
-    <button type="button" class="local" data-local="${l.id}" style="--accent:${l.accent}" aria-pressed="false">
+    <button type="button" class="local" data-local="${l.id}" style="--accent:${l.accent}" aria-pressed="${String(state.local===l.id)}">
       <span class="ico">${l.emoji}</span>
       <span class="nm">${l.id}</span>
       <span class="chk">${'✓'}</span>
+      <span class="local-menu">
+        <span class="local-action" data-go="pedido"><span>🧾</span>Pedido</span>
+        <span class="local-action" data-go="stock"><span>📦</span>Stock</span>
+        <span class="local-action" data-go="recepcion"><span>📥</span>Recepción</span>
+        <span class="local-action" data-go="produccion"><span>🏭</span>Producción</span>
+      </span>
     </button>`).join("");
   $("#locales").querySelectorAll(".local").forEach(b=>{
-    b.addEventListener("click",()=>selectLocal(b.dataset.local));
+    b.addEventListener("click",e=>{
+      const action=e.target.closest("[data-go]");
+      if(action){
+        selectLocal(b.dataset.local,{silent:true});
+        setTab(action.dataset.go);
+        return;
+      }
+      selectLocal(b.dataset.local);
+    });
   });
 }
-function selectLocal(id){
+function selectLocal(id, opts={}){
   state.local=id;
   recepUi.visibleLimit=40;
   prodUi.visibleLimit=40;
-  $("#locales").querySelectorAll(".local").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.local===id)));
+  if(!opts.silent) setTab("home");
+  renderLocales();
   $("#localPick").textContent=id;
   // autocompletar encargado/email si no fueron tocados
   const c=CONFIG[id]||{};
