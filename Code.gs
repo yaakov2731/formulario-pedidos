@@ -1524,17 +1524,7 @@ function buildTelegramPedidoMessage_(pedido) {
   var pedidoId = safeTelegramText_(pedido.id_pedido || '');
   var observaciones = safeTelegramText_(pedido.observaciones || '');
   var totalProductos = String(pedido.total_productos || (pedido.items || []).length || 0);
-  var items = (pedido.items || []).map(function (it) {
-    var qty = it.cantidad || '';
-    var unidad = it.unidad || '';
-    var proveedor = safeTelegramText_(it.proveedor || '');
-    var producto = safeTelegramText_(it.producto || 'Producto sin nombre');
-    var cantidad = safeTelegramText_(String(qty) + ' ' + unidad).trim();
-    return '• ' + producto + ' — ' + cantidad + (proveedor ? ' <i>(' + proveedor + ')</i>' : '');
-  }).slice(0, 20);
-  if ((pedido.items || []).length > 20) {
-    items.push('• +' + ((pedido.items || []).length - 20) + ' producto(s) adicionales');
-  }
+  var groupedItems = buildTelegramGroupedItems_(pedido.items || []);
   return [
     '🧾 <b>NUEVO PEDIDO — Docks del Puerto</b>',
     '━━━━━━━━━━━━━━━━━━',
@@ -1549,8 +1539,43 @@ function buildTelegramPedidoMessage_(pedido) {
     '',
     '🛒 <b>PRODUCTOS SOLICITADOS</b>',
     '━━━━━━━━━━━━━━━━━━',
-    items.join('\n')
+    groupedItems
   ].filter(function (line) { return line !== ''; }).join('\n');
+}
+
+function buildTelegramGroupedItems_(items) {
+  var maxItems = 20;
+  var limitedItems = items.slice(0, maxItems);
+  var grouped = {};
+  var order = [];
+  limitedItems.forEach(function (it) {
+    var proveedorRaw = String(it.proveedor || '').trim();
+    var proveedorKey = proveedorRaw || 'Sin proveedor asignado';
+    if (!grouped[proveedorKey]) {
+      grouped[proveedorKey] = [];
+      order.push(proveedorKey);
+    }
+    grouped[proveedorKey].push(it);
+  });
+
+  var lines = [];
+  order.forEach(function (proveedorKey) {
+    lines.push('▪️ <b>' + safeTelegramText_(proveedorKey) + '</b>');
+    grouped[proveedorKey].forEach(function (it) {
+      var qty = it.cantidad || '';
+      var unidad = it.unidad || '';
+      var producto = safeTelegramText_(it.producto || 'Producto sin nombre');
+      var cantidad = safeTelegramText_(String(qty) + ' ' + unidad).trim();
+      lines.push('• ' + producto + ' — ' + cantidad);
+    });
+    lines.push('');
+  });
+
+  if (items.length > maxItems) {
+    lines.push('• +' + (items.length - maxItems) + ' producto(s) adicionales');
+  }
+
+  return lines.join('\n').replace(/\n+$/, '');
 }
 
 function normalizeUrgenciaLabel_(value) {
