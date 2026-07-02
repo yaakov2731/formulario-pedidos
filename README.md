@@ -14,6 +14,7 @@ celular; el pedido se registra en un Google Sheet maestro que gerencia consolida
   y carga manual de stock real por local. Responsive iPhone / iPad / PC.
 - **`Code.gs`** — Apps Script v2 (backend). Sirve el catálogo y la config al form,
   recibe los pedidos, registra conteos de stock y escribe en `PEDIDOS RECIBIDOS`.
+  También puede usar OpenAI para interpretar mejor el OCR de recepciones por foto.
 
 ## Configuración (⚙ en el header)
 
@@ -72,9 +73,15 @@ re-parsear texto. El form escribe ambas en cada envío.
    - `TELEGRAM_CHAT_ID`
    - `TELEGRAM_ENABLED=true`
    También podés correr manualmente `setTelegramConfig(botToken, chatId)` desde el editor.
-6. El backend ahora expone `GET ?action=getPedidoStatus&id_pedido=...` para que el frontend
+6. **OpenAI para recepciones por foto (opcional):** en Apps Script > Configuración del proyecto >
+   Propiedades del script, definir:
+   - `OPENAI_API_KEY`
+   - `OPENAI_MODEL=gpt-5.4-mini` (o el modelo que quieras usar)
+   - `OPENAI_RECEIPT_AI_ENABLED=true`
+   También podés correr manualmente `setOpenAiConfig(apiKey, model)` desde el editor.
+7. El backend ahora expone `GET ?action=getPedidoStatus&id_pedido=...` para que el frontend
    confirme que el pedido quedó grabado antes de mostrar éxito.
-7. **Frontend:** push a `main` → GitHub Pages publica automáticamente.
+8. **Frontend:** push a `main` → GitHub Pages publica automáticamente.
 
 ## Verificación local V2
 

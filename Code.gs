@@ -66,6 +66,12 @@ function doGet(e) {
         snapshot: buildFrontendOperationalSnapshot_()
       });
     }
+    if (action === 'parseReceiptTextAi') {
+      return json(parseReceiptTextAi_(
+        (e && e.parameter && e.parameter.local) || '',
+        (e && e.parameter && e.parameter.text) || ''
+      ));
+    }
     if (action === 'getPedidoStatus') {
       return json(getPedidoStatus_((e && e.parameter && e.parameter.id_pedido) || ''));
     }
@@ -161,6 +167,7 @@ function json(obj) {
 
 function appCapabilities_() {
   var telegram = getTelegramSettings_();
+  var openai = getOpenAiSettings_();
   return {
     pedido: true,
     stock: true,
@@ -171,7 +178,8 @@ function appCapabilities_() {
     movement_views: true,
     bootstrap_v2: true,
     pedido_status: true,
-    telegram_notify: telegram.enabled
+    telegram_notify: telegram.enabled,
+    receipt_ai_parse: openai.enabled
   };
 }
 
@@ -1506,6 +1514,32 @@ function getTelegramSettings_() {
   };
 }
 
+function getOpenAiSettings_() {
+  var props = PropertiesService.getScriptProperties().getProperties();
+  var enabledFlag = String(props.OPENAI_RECEIPT_AI_ENABLED || '').trim().toLowerCase();
+  var apiKey = String(props.OPENAI_API_KEY || '').trim();
+  var model = String(props.OPENAI_MODEL || '').trim() || 'gpt-5.4-mini';
+  var enabled = !!apiKey && enabledFlag !== 'false' && enabledFlag !== '0' && enabledFlag !== 'no';
+  return {
+    enabled: enabled,
+    api_key: apiKey,
+    model: model
+  };
+}
+
+function setOpenAiConfig(apiKey, model) {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    OPENAI_API_KEY: String(apiKey || '').trim(),
+    OPENAI_MODEL: String(model || '').trim() || 'gpt-5.4-mini',
+    OPENAI_RECEIPT_AI_ENABLED: 'true'
+  }, true);
+}
+
+function disableOpenAiReceiptParsing() {
+  PropertiesService.getScriptProperties().setProperty('OPENAI_RECEIPT_AI_ENABLED', 'false');
+}
+
 function setTelegramConfig(botToken, chatId) {
   var props = PropertiesService.getScriptProperties();
   props.setProperties({
@@ -1655,6 +1689,16 @@ function parseJsonSafe_(raw) {
   }
 }
 
+function extractJsonObjectText_(raw) {
+  var text = String(raw || '').trim();
+  if (!text) return '';
+  if (text.charAt(0) === '{' && text.charAt(text.length - 1) === '}') return text;
+  var start = text.indexOf('{');
+  var end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return '';
+  return text.slice(start, end + 1);
+}
+
 function ensureTelegramLogSheet_() {
   var sh = ss_().getSheetByName(SHEET_TELEGRAM_LOG);
   if (sh) return sh;
@@ -1729,6 +1773,203 @@ function normalizeLocalName_(local) {
   if (low === 'heladería' || low === 'heladeria') return 'Puerto Gelato';
   if (low === 'cafetería' || low === 'cafeteria') return 'Trento Café';
   return value;
+}
+
+function normalizeLooseText_(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function catalogForLocal_(local) {
+  var catalog = readCatalog_();
+  return catalog[normalizeLocalName_(local)] || [];
+}
+
+function scoreReceiptCatalogMatch_(candidate, item) {
+  var lineNorm = normalizeLooseText_(candidate);
+  var itemNorm = normalizeLooseText_(item.nombre || '');
+  if (!lineNorm || !itemNorm) return 0;
+  var score = 0;
+  if (lineNorm.indexOf(itemNorm) > -1) score += 12;
+  var itemTokens = itemNorm.split(' ').filter(function (token) { return token.length > 2; });
+  var lineTokens = {};
+  lineNorm.split(' ').forEach(function (token) {
+    if (token.length > 2) lineTokens[token] = true;
+  });
+  itemTokens.forEach(function (token) {
+    if (lineTokens[token]) score += 3;
+  });
+  var provNorm = normalizeLooseText_(item.proveedor || '');
+  if (provNorm && lineNorm.indexOf(provNorm) > -1) score += 2;
+  return score;
+}
+
+function resolveCatalogItemForAi_(match, catalog) {
+  var code = String(match && match.codigo || '').trim().toLowerCase();
+  var product = String(match && (match.producto || match.nombre) || '').trim();
+  var productNorm = normalizeLooseText_(product);
+  var best = null;
+  var bestScore = 0;
+  for (var i = 0; i < catalog.length; i++) {
+    var item = catalog[i];
+    if (code && String(item.codigo || '').trim().toLowerCase() === code) return item;
+    var score = 0;
+    if (productNorm) score = scoreReceiptCatalogMatch_(product, item);
+    if (score > bestScore) {
+      best = item;
+      bestScore = score;
+    }
+  }
+  return bestScore >= 6 ? best : null;
+}
+
+function sanitizeAiReceiptMatches_(parsed, local) {
+  var catalog = catalogForLocal_(local);
+  var grouped = {};
+  var list = parsed && parsed.matches instanceof Array ? parsed.matches : [];
+  for (var i = 0; i < list.length; i++) {
+    var raw = list[i] || {};
+    var item = resolveCatalogItemForAi_(raw, catalog);
+    if (!item) continue;
+    var qty = numberOrNull_(raw.cantidad_recibida);
+    if (!(qty > 0)) continue;
+    var key = keyFor_(local, item.codigo || '', item.nombre || '');
+    if (!grouped[key]) {
+      grouped[key] = {
+        key: key,
+        codigo: item.codigo || '',
+        producto: item.nombre || '',
+        categoria: item.categoria || '',
+        unidad: item.unidad || 'unidad',
+        proveedor: item.proveedor || '',
+        cantidad_recibida: 0,
+        score: numberOrZero_(raw.score, 12),
+        sourceLine: String(raw.sourceLine || raw.linea || raw.detalle || item.nombre || '').trim()
+      };
+    }
+    grouped[key].cantidad_recibida += qty;
+    if (raw.sourceLine || raw.linea || raw.detalle) {
+      grouped[key].sourceLine = String(raw.sourceLine || raw.linea || raw.detalle || '').trim();
+    }
+  }
+  var matches = Object.keys(grouped).map(function (key) {
+    var row = grouped[key];
+    row.cantidad_recibida = numberOrBlank_(row.cantidad_recibida);
+    return row;
+  }).sort(function (a, b) { return numberOrZero_(b.score) - numberOrZero_(a.score); });
+  var proveedor = String(parsed && parsed.proveedor || '').trim();
+  return {
+    rawText: String(parsed && parsed.rawText || '').trim(),
+    matches: matches,
+    proveedor: proveedor
+  };
+}
+
+function openAiResponseText_(payload, settings) {
+  var response = UrlFetchApp.fetch('https://api.openai.com/v1/responses', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      Authorization: 'Bearer ' + settings.api_key
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  var code = response.getResponseCode();
+  var raw = response.getContentText() || '';
+  if (code < 200 || code >= 300) {
+    throw new Error('OpenAI HTTP ' + code + ': ' + raw.slice(0, 400));
+  }
+  var parsed = parseJsonSafe_(raw);
+  if (!parsed) throw new Error('OpenAI devolvió JSON inválido');
+  if (parsed.output_text) return String(parsed.output_text);
+  if (parsed.output instanceof Array) {
+    for (var i = 0; i < parsed.output.length; i++) {
+      var item = parsed.output[i];
+      if (!item || !(item.content instanceof Array)) continue;
+      for (var j = 0; j < item.content.length; j++) {
+        var content = item.content[j];
+        if (content && typeof content.text === 'string' && content.text.trim()) {
+          return content.text;
+        }
+      }
+    }
+  }
+  throw new Error('OpenAI no devolvió texto utilizable');
+}
+
+function parseReceiptTextAi_(local, text) {
+  local = normalizeLocalName_(local);
+  text = String(text || '').trim();
+  if (!local) return { ok: false, error: 'Falta local' };
+  if (!text) return { ok: false, error: 'Falta texto OCR' };
+  var settings = getOpenAiSettings_();
+  if (!settings.enabled) return { ok: false, disabled: true, error: 'openai_disabled' };
+  var catalog = catalogForLocal_(local);
+  if (!catalog.length) return { ok: false, error: 'Catálogo vacío para ' + local };
+  var compactCatalog = catalog.map(function (item) {
+    return {
+      codigo: item.codigo || '',
+      producto: item.nombre || '',
+      unidad: item.unidad || 'unidad',
+      categoria: item.categoria || '',
+      proveedor: item.proveedor || ''
+    };
+  });
+  var prompt = [
+    'Local: ' + local,
+    'Catalogo permitido (usar solo estos productos): ' + JSON.stringify(compactCatalog),
+    'Texto OCR de la boleta/remito:',
+    text,
+    'Devolve solo JSON valido con esta forma exacta:',
+    '{"proveedor":"","matches":[{"codigo":"","producto":"","cantidad_recibida":0,"sourceLine":"","score":0}]}',
+    'Reglas:',
+    '- usar solo productos del catalogo entregado',
+    '- consolidar duplicados',
+    '- cantidad_recibida debe ser numerica y mayor a 0',
+    '- si no estas seguro, no inventes coincidencias',
+    '- score es 0 a 100 segun confianza'
+  ].join('\n');
+  var rawText = openAiResponseText_({
+    model: settings.model,
+    reasoning: { effort: 'low' },
+    input: [
+      {
+        role: 'system',
+        content: [
+          {
+            type: 'input_text',
+            text: 'Sos un extractor operativo de recepciones de mercaderia. Tu trabajo es mapear texto OCR ruidoso a un catalogo fijo y devolver solo JSON.'
+          }
+        ]
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text: prompt
+          }
+        ]
+      }
+    ]
+  }, settings);
+  var parsed = parseJsonSafe_(extractJsonObjectText_(rawText));
+  if (!parsed) throw new Error('No pude parsear la respuesta JSON de OpenAI');
+  var sanitized = sanitizeAiReceiptMatches_(parsed, local);
+  sanitized.rawText = text;
+  return {
+    ok: true,
+    model: settings.model,
+    proveedor: sanitized.proveedor,
+    matches: sanitized.matches,
+    rawText: sanitized.rawText
+  };
 }
 
 function latestStockMap_() {

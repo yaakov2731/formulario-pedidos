@@ -1027,7 +1027,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
           </button>
           <button class="recep-intake-btn" id="recepPhotoBtn" type="button">
             <strong>Cargar desde foto</strong>
-            <span>Subí una boleta y la app propone productos y cantidades sobre esta misma recepción.</span>
+            <span>Subí una boleta y la app usa OCR + AI para proponer productos y cantidades sobre esta misma recepción.</span>
           </button>
         </div>
         <input id="recepPhotoInput" type="file" accept="image/*" capture="environment" hidden>
@@ -1039,7 +1039,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
             </div>
             <div class="recep-photo-chip" id="recepPhotoChip">Manual</div>
           </div>
-          <div class="recep-photo-meta" id="recepPhotoMeta">La foto arma un borrador y vos confirmás antes de guardar.</div>
+          <div class="recep-photo-meta" id="recepPhotoMeta">La foto arma un borrador con OCR + AI y vos confirmás antes de guardar.</div>
           <div class="recep-photo-list" id="recepPhotoMatches"></div>
           <div class="recep-photo-actions" id="recepPhotoActions" hidden>
             <button class="cfg-btn alt" id="recepPhotoReset" type="button">Limpiar foto</button>
@@ -1662,7 +1662,7 @@ function renderRecepPhotoPanel(local){
   }
   const photo=getRecepPhotoState(local);
   if(recepUi.ocrBusy){
-    chip.textContent="OCR";
+    chip.textContent=capabilityEnabled("receipt_ai_parse") ? "OCR + AI" : "OCR";
     sub.textContent="Procesando la foto de la boleta...";
     meta.textContent="Esto puede tardar unos segundos según el tamaño y la nitidez.";
     list.innerHTML="";
@@ -1672,17 +1672,19 @@ function renderRecepPhotoPanel(local){
   if(!photo){
     chip.textContent="Manual";
     sub.textContent="Todavía no cargaste una boleta. La recepción manual sigue disponible abajo.";
-    meta.textContent="La foto arma un borrador y vos confirmás antes de guardar.";
+    meta.textContent=capabilityEnabled("receipt_ai_parse")
+      ? "La foto arma un borrador con OCR + AI y vos confirmás antes de guardar."
+      : "La foto arma un borrador y vos confirmás antes de guardar.";
     list.innerHTML="";
     actions.hidden=true;
     return;
   }
-  chip.textContent=photo.matches.length ? "Foto lista" : "Revisar";
+  chip.textContent=photo.matches.length ? (photo.engineLabel || "Foto lista") : "Revisar";
   sub.textContent = photo.fileName
     ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador`
     : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador`;
   meta.textContent = photo.matches.length
-    ? "Podés corregir cantidades en la grilla manual antes de guardar la recepción."
+    ? `${photo.engineMeta || "Podés corregir cantidades en la grilla manual antes de guardar la recepción."}`
     : "No encontré coincidencias claras en el catálogo. Probá con otra foto o cargá a mano.";
   list.innerHTML = photo.matches.length
     ? photo.matches.slice(0,6).map(match=>`
@@ -2393,11 +2395,29 @@ async function loadReceptionFromPhoto(file){
   try{
     const result=await Tesseract.recognize(file, "spa+eng");
     const text=(result && result.data && result.data.text) || "";
-    const parsed=parseReceiptPhotoText(text, state.local);
+    let parsed=parseReceiptPhotoText(text, state.local);
+    let engineLabel="OCR";
+    let engineMeta="Podés corregir cantidades en la grilla manual antes de guardar la recepción.";
+    if(capabilityEnabled("receipt_ai_parse")){
+      try{
+        const aiParsed=await backendGet("parseReceiptTextAi",{ local:state.local, text:text.slice(0,4000), t:Date.now() });
+        if(aiParsed && aiParsed.ok && Array.isArray(aiParsed.matches)){
+          parsed={
+            rawText:text,
+            matches:aiParsed.matches,
+            proveedor:aiParsed.proveedor || parsed.proveedor || ""
+          };
+          engineLabel="AI";
+          engineMeta=`Interpretado con ${aiParsed.model || "OpenAI"} sobre el OCR. Igual podés corregir cantidades antes de guardar.`;
+        }
+      }catch{}
+    }
     recepUi.photoByLocal[state.local]={
       fileName:file.name||"boleta",
       rawText:text,
-      matches:parsed.matches
+      matches:parsed.matches,
+      engineLabel,
+      engineMeta
     };
     applyPhotoMatchesToReceptionDraft(state.local, parsed);
     if(parsed.proveedor){
@@ -2406,7 +2426,7 @@ async function loadReceptionFromPhoto(file){
     renderRecepcionModule();
     renderWorkspaceStats();
     if(parsed.matches.length){
-      toast(`Foto procesada: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}`,"ok");
+      toast(`${engineLabel==="AI"?"AI + OCR":"Foto procesada"}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}`,"ok");
     }else{
       toast("Leí la foto, pero no encontré coincidencias claras. Podés completar a mano.","err");
     }
