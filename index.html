@@ -1661,6 +1661,7 @@ function renderRecepPhotoPanel(local){
     return;
   }
   const photo=getRecepPhotoState(local);
+  const unknownItems = photo && Array.isArray(photo.unknownItems) ? photo.unknownItems : [];
   if(recepUi.ocrBusy){
     chip.textContent=capabilityEnabled("receipt_ai_parse") ? "OCR + AI" : "OCR";
     sub.textContent="Procesando la foto de la boleta...";
@@ -1679,14 +1680,14 @@ function renderRecepPhotoPanel(local){
     actions.hidden=true;
     return;
   }
-  chip.textContent=photo.matches.length ? (photo.engineLabel || "Foto lista") : "Revisar";
+  chip.textContent=photo.matches.length ? (photo.engineLabel || "Foto lista") : (unknownItems.length ? "Catálogo" : "Revisar");
   sub.textContent = photo.fileName
-    ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador`
-    : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador`;
-  meta.textContent = photo.matches.length
+    ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`
+    : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`;
+  meta.textContent = photo.matches.length || unknownItems.length
     ? `${photo.engineMeta || "Podés corregir cantidades en la grilla manual antes de guardar la recepción."}`
     : "No encontré coincidencias claras en el catálogo. Probá con otra foto o cargá a mano.";
-  list.innerHTML = photo.matches.length
+  const matchedHtml = photo.matches.length
     ? photo.matches.slice(0,6).map(match=>`
       <div class="recep-photo-item">
         <div>
@@ -1696,6 +1697,23 @@ function renderRecepPhotoPanel(local){
         <div class="recep-photo-qty">${esc(trim(num(match.cantidad_recibida)||0))}<small>${esc(match.unidad||"unidad")}</small></div>
       </div>`).join("")
     : "";
+  const unknownHtml = unknownItems.length
+    ? unknownItems.slice(0,6).map((item, idx)=>`
+      <div class="recep-photo-item">
+        <div>
+          <strong>${esc(item.producto || item.sourceLine || "Producto sin catálogo")}</strong>
+          <span>No está en el catálogo${item.proveedor?` · ${esc(item.proveedor)}`:""}${item.sourceLine?` · ${esc(item.sourceLine)}`:""}</span>
+        </div>
+        <div style="display:grid;gap:6px;justify-items:end">
+          <div class="recep-photo-qty">${esc(trim(num(item.cantidad_recibida)||0))}<small>${esc(item.unidad||"unidad")}</small></div>
+          <button class="cfg-btn alt" type="button" data-photo-add="${idx}">Agregar al catálogo</button>
+        </div>
+      </div>`).join("")
+    : "";
+  list.innerHTML = `${matchedHtml}${unknownHtml}`;
+  list.querySelectorAll("[data-photo-add]").forEach(btn=>{
+    btn.addEventListener("click",()=>addPhotoSuggestionToCatalog(local, Number(btn.dataset.photoAdd)));
+  });
   actions.hidden=false;
 }
 function renderProdCardsOnly(local){
@@ -2396,6 +2414,7 @@ async function loadReceptionFromPhoto(file){
     const result=await Tesseract.recognize(file, "spa+eng");
     const text=(result && result.data && result.data.text) || "";
     let parsed=parseReceiptPhotoText(text, state.local);
+    const localUnknownItems=Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [];
     let engineLabel="OCR";
     let engineMeta="Podés corregir cantidades en la grilla manual antes de guardar la recepción.";
     if(capabilityEnabled("receipt_ai_parse")){
@@ -2405,17 +2424,20 @@ async function loadReceptionFromPhoto(file){
           parsed={
             rawText:text,
             matches:aiParsed.matches,
-            proveedor:aiParsed.proveedor || parsed.proveedor || ""
+            proveedor:aiParsed.proveedor || parsed.proveedor || "",
+            unknown_items:mergeUnknownPhotoItems(aiParsed.unknown_items || [], localUnknownItems)
           };
           engineLabel="AI";
-          engineMeta=`Interpretado con ${aiParsed.model || "OpenAI"} sobre el OCR. Igual podés corregir cantidades antes de guardar.`;
+          engineMeta=`Interpretado con ${aiParsed.model || "OpenAI"} sobre el OCR.${parsed.unknown_items && parsed.unknown_items.length ? ` Detecté ${parsed.unknown_items.length} producto${parsed.unknown_items.length===1?"":"s"} fuera del catálogo para dar de alta.` : " Igual podés corregir cantidades antes de guardar."}`;
         }
       }catch{}
     }
+    if(!Array.isArray(parsed.unknown_items)) parsed.unknown_items = localUnknownItems;
     recepUi.photoByLocal[state.local]={
       fileName:file.name||"boleta",
       rawText:text,
       matches:parsed.matches,
+      unknownItems:Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [],
       engineLabel,
       engineMeta
     };
@@ -2425,8 +2447,8 @@ async function loadReceptionFromPhoto(file){
     }
     renderRecepcionModule();
     renderWorkspaceStats();
-    if(parsed.matches.length){
-      toast(`${engineLabel==="AI"?"AI + OCR":"Foto procesada"}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}`,"ok");
+    if(parsed.matches.length || (parsed.unknown_items && parsed.unknown_items.length)){
+      toast(`${engineLabel==="AI"?"AI + OCR":"Foto procesada"}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${parsed.unknown_items && parsed.unknown_items.length ? ` · ${parsed.unknown_items.length} fuera del catálogo` : ""}`,"ok");
     }else{
       toast("Leí la foto, pero no encontré coincidencias claras. Podés completar a mano.","err");
     }
@@ -2719,6 +2741,7 @@ function parseReceiptPhotoText(text, local){
   const lines=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
   const catalog=CATALOG[local]||[];
   const matches=[];
+  const unknownItems=[];
   const seen=new Set();
   lines.forEach(line=>{
     const qty=extractReceiptQty(line);
@@ -2732,7 +2755,21 @@ function parseReceiptPhotoText(text, local){
         bestScore=score;
       }
     });
-    if(!best || bestScore < 6) return;
+    if(!best || bestScore < 6){
+      const draftName=line.replace(/\b\d+(?:[.,]\d+)?\b/g," ").replace(/\s+/g," ").trim();
+      if(draftName){
+        unknownItems.push({
+          producto:draftName,
+          cantidad_recibida:qty,
+          unidad:"unidad",
+          categoria:"",
+          proveedor:"",
+          score:Math.max(bestScore, 0),
+          sourceLine:line
+        });
+      }
+      return;
+    }
     const key=stockKey(best.codigo,best.nombre);
     if(seen.has(`${key}|${qty}`)) return;
     seen.add(`${key}|${qty}`);
@@ -2759,9 +2796,22 @@ function parseReceiptPhotoText(text, local){
     }
     grouped.set(match.key, Object.assign({}, match, { cantidad_recibida:trim(num(match.cantidad_recibida)||0) }));
   });
+  const groupedUnknown=new Map();
+  unknownItems.forEach(item=>{
+    const key=normalizeLooseText(item.producto || item.sourceLine);
+    const current=groupedUnknown.get(key);
+    if(current){
+      current.cantidad_recibida = trim((num(current.cantidad_recibida)||0) + (num(item.cantidad_recibida)||0));
+      current.sourceLine += ` | ${item.sourceLine}`;
+      current.score = Math.max(current.score, item.score);
+      return;
+    }
+    groupedUnknown.set(key, Object.assign({}, item, { cantidad_recibida:trim(num(item.cantidad_recibida)||0) }));
+  });
   return {
     rawText:text,
     matches:[...grouped.values()].sort((a,b)=>b.score-a.score),
+    unknown_items:[...groupedUnknown.values()],
     proveedor:guessProveedorFromOcr(text, local)
   };
 }
@@ -2770,6 +2820,57 @@ function getRecepPhotoState(local){
 }
 function clearRecepPhotoState(local){
   delete recepUi.photoByLocal[local];
+}
+function suggestUnitFromPhoto(unit){
+  const normalized=String(unit||"").trim().toLowerCase();
+  if(!normalized) return "unidad";
+  const found=UNITS.find(opt=>String(opt).toLowerCase()===normalized);
+  return found || "unidad";
+}
+function mergeUnknownPhotoItems(...groups){
+  const merged=new Map();
+  groups.flat().filter(Boolean).forEach(item=>{
+    const key=normalizeLooseText(item.producto || item.sourceLine || "");
+    if(!key) return;
+    const current=merged.get(key);
+    if(current){
+      current.cantidad_recibida = trim((num(current.cantidad_recibida)||0) + (num(item.cantidad_recibida)||0));
+      current.score = Math.max(num(current.score)||0, num(item.score)||0);
+      if(!current.proveedor && item.proveedor) current.proveedor = item.proveedor;
+      if(!current.categoria && item.categoria) current.categoria = item.categoria;
+      return;
+    }
+    merged.set(key, {
+      producto:item.producto || item.sourceLine || "",
+      cantidad_recibida:trim(num(item.cantidad_recibida)||0),
+      unidad:item.unidad || "unidad",
+      categoria:item.categoria || "",
+      proveedor:item.proveedor || "",
+      score:num(item.score)||0,
+      sourceLine:item.sourceLine || item.producto || ""
+    });
+  });
+  return [...merged.values()];
+}
+function addPhotoSuggestionToCatalog(local, index){
+  const photo=getRecepPhotoState(local);
+  const suggestion=photo && Array.isArray(photo.unknownItems) ? photo.unknownItems[index] : null;
+  if(!suggestion){ toast("No encontré esa sugerencia de foto","err"); return; }
+  if(state.local !== local) state.local = local;
+  openCfg();
+  $("#cfgLocal").value = local;
+  $("#cfgPNombre").value = suggestion.producto || suggestion.sourceLine || "";
+  $("#cfgPCat").value = suggestion.categoria || "";
+  $("#cfgPProv").value = suggestion.proveedor || $("#recepProveedor").value.trim() || "";
+  $("#cfgPUnidad").value = suggestUnitFromPhoto(suggestion.unidad);
+  renderCfg();
+  closeRecepcionModuleHelpers();
+  toast("Dejé el producto listo en Configuración para agregar al catálogo","ok");
+  $("#cfgPNombre").focus();
+}
+function closeRecepcionModuleHelpers(){
+  const photoInput=$("#recepPhotoInput");
+  if(photoInput) photoInput.value="";
 }
 function applyPhotoMatchesToReceptionDraft(local, parsed){
   const drafts=ensureRecepDrafts(local);

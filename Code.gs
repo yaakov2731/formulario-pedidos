@@ -1831,13 +1831,34 @@ function resolveCatalogItemForAi_(match, catalog) {
 function sanitizeAiReceiptMatches_(parsed, local) {
   var catalog = catalogForLocal_(local);
   var grouped = {};
+  var unknownGrouped = {};
   var list = parsed && parsed.matches instanceof Array ? parsed.matches : [];
   for (var i = 0; i < list.length; i++) {
     var raw = list[i] || {};
     var item = resolveCatalogItemForAi_(raw, catalog);
-    if (!item) continue;
     var qty = numberOrNull_(raw.cantidad_recibida);
     if (!(qty > 0)) continue;
+    if (!item) {
+      var unknownName = String(raw.producto || raw.nombre || raw.detalle || raw.sourceLine || raw.linea || '').trim();
+      if (!unknownName) continue;
+      var unknownKey = normalizeLooseText_(unknownName);
+      if (!unknownGrouped[unknownKey]) {
+        unknownGrouped[unknownKey] = {
+          producto: unknownName,
+          unidad: String(raw.unidad || 'unidad').trim() || 'unidad',
+          categoria: String(raw.categoria || '').trim(),
+          proveedor: String(raw.proveedor || parsed.proveedor || '').trim(),
+          cantidad_recibida: 0,
+          score: numberOrZero_(raw.score, 0),
+          sourceLine: String(raw.sourceLine || raw.linea || raw.detalle || unknownName).trim()
+        };
+      }
+      unknownGrouped[unknownKey].cantidad_recibida += qty;
+      if (numberOrZero_(raw.score, 0) > numberOrZero_(unknownGrouped[unknownKey].score, 0)) {
+        unknownGrouped[unknownKey].score = numberOrZero_(raw.score, 0);
+      }
+      continue;
+    }
     var key = keyFor_(local, item.codigo || '', item.nombre || '');
     if (!grouped[key]) {
       grouped[key] = {
@@ -1862,10 +1883,16 @@ function sanitizeAiReceiptMatches_(parsed, local) {
     row.cantidad_recibida = numberOrBlank_(row.cantidad_recibida);
     return row;
   }).sort(function (a, b) { return numberOrZero_(b.score) - numberOrZero_(a.score); });
+  var unknown_items = Object.keys(unknownGrouped).map(function (key) {
+    var row = unknownGrouped[key];
+    row.cantidad_recibida = numberOrBlank_(row.cantidad_recibida);
+    return row;
+  }).sort(function (a, b) { return numberOrZero_(b.score) - numberOrZero_(a.score); });
   var proveedor = String(parsed && parsed.proveedor || '').trim();
   return {
     rawText: String(parsed && parsed.rawText || '').trim(),
     matches: matches,
+    unknown_items: unknown_items,
     proveedor: proveedor
   };
 }
@@ -1927,13 +1954,17 @@ function parseReceiptTextAi_(local, text) {
     'Texto OCR de la boleta/remito:',
     text,
     'Devolve solo JSON valido con esta forma exacta:',
-    '{"proveedor":"","matches":[{"codigo":"","producto":"","cantidad_recibida":0,"sourceLine":"","score":0}]}',
+    '{"proveedor":"","matches":[{"codigo":"","producto":"","cantidad_recibida":0,"sourceLine":"","score":0}],"unknown_items":[{"producto":"","cantidad_recibida":0,"unidad":"unidad","categoria":"","proveedor":"","sourceLine":"","score":0}]}',
     'Reglas:',
-    '- usar solo productos del catalogo entregado',
+    '- usar solo productos del catalogo entregado dentro de matches',
+    '- si detectas productos de la foto que no estan en el catalogo, ponerlos en unknown_items',
+    '- si una linea tiene cantidad pero no podes mapearla con confianza alta al catalogo, debe ir a unknown_items',
+    '- no omitas productos legibles solo porque no estan en el catalogo',
     '- consolidar duplicados',
     '- cantidad_recibida debe ser numerica y mayor a 0',
     '- si no estas seguro, no inventes coincidencias',
-    '- score es 0 a 100 segun confianza'
+    '- score es 0 a 100 segun confianza',
+    '- solo usar matches cuando la coincidencia sea profesionalmente defendible; si no, preferir unknown_items'
   ].join('\n');
   var rawText = openAiResponseText_({
     model: settings.model,
@@ -1944,7 +1975,7 @@ function parseReceiptTextAi_(local, text) {
         content: [
           {
             type: 'input_text',
-            text: 'Sos un extractor operativo de recepciones de mercaderia. Tu trabajo es mapear texto OCR ruidoso a un catalogo fijo y devolver solo JSON.'
+            text: 'Sos un extractor operativo de recepciones de mercaderia. Tu trabajo es mapear texto OCR ruidoso a un catalogo fijo y devolver solo JSON. Si detectas un producto legible que no coincide con suficiente confianza con el catalogo, no lo descartes: devolvelo en unknown_items.'
           }
         ]
       },
@@ -1968,6 +1999,7 @@ function parseReceiptTextAi_(local, text) {
     model: settings.model,
     proveedor: sanitized.proveedor,
     matches: sanitized.matches,
+    unknown_items: sanitized.unknown_items,
     rawText: sanitized.rawText
   };
 }
