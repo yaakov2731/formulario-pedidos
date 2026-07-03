@@ -2710,13 +2710,24 @@ function isReceiptNoiseLine(line){
   if(/^\d{1,2}[\/-]\d{1,2}([\/-]\d{2,4})?$/.test(lower)) return true;
   return false;
 }
+function isReceiptStopLine(line){
+  const lower=normalizeLooseText(line);
+  if(!lower) return false;
+  return /\b(subtotal|total final|total|saldo|neto|per iva|per iibb|vencimientos|observaciones|cae|son pesos|firma|aclaracion|dni|importe total en letras)\b/.test(lower);
+}
 function looksLikeReceiptHeaderLine(line){
   const lower=normalizeLooseText(line);
   return /\b(articulo|articulos|producto|productos|descripcion|detalle|cant|cantidad|precio|p unit|punit|unitario|importe)\b/.test(lower);
 }
+function looksLikeReceiptContinuationLine(line){
+  const lower=normalizeLooseText(line);
+  if(!lower || isReceiptNoiseLine(lower) || isReceiptStopLine(lower)) return false;
+  if(/\d/.test(lower)) return false;
+  return /[a-z]/.test(lower) && lower.length >= 6;
+}
 function looksLikeReceiptItemLine(line){
   const lower=normalizeLooseText(line);
-  if(!lower || isReceiptNoiseLine(lower)) return false;
+  if(!lower || isReceiptNoiseLine(lower) || isReceiptStopLine(lower)) return false;
   const hasLetters=/[a-z]/.test(lower);
   const nums=(lower.match(/\d+(?:[.,]\d+)?/g)||[]).filter(Boolean);
   const hasMoneyHint=/\$\s*\d|\b\d+(?:[.,]\d+)?\s*(?:c\/u|cu)\b/.test(lower);
@@ -2726,10 +2737,42 @@ function looksLikeReceiptItemLine(line){
   if(nums.length >= 2 && (hasMoneyHint || hasQtyOrAmountHint)) return true;
   return false;
 }
-function filterReceiptRelevantText(text){
+function extractReceiptTableLines(text){
   const lines=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
-  const filtered=lines.filter(line=>looksLikeReceiptHeaderLine(line) || looksLikeReceiptItemLine(line));
+  const out=[];
+  let inTable=false;
+  lines.forEach(line=>{
+    if(looksLikeReceiptHeaderLine(line)){
+      inTable=true;
+      return;
+    }
+    if(!inTable) return;
+    if(isReceiptStopLine(line)){
+      inTable=false;
+      return;
+    }
+    if(looksLikeReceiptItemLine(line) || looksLikeReceiptContinuationLine(line)) out.push(line);
+  });
+  return out;
+}
+function filterReceiptRelevantText(text){
+  const tableLines=extractReceiptTableLines(text);
+  const fallback=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(line=>looksLikeReceiptHeaderLine(line) || looksLikeReceiptItemLine(line));
+  const filtered=tableLines.length ? tableLines : fallback;
   return filtered.join("\n");
+}
+function mergeReceiptContinuationLines(lines){
+  const merged=[];
+  lines.forEach(line=>{
+    if(looksLikeReceiptItemLine(line)){
+      merged.push(line);
+      return;
+    }
+    if(looksLikeReceiptContinuationLine(line) && merged.length){
+      merged[merged.length - 1] += ` ${line}`;
+    }
+  });
+  return merged;
 }
 function extractReceiptQty(line){
   const lower=normalizeLooseText(line);
@@ -2769,7 +2812,8 @@ function guessProveedorFromOcr(text, local){
   return best.score >= 6 ? best.name : "";
 }
 function parseReceiptPhotoText(text, local){
-  const lines=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  const baseLines=extractReceiptTableLines(text);
+  const lines=mergeReceiptContinuationLines(baseLines.length ? baseLines : String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean));
   const catalog=CATALOG[local]||[];
   const matches=[];
   const unknownItems=[];

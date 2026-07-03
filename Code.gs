@@ -1939,14 +1939,27 @@ function isReceiptNoiseLine_(line) {
   return false;
 }
 
+function isReceiptStopLine_(line) {
+  var lower = String(line || '').toLowerCase();
+  if (!lower) return false;
+  return /\b(subtotal|total final|total|saldo|neto|per iva|per iibb|vencimientos|observaciones|cae|son pesos|firma|aclaracion|dni|importe total en letras)\b/.test(lower);
+}
+
 function looksLikeReceiptHeaderLine_(line) {
   var lower = String(line || '').toLowerCase();
   return /\b(articulo|articulos|producto|productos|descripcion|detalle|cant|cantidad|precio|p unit|punit|unitario|importe)\b/.test(lower);
 }
 
+function looksLikeReceiptContinuationLine_(line) {
+  var lower = String(line || '').toLowerCase();
+  if (!lower || isReceiptNoiseLine_(lower) || isReceiptStopLine_(lower)) return false;
+  if (/\d/.test(lower)) return false;
+  return /[a-z]/.test(lower) && lower.length >= 6;
+}
+
 function looksLikeReceiptItemLine_(line) {
   var lower = String(line || '').toLowerCase();
-  if (!lower || isReceiptNoiseLine_(lower)) return false;
+  if (!lower || isReceiptNoiseLine_(lower) || isReceiptStopLine_(lower)) return false;
   if (!/[a-z]/.test(lower)) return false;
   var nums = lower.match(/\d+(?:[.,]\d+)?/g) || [];
   var hasMoneyHint = /\$\s*\d|\b\d+(?:[.,]\d+)?\s*(?:c\/u|cu)\b/.test(lower);
@@ -1956,13 +1969,35 @@ function looksLikeReceiptItemLine_(line) {
   return false;
 }
 
-function filterReceiptOcrText_(text) {
+function extractReceiptTableLines_(text) {
   var lines = String(text || '').split(/\r?\n/).map(function (line) {
     return String(line || '').trim();
   }).filter(Boolean);
-  var filtered = lines.filter(function (line) {
+  var out = [];
+  var inTable = false;
+  lines.forEach(function (line) {
+    if (looksLikeReceiptHeaderLine_(line)) {
+      inTable = true;
+      return;
+    }
+    if (!inTable) return;
+    if (isReceiptStopLine_(line)) {
+      inTable = false;
+      return;
+    }
+    if (looksLikeReceiptItemLine_(line) || looksLikeReceiptContinuationLine_(line)) out.push(line);
+  });
+  return out;
+}
+
+function filterReceiptOcrText_(text) {
+  var tableLines = extractReceiptTableLines_(text);
+  var fallback = String(text || '').split(/\r?\n/).map(function (line) {
+    return String(line || '').trim();
+  }).filter(function (line) {
     return looksLikeReceiptHeaderLine_(line) || looksLikeReceiptItemLine_(line);
   });
+  var filtered = tableLines.length ? tableLines : fallback;
   return filtered.join('\n');
 }
 
