@@ -1930,11 +1930,48 @@ function openAiResponseText_(payload, settings) {
   throw new Error('OpenAI no devolvió texto utilizable');
 }
 
+function isReceiptNoiseLine_(line) {
+  var lower = String(line || '').toLowerCase();
+  if (!lower) return true;
+  if (lower.length < 4) return true;
+  if (/\b(total|subtotal|iva|descuento|recargo|cambio|efectivo|tarjeta|debito|credito|transferencia|pago|abonado|saldo|vuelto|cajero|cliente|mesa|pedido|comprobante|factura|ticket|remito|fecha|hora|cuit|cuil|direccion|domicilio|telefono|tel|gracias|pagina)\b/.test(lower)) return true;
+  if (/^\d{1,2}[\/-]\d{1,2}([\/-]\d{2,4})?$/.test(lower)) return true;
+  return false;
+}
+
+function looksLikeReceiptHeaderLine_(line) {
+  var lower = String(line || '').toLowerCase();
+  return /\b(articulo|articulos|producto|productos|descripcion|detalle|cant|cantidad|precio|p unit|punit|unitario|importe)\b/.test(lower);
+}
+
+function looksLikeReceiptItemLine_(line) {
+  var lower = String(line || '').toLowerCase();
+  if (!lower || isReceiptNoiseLine_(lower)) return false;
+  if (!/[a-z]/.test(lower)) return false;
+  var nums = lower.match(/\d+(?:[.,]\d+)?/g) || [];
+  var hasMoneyHint = /\$\s*\d|\b\d+(?:[.,]\d+)?\s*(?:c\/u|cu)\b/.test(lower);
+  var hasQtyOrAmountHint = /\b\d+(?:[.,]\d+)?\s*(?:kg|kilo|kilos|gr|g|lt|lts|l|un|u|unidad|unidades|doc|pack|paq|bolsa|caja)\b/.test(lower);
+  if (nums.length >= 3) return true;
+  if (nums.length >= 2 && (hasMoneyHint || hasQtyOrAmountHint)) return true;
+  return false;
+}
+
+function filterReceiptOcrText_(text) {
+  var lines = String(text || '').split(/\r?\n/).map(function (line) {
+    return String(line || '').trim();
+  }).filter(Boolean);
+  var filtered = lines.filter(function (line) {
+    return looksLikeReceiptHeaderLine_(line) || looksLikeReceiptItemLine_(line);
+  });
+  return filtered.join('\n');
+}
+
 function parseReceiptTextAi_(local, text) {
   local = normalizeLocalName_(local);
   text = String(text || '').trim();
   if (!local) return { ok: false, error: 'Falta local' };
   if (!text) return { ok: false, error: 'Falta texto OCR' };
+  text = filterReceiptOcrText_(text) || text;
   var settings = getOpenAiSettings_();
   if (!settings.enabled) return { ok: false, disabled: true, error: 'openai_disabled' };
   var catalog = catalogForLocal_(local);
@@ -1956,6 +1993,8 @@ function parseReceiptTextAi_(local, text) {
     'Devolve solo JSON valido con esta forma exacta:',
     '{"proveedor":"","matches":[{"codigo":"","producto":"","cantidad_recibida":0,"sourceLine":"","score":0}],"unknown_items":[{"producto":"","cantidad_recibida":0,"unidad":"unidad","categoria":"","proveedor":"","sourceLine":"","score":0}]}',
     'Reglas:',
+    '- trabajar solo con lineas de items que parezcan articulo/producto + precio + cantidad + importe',
+    '- ignorar encabezados, totales, subtotales, iva, fechas, cuit, medios de pago, observaciones y cualquier texto administrativo',
     '- usar solo productos del catalogo entregado dentro de matches',
     '- si detectas productos de la foto que no estan en el catalogo, ponerlos en unknown_items',
     '- si una linea tiene cantidad pero no podes mapearla con confianza alta al catalogo, debe ir a unknown_items',
@@ -1975,7 +2014,7 @@ function parseReceiptTextAi_(local, text) {
         content: [
           {
             type: 'input_text',
-            text: 'Sos un extractor operativo de recepciones de mercaderia. Tu trabajo es mapear texto OCR ruidoso a un catalogo fijo y devolver solo JSON. Si detectas un producto legible que no coincide con suficiente confianza con el catalogo, no lo descartes: devolvelo en unknown_items.'
+            text: 'Sos un extractor operativo de recepciones de mercaderia. Solo tenes que leer lineas de items con estructura articulo o producto, precio, cantidad e importe. Ignora por completo totales, subtotales, IVA, fechas, CUIT, medios de pago y cualquier texto fuera del detalle de items. Tu trabajo es mapear OCR ruidoso a un catalogo fijo y devolver solo JSON. Si detectas un producto legible que no coincide con suficiente confianza con el catalogo, no lo descartes: devolvelo en unknown_items.'
           }
         ]
       },

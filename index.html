@@ -1281,7 +1281,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 "use strict";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzA9fk969AAZmOY4fshAkqMnFF1LqLE3s7bMUnDvFmQWFbsadJCI3KXHmKIXY8_FVZD/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzr0JOcYILSHMZFAI93var8AbWsGTHCPuRY8ikO2-EvkgD0cC3fSa_t0Ssa8rlgssaT/exec";
 
 /* ---- Locales (Pizzería fuera, GreenFresh dentro) ---- */
 const LOCALES = [
@@ -2412,30 +2412,32 @@ async function loadReceptionFromPhoto(file){
   renderRecepPhotoPanel(state.local);
   try{
     const result=await Tesseract.recognize(file, "spa+eng");
-    const text=(result && result.data && result.data.text) || "";
+    const rawText=(result && result.data && result.data.text) || "";
+    const filteredText=filterReceiptRelevantText(rawText);
+    const text=filteredText || rawText;
     let parsed=parseReceiptPhotoText(text, state.local);
     const localUnknownItems=Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [];
     let engineLabel="OCR";
-    let engineMeta="Podés corregir cantidades en la grilla manual antes de guardar la recepción.";
+    let engineMeta="Filtré la foto para leer solo líneas de artículo, precio, cantidad e importe. Podés corregir cantidades en la grilla manual antes de guardar la recepción.";
     if(capabilityEnabled("receipt_ai_parse")){
       try{
         const aiParsed=await backendGet("parseReceiptTextAi",{ local:state.local, text:text.slice(0,4000), t:Date.now() });
         if(aiParsed && aiParsed.ok && Array.isArray(aiParsed.matches)){
           parsed={
-            rawText:text,
+            rawText:rawText,
             matches:aiParsed.matches,
             proveedor:aiParsed.proveedor || parsed.proveedor || "",
             unknown_items:mergeUnknownPhotoItems(aiParsed.unknown_items || [], localUnknownItems)
           };
           engineLabel="AI";
-          engineMeta=`Interpretado con ${aiParsed.model || "OpenAI"} sobre el OCR.${parsed.unknown_items && parsed.unknown_items.length ? ` Detecté ${parsed.unknown_items.length} producto${parsed.unknown_items.length===1?"":"s"} fuera del catálogo para dar de alta.` : " Igual podés corregir cantidades antes de guardar."}`;
+          engineMeta=`Interpretado con ${aiParsed.model || "OpenAI"} sobre líneas filtradas de artículo/precio/cantidad/importe.${parsed.unknown_items && parsed.unknown_items.length ? ` Detecté ${parsed.unknown_items.length} producto${parsed.unknown_items.length===1?"":"s"} fuera del catálogo para dar de alta.` : " Igual podés corregir cantidades antes de guardar."}`;
         }
       }catch{}
     }
     if(!Array.isArray(parsed.unknown_items)) parsed.unknown_items = localUnknownItems;
     recepUi.photoByLocal[state.local]={
       fileName:file.name||"boleta",
-      rawText:text,
+      rawText:rawText,
       matches:parsed.matches,
       unknownItems:Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [],
       engineLabel,
@@ -2699,6 +2701,35 @@ function normalizeLooseText(value){
     .replace(/[^a-z0-9%./,+ -]/g," ")
     .replace(/\s+/g," ")
     .trim();
+}
+function isReceiptNoiseLine(line){
+  const lower=normalizeLooseText(line);
+  if(!lower) return true;
+  if(lower.length < 4) return true;
+  if(/\b(total|subtotal|iva|descuento|recargo|cambio|efectivo|tarjeta|debito|credito|transferencia|pago|abonado|saldo|vuelto|cajero|cliente|mesa|pedido|comprobante|factura|ticket|remito|fecha|hora|cuit|cuil|direccion|domicilio|telefono|tel|gracias|pagina)\b/.test(lower)) return true;
+  if(/^\d{1,2}[\/-]\d{1,2}([\/-]\d{2,4})?$/.test(lower)) return true;
+  return false;
+}
+function looksLikeReceiptHeaderLine(line){
+  const lower=normalizeLooseText(line);
+  return /\b(articulo|articulos|producto|productos|descripcion|detalle|cant|cantidad|precio|p unit|punit|unitario|importe)\b/.test(lower);
+}
+function looksLikeReceiptItemLine(line){
+  const lower=normalizeLooseText(line);
+  if(!lower || isReceiptNoiseLine(lower)) return false;
+  const hasLetters=/[a-z]/.test(lower);
+  const nums=(lower.match(/\d+(?:[.,]\d+)?/g)||[]).filter(Boolean);
+  const hasMoneyHint=/\$\s*\d|\b\d+(?:[.,]\d+)?\s*(?:c\/u|cu)\b/.test(lower);
+  const hasQtyOrAmountHint=/\b\d+(?:[.,]\d+)?\s*(?:kg|kilo|kilos|gr|g|lt|lts|l|un|u|unidad|unidades|doc|pack|paq|bolsa|caja)\b/.test(lower);
+  if(!hasLetters) return false;
+  if(nums.length >= 3) return true;
+  if(nums.length >= 2 && (hasMoneyHint || hasQtyOrAmountHint)) return true;
+  return false;
+}
+function filterReceiptRelevantText(text){
+  const lines=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  const filtered=lines.filter(line=>looksLikeReceiptHeaderLine(line) || looksLikeReceiptItemLine(line));
+  return filtered.join("\n");
 }
 function extractReceiptQty(line){
   const lower=normalizeLooseText(line);
