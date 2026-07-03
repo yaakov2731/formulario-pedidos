@@ -18,9 +18,9 @@
   --ink-faint: oklch(0.62 0.015 240);
   --line: oklch(0.90 0.008 240);
   --line-strong: oklch(0.83 0.01 240);
-  --brand: oklch(0.55 0.11 225);
-  --brand-strong: oklch(0.45 0.12 235);
-  --brand-tint: oklch(0.95 0.02 225);
+  --brand: oklch(0.49 0.07 228);
+  --brand-strong: oklch(0.39 0.08 236);
+  --brand-tint: oklch(0.95 0.012 228);
   --green: oklch(0.62 0.13 150);
   --green-tint: oklch(0.95 0.04 150);
   --amber: oklch(0.74 0.14 75);
@@ -29,8 +29,8 @@
   --red-tint: oklch(0.95 0.04 25);
   --radius: 12px;
   --radius-sm: 9px;
-  --shadow-sm: 0 1px 2px oklch(0.4 0.03 240 / 0.06), 0 1px 3px oklch(0.4 0.03 240 / 0.05);
-  --shadow-md: 0 4px 12px oklch(0.4 0.03 240 / 0.08), 0 2px 4px oklch(0.4 0.03 240 / 0.05);
+  --shadow-sm: 0 1px 2px oklch(0.32 0.02 240 / 0.04), 0 2px 6px oklch(0.32 0.02 240 / 0.04);
+  --shadow-md: 0 8px 22px oklch(0.32 0.02 240 / 0.07), 0 2px 6px oklch(0.32 0.02 240 / 0.04);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -49,12 +49,12 @@ body{
 
 /* Header — banda corporativa */
 .hero{position:relative;overflow:hidden;border-radius:16px;margin-bottom:18px;padding:20px;
-  color:#fff;box-shadow:0 10px 30px oklch(0.45 0.12 235 / 0.28),0 2px 6px oklch(0.45 0.12 235 / 0.18)}
+  color:#fff;box-shadow:0 16px 28px oklch(0.30 0.03 240 / 0.14),0 2px 6px oklch(0.30 0.03 240 / 0.10)}
 .hero-bg{position:absolute;inset:0;z-index:0;
   background:
-    radial-gradient(120% 140% at 100% 0%, oklch(0.62 0.12 200 / 0.55), transparent 55%),
-    radial-gradient(120% 130% at 0% 100%, oklch(0.40 0.13 270 / 0.45), transparent 50%),
-    linear-gradient(135deg, var(--brand), var(--brand-strong));}
+    radial-gradient(120% 140% at 100% 0%, oklch(0.62 0.05 210 / 0.22), transparent 55%),
+    radial-gradient(120% 130% at 0% 100%, oklch(0.42 0.05 250 / 0.18), transparent 50%),
+    linear-gradient(145deg, color-mix(in oklch,var(--brand) 88%, oklch(0.30 0.03 240)), var(--brand-strong));}
 .hero-bg::after{content:"";position:absolute;inset:0;opacity:.5;
   background-image:linear-gradient(oklch(1 0 0 / 0.05) 1px,transparent 1px),linear-gradient(90deg,oklch(1 0 0 / 0.05) 1px,transparent 1px);
   background-size:22px 22px;mask-image:radial-gradient(120% 100% at 80% 0%,#000,transparent 70%)}
@@ -99,12 +99,12 @@ section{
   position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0;
   background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));border:1.5px solid color-mix(in oklch,var(--line) 80%,#fff);border-radius:var(--radius-sm);
   padding:12px;cursor:pointer;text-align:left;font:inherit;color:inherit;
-  box-shadow:0 8px 18px oklch(0.4 0.03 240 / 0.08),0 4px 0 color-mix(in oklch,var(--line-strong) 82%,#fff),inset 0 1px 0 oklch(1 0 0 / 0.95);
+  box-shadow:0 8px 18px oklch(0.32 0.02 240 / 0.08),inset 0 1px 0 oklch(1 0 0 / 0.95);
   transition:border-color .16s var(--ease),background .16s var(--ease),box-shadow .16s var(--ease),transform .16s var(--ease),filter .16s var(--ease);
 }
 .local::before{content:"";position:absolute;left:1px;right:1px;top:1px;height:44%;border-radius:inherit;background:linear-gradient(180deg,oklch(1 0 0 / 0.65),transparent);pointer-events:none}
-.local:hover{border-color:var(--line-strong);background:linear-gradient(180deg,oklch(1 0 0),var(--surface-2));box-shadow:0 12px 22px oklch(0.4 0.03 240 / 0.11),0 5px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.96);transform:translateY(-2px);filter:saturate(1.03)}
-.local:active{box-shadow:0 4px 10px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08);transform:translateY(3px)}
+.local:hover{border-color:var(--line-strong);background:linear-gradient(180deg,oklch(1 0 0),var(--surface-2));box-shadow:0 12px 22px oklch(0.32 0.02 240 / 0.10),inset 0 1px 0 oklch(1 0 0 / 0.96);transform:translateY(-1px);filter:none}
+.local:active{box-shadow:0 4px 10px oklch(0.32 0.02 240 / 0.08),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08);transform:translateY(2px)}
 .local .ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:19px;
   background:var(--surface-2);border:1px solid var(--line)}
 .local .nm{font-size:13.5px;font-weight:600;line-height:1.25;width:100%;overflow-wrap:anywhere;hyphens:auto}
@@ -254,12 +254,12 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   box-shadow:0 -6px 18px oklch(0.4 0.03 240 / 0.07)}
 .bar-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;min-width:0}
 .send{flex:none;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;
-  background:linear-gradient(180deg, color-mix(in oklch,var(--brand) 64%, #fff), var(--brand));color:#fff;border:none;border-radius:11px;padding:10px 16px;
+  background:var(--brand);color:#fff;border:none;border-radius:11px;padding:10px 16px;
   font:inherit;font-size:13px;font-weight:700;letter-spacing:0.01em;cursor:pointer;
-  box-shadow:0 12px 20px oklch(0.45 0.12 235 / 0.18),0 4px 0 var(--brand-strong),inset 0 1px 0 oklch(1 0 0 / 0.36);
+  box-shadow:0 8px 18px oklch(0.30 0.03 240 / 0.16),inset 0 1px 0 oklch(1 0 0 / 0.20);
   transition:background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease),filter .15s var(--ease)}
-.send:hover:not(:disabled){background:linear-gradient(180deg, color-mix(in oklch,var(--brand) 52%, #fff), var(--brand-strong));box-shadow:0 18px 28px oklch(0.45 0.12 235 / 0.25),0 6px 0 oklch(0.38 0.12 240),inset 0 1px 0 oklch(1 0 0 / 0.42);transform:translateY(-2px);filter:saturate(1.04)}
-.send:active:not(:disabled){box-shadow:0 6px 12px oklch(0.45 0.12 235 / 0.18),0 1px 0 var(--brand-strong),inset 0 2px 8px oklch(0.2 0.04 240 / 0.22);transform:translateY(3px)}
+.send:hover:not(:disabled){background:var(--brand-strong);box-shadow:0 12px 22px oklch(0.30 0.03 240 / 0.20),inset 0 1px 0 oklch(1 0 0 / 0.20);transform:translateY(-1px);filter:none}
+.send:active:not(:disabled){box-shadow:0 6px 12px oklch(0.30 0.03 240 / 0.14),inset 0 2px 6px oklch(0.2 0.03 240 / 0.14);transform:translateY(2px)}
 .send:disabled{opacity:.5;cursor:not-allowed;box-shadow:0 3px 0 color-mix(in oklch,var(--brand-strong) 50%,var(--line))}
 .send svg{width:16px;height:16px}
 .bar-meta{order:-1;display:flex;flex-direction:column;gap:1px;font-size:11px;color:var(--ink-soft);text-align:left;line-height:1.25;min-width:0}
@@ -317,10 +317,10 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .cfg-empty{padding:14px;text-align:center;color:var(--ink-soft);font-size:13px;border:1.5px dashed var(--line-strong);border-radius:8px}
 .cfg-add{display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
 .cfg-add .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.cfg-btn{background:linear-gradient(180deg, color-mix(in oklch,var(--brand) 64%, #fff), var(--brand));color:#fff;border:none;border-radius:11px;padding:11px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;
-  box-shadow:0 12px 22px oklch(0.45 0.12 235 / 0.20),0 5px 0 var(--brand-strong),inset 0 1px 0 oklch(1 0 0 / 0.36);transition:background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease),filter .15s var(--ease)}
-.cfg-btn:hover{background:linear-gradient(180deg, color-mix(in oklch,var(--brand) 52%, #fff), var(--brand-strong));transform:translateY(-2px);box-shadow:0 16px 26px oklch(0.45 0.12 235 / 0.22),0 6px 0 oklch(0.38 0.12 240),inset 0 1px 0 oklch(1 0 0 / 0.40);filter:saturate(1.04)}
-.cfg-btn:active{transform:translateY(3px);box-shadow:0 5px 10px oklch(0.45 0.12 235 / 0.16),0 1px 0 var(--brand-strong),inset 0 2px 8px oklch(0.2 0.04 240 / 0.22)}
+.cfg-btn{background:var(--brand);color:#fff;border:none;border-radius:11px;padding:11px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;
+  box-shadow:0 8px 18px oklch(0.30 0.03 240 / 0.16),inset 0 1px 0 oklch(1 0 0 / 0.18);transition:background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease),filter .15s var(--ease)}
+.cfg-btn:hover{background:var(--brand-strong);transform:translateY(-1px);box-shadow:0 12px 22px oklch(0.30 0.03 240 / 0.20),inset 0 1px 0 oklch(1 0 0 / 0.20);filter:none}
+.cfg-btn:active{transform:translateY(2px);box-shadow:0 4px 10px oklch(0.30 0.03 240 / 0.14),inset 0 2px 6px oklch(0.2 0.03 240 / 0.14)}
 .cfg-btn:disabled{opacity:.6;cursor:not-allowed}
 .cfg-btn.alt{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);box-shadow:0 3px 0 var(--line-strong)}
 .cfg-btn.alt:hover{background:var(--surface);box-shadow:0 4px 0 var(--line-strong)}
@@ -376,9 +376,27 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .stock-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
 .stock-toolbar .snum{margin-left:auto}
 .stock-search{margin-top:2px}
+.stock-shell{display:flex;flex-direction:column;gap:12px}
+.stock-scope-bar{display:flex;flex-wrap:wrap;gap:8px}
+.stock-scope-btn{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:var(--shadow-sm);transition:border-color .15s var(--ease),background .15s var(--ease),transform .15s var(--ease),box-shadow .15s var(--ease)}
+.stock-scope-btn:hover{transform:translateY(-1px);border-color:var(--line-strong)}
+.stock-scope-btn[data-state="active"]{border-color:color-mix(in oklch,var(--brand) 34%,var(--line));background:color-mix(in oklch,var(--brand) 8%, var(--surface));color:var(--brand-strong);box-shadow:0 8px 18px oklch(0.30 0.03 240 / 0.08)}
+.stock-scope-count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:11px;font-weight:800;color:var(--ink-soft)}
+.stock-filter-row{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:10px;align-items:end}
+.stock-summary-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stock-summary-cell{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--shadow-sm)}
+.stock-summary-cell .k{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.stock-summary-cell .v{font-size:17px;font-weight:800;letter-spacing:-0.02em;margin-top:4px}
+.stock-group{display:flex;flex-direction:column;gap:8px;padding:10px 0 2px}
+.stock-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px}
+.stock-group-head strong{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.stock-group-head span{font-size:11px;color:var(--ink-faint)}
 .stock-more{margin-top:8px;width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));color:var(--ink);font:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 10px 18px oklch(0.4 0.03 240 / 0.08),0 4px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.94);transition:transform .15s var(--ease),box-shadow .15s var(--ease),background .15s var(--ease)}
 .stock-more:hover{background:linear-gradient(180deg,oklch(1 0 0),var(--surface));transform:translateY(-2px);box-shadow:0 14px 22px oklch(0.4 0.03 240 / 0.10),0 5px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.98)}
 .stock-more:active{transform:translateY(3px);box-shadow:0 4px 8px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08)}
+.stock-action-bar{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid color-mix(in oklch,var(--line-strong) 80%, #fff);background:oklch(0.992 0.004 230 / 0.96);backdrop-filter:blur(10px);box-shadow:0 -10px 24px oklch(0.30 0.03 240 / 0.08)}
+.stock-action-copy strong{display:block;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.stock-action-copy span{display:block;font-size:12px;color:var(--ink-faint);margin-top:2px}
 
 /* Workspace V2 */
 .workspace{padding:16px;background:
@@ -421,9 +439,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .pedido-screen{scroll-margin-top:16px}
 .pedido-screen[hidden]{display:none}
 .pedido-nav{display:flex;align-items:center;gap:7px;min-width:0;width:100%}
-.nav-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:10px 14px;border:none;border-radius:11px;background:linear-gradient(180deg, color-mix(in oklch,var(--brand) 64%, #fff), var(--brand));color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 12px 20px oklch(0.45 0.12 235 / 0.18),0 4px 0 var(--brand-strong),inset 0 1px 0 oklch(1 0 0 / 0.36);transition:transform .15s var(--ease),box-shadow .15s var(--ease),filter .15s var(--ease),background .15s var(--ease)}
-.nav-btn:hover{background:linear-gradient(180deg, color-mix(in oklch,var(--brand) 52%, #fff), var(--brand-strong));transform:translateY(-2px);box-shadow:0 18px 28px oklch(0.45 0.12 235 / 0.23),0 6px 0 oklch(0.38 0.12 240),inset 0 1px 0 oklch(1 0 0 / 0.40);filter:saturate(1.04)}
-.nav-btn:active{box-shadow:0 6px 12px oklch(0.45 0.12 235 / 0.16),0 1px 0 var(--brand-strong),inset 0 2px 8px oklch(0.2 0.04 240 / 0.22);transform:translateY(3px)}
+.nav-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:10px 14px;border:none;border-radius:11px;background:var(--brand);color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 8px 18px oklch(0.30 0.03 240 / 0.16),inset 0 1px 0 oklch(1 0 0 / 0.18);transition:transform .15s var(--ease),box-shadow .15s var(--ease),filter .15s var(--ease),background .15s var(--ease)}
+.nav-btn:hover{background:var(--brand-strong);transform:translateY(-1px);box-shadow:0 12px 22px oklch(0.30 0.03 240 / 0.20),inset 0 1px 0 oklch(1 0 0 / 0.20);filter:none}
+.nav-btn:active{box-shadow:0 4px 10px oklch(0.30 0.03 240 / 0.14),inset 0 2px 6px oklch(0.2 0.03 240 / 0.14);transform:translateY(2px)}
 .nav-btn.alt{background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 14px oklch(0.4 0.03 240 / 0.07),0 3px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.94)}
 .nav-btn.alt:hover{background:linear-gradient(180deg,oklch(1 0 0),var(--surface));box-shadow:0 14px 22px oklch(0.4 0.03 240 / 0.10),0 5px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.98)}
 .nav-btn.alt:active{box-shadow:0 4px 8px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08)}
@@ -450,12 +468,12 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .home-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;background:oklch(1 0 0 / 0.75);border:1px solid oklch(1 0 0 / 0.7);box-shadow:inset 0 1px 0 oklch(1 0 0 / 0.95),0 6px 16px oklch(0.4 0.03 240 / 0.08);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--brand-strong)}
 .home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
 .home-card{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;min-height:144px;padding:16px;border:none;border-radius:22px;text-align:left;color:#fff;cursor:pointer;background:
-  radial-gradient(120% 140% at 100% 0%, oklch(1 0 0 / 0.26), transparent 45%),
-  linear-gradient(160deg, var(--card-a, var(--brand)), var(--card-b, var(--brand-strong)));box-shadow:0 20px 32px color-mix(in oklch,var(--card-a, var(--brand)) 30%, transparent),0 7px 0 color-mix(in oklch,var(--card-b, var(--brand-strong)) 72%, #000), inset 0 1px 0 oklch(1 0 0 / 0.28), inset 0 -6px 20px oklch(0.18 0.05 250 / 0.22);transform:translateY(0);transition:transform .18s var(--ease), box-shadow .18s var(--ease), filter .18s var(--ease)}
+  radial-gradient(120% 140% at 100% 0%, oklch(1 0 0 / 0.18), transparent 45%),
+  linear-gradient(160deg, color-mix(in oklch,var(--card-a, var(--brand)) 86%, oklch(0.34 0.03 240)), color-mix(in oklch,var(--card-b, var(--brand-strong)) 90%, oklch(0.28 0.03 240)));box-shadow:0 18px 28px color-mix(in oklch,var(--card-a, var(--brand)) 18%, transparent), inset 0 1px 0 oklch(1 0 0 / 0.18);transform:translateY(0);transition:transform .18s var(--ease), box-shadow .18s var(--ease), filter .18s var(--ease)}
 .home-card::before{content:"";position:absolute;inset:1px;border-radius:21px;background:linear-gradient(180deg, oklch(1 0 0 / 0.26), transparent 35%);pointer-events:none}
 .home-card::after{content:"";position:absolute;right:-14px;top:-18px;width:84px;height:84px;border-radius:22px;background:linear-gradient(180deg,oklch(1 0 0 / 0.30),transparent);transform:rotate(18deg);pointer-events:none}
 .home-card:hover{transform:translateY(-3px);filter:saturate(1.05)}
-.home-card:active{transform:translateY(4px);box-shadow:0 10px 16px color-mix(in oklch,var(--card-a, var(--brand)) 22%, transparent),0 2px 0 color-mix(in oklch,var(--card-b, var(--brand-strong)) 72%, #000), inset 0 1px 0 oklch(1 0 0 / 0.12)}
+.home-card:active{transform:translateY(2px);box-shadow:0 10px 16px color-mix(in oklch,var(--card-a, var(--brand)) 16%, transparent), inset 0 1px 0 oklch(1 0 0 / 0.12)}
 .home-card-top,.home-card-bottom{position:relative;z-index:1}
 .home-card-ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:oklch(1 0 0 / 0.16);border:1px solid oklch(1 0 0 / 0.16);font-size:22px;backdrop-filter:blur(8px)}
 .home-card h3{font-size:17px;font-weight:800;letter-spacing:-0.02em;margin-top:14px}
@@ -669,10 +687,13 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .stock-line{flex-direction:column}
   .stock-line-side{align-items:flex-start}
   .stock-dash{grid-template-columns:1fr}
+  .stock-summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stock-row{grid-template-columns:1fr}
   .stock-row,.op-row,.event-item{padding:11px}
   .stock-grid,.op-grid{max-height:none;overflow:visible}
   .stock-toolbar{grid-template-columns:1fr}
+  .stock-filter-row{grid-template-columns:1fr}
+  .stock-action-bar{flex-direction:column;align-items:flex-start}
   .module-grid,.dash-grid,.recep-intake{grid-template-columns:1fr}
   .module-card{padding:12px}
   .module-card .v{font-size:21px}
@@ -825,6 +846,7 @@ body.compact-mobile-shell .stock-panel-head h3{font-size:14px}
 body.compact-mobile-shell .stock-panel-head p{font-size:11px}
 body.compact-mobile-shell .stock-line{flex-direction:column}
 body.compact-mobile-shell .stock-line-side{align-items:flex-start}
+body.compact-mobile-shell .stock-summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
 body.compact-mobile-shell .stock-row,
 body.compact-mobile-shell .op-row{grid-template-columns:1fr}
 body.compact-mobile-shell .stock-row,
@@ -832,6 +854,8 @@ body.compact-mobile-shell .op-row,
 body.compact-mobile-shell .event-item{padding:11px}
 body.compact-mobile-shell .stock-grid,
 body.compact-mobile-shell .op-grid{max-height:none;overflow:visible}
+body.compact-mobile-shell .stock-filter-row{grid-template-columns:1fr}
+body.compact-mobile-shell .stock-action-bar{flex-direction:column;align-items:flex-start}
 body.compact-mobile-shell .module-card{padding:12px}
 body.compact-mobile-shell .cfg{padding:10px 8px}
 body.compact-mobile-shell .cfg-body{padding:14px 12px 18px}
@@ -1267,12 +1291,28 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
           <input type="text" id="stockObs" placeholder="Conteo parcial, cierre, faltantes...">
         </div>
       </div>
-      <input class="stock-search" id="stockSearch" type="text" placeholder="Filtrá productos para contar más rápido...">
-      <div class="stock-caption">Cargá solo stock real. El sistema guarda el conteo, actualiza el catálogo del local y refresca la lectura operativa del pedido.</div>
-      <span class="snum" id="stockCatalogMeta"></span>
-      <div class="stock-grid" id="stockGrid"></div>
-      <button class="stock-more" id="stockMore" type="button" hidden>Mostrar más productos</button>
-      <button class="cfg-btn" id="stockSave" type="button">Guardar stock real</button>
+      <div class="stock-shell">
+        <div class="stock-caption">Cargá solo stock real. El sistema guarda el conteo, actualiza el catálogo del local y refresca la lectura operativa del pedido.</div>
+        <div class="stock-summary-strip" id="stockSummaryStrip"></div>
+        <div class="stock-scope-bar" id="stockScopeBar"></div>
+        <div class="stock-filter-row">
+          <input class="stock-search" id="stockSearch" type="text" placeholder="Buscá producto, código o categoría...">
+          <div class="field">
+            <label>Categoría</label>
+            <select id="stockCategoryFilter"></select>
+          </div>
+        </div>
+        <span class="snum" id="stockCatalogMeta"></span>
+        <div class="stock-grid" id="stockGrid"></div>
+        <button class="stock-more" id="stockMore" type="button" hidden>Mostrar más productos</button>
+        <div class="stock-action-bar">
+          <div class="stock-action-copy">
+            <strong id="stockActionTitle">Sin cambios</strong>
+            <span id="stockActionMeta">Todavía no modificaste cantidades en este local.</span>
+          </div>
+          <button class="cfg-btn" id="stockSave" type="button">Guardar stock real</button>
+        </div>
+      </div>
       <p class="cfg-note">Cada guardado deja trazabilidad en CONTROL STOCK y alimenta el DASHBOARD STOCK.</p>
     </div>
   </div>
@@ -2787,9 +2827,15 @@ $("#cfgAddResp").addEventListener("click",addResponsable);
 
 /* ---- Stock modal ---- */
 const stockModal=$("#stockModal");
-const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null };
+const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null, scopeByLocal:{}, categoryByLocal:{} };
 const recepUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, photoByLocal:{}, ocrBusy:false };
 const prodUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{} };
+const STOCK_SCOPES = [
+  { id:"critical", label:"Sin stock" },
+  { id:"low", label:"Bajo" },
+  { id:"edited", label:"Editados" },
+  { id:"all", label:"Todo" }
+];
 function openStock(){
   const sel=$("#stockLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
@@ -2798,14 +2844,27 @@ function openStock(){
   $("#stockObs").value="";
   $("#stockSearch").value="";
   $("#stockType").value="Conteo parcial";
-  stockUi.visibleLimit=40;
   ensureStockDrafts(sel.value);
+  setStockScope(sel.value, stockUi.scopeByLocal[sel.value] || preferredStockScope(sel.value));
+  setStockCategoryFilter(sel.value, getStockCategoryFilter(sel.value));
+  stockUi.visibleLimit=60;
   renderStockModal();
   stockModal.hidden=false;
 }
 function closeStock(){ stockModal.hidden=true; }
 function stockLocalVal(){ return $("#stockLocal").value; }
 function stockKey(code,name){ return `${code||""}||${String(name||"").toLowerCase()}`; }
+function getStockScope(local){ return stockUi.scopeByLocal[local] || "critical"; }
+function setStockScope(local, scope){ stockUi.scopeByLocal[local]=scope; }
+function getStockCategoryFilter(local){ return stockUi.categoryByLocal[local] || "all"; }
+function setStockCategoryFilter(local, category){ stockUi.categoryByLocal[local]=category; }
+function preferredStockScope(local){
+  const counts=buildStockScopeCounts(local);
+  if(counts.critical) return "critical";
+  if(counts.low) return "low";
+  if(counts.edited) return "edited";
+  return "all";
+}
 function normalizeLooseText(value){
   return String(value||"")
     .normalize("NFD")
@@ -3200,34 +3259,147 @@ function ensureStockDrafts(local){
   stockUi.drafts[local]=drafts;
   return drafts;
 }
+function stockActualNumber(value){
+  if(value === "" || value == null) return null;
+  const parsed=num(value);
+  return parsed==null ? null : parsed;
+}
+function stockMinNumber(item){
+  const parsed=num(item.stock_minimo);
+  return parsed==null ? 0 : parsed;
+}
+function stockRowState(item, draft){
+  const current=stockActualNumber(item.stock_actual);
+  const next=stockActualNumber(draft && draft.stock_actual);
+  const compareCurrent=current==null ? "" : String(current);
+  const compareNext=(draft && draft.stock_actual) === "" || (draft && draft.stock_actual) == null ? "" : String(next);
+  const edited=compareCurrent !== compareNext;
+  const effective=next==null ? current : next;
+  const min=stockMinNumber(item);
+  const critical=effective==null || effective <= 0;
+  const low=!critical && effective <= Math.max(min, 3);
+  return { edited, effective, critical, low };
+}
+function buildStockScopeCounts(local){
+  const cat=CATALOG[local]||[];
+  const drafts=ensureStockDrafts(local);
+  const counts={ critical:0, low:0, edited:0, all:cat.length };
+  cat.forEach(item=>{
+    const state=stockRowState(item, drafts[stockKey(item.codigo,item.nombre)]);
+    if(state.critical) counts.critical += 1;
+    if(state.low) counts.low += 1;
+    if(state.edited) counts.edited += 1;
+  });
+  return counts;
+}
+function matchesStockScope(item, draft, scope){
+  const state=stockRowState(item, draft);
+  if(scope==="critical") return state.critical;
+  if(scope==="low") return state.low;
+  if(scope==="edited") return state.edited;
+  return true;
+}
+function renderStockScopeBar(local, counts){
+  const bar=$("#stockScopeBar");
+  if(!bar) return;
+  const active=getStockScope(local);
+  bar.innerHTML=STOCK_SCOPES.map(scope=>`
+    <button class="stock-scope-btn" type="button" data-scope="${scope.id}" data-state="${active===scope.id?"active":"idle"}">
+      <span>${scope.label}</span>
+      <span class="stock-scope-count">${counts[scope.id] || 0}</span>
+    </button>
+  `).join("");
+}
+function renderStockSummaryStrip(local, counts){
+  const strip=$("#stockSummaryStrip");
+  if(!strip) return;
+  const total=counts.all || 0;
+  const covered=Math.max(total - counts.critical, 0);
+  strip.innerHTML=[
+    ["Visible", total],
+    ["Sin stock", counts.critical],
+    ["Bajo", counts.low],
+    ["Editados", counts.edited]
+  ].map(([label,val])=>`
+    <div class="stock-summary-cell">
+      <div class="k">${label}</div>
+      <div class="v">${esc(trim(val || 0))}</div>
+    </div>
+  `).join("");
+  if(covered < total && counts.critical===0){
+    // no-op placeholder to keep summary semantic stable
+  }
+}
+function renderStockActionBar(local, counts){
+  const title=$("#stockActionTitle");
+  const meta=$("#stockActionMeta");
+  if(!title || !meta) return;
+  if(!counts.edited){
+    title.textContent="Sin cambios";
+    meta.textContent="Todavía no modificaste cantidades en este local.";
+    return;
+  }
+  title.textContent=`${counts.edited} producto${counts.edited===1?"":"s"} listo${counts.edited===1?"":"s"} para guardar`;
+  meta.textContent=`${counts.critical} sin stock, ${counts.low} en nivel bajo. El guardado actualiza catálogo y lectura operativa.`;
+}
 function renderStockModal(){
   const local=stockLocalVal();
   const cat=CATALOG[local]||[];
   const drafts=ensureStockDrafts(local);
   const q=$("#stockSearch").value.trim().toLowerCase();
-  const filtered = q ? cat.filter(item=>
-    item.nombre.toLowerCase().includes(q) ||
-    String(item.codigo||"").toLowerCase().includes(q) ||
-    String(item.categoria||"").toLowerCase().includes(q)
-  ) : cat;
+  const scope=getStockScope(local);
+  const counts=buildStockScopeCounts(local);
+  renderStockSummaryStrip(local, counts);
+  renderStockScopeBar(local, counts);
+  renderStockActionBar(local, counts);
+  const categories=[...new Set(cat.map(item=>String(item.categoria||"Sin categoría").trim() || "Sin categoría"))].sort((a,b)=>a.localeCompare(b,"es"));
+  const categorySelect=$("#stockCategoryFilter");
+  if(categorySelect){
+    const selected=getStockCategoryFilter(local);
+    categorySelect.innerHTML=`<option value="all">Todas</option>${categories.map(category=>`<option value="${esc(category)}">${esc(category)}</option>`).join("")}`;
+    categorySelect.value=categories.includes(selected) ? selected : "all";
+  }
+  const categoryFilter=getStockCategoryFilter(local);
+  const filtered = cat.filter(item=>{
+    const draft=drafts[stockKey(item.codigo,item.nombre)];
+    const matchesScope=matchesStockScope(item, draft, scope);
+    const matchesCategory=categoryFilter==="all" || (String(item.categoria||"Sin categoría").trim() || "Sin categoría")===categoryFilter;
+    const matchesQuery=!q || item.nombre.toLowerCase().includes(q) || String(item.codigo||"").toLowerCase().includes(q) || String(item.categoria||"").toLowerCase().includes(q) || String(item.proveedor||"").toLowerCase().includes(q);
+    return matchesScope && matchesCategory && matchesQuery;
+  });
   const visible = filtered.slice(0, stockUi.visibleLimit);
-  $("#stockCatalogMeta").textContent=`${visible.length} de ${filtered.length} filtrados · ${cat.length} total`;
+  $("#stockCatalogMeta").textContent=`${visible.length} de ${filtered.length} visibles · ${cat.length} del local`;
   $("#stockEncargado").value=$("#stockEncargado").value.trim() || $("#encargado").value.trim() || (CONFIG[local]&&CONFIG[local].enc) || "";
-  $("#stockGrid").innerHTML = visible.length ? visible.map(item=>{
+  const grouped=new Map();
+  visible.forEach(item=>{
+    const category=String(item.categoria||"Sin categoría").trim() || "Sin categoría";
+    if(!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category).push(item);
+  });
+  $("#stockGrid").innerHTML = visible.length ? [...grouped.entries()].map(([category, items])=>`
+    <section class="stock-group">
+      <div class="stock-group-head">
+        <strong>${esc(category)}</strong>
+        <span>${items.length} producto${items.length===1?"":"s"}</span>
+      </div>
+      ${items.map(item=>{
     const draft = drafts[stockKey(item.codigo,item.nombre)] || {};
     const actualVal = draft.stock_actual ?? item.stock_actual ?? "";
+    const state=stockRowState(item, draft);
     return `
     <div class="stock-row" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
       <div class="stock-row-main">
         <div class="stock-row-name">${esc(item.nombre)}</div>
-        <div class="stock-row-meta">${esc(item.codigo||"—")} · ${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${actualVal!==""&&actualVal!=null?` · actual ${esc(trim(num(actualVal)||0))} ${esc(item.unidad||"")}`:""}</div>
+        <div class="stock-row-meta">${esc(item.codigo||"—")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${actualVal!==""&&actualVal!=null?` · real ${esc(trim(num(actualVal)||0))} ${esc(item.unidad||"")}`:""}${state.critical?` · sin stock`:state.low?` · bajo`:state.edited?` · editado`:""}</div>
       </div>
       <div class="stock-input-wrap">
         <label>Real (${esc(item.unidad||"unidad")})</label>
         <input type="number" step="0.1" value="${actualVal}" data-field="actual" inputmode="decimal" aria-label="Stock real ${esc(item.nombre)}">
       </div>
     </div>`;
-  }).join("") : `<div class="stock-empty">${cat.length ? "No hay coincidencias para ese filtro." : "Este local no tiene catálogo cargado todavía."}</div>`;
+  }).join("")}
+    </section>
+  `).join("") : `<div class="stock-empty">${cat.length ? "No hay productos en esta vista. Probá con otra categoría o cambiá el foco." : "Este local no tiene catálogo cargado todavía."}</div>`;
   $("#stockMore").hidden = visible.length >= filtered.length;
 }
 async function saveStock(){
@@ -3272,10 +3444,31 @@ $("#stockBtn").addEventListener("click",()=>setTab("stock"));
 $("#stockInlineBtn").addEventListener("click",openStock);
 $("#stockClose").addEventListener("click",closeStock);
 stockModal.addEventListener("click",e=>{ if(e.target===stockModal) closeStock(); });
-$("#stockLocal").addEventListener("change",()=>{ stockUi.visibleLimit=40; ensureStockDrafts(stockLocalVal()); renderStockModal(); });
+$("#stockLocal").addEventListener("change",()=>{
+  const local=stockLocalVal();
+  stockUi.visibleLimit=60;
+  ensureStockDrafts(local);
+  setStockScope(local, stockUi.scopeByLocal[local] || preferredStockScope(local));
+  setStockCategoryFilter(local, getStockCategoryFilter(local));
+  renderStockModal();
+});
+$("#stockCategoryFilter").addEventListener("change",()=>{
+  const local=stockLocalVal();
+  setStockCategoryFilter(local, $("#stockCategoryFilter").value);
+  stockUi.visibleLimit=60;
+  renderStockModal();
+});
 $("#stockSearch").addEventListener("input",()=>{
   clearTimeout(stockUi.filterTimer);
-  stockUi.filterTimer=setTimeout(()=>{ stockUi.visibleLimit=80; renderStockModal(); },120);
+  stockUi.filterTimer=setTimeout(()=>{ stockUi.visibleLimit=120; renderStockModal(); },120);
+});
+$("#stockScopeBar").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-scope]");
+  if(!btn) return;
+  const local=stockLocalVal();
+  setStockScope(local, btn.dataset.scope);
+  stockUi.visibleLimit=80;
+  renderStockModal();
 });
 $("#stockGrid").addEventListener("input",e=>{
   if(e.target.dataset.field!=="actual") return;
@@ -3286,6 +3479,7 @@ $("#stockGrid").addEventListener("input",e=>{
   const key=stockKey(row.dataset.code||"", row.dataset.name||"");
   drafts[key] = drafts[key] || { codigo:row.dataset.code||"", producto:row.dataset.name||"", categoria:"", unidad:"unidad", stock_actual:"" };
   drafts[key].stock_actual=e.target.value;
+  renderStockActionBar(local, buildStockScopeCounts(local));
 });
 $("#stockMore").addEventListener("click",()=>{ stockUi.visibleLimit += 80; renderStockModal(); });
 $("#stockSave").addEventListener("click",saveStock);
