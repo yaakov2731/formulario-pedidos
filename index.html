@@ -1026,23 +1026,23 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
             <span>Seguís usando la grilla manual para entradas rápidas, parciales o correcciones.</span>
           </button>
           <button class="recep-intake-btn" id="recepPhotoBtn" type="button">
-            <strong>Cargar desde foto</strong>
-            <span>Subí una boleta y la app usa OCR + AI para proponer productos y cantidades sobre esta misma recepción.</span>
+            <strong>Importar Excel</strong>
+            <span>Subí un Excel o CSV con artículos y cantidades. La app arma la recepción y al guardar actualiza stock.</span>
           </button>
         </div>
-        <input id="recepPhotoInput" type="file" accept="image/*" capture="environment" hidden>
+        <input id="recepPhotoInput" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
         <div class="recep-photo-panel" id="recepPhotoPanel">
           <div class="recep-photo-head">
             <div>
-              <strong>Asistente por foto</strong>
-              <span id="recepPhotoSubtext">Todavía no cargaste una boleta. La recepción manual sigue disponible abajo.</span>
+              <strong>Importador de Excel</strong>
+              <span id="recepPhotoSubtext">Todavía no cargaste un archivo. La recepción manual sigue disponible abajo.</span>
             </div>
             <div class="recep-photo-chip" id="recepPhotoChip">Manual</div>
           </div>
-          <div class="recep-photo-meta" id="recepPhotoMeta">La foto arma un borrador con OCR + AI y vos confirmás antes de guardar.</div>
+          <div class="recep-photo-meta" id="recepPhotoMeta">El Excel arma un borrador de recepción. Cuando guardás, también impacta stock.</div>
           <div class="recep-photo-list" id="recepPhotoMatches"></div>
           <div class="recep-photo-actions" id="recepPhotoActions" hidden>
-            <button class="cfg-btn alt" id="recepPhotoReset" type="button">Limpiar foto</button>
+            <button class="cfg-btn alt" id="recepPhotoReset" type="button">Limpiar archivo</button>
           </div>
         </div>
         <div class="grid2">
@@ -1278,7 +1278,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 "use strict";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzr0JOcYILSHMZFAI93var8AbWsGTHCPuRY8ikO2-EvkgD0cC3fSa_t0Ssa8rlgssaT/exec";
@@ -1654,7 +1654,7 @@ function renderRecepPhotoPanel(local){
   if(!chip || !sub || !meta || !list || !actions) return;
   if(!local){
     chip.textContent="Manual";
-    sub.textContent="Elegí un local para habilitar la carga desde foto.";
+    sub.textContent="Elegí un local para habilitar la importación desde Excel.";
     meta.textContent="La recepción manual queda disponible cuando selecciones un local.";
     list.innerHTML="";
     actions.hidden=true;
@@ -1663,30 +1663,28 @@ function renderRecepPhotoPanel(local){
   const photo=getRecepPhotoState(local);
   const unknownItems = photo && Array.isArray(photo.unknownItems) ? photo.unknownItems : [];
   if(recepUi.ocrBusy){
-    chip.textContent=capabilityEnabled("receipt_ai_parse") ? "OCR + AI" : "OCR";
-    sub.textContent="Procesando la foto de la boleta...";
-    meta.textContent="Esto puede tardar unos segundos según el tamaño y la nitidez.";
+    chip.textContent="Importando";
+    sub.textContent="Procesando el archivo Excel...";
+    meta.textContent="Esto puede tardar unos segundos si el archivo tiene muchas filas.";
     list.innerHTML="";
     actions.hidden=true;
     return;
   }
   if(!photo){
     chip.textContent="Manual";
-    sub.textContent="Todavía no cargaste una boleta. La recepción manual sigue disponible abajo.";
-    meta.textContent=capabilityEnabled("receipt_ai_parse")
-      ? "La foto arma un borrador con OCR + AI y vos confirmás antes de guardar."
-      : "La foto arma un borrador y vos confirmás antes de guardar.";
+    sub.textContent="Todavía no cargaste un Excel. La recepción manual sigue disponible abajo.";
+    meta.textContent="El archivo arma un borrador de recepción y al guardar también impacta stock.";
     list.innerHTML="";
     actions.hidden=true;
     return;
   }
-  chip.textContent=photo.matches.length ? (photo.engineLabel || "Foto lista") : (unknownItems.length ? "Catálogo" : "Revisar");
+  chip.textContent=photo.matches.length ? (photo.engineLabel || "Excel listo") : (unknownItems.length ? "Catálogo" : "Revisar");
   sub.textContent = photo.fileName
     ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`
     : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`;
   meta.textContent = photo.matches.length || unknownItems.length
     ? `${photo.engineMeta || "Podés corregir cantidades en la grilla manual antes de guardar la recepción."}`
-    : "No encontré coincidencias claras en el catálogo. Probá con otra foto o cargá a mano.";
+    : "No encontré coincidencias claras en el archivo. Revisá las columnas o completá a mano.";
   const matchedHtml = photo.matches.length
     ? photo.matches.slice(0,6).map(match=>`
       <div class="recep-photo-item">
@@ -2401,45 +2399,160 @@ async function saveReception(){
     btn.disabled=false; btn.textContent=orig;
   }
 }
+function parseImportNumber(value){
+  const raw=String(value==null?"":value).trim();
+  if(!raw) return null;
+  const cleaned=raw.replace(/[$\s]/g,"");
+  let normalized=cleaned;
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(cleaned)){
+    normalized=cleaned.replace(/\./g,"").replace(",",".");
+  }else if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(cleaned)){
+    normalized=cleaned.replace(/,/g,"");
+  }else{
+    normalized=cleaned.replace(",",".");
+  }
+  const parsed=parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+function findReceiptImportHeaderIndex(rows){
+  for(let i=0;i<Math.min(rows.length, 25);i++){
+    const header=(rows[i]||[]).map(cell=>normalizeLooseText(cell));
+    const hasProduct=header.some(cell=>/\b(articulo|articulos|producto|productos|nombre articulo|descripcion|detalle)\b/.test(cell));
+    const hasQty=header.some(cell=>/\b(cant|cantidad)\b/.test(cell));
+    if(hasProduct && hasQty) return i;
+  }
+  return -1;
+}
+function buildReceiptImportColumnMap(headerRow){
+  const header=(headerRow||[]).map(cell=>normalizeLooseText(cell));
+  const findIndex=(patterns)=>header.findIndex(cell=>patterns.some(pattern=>cell.includes(pattern)));
+  return {
+    code:findIndex(["cod", "codigo"]),
+    product:findIndex(["nombre articulo", "articulo", "producto", "descripcion"]),
+    detail:findIndex(["detalle"]),
+    qty:findIndex(["cantidad", "cant"]),
+    unit:findIndex(["unidad", "u/m", "um"]),
+    price:findIndex(["precio", "p.u", "p u", "unitario"]),
+    amount:findIndex(["importe", "total"]),
+    provider:findIndex(["proveedor"])
+  };
+}
+function readReceiptRowsFromWorkbook(file){
+  const workbook=XLSX.read(file, { type:"array", raw:false, cellDates:false });
+  const sheet=workbook.Sheets[workbook.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(sheet, { header:1, raw:false, defval:"" });
+  const headerIndex=findReceiptImportHeaderIndex(rows);
+  if(headerIndex < 0) throw new Error("No encontré encabezados de artículo y cantidad en el archivo");
+  const map=buildReceiptImportColumnMap(rows[headerIndex]);
+  if(map.product < 0 || map.qty < 0) throw new Error("El Excel necesita columnas de artículo/producto y cantidad");
+  const out=[];
+  let blankRun=0;
+  for(let i=headerIndex + 1;i<rows.length;i++){
+    const row=rows[i]||[];
+    const joined=normalizeLooseText(row.join(" "));
+    if(!joined){
+      blankRun += 1;
+      if(blankRun >= 3 && out.length) break;
+      continue;
+    }
+    blankRun=0;
+    if(isReceiptStopLine(joined)) break;
+    const productParts=[
+      map.product > -1 ? row[map.product] : "",
+      map.detail > -1 ? row[map.detail] : ""
+    ].map(v=>String(v||"").trim()).filter(Boolean);
+    const product=productParts.join(" ").trim();
+    const qty=parseImportNumber(map.qty > -1 ? row[map.qty] : "");
+    if(!product || !(qty > 0)) continue;
+    out.push({
+      codigo: map.code > -1 ? String(row[map.code]||"").trim() : "",
+      producto: product,
+      cantidad_recibida: qty,
+      unidad: map.unit > -1 ? String(row[map.unit]||"").trim() : "",
+      precio: map.price > -1 ? parseImportNumber(row[map.price]) : null,
+      importe: map.amount > -1 ? parseImportNumber(row[map.amount]) : null,
+      proveedor: map.provider > -1 ? String(row[map.provider]||"").trim() : "",
+      sourceLine: row.filter(Boolean).join(" | ")
+    });
+  }
+  return out;
+}
+function parseReceptionExcelRows(rows, local){
+  const catalog=CATALOG[local]||[];
+  const matches=[];
+  const unknownItems=[];
+  rows.forEach(entry=>{
+    const sourceLine=`${entry.producto} ${entry.precio||""} ${entry.cantidad_recibida||""} ${entry.importe||""}`.trim();
+    let best=null;
+    let bestScore=0;
+    catalog.forEach(item=>{
+      const score=scoreCatalogMatch(sourceLine, item) + scoreCatalogMatch(entry.producto, item);
+      if(score > bestScore){
+        best=item;
+        bestScore=score;
+      }
+    });
+    if(!best || bestScore < 6){
+      unknownItems.push({
+        producto:entry.producto,
+        cantidad_recibida:trim(entry.cantidad_recibida||0),
+        unidad:entry.unidad || "unidad",
+        categoria:"",
+        proveedor:entry.proveedor || "",
+        score:bestScore,
+        sourceLine:entry.sourceLine || entry.producto
+      });
+      return;
+    }
+    matches.push({
+      key:stockKey(best.codigo,best.nombre),
+      codigo:best.codigo||"",
+      producto:best.nombre||"",
+      categoria:best.categoria||"",
+      unidad:best.unidad||entry.unidad||"unidad",
+      proveedor:best.proveedor||entry.proveedor||"",
+      cantidad_recibida:entry.cantidad_recibida,
+      score:bestScore,
+      sourceLine:entry.sourceLine || entry.producto
+    });
+  });
+  const grouped=new Map();
+  matches.forEach(match=>{
+    const current=grouped.get(match.key);
+    if(current){
+      current.cantidad_recibida = trim((num(current.cantidad_recibida)||0) + (num(match.cantidad_recibida)||0));
+      current.score = Math.max(current.score, match.score);
+      return;
+    }
+    grouped.set(match.key, Object.assign({}, match, { cantidad_recibida:trim(num(match.cantidad_recibida)||0) }));
+  });
+  return {
+    matches:[...grouped.values()].sort((a,b)=>b.score-a.score),
+    unknown_items:mergeUnknownPhotoItems(unknownItems),
+    proveedor:(rows.find(row=>row.proveedor)||{}).proveedor || ""
+  };
+}
 async function loadReceptionFromPhoto(file){
   if(!state.local){ toast("Elegí un local primero","err"); return; }
   if(!file) return;
-  if(typeof Tesseract === "undefined" || !Tesseract || typeof Tesseract.recognize !== "function"){
-    toast("No pude cargar el lector OCR en este equipo","err");
+  if(typeof XLSX === "undefined" || !XLSX || typeof XLSX.read !== "function"){
+    toast("No pude cargar el lector de Excel en este equipo","err");
     return;
   }
   recepUi.ocrBusy=true;
   renderRecepPhotoPanel(state.local);
   try{
-    const result=await Tesseract.recognize(file, "spa+eng");
-    const rawText=(result && result.data && result.data.text) || "";
-    const filteredText=filterReceiptRelevantText(rawText);
-    const text=filteredText || rawText;
-    let parsed=parseReceiptPhotoText(text, state.local);
-    const localUnknownItems=Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [];
-    let engineLabel="OCR";
-    let engineMeta="Filtré la foto para leer solo líneas de artículo, precio, cantidad e importe. Podés corregir cantidades en la grilla manual antes de guardar la recepción.";
-    if(capabilityEnabled("receipt_ai_parse")){
-      try{
-        const aiParsed=await backendGet("parseReceiptTextAi",{ local:state.local, text:text.slice(0,4000), t:Date.now() });
-        if(aiParsed && aiParsed.ok && Array.isArray(aiParsed.matches)){
-          parsed={
-            rawText:rawText,
-            matches:aiParsed.matches,
-            proveedor:aiParsed.proveedor || parsed.proveedor || "",
-            unknown_items:mergeUnknownPhotoItems(aiParsed.unknown_items || [], localUnknownItems)
-          };
-          engineLabel="AI";
-          engineMeta=`Interpretado con ${aiParsed.model || "OpenAI"} sobre líneas filtradas de artículo/precio/cantidad/importe.${parsed.unknown_items && parsed.unknown_items.length ? ` Detecté ${parsed.unknown_items.length} producto${parsed.unknown_items.length===1?"":"s"} fuera del catálogo para dar de alta.` : " Igual podés corregir cantidades antes de guardar."}`;
-        }
-      }catch{}
-    }
-    if(!Array.isArray(parsed.unknown_items)) parsed.unknown_items = localUnknownItems;
+    const buffer=await file.arrayBuffer();
+    const importedRows=readReceiptRowsFromWorkbook(buffer);
+    const parsed=parseReceptionExcelRows(importedRows, state.local);
+    const unknownItems=Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [];
+    const engineLabel="Excel";
+    const engineMeta=`Importé ${importedRows.length} fila${importedRows.length===1?"":"s"} del archivo. Al guardar recepción, también se actualiza stock.${unknownItems.length ? ` Detecté ${unknownItems.length} producto${unknownItems.length===1?"":"s"} fuera del catálogo para dar de alta.` : ""}`;
     recepUi.photoByLocal[state.local]={
-      fileName:file.name||"boleta",
-      rawText:rawText,
+      fileName:file.name||"archivo",
+      rawText:"",
       matches:parsed.matches,
-      unknownItems:Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [],
+      unknownItems,
       engineLabel,
       engineMeta
     };
@@ -2449,13 +2562,13 @@ async function loadReceptionFromPhoto(file){
     }
     renderRecepcionModule();
     renderWorkspaceStats();
-    if(parsed.matches.length || (parsed.unknown_items && parsed.unknown_items.length)){
-      toast(`${engineLabel==="AI"?"AI + OCR":"Foto procesada"}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${parsed.unknown_items && parsed.unknown_items.length ? ` · ${parsed.unknown_items.length} fuera del catálogo` : ""}`,"ok");
+    if(parsed.matches.length || unknownItems.length){
+      toast(`Excel importado: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${unknownItems.length ? ` · ${unknownItems.length} fuera del catálogo` : ""}`,"ok");
     }else{
-      toast("Leí la foto, pero no encontré coincidencias claras. Podés completar a mano.","err");
+      toast("Leí el archivo, pero no encontré coincidencias claras. Revisá las columnas o completá a mano.","err");
     }
   }catch{
-    toast("No pude leer la foto. Probá con otra imagen o cargá a mano.","err");
+    toast("No pude leer el Excel. Revisá que tenga columnas de artículo y cantidad.","err");
   }finally{
     recepUi.ocrBusy=false;
     renderRecepPhotoPanel(state.local);
@@ -2930,7 +3043,7 @@ function mergeUnknownPhotoItems(...groups){
 function addPhotoSuggestionToCatalog(local, index){
   const photo=getRecepPhotoState(local);
   const suggestion=photo && Array.isArray(photo.unknownItems) ? photo.unknownItems[index] : null;
-  if(!suggestion){ toast("No encontré esa sugerencia de foto","err"); return; }
+  if(!suggestion){ toast("No encontré esa sugerencia del archivo","err"); return; }
   if(state.local !== local) state.local = local;
   openCfg();
   $("#cfgLocal").value = local;
