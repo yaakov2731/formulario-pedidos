@@ -310,10 +310,12 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .cfg-block-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
 .cfg-block-head h3{font-size:15px;font-weight:600}
 .cfg-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;margin-bottom:14px}
-.cfg-li{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;font-size:13.5px}
+.cfg-li{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;font-size:13.5px;flex-wrap:wrap}
 .cfg-li .li-nm{font-weight:600}
 .cfg-li .li-meta{color:var(--ink-soft);font-size:12px;margin-left:auto;text-align:right}
 .cfg-li .li-code{font-size:10px;font-weight:700;color:var(--brand-strong);background:var(--brand-tint);padding:2px 6px;border-radius:5px}
+.cfg-mini-btn{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface));color:var(--ink);font:inherit;font-size:11px;font-weight:800;cursor:pointer;box-shadow:var(--shadow-sm)}
+.cfg-mini-btn:hover{transform:translateY(-1px);border-color:var(--line-strong)}
 .cfg-empty{padding:14px;text-align:center;color:var(--ink-soft);font-size:13px;border:1.5px dashed var(--line-strong);border-radius:8px}
 .cfg-add{display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
 .cfg-add .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -325,6 +327,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .cfg-btn.alt{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);box-shadow:0 3px 0 var(--line-strong)}
 .cfg-btn.alt:hover{background:var(--surface);box-shadow:0 4px 0 var(--line-strong)}
 .cfg-btn.alt:active{box-shadow:0 1px 0 var(--line-strong)}
+.cfg-btn-ghost{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);box-shadow:0 3px 0 var(--line-strong)}
+.cfg-btn-ghost:hover{background:var(--surface);box-shadow:0 4px 0 var(--line-strong)}
+.cfg-btn-ghost:active{box-shadow:0 1px 0 var(--line-strong)}
 .cfg-note{font-size:11.5px;color:var(--ink-faint);text-align:center}
 
 /* Stock */
@@ -1244,6 +1249,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
             <select id="cfgPUnidad"></select>
           </div>
           <input id="cfgPProv" placeholder="Proveedor (opcional)">
+          <button class="cfg-btn cfg-btn-ghost" id="cfgCancelEditProd" type="button" hidden>Cancelar edición</button>
           <button class="cfg-btn" id="cfgAddProd" type="button">+ Agregar al catálogo</button>
         </div>
       </div>
@@ -2716,22 +2722,47 @@ function setConn(ok,txt){ $("#connDot").classList.toggle("off",!ok); $("#connTxt
 
 /* ---- Configuración ---- */
 const cfg=$("#cfg");
+let cfgProductEdit = null;
 function openCfg(){
   const sel=$("#cfgLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
   $("#cfgPUnidad").innerHTML=UNITS.map(u=>`<option value="${u}">${u}</option>`).join("");
   sel.value=state.local||LOCALES[0].id;
+  resetCfgProductForm();
   renderCfg();
   cfg.hidden=false;
 }
 function closeCfg(){ cfg.hidden=true; }
 function cfgLocalVal(){ return $("#cfgLocal").value; }
+function resetCfgProductForm(){
+  cfgProductEdit = null;
+  $("#cfgPNombre").value = "";
+  $("#cfgPCat").value = "";
+  $("#cfgPProv").value = "";
+  $("#cfgPUnidad").value = UNITS[0];
+  $("#cfgAddProd").textContent = "+ Agregar al catálogo";
+  $("#cfgCancelEditProd").hidden = true;
+}
+function startEditProducto(code){
+  const local = cfgLocalVal();
+  const item = (CATALOG[local] || []).find(product => String(product.codigo || "") === String(code || ""));
+  if(!item){ toast("No encontré el producto en el catálogo","err"); return; }
+  cfgProductEdit = { local, codigo:item.codigo || "" };
+  $("#cfgPNombre").value = item.nombre || "";
+  $("#cfgPCat").value = item.categoria || "";
+  $("#cfgPProv").value = item.proveedor || "";
+  $("#cfgPUnidad").value = item.unidad || UNITS[0];
+  $("#cfgAddProd").textContent = "Guardar nombre corregido";
+  $("#cfgCancelEditProd").hidden = false;
+  $("#cfgPNombre").focus();
+  $("#cfgPNombre").select();
+}
 function renderCfg(){
   const local=cfgLocalVal();
   const cat=CATALOG[local]||[];
   $("#cfgCatCount").textContent=`${cat.length} producto${cat.length===1?'':'s'}`;
   $("#cfgCatList").innerHTML = cat.length
-    ? cat.map(x=>`<div class="cfg-li"><span class="li-code">${esc(x.codigo||'—')}</span><span class="li-nm">${esc(x.nombre)}</span><span class="li-meta">${esc(x.categoria||'')} · ${esc(x.unidad)}</span></div>`).join("")
+    ? cat.map(x=>`<div class="cfg-li"><span class="li-code">${esc(x.codigo||'—')}</span><span class="li-nm">${esc(x.nombre)}</span><span class="li-meta">${esc(x.categoria||'')} · ${esc(x.unidad)}</span><button class="cfg-mini-btn" type="button" data-edit-producto="${esc(x.codigo||'')}">Editar nombre</button></div>`).join("")
     : `<div class="cfg-empty">Sin productos en el catálogo. Agregá el primero.</div>`;
   const resp=RESP[local]||(CONFIG[local]&&CONFIG[local].enc?[{nombre:CONFIG[local].enc,email:CONFIG[local].email}]:[]);
   $("#cfgRespCount").textContent=`${resp.length} responsable${resp.length===1?'':'s'}`;
@@ -2802,15 +2833,32 @@ async function addProducto(){
   const local=cfgLocalVal();
   const nombre=$("#cfgPNombre").value.trim();
   if(!nombre){ toast("Escribí el nombre del producto","err"); return; }
-  const payload={action:"addProducto",local,nombre,
+  const payload={action:cfgProductEdit ? "updateProducto" : "addProducto",local,nombre,
     categoria:$("#cfgPCat").value.trim(),unidad:$("#cfgPUnidad").value,proveedor:$("#cfgPProv").value.trim()};
+  if(cfgProductEdit){ payload.codigo = cfgProductEdit.codigo; }
   const btn=$("#cfgAddProd"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
-  // optimista
-  (CATALOG[local]=CATALOG[local]||[]).push(p("",nombre,payload.unidad,payload.proveedor,0,payload.categoria));
+  const localCatalog=(CATALOG[local]=CATALOG[local]||[]);
+  const editingCode = cfgProductEdit && cfgProductEdit.codigo;
+  const editingIndex = editingCode ? localCatalog.findIndex(item => String(item.codigo||"") === String(editingCode)) : -1;
+  if(editingIndex > -1){
+    localCatalog[editingIndex] = { ...localCatalog[editingIndex], nombre };
+  }else{
+    localCatalog.push(p("",nombre,payload.unidad,payload.proveedor,0,payload.categoria));
+  }
   renderCfg();
-  try{ await apiPost(payload); await sleep(900); await refreshData(); toast("Producto agregado al catálogo","ok"); }
+  try{
+    await apiPost(payload);
+    await sleep(900);
+    await refreshData();
+    toast(editingCode ? "Nombre del producto actualizado" : "Producto agregado al catálogo","ok");
+    resetCfgProductForm();
+  }
   catch{ toast("Error al guardar","err"); }
-  finally{ renderCfg(); $("#cfgPNombre").value="";$("#cfgPCat").value="";$("#cfgPProv").value=""; btn.disabled=false; btn.textContent=o; }
+  finally{
+    renderCfg();
+    btn.disabled=false;
+    btn.textContent = cfgProductEdit ? "Guardar nombre corregido" : "+ Agregar al catálogo";
+  }
 }
 async function addResponsable(){
   const local=cfgLocalVal();
@@ -2828,9 +2876,15 @@ function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 $("#cfgBtn").addEventListener("click",openCfg);
 $("#cfgClose").addEventListener("click",closeCfg);
 cfg.addEventListener("click",e=>{ if(e.target===cfg) closeCfg(); });
-$("#cfgLocal").addEventListener("change",renderCfg);
+$("#cfgLocal").addEventListener("change",()=>{ resetCfgProductForm(); renderCfg(); });
 $("#cfgAddProd").addEventListener("click",addProducto);
+$("#cfgCancelEditProd").addEventListener("click",resetCfgProductForm);
 $("#cfgAddResp").addEventListener("click",addResponsable);
+$("#cfgCatList").addEventListener("click",e=>{
+  const btn = e.target.closest("[data-edit-producto]");
+  if(!btn) return;
+  startEditProducto(btn.dataset.editProducto || "");
+});
 
 /* ---- Stock modal ---- */
 const stockModal=$("#stockModal");

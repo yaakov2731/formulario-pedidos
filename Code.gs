@@ -85,6 +85,7 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     if (data.action === 'addProducto')   { return json(addProductoCatalogo_(data)); }
+    if (data.action === 'updateProducto'){ return json(updateProductoCatalogo_(data)); }
     if (data.action === 'addResponsable'){ return json(addResponsableConfig_(data)); }
     if (data.action === 'saveStock')     { return json(saveStockConteo_(data)); }
     if (data.action === 'saveReception') { return json(saveRecepcion_(data)); }
@@ -133,6 +134,36 @@ function addProductoCatalogo_(d) {
     d.unidad || 'unidad', '', d.proveedor || '', '', '', 'Disponible', hoy, ''
   ]);
   return { ok: true, codigo: codigo };
+}
+
+/* Corrige el nombre de un producto ya existente en el catálogo. */
+function updateProductoCatalogo_(d) {
+  if (!d.codigo || !d.nombre) return { ok: false, error: 'Faltan código o nombre' };
+  var sh = ss_().getSheetByName(SHEET_CATALOGO);
+  if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CATALOGO };
+  var values = sh.getDataRange().getValues();
+  if (values.length < 2) return { ok: false, error: 'El catálogo está vacío' };
+
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var iCod = idx_(head, ['código', 'codigo']);
+  var iNom = idx_(head, ['producto', 'nombre']);
+  var iLocal = idx_(head, ['local_aplicable', 'local']);
+  if (iCod < 0 || iNom < 0) return { ok: false, error: 'No encuentro columnas de código y producto' };
+
+  var wantedCode = String(d.codigo).trim();
+  var wantedLocal = normalizeLocalName_(d.local || '');
+  var newName = String(d.nombre).trim();
+
+  for (var r = 1; r < values.length; r++) {
+    var rowCode = String(values[r][iCod] || '').trim();
+    var rowLocal = iLocal > -1 ? normalizeLocalName_(values[r][iLocal]) : '';
+    if (rowCode !== wantedCode) continue;
+    if (wantedLocal && rowLocal && rowLocal !== wantedLocal) continue;
+    sh.getRange(r + 1, iNom + 1).setValue(newName);
+    return { ok: true, codigo: wantedCode, nombre: newName };
+  }
+
+  return { ok: false, error: 'No encontré el producto a actualizar' };
 }
 
 /* Agrega un responsable/encargado a CONFIGURACIÓN. */
