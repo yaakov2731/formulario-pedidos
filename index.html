@@ -1132,6 +1132,46 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
     </div>
   </section>
 
+  <section class="tab-panel" data-tab="elaborados" hidden>
+    <div class="shead">
+      <div><p class="skicker">Elaborados</p><h2>Sobrante no vendido por local</h2></div>
+      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      <span class="snum" id="elabMeta">Sin conteos</span>
+    </div>
+    <div class="module-grid" id="elabCards"></div>
+    <div class="stock-panel" style="margin-top:12px">
+      <div class="stock-panel-head">
+        <div>
+          <h3>Registrar elaborados no vendidos</h3>
+          <p>Marcá lo que quedó del turno para dejar lectura operativa por local.</p>
+        </div>
+      </div>
+      <div class="op-form">
+        <div class="grid2">
+          <div class="field"><label>Turno</label><select id="elabTurno"><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Noche">Noche</option><option value="Cierre">Cierre</option></select></div>
+          <div class="field"><label>Encargado</label><input id="elabEncargado" type="text" placeholder="Quién cuenta"></div>
+          <div class="field"><label>Estado</label><select id="elabEstado"><option value="Sobrante">Sobrante</option><option value="En revisión">En revisión</option><option value="Aprovechable">Aprovechable</option></select></div>
+          <div class="field"><label>Destino</label><select id="elabDestino"><option value="Revisar">Revisar</option><option value="Reventa">Reventa</option><option value="Guardar">Guardar</option><option value="Uso interno">Uso interno</option><option value="Descarte">Descarte</option></select></div>
+        </div>
+        <div class="field"><label>Observaciones</label><input id="elabObs" type="text" placeholder="Ej: 3 kg vacío, papas marcadas, quedó de cierre..."></div>
+        <div class="quick-pick">
+          <div class="quick-pick-head">
+            <strong>Agregar al conteo</strong>
+            <span id="elabQuickPickMeta"></span>
+          </div>
+          <input class="stock-search" id="elabSearch" type="text" placeholder="Buscá elaborados o productos para marcar sobrante...">
+          <div class="quick-pick-list" id="elabQuickPickList" style="margin-top:10px"></div>
+        </div>
+        <span class="snum" id="elabCatalogMeta"></span>
+        <div class="op-grid" id="elabGrid"></div>
+        <div class="op-actions">
+          <button class="cfg-btn alt" id="elabClear" type="button">Limpiar carga</button>
+          <button class="cfg-btn" id="elabSave" type="button">Guardar elaborados</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="tab-panel" data-tab="dashboard" hidden>
     <div class="shead">
       <div><p class="skicker">Admin</p><h2>Lectura ejecutiva del local</h2></div>
@@ -1184,6 +1224,15 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
           </div>
         </div>
         <div class="event-list" id="dashProdList"></div>
+      </div>
+      <div class="stock-panel">
+        <div class="stock-panel-head">
+          <div>
+            <h3>Últimos elaborados no vendidos</h3>
+            <p>Sobrantes marcados por el local para reventa, guarda o descarte.</p>
+          </div>
+        </div>
+        <div class="event-list" id="dashElabList"></div>
       </div>
     </div>
   </section>
@@ -1421,6 +1470,7 @@ function unitOptions(sel){
 let RESP = {};
 let RECEPCIONES = { latest:[], byLocal:{} };
 let PRODUCCION = { latest:[], byLocal:{} };
+let ELABORADOS = { latest:[], byLocal:{} };
 let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
 
@@ -1448,6 +1498,7 @@ const TAB_META = {
   stock:{ badge:"Modo stock", title:"Conteo real y lectura operativa", desc:"Actualizá stock real del local para medir cobertura del pedido y faltantes." },
   recepcion:{ badge:"Modo recepción", title:"Ingreso recibido del local", desc:"Registrá mercadería recibida y actualizá stock sin tocar la planilla manualmente." },
   produccion:{ badge:"Modo producción", title:"Consumo de insumos y lote", desc:"Trazá producción semanal con descuentos automáticos sobre el stock real." },
+  elaborados:{ badge:"Modo elaborados", title:"Sobrante no vendido", desc:"Contá elaborados o sobrantes por turno para dejar lectura operativa del cierre." },
   dashboard:{ badge:"Modo admin", title:"Métricas ejecutivas por local", desc:"Leé riesgo, flujo y faltantes desde una vista exclusiva de gerencia." }
 };
 const PEDIDO_STEPS = [
@@ -1532,7 +1583,7 @@ function renderLocalHub(){
   const sub=$("#localHubSub");
   if(title) title.textContent = state.local ? state.local : "Local seleccionado";
   if(sub) sub.textContent = state.local
-    ? `Abrí Pedido, Stock, Recepción, Producción o Enviar para ${state.local}.`
+    ? `Abrí Pedido, Stock, Recepción, Producción, Elaborados o Enviar para ${state.local}.`
     : "Elegí un local para abrir su pantalla operativa.";
   renderLocalActions();
 }
@@ -1619,6 +1670,7 @@ function setTab(tab){
   if(state.tab==="pedido") renderPedidoFlow();
   if(state.tab==="recepcion") renderRecepcionModule();
   if(state.tab==="produccion") renderProduccionModule();
+  if(state.tab==="elaborados") renderElaboradosModule();
   if(state.tab==="dashboard") renderDashboard();
   const focusMap = {
     home: '[data-tab="home"]',
@@ -1627,6 +1679,7 @@ function setTab(tab){
     stock: '[data-tab="stock"]',
     recepcion: '[data-tab="recepcion"]',
     produccion: '[data-tab="produccion"]',
+    elaborados: '[data-tab="elaborados"]',
     dashboard: '[data-tab="dashboard"]'
   };
   scrollIntoAppView(focusMap[state.tab] || ".workspace");
@@ -1649,7 +1702,7 @@ function renderWorkspaceStats(){
     workspaceStatCard("Local", state.local, `${metrics.cat.length} productos activos`),
     workspaceStatCard("Cobertura", `${metrics.coveragePct}%`, state.items.length ? `${metrics.okRows.length + metrics.warnRows.length} de ${state.items.length} líneas cubiertas` : "sin pedido cargado"),
     workspaceStatCard("Abiertos", metrics.snapshotLocal.pedidos||0, metrics.snapshotLocal.faltantes ? `${metrics.snapshotLocal.faltantes} faltantes en planilla` : "sin faltantes abiertos"),
-    workspaceStatCard("Flujo", metrics.recepSummary.movimientos + metrics.prodSummary.movimientos, `${metrics.recepSummary.movimientos} recep · ${metrics.prodSummary.movimientos} prod`)
+    workspaceStatCard("Flujo", metrics.recepSummary.movimientos + metrics.prodSummary.movimientos + metrics.elabSummary.movimientos, `${metrics.recepSummary.movimientos} recep · ${metrics.prodSummary.movimientos} prod · ${metrics.elabSummary.movimientos} elab`)
   ].join("");
 }
 
@@ -1670,6 +1723,7 @@ function renderLiveWarning(){
   const missing=[];
   if(!capabilityEnabled("recepcion")) missing.push("recepción");
   if(!capabilityEnabled("produccion")) missing.push("producción");
+  if(!capabilityEnabled("elaborados")) missing.push("elaborados");
   if(!capabilityEnabled("bootstrap_v2")) missing.push("bootstrap V2");
   if(!missing.length){
     box.classList.remove("show");
@@ -1778,6 +1832,18 @@ function renderProdCardsOnly(local){
     metricCard("Borrador", draftSummary.items, `${draftSummary.totalUsada} usadas · ${trim(draftSummary.totalProducida)} prod`, draftSummary.items?"warn":"")
   ].join("");
 }
+function renderElabCardsOnly(local){
+  const cards=$("#elabCards");
+  if(!cards || !local) return;
+  const localSummary=(ELABORADOS.byLocal&&ELABORADOS.byLocal[local])||{movimientos:0,cantidad:0};
+  const draftSummary=elabDraftStats(local);
+  $("#elabMeta").textContent=`${localSummary.movimientos||0} conteos`;
+  cards.innerHTML = [
+    metricCard("Conteos", localSummary.movimientos||0, "cierres o turnos registrados", ""),
+    metricCard("Sobrante", trim(localSummary.cantidad||0), "cantidad marcada", "warn"),
+    metricCard("Borrador", draftSummary.items, `${draftSummary.total} unidades listas`, draftSummary.items?"warn":"")
+  ].join("");
+}
 
 /* ---- Render locales ---- */
 function renderLocales(){
@@ -1806,6 +1872,7 @@ function renderLocalActions(){
     ['stock','📦','Stock'],
     ['recepcion','📥','Recepción'],
     ['produccion','🏭','Producción'],
+    ['elaborados','🍟','Elaborados'],
     ['enviar','✈️','Enviar']
   ].map(([tab,ico,label])=>`<button type="button" class="local-action" data-go="${tab}"><span>${ico}</span>${label}</button>`).join("");
   boxes.forEach(box=>{
@@ -1845,6 +1912,7 @@ function selectLocal(id, opts={}){
   renderStockIntelligence();
   renderRecepcionModule();
   renderProduccionModule();
+  renderElaboradosModule();
   renderDashboard();
   renderWorkspaceStats();
   renderHome();
@@ -2127,6 +2195,7 @@ function localOperationalMetrics(){
   const cat=state.local ? (CATALOG[state.local]||[]) : [];
   const recepSummary=(RECEPCIONES.byLocal&&RECEPCIONES.byLocal[state.local])||{movimientos:0,cantidad:0};
   const prodSummary=(PRODUCCION.byLocal&&PRODUCCION.byLocal[state.local])||{movimientos:0,cantidad_usada:0,cantidad_producida:0};
+  const elabSummary=(ELABORADOS.byLocal&&ELABORADOS.byLocal[state.local])||{movimientos:0,cantidad:0};
   const snapshotLocal=(SNAPSHOT.byLocal&&SNAPSHOT.byLocal[state.local])||{productos:0,conStock:0,sinStock:0,pedidos:0,faltantes:0};
   const noStock=cat.filter(x=>num(x.stock_actual)!==null && num(x.stock_actual)<=0).length;
   const noCount=cat.filter(x=>num(x.stock_actual)===null).length;
@@ -2150,6 +2219,7 @@ function localOperationalMetrics(){
     cat,
     recepSummary,
     prodSummary,
+    elabSummary,
     snapshotLocal,
     noStock,
     noCount,
@@ -2335,8 +2405,52 @@ function renderProduccionModule(){
     : (selected.length ? `${selected.length} insumo${selected.length===1?"":"s"} seleccionado${selected.length===1?"":"s"}` : "Sumá los insumos usados");
 }
 
+function renderElaboradosModule(){
+  const box=$("#elabGrid"), cards=$("#elabCards");
+  if(!box || !cards) return;
+  if(!state.local){
+    cards.innerHTML="";
+    box.innerHTML=`<div class="stock-empty">Elegí un local para cargar elaborados no vendidos.</div>`;
+    $("#elabMeta").textContent="Sin local";
+    $("#elabCatalogMeta").textContent="";
+    $("#elabQuickPickMeta").textContent="";
+    $("#elabQuickPickList").innerHTML="";
+    return;
+  }
+  const drafts=ensureElabDrafts(state.local);
+  const selected=ensureElabSelection(state.local);
+  renderElabCardsOnly(state.local);
+  $("#elabTurno").value = drafts.turno || "Mañana";
+  $("#elabEncargado").value = drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "";
+  $("#elabEstado").value = drafts.estado || "Sobrante";
+  $("#elabDestino").value = drafts.destino || "Revisar";
+  $("#elabObs").value = drafts.observaciones || "";
+  $("#elabSearch").value = elabUi.queryByLocal[state.local] || "";
+  renderElabQuickPick(state.local);
+  $("#elabCatalogMeta").textContent = selected.length
+    ? `${selected.length} producto${selected.length===1?"":"s"} agregado${selected.length===1?"":"s"}`
+    : "Agregá lo que quedó del turno para marcar el sobrante.";
+  box.innerHTML = selected.length ? selected.map(key=>{
+    const item=prodCatalogRecord(state.local, key);
+    if(!item) return "";
+    return `
+    <div class="op-row" data-key="${esc(key)}" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
+      <div class="op-row-main">
+        <div class="op-row-name">${esc(item.nombre)}</div>
+        <div class="op-row-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""} · ${esc(item.unidad||"unidad")}</div>
+      </div>
+      <input type="number" step="0.1" value="${drafts.items[key]||""}" data-field="elaborados" placeholder="0">
+      <button type="button" class="icon-btn" data-elab-remove="${esc(key)}" aria-label="Quitar elaborado">${icoTrash}</button>
+    </div>`;
+  }).join("") : `<div class="stock-empty">Todavía no agregaste productos. Buscalos arriba y marcá lo que quedó del turno.</div>`;
+  const filled=elabDraftStats(state.local).items;
+  $("#elabMeta").textContent = filled
+    ? `${filled} producto${filled===1?"":"s"} con cantidad cargada`
+    : (selected.length ? `${selected.length} producto${selected.length===1?"":"s"} seleccionado${selected.length===1?"":"s"}` : "Sumá sobrantes del turno");
+}
+
 function renderDashboard(){
-  const cards=$("#dashCards"), recep=$("#dashRecepList"), prod=$("#dashProdList");
+  const cards=$("#dashCards"), recep=$("#dashRecepList"), prod=$("#dashProdList"), elab=$("#dashElabList");
   const riskList=$("#dashRiskList"), pedidoList=$("#dashPedidoList"), openList=$("#dashOpenList");
   if(!state.local){
     $("#dashMeta").textContent="Sin local";
@@ -2346,6 +2460,7 @@ function renderDashboard(){
     openList.innerHTML=`<div class="stock-empty">Elegí un local para ver pedidos abiertos.</div>`;
     recep.innerHTML=`<div class="stock-empty">Elegí un local para ver movimientos.</div>`;
     prod.innerHTML=`<div class="stock-empty">Elegí un local para ver movimientos.</div>`;
+    elab.innerHTML=`<div class="stock-empty">Elegí un local para ver movimientos.</div>`;
     return;
   }
   const metrics=localOperationalMetrics();
@@ -2357,6 +2472,7 @@ function renderDashboard(){
     metricCard("Cobertura", `${metrics.coveragePct}%`, state.items.length ? `${metrics.okRows.length + metrics.warnRows.length} líneas cubiertas` : "sin pedido cargado", metrics.riskRows.length?"warn":"good"),
     metricCard("Recepción", metrics.recepSummary.movimientos||0, `+${trim(metrics.recepSummary.cantidad||0)} unidades`, "good"),
     metricCard("Producción", metrics.prodSummary.movimientos||0, `${trim(metrics.prodSummary.cantidad_producida||0)} salida`, "warn"),
+    metricCard("Elaborados", metrics.elabSummary.movimientos||0, `${trim(metrics.elabSummary.cantidad||0)} sobrante`, "warn"),
     metricCard("Pedido", trim(metrics.pedidoUnits), `${state.items.length} líneas activas`, ""),
     metricCard("Saldo visible", trim(metrics.visibleBalance), metrics.softRows.length ? `${metrics.softRows.length} sin referencia exacta` : "stock menos pedido visible", metrics.visibleBalance < 0 ? "bad" : ""),
     metricCard("Acción", metrics.pressure, metrics.riskRows.length ? `${metrics.riskRows.length} faltantes reales` : (metrics.softRows.length ? `${metrics.softRows.length} por contar` : "sin alertas críticas"), metrics.pressure==="Comprar"?"bad":(metrics.pressure==="Contar"?"warn":"good"))
@@ -2401,6 +2517,12 @@ function renderDashboard(){
       <strong>${esc(row.producto_elaborado || row.insumo)}</strong>
       <span>${esc(row.fecha_hora)} · usa ${esc(trim(num(row.cantidad_usada)||0))} ${esc(row.unidad||"")} · lote ${esc(row.lote||"—")}</span>
     </div>`).join("") : `<div class="stock-empty">Todavía no hay partes productivos cargados para este local.</div>`;
+  const elabRows=(ELABORADOS.latest||[]).filter(x=>x.local===state.local).slice(0,5);
+  elab.innerHTML = elabRows.length ? elabRows.map(row=>`
+    <div class="event-item">
+      <strong>${esc(row.producto_elaborado)}</strong>
+      <span>${esc(row.fecha_hora)} · ${esc(trim(num(row.cantidad)||0))} ${esc(row.unidad||"")} · ${esc(row.destino||"Revisar")}</span>
+    </div>`).join("") : `<div class="stock-empty">Todavía no hay elaborados no vendidos cargados para este local.</div>`;
 }
 
 async function saveReception(){
@@ -2679,6 +2801,58 @@ async function saveProduction(){
   }
 }
 
+async function saveElaborados(){
+  if(!state.local){ toast("Elegí un local primero","err"); return; }
+  if(!capabilityEnabled("elaborados")){
+    toast("Elaborados bloqueado: el Apps Script publicado todavía no tiene este módulo","err");
+    return;
+  }
+  const drafts=ensureElabDrafts(state.local);
+  const items=ensureElabSelection(state.local).map(key=>{
+    const item=prodCatalogRecord(state.local, key);
+    const rec=item || {};
+    return {
+      codigo:rec.codigo||"",
+      producto_elaborado:rec.nombre||"",
+      categoria:rec.categoria||"",
+      unidad:rec.unidad||"unidad",
+      cantidad:drafts.items[key]||"",
+      estado:drafts.estado || $("#elabEstado").value,
+      destino:drafts.destino || $("#elabDestino").value
+    };
+  }).filter(it=>num(it.cantidad)>0);
+  if(!items.length){ toast("Cargá al menos un sobrante con cantidad","err"); return; }
+  const payload={
+    action:"saveElaborados",
+    id_conteo:"ELA"+Date.now().toString().slice(-6),
+    fecha_hora:new Date().toLocaleString("es-AR"),
+    local:state.local,
+    rebuild_views:false,
+    encargado:$("#elabEncargado").value.trim() || $("#encargado").value.trim(),
+    turno:$("#elabTurno").value,
+    estado:$("#elabEstado").value,
+    destino:$("#elabDestino").value,
+    observaciones:$("#elabObs").value.trim(),
+    items
+  };
+  const btn=$("#elabSave"), orig=btn.textContent;
+  btn.disabled=true; btn.textContent="Guardando...";
+  try{
+    await apiPost(payload);
+    applyElabOptimistic(state.local, payload);
+    clearElabDrafts(state.local);
+    toast("Elaborados registrados","ok");
+    renderElaboradosModule();
+    renderDashboard();
+    renderWorkspaceStats();
+    queueBootstrapRefresh(900);
+  }catch{
+    toast("Error al guardar elaborados","err");
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
 /* ---- Live data (best-effort; cae al snapshot si el script no responde) ---- */
 async function warmData(){
   try{
@@ -2690,11 +2864,13 @@ async function warmData(){
     if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
     if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
     if(d&&d.produccion){ PRODUCCION=d.produccion; }
+    if(d&&d.elaborados){ ELABORADOS=d.elaborados; }
     if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
     setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
     renderStockIntelligence();
     renderRecepcionModule();
     renderProduccionModule();
+    renderElaboradosModule();
     renderDashboard();
     renderWorkspaceStats();
   }catch{
@@ -2798,11 +2974,13 @@ async function refreshData(){
     if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
     if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
     if(d&&d.produccion){ PRODUCCION=d.produccion; }
+    if(d&&d.elaborados){ ELABORADOS=d.elaborados; }
     if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
     setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
     renderStockIntelligence();
     renderRecepcionModule();
     renderProduccionModule();
+    renderElaboradosModule();
     renderDashboard();
     renderWorkspaceStats();
     return true;
@@ -2891,6 +3069,7 @@ const stockModal=$("#stockModal");
 const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
 const recepUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, photoByLocal:{}, ocrBusy:false };
 const prodUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
+const elabUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
 function openStock(){
   const sel=$("#stockLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
@@ -2910,6 +3089,7 @@ function stockLocalVal(){ return $("#stockLocal").value; }
 function stockKey(code,name){ return `${code||""}||${String(name||"").toLowerCase()}`; }
 function ensureStockSelection(local){ return stockUi.selectedByLocal[local] || (stockUi.selectedByLocal[local]=[]); }
 function ensureProdSelection(local){ return prodUi.selectedByLocal[local] || (prodUi.selectedByLocal[local]=[]); }
+function ensureElabSelection(local){ return elabUi.selectedByLocal[local] || (elabUi.selectedByLocal[local]=[]); }
 function prodCatalogRecord(local, key){
   return (CATALOG[local]||[]).find(item=>stockKey(item.codigo,item.nombre)===key) || null;
 }
@@ -2921,6 +3101,16 @@ function addProdSelection(local, key){
 function removeProdSelection(local, key){
   prodUi.selectedByLocal[local]=ensureProdSelection(local).filter(itemKey=>itemKey!==key);
   const drafts=ensureProdDrafts(local);
+  drafts.items[key]="";
+}
+function addElabSelection(local, key){
+  const selected=ensureElabSelection(local);
+  if(selected.includes(key)) return;
+  selected.push(key);
+}
+function removeElabSelection(local, key){
+  elabUi.selectedByLocal[local]=ensureElabSelection(local).filter(itemKey=>itemKey!==key);
+  const drafts=ensureElabDrafts(local);
   drafts.items[key]="";
 }
 function renderProdQuickPick(local){
@@ -2955,6 +3145,41 @@ function renderProdQuickPick(local){
           <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${used?` · usado ${esc(trim(used))} ${esc(item.unidad||"unidad")}`:""}</div>
         </div>
         <button type="button" class="quick-pick-btn" data-prod-add="${esc(key)}">${added?"Agregado":"Agregar"}</button>
+      </div>`;
+  }).join("");
+}
+function renderElabQuickPick(local){
+  const box=$("#elabQuickPickList");
+  const meta=$("#elabQuickPickMeta");
+  const cat=CATALOG[local]||[];
+  const selected=ensureElabSelection(local);
+  const drafts=ensureElabDrafts(local);
+  const q=(elabUi.queryByLocal[local]||"").trim().toLowerCase();
+  const filtered=(q
+    ? cat.filter(item=>
+      item.nombre.toLowerCase().includes(q) ||
+      String(item.codigo||"").toLowerCase().includes(q) ||
+      String(item.categoria||"").toLowerCase().includes(q) ||
+      String(item.proveedor||"").toLowerCase().includes(q)
+    )
+    : cat
+  ).slice(0,12);
+  meta.textContent = q ? `${filtered.length} resultados rápidos` : `${Math.min(cat.length,12)} visibles de ${cat.length}`;
+  if(!filtered.length){
+    box.innerHTML=`<div class="quick-pick-empty">No hay coincidencias para agregar.</div>`;
+    return;
+  }
+  box.innerHTML = filtered.map(item=>{
+    const key=stockKey(item.codigo,item.nombre);
+    const added=selected.includes(key);
+    const qty=num(drafts.items[key]);
+    return `
+      <div class="quick-pick-item">
+        <div class="quick-pick-main">
+          <div class="quick-pick-name">${esc(item.nombre)}</div>
+          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${qty?` · marcado ${esc(trim(qty))} ${esc(item.unidad||"unidad")}`:""}</div>
+        </div>
+        <button type="button" class="quick-pick-btn" data-elab-add="${esc(key)}">${added?"Agregado":"Agregar"}</button>
       </div>`;
   }).join("");
 }
@@ -3237,6 +3462,15 @@ function ensureProdDrafts(local){
   prodUi.drafts[local]=drafts;
   return drafts;
 }
+function ensureElabDrafts(local){
+  if(elabUi.drafts[local]) return elabUi.drafts[local];
+  const drafts={ turno:"Mañana", encargado:(CONFIG[local]&&CONFIG[local].enc)||"", estado:"Sobrante", destino:"Revisar", observaciones:"", items:{} };
+  (CATALOG[local]||[]).forEach(item=>{
+    drafts.items[stockKey(item.codigo,item.nombre)] = "";
+  });
+  elabUi.drafts[local]=drafts;
+  return drafts;
+}
 function clearRecepDrafts(local){
   delete recepUi.drafts[local];
   recepUi.queryByLocal[local]="";
@@ -3246,6 +3480,11 @@ function clearProdDrafts(local){
   delete prodUi.drafts[local];
   prodUi.queryByLocal[local]="";
   delete prodUi.selectedByLocal[local];
+}
+function clearElabDrafts(local){
+  delete elabUi.drafts[local];
+  elabUi.queryByLocal[local]="";
+  delete elabUi.selectedByLocal[local];
 }
 function applyReceptionOptimistic(local, items){
   if(!items.length) return;
@@ -3295,6 +3534,28 @@ function applyProductionOptimistic(local, payload){
   });
   PRODUCCION.latest = PRODUCCION.latest.slice(0,60);
 }
+function applyElabOptimistic(local, payload){
+  const items=payload.items||[];
+  if(!items.length) return;
+  if(!ELABORADOS.byLocal) ELABORADOS.byLocal={};
+  if(!ELABORADOS.latest) ELABORADOS.latest=[];
+  const summary=ELABORADOS.byLocal[local] || {movimientos:0,cantidad:0};
+  summary.movimientos += 1;
+  summary.cantidad += items.reduce((sum,it)=>sum+(num(it.cantidad)||0),0);
+  ELABORADOS.byLocal[local]=summary;
+  const now=new Date().toLocaleString("es-AR");
+  items.slice(0,3).reverse().forEach(it=>{
+    ELABORADOS.latest.unshift({
+      local,
+      producto_elaborado:it.producto_elaborado||"",
+      unidad:it.unidad||"unidad",
+      cantidad:it.cantidad,
+      destino:it.destino||payload.destino||"",
+      fecha_hora:now
+    });
+  });
+  ELABORADOS.latest = ELABORADOS.latest.slice(0,60);
+}
 function recepDraftStats(local){
   const drafts=ensureRecepDrafts(local);
   const filled = Object.values(drafts.items).filter(v=>num(v)>0);
@@ -3310,6 +3571,14 @@ function prodDraftStats(local){
     items: filled.length,
     totalUsada: trim(filled.reduce((sum,v)=>sum+(num(v)||0),0)),
     totalProducida: num(drafts.cantidad_producida)||0
+  };
+}
+function elabDraftStats(local){
+  const drafts=ensureElabDrafts(local);
+  const filled = Object.values(drafts.items).filter(v=>num(v)>0);
+  return {
+    items: filled.length,
+    total: trim(filled.reduce((sum,v)=>sum+(num(v)||0),0))
   };
 }
 function clearReceptionDraftForm(){
@@ -3328,6 +3597,12 @@ function clearProductionDraftForm(){
   if(!state.local) return;
   clearProdDrafts(state.local);
   renderProduccionModule();
+  renderWorkspaceStats();
+}
+function clearElabDraftForm(){
+  if(!state.local) return;
+  clearElabDrafts(state.local);
+  renderElaboradosModule();
   renderWorkspaceStats();
 }
 function syncCatalogStockFromDrafts(local){
@@ -3550,8 +3825,10 @@ $("#adminBtn").addEventListener("click",()=>{
 });
 $("#recepSave").addEventListener("click",saveReception);
 $("#prodSave").addEventListener("click",saveProduction);
+$("#elabSave").addEventListener("click",saveElaborados);
 $("#recepClear").addEventListener("click",clearReceptionDraftForm);
 $("#prodClear").addEventListener("click",clearProductionDraftForm);
+$("#elabClear").addEventListener("click",clearElabDraftForm);
 $("#recepManualBtn").addEventListener("click",()=>{
   $("#recepSearch").focus();
   toast("Recepción manual lista para cargar","ok");
@@ -3589,17 +3866,35 @@ $("#prodCantidad").addEventListener("input",()=>{ if(state.local) ensureProdDraf
 $("#prodLote").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).lote=$("#prodLote").value; });
 $("#prodEncargado").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).encargado=$("#prodEncargado").value; });
 $("#prodObs").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).observaciones=$("#prodObs").value; });
+$("#elabTurno").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).turno=$("#elabTurno").value; });
+$("#elabEncargado").addEventListener("input",()=>{ if(state.local) ensureElabDrafts(state.local).encargado=$("#elabEncargado").value; });
+$("#elabEstado").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).estado=$("#elabEstado").value; });
+$("#elabDestino").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).destino=$("#elabDestino").value; });
+$("#elabObs").addEventListener("input",()=>{ if(state.local) ensureElabDrafts(state.local).observaciones=$("#elabObs").value; });
 $("#prodInsumoSearch").addEventListener("input",()=>{
   if(!state.local) return;
   prodUi.queryByLocal[state.local]=$("#prodInsumoSearch").value;
   clearTimeout(prodUi.filterTimer);
   prodUi.filterTimer=setTimeout(()=>renderProduccionModule(),120);
 });
+$("#elabSearch").addEventListener("input",()=>{
+  if(!state.local) return;
+  elabUi.queryByLocal[state.local]=$("#elabSearch").value;
+  clearTimeout(elabUi.filterTimer);
+  elabUi.filterTimer=setTimeout(()=>renderElaboradosModule(),120);
+});
 $("#prodQuickPickList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-prod-add]");
   if(!btn || !state.local) return;
   addProdSelection(state.local, btn.dataset.prodAdd);
   renderProduccionModule();
+  renderWorkspaceStats();
+});
+$("#elabQuickPickList").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-elab-add]");
+  if(!btn || !state.local) return;
+  addElabSelection(state.local, btn.dataset.elabAdd);
+  renderElaboradosModule();
   renderWorkspaceStats();
 });
 $("#prodGrid").addEventListener("input",e=>{
@@ -3618,6 +3913,22 @@ $("#prodGrid").addEventListener("click",e=>{
   renderProduccionModule();
   renderWorkspaceStats();
 });
+$("#elabGrid").addEventListener("input",e=>{
+  if(e.target.dataset.field!=="elaborados") return;
+  const row=e.target.closest(".op-row");
+  if(!row || !state.local) return;
+  const key=row.dataset.key || stockKey(row.dataset.code||"", row.dataset.name||"");
+  ensureElabDrafts(state.local).items[key] = e.target.value;
+  renderElabCardsOnly(state.local);
+  renderWorkspaceStats();
+});
+$("#elabGrid").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-elab-remove]");
+  if(!btn || !state.local) return;
+  removeElabSelection(state.local, btn.dataset.elabRemove);
+  renderElaboradosModule();
+  renderWorkspaceStats();
+});
 window.addEventListener("resize", syncCompactMobileShell);
 window.addEventListener("orientationchange", syncCompactMobileShell);
 if(window.visualViewport){
@@ -3634,6 +3945,7 @@ renderHome();
 renderStockIntelligence();
 renderRecepcionModule();
 renderProduccionModule();
+renderElaboradosModule();
 renderDashboard();
 renderWorkspaceStats();
 setTab("home");

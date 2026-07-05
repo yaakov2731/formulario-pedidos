@@ -27,6 +27,7 @@ var SHEET_RESUMEN  = 'RESUMEN POR PROVEEDOR';
 var SHEET_STOCK    = 'CONTROL STOCK';
 var SHEET_RECEPCION = 'CONTROL RECEPCION';
 var SHEET_PRODUCCION = 'CONTROL PRODUCCION';
+var SHEET_ELABORADOS = 'CONTEO ELABORADOS';
 var SHEET_STOCK_DASH = 'DASHBOARD STOCK';
 var SHEET_HOME     = 'INICIO OPERATIVO';
 var SHEET_VIEW_PED = 'VISTA PEDIDOS';
@@ -34,6 +35,7 @@ var SHEET_VIEW_STK = 'VISTA STOCK';
 var SHEET_VIEW_BUY = 'VISTA COMPRAS';
 var SHEET_VIEW_REC = 'VISTA RECEPCION';
 var SHEET_VIEW_PROD = 'VISTA PRODUCCION';
+var SHEET_VIEW_ELAB = 'VISTA ELABORADOS';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
@@ -47,6 +49,8 @@ var RECEPCION_HEADERS = ['ID_Recepcion','Fecha_Hora','Local','Encargado','Provee
   'Unidad','Cantidad_Recibida','Estado','Observaciones'];
 var PRODUCCION_HEADERS = ['ID_Produccion','Fecha_Hora','Local','Encargado','Producto_Elaborado','Lote','Código_Insumo',
   'Insumo','Categoría','Unidad','Cantidad_Usada','Cantidad_Producida','Estado','Observaciones'];
+var ELABORADOS_HEADERS = ['ID_Conteo','Fecha_Hora','Local','Encargado','Turno','Código','Producto_Elaborado','Categoría',
+  'Unidad','Cantidad','Estado','Destino','Observaciones'];
 
 /* ============================== WEB API ============================== */
 
@@ -63,6 +67,7 @@ function doGet(e) {
         catalog: readCatalog_(),
         recepciones: readRecepcionResumen_(),
         produccion: readProduccionResumen_(),
+        elaborados: readElaboradosResumen_(),
         snapshot: buildFrontendOperationalSnapshot_()
       });
     }
@@ -90,6 +95,7 @@ function doPost(e) {
     if (data.action === 'saveStock')     { return json(saveStockConteo_(data)); }
     if (data.action === 'saveReception') { return json(saveRecepcion_(data)); }
     if (data.action === 'saveProduction'){ return json(saveProduccion_(data)); }
+    if (data.action === 'saveElaborados'){ return json(saveElaboradosConteo_(data)); }
     return json(savePedido_(data));
   } catch (err) {
     return json({ ok: false, error: String(err) });
@@ -204,6 +210,7 @@ function appCapabilities_() {
     stock: true,
     recepcion: true,
     produccion: true,
+    elaborados: true,
     dashboard_v2: true,
     local_alias_normalization: true,
     movement_views: true,
@@ -651,6 +658,43 @@ function saveProduccion_(d) {
   return { ok: true, id_produccion: produccionId, rows: rows.length };
 }
 
+function saveElaboradosConteo_(d) {
+  if (!d.local) return { ok: false, error: 'Falta local' };
+  if (!d.items || !d.items.length) return { ok: false, error: 'Faltan elaborados para guardar' };
+  d.local = normalizeLocalName_(d.local);
+
+  var conteoId = d.id_conteo || ('ELA' + new Date().getTime().toString().slice(-6));
+  var fechaHora = d.fecha_hora || new Date().toLocaleString('es-AR');
+  var rows = [];
+
+  d.items.forEach(function (it) {
+    var cantidad = numberOrNull_(it.cantidad);
+    if (cantidad === null || cantidad <= 0) return;
+    rows.push([
+      conteoId,
+      fechaHora,
+      d.local,
+      d.encargado || '',
+      d.turno || '',
+      it.codigo || '',
+      it.producto_elaborado || it.producto || '',
+      it.categoria || '',
+      it.unidad || 'unidad',
+      cantidad,
+      it.estado || d.estado || 'Sobrante',
+      it.destino || d.destino || 'Revisar',
+      d.observaciones || it.observaciones || ''
+    ]);
+  });
+
+  if (!rows.length) return { ok: false, error: 'No hay cantidades de elaborados para guardar' };
+
+  var sh = ss_().getSheetByName(SHEET_ELABORADOS) || createElaboradosSheet_();
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, ELABORADOS_HEADERS.length).setValues(rows);
+  if (d.rebuild_views !== false) refreshMovementViews_();
+  return { ok: true, id_conteo: conteoId, rows: rows.length };
+}
+
 function createRecepcionSheet_() {
   var sh = ss_().getSheetByName(SHEET_RECEPCION) || ss_().insertSheet(SHEET_RECEPCION);
   formatRecepcionSheet_(sh);
@@ -660,6 +704,12 @@ function createRecepcionSheet_() {
 function createProduccionSheet_() {
   var sh = ss_().getSheetByName(SHEET_PRODUCCION) || ss_().insertSheet(SHEET_PRODUCCION);
   formatProduccionSheet_(sh);
+  return sh;
+}
+
+function createElaboradosSheet_() {
+  var sh = ss_().getSheetByName(SHEET_ELABORADOS) || ss_().insertSheet(SHEET_ELABORADOS);
+  formatElaboradosSheet_(sh);
   return sh;
 }
 
@@ -680,6 +730,16 @@ function formatProduccionSheet_(sh) {
   sh.setFrozenRows(1);
   sh.setRowHeight(1, 30);
   var widths = [105, 145, 120, 150, 180, 100, 90, 200, 120, 90, 110, 120, 110, 240];
+  for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
+}
+
+function formatElaboradosSheet_(sh) {
+  sh.clear();
+  sh.getRange(1, 1, 1, ELABORADOS_HEADERS.length).setValues([ELABORADOS_HEADERS])
+    .setFontWeight('bold').setFontColor('#ffffff').setBackground('#7A4A22').setVerticalAlignment('middle');
+  sh.setFrozenRows(1);
+  sh.setRowHeight(1, 30);
+  var widths = [105, 145, 120, 150, 100, 90, 220, 120, 90, 95, 110, 120, 240];
   for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
 }
 
@@ -861,12 +921,58 @@ function readProduccionResumen_() {
   return { latest: latest, byLocal: byLocal, total_movimientos: allEvents.length };
 }
 
+function readElaboradosResumen_() {
+  var sh = ss_().getSheetByName(SHEET_ELABORADOS);
+  if (!sh || sh.getLastRow() < 2) return { latest: [], byLocal: {}, total_movimientos: 0 };
+  var values = sh.getDataRange().getValues();
+  var events = {};
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    var id = String(row[0] || '').trim();
+    if (!id) continue;
+    if (!events[id]) {
+      events[id] = {
+        id: id,
+        fecha_hora: row[1],
+        local: normalizeLocalName_(row[2]),
+        encargado: row[3],
+        turno: row[4],
+        codigo: row[5],
+        producto_elaborado: row[6],
+        categoria: row[7],
+        unidad: row[8],
+        cantidad: 0,
+        estado: row[10],
+        destino: row[11],
+        observaciones: row[12],
+        items: 0
+      };
+    }
+    events[id].cantidad += numberOrZero_(row[9], 0);
+    events[id].items += 1;
+    if (events[id].items > 1) {
+      events[id].producto_elaborado = events[id].items + ' elaborados';
+    }
+  }
+  var allEvents = Object.keys(events).map(function (id) { return events[id]; });
+  var latest = allEvents
+    .sort(function (a, b) { return comparableDateTime_(b.fecha_hora) - comparableDateTime_(a.fecha_hora); })
+    .slice(0, 60);
+  var byLocal = {};
+  allEvents.forEach(function (event) {
+    if (!byLocal[event.local]) byLocal[event.local] = { movimientos: 0, cantidad: 0 };
+    byLocal[event.local].movimientos += 1;
+    byLocal[event.local].cantidad += numberOrZero_(event.cantidad, 0);
+  });
+  return { latest: latest, byLocal: byLocal, total_movimientos: allEvents.length };
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Docks V2')
     .addItem('Aplicar interfaz corporativa', 'setupVersion2UI')
     .addItem('Reconstruir vistas operativas', 'refreshOperationalViews_')
-    .addItem('Reconstruir stock, recepción y producción', 'refreshMovementViews_')
+    .addItem('Reconstruir stock, recepción, producción y elaborados', 'refreshMovementViews_')
     .addItem('Setup plantilla pro', 'setupPlantillaPro')
     .addSeparator()
     .addItem('Resetear datos operativos', 'resetOperationalData')
@@ -901,7 +1007,7 @@ function resetOperationalData() {
   var ui = SpreadsheetApp.getUi();
   var answer = ui.alert(
     'Resetear datos operativos',
-    'Se van a borrar pedidos, detalle, stock, recepción, producción y log de Telegram. ' +
+    'Se van a borrar pedidos, detalle, stock, recepción, producción, elaborados y log de Telegram. ' +
     'No se toca catálogo, configuración ni fórmulas. ¿Continuar?',
     ui.ButtonSet.YES_NO
   );
@@ -916,6 +1022,7 @@ function resetOperationalData() {
     SHEET_STOCK,
     SHEET_RECEPCION,
     SHEET_PRODUCCION,
+    SHEET_ELABORADOS,
     SHEET_TELEGRAM_LOG
   ];
   sheetNames.forEach(function (sheetName) {
@@ -941,12 +1048,14 @@ function ensureVersion2Sheets_() {
   createStockSheet_();
   createRecepcionSheet_();
   createProduccionSheet_();
+  createElaboradosSheet_();
   ensureSheet_(SHEET_HOME);
   ensureSheet_(SHEET_STOCK_DASH);
   ensureSheet_(SHEET_VIEW_PED);
   ensureSheet_(SHEET_VIEW_STK);
   ensureSheet_(SHEET_VIEW_REC);
   ensureSheet_(SHEET_VIEW_PROD);
+  ensureSheet_(SHEET_VIEW_ELAB);
   ensureSheet_(SHEET_VIEW_BUY);
   ensureSheet_(SHEET_RESUMEN);
 }
@@ -1020,6 +1129,7 @@ function refreshOperationalViews_() {
   buildVistaCompras_();
   buildVistaRecepcion_();
   buildVistaProduccion_();
+  buildVistaElaborados_();
   buildLocalPedidoViews_();
   buildLocalStockViews_();
   applyCorporateTabTheme_();
@@ -1031,6 +1141,7 @@ function refreshMovementViews_() {
   buildVistaStock_();
   buildVistaRecepcion_();
   buildVistaProduccion_();
+  buildVistaElaborados_();
   buildLocalStockViews_();
   applyCorporateTabTheme_();
 }
@@ -1064,7 +1175,8 @@ function buildInicioOperativo_() {
     ['Conteos cargados', snap.totalConConteo, 'productos con stock actualizado'],
     ['Faltantes operativos', snap.totalFaltantes, 'pedido supera stock disponible'],
     ['Recepciones', snap.totalRecepcionMovimientos, 'movimientos registrados'],
-    ['Producción', snap.totalProduccionMovimientos, 'partes productivos']
+    ['Producción', snap.totalProduccionMovimientos, 'partes productivos'],
+    ['Elaborados', snap.totalElaboradosMovimientos, 'sobrantes no vendidos']
   ];
   paintCards_(sh, 5, 1, 3, cards);
 
@@ -1082,7 +1194,7 @@ function buildInicioOperativo_() {
   if (conteos.length) sh.getRange(16, 5, conteos.length, 4).setValues(conteos);
   if (movs.length) sh.getRange(16, 9, movs.length, 4).setValues(movs);
 
-  sh.getRange('A26:L26').merge().setValue('Accesos recomendados: VISTA PEDIDOS · VISTA STOCK · VISTA RECEPCION · VISTA PRODUCCION · VISTA COMPRAS · DASHBOARD STOCK')
+  sh.getRange('A26:L26').merge().setValue('Accesos recomendados: VISTA PEDIDOS · VISTA STOCK · VISTA RECEPCION · VISTA PRODUCCION · VISTA ELABORADOS · VISTA COMPRAS · DASHBOARD STOCK')
     .setBackground('#EAF2F6').setFontColor('#41576B').setFontWeight('bold');
   sh.setColumnWidths(1, 12, 145);
   sh.setFrozenRows(3);
@@ -1180,6 +1292,22 @@ function buildVistaProduccion_() {
   sh.getRange(4, 1, 1, PRODUCCION_HEADERS.length).setValues([PRODUCCION_HEADERS]).setBackground('#1F6E5A').setFontColor('#ffffff').setFontWeight('bold');
   if (rows.length) sh.getRange(5, 1, rows.length, PRODUCCION_HEADERS.length).setValues(rows);
   applyBanding_(sh, 4, Math.max(rows.length + 1, 2), PRODUCCION_HEADERS.length);
+  sh.setFrozenRows(4);
+}
+
+function buildVistaElaborados_() {
+  var sh = ensureSheet_(SHEET_VIEW_ELAB);
+  clearPresentationSheet_(sh, ELABORADOS_HEADERS.length);
+
+  sh.getRange(1, 1, 1, ELABORADOS_HEADERS.length).merge().setValue('Vista Elaborados · Sobrantes No Vendidos')
+    .setBackground('#7A4A22').setFontColor('#ffffff').setFontWeight('bold').setFontSize(16);
+  sh.getRange(2, 1, 1, ELABORADOS_HEADERS.length).merge().setValue('Conteos de elaborados o sobrantes por local, turno y destino operativo.')
+    .setBackground('#EAF2F6').setFontColor('#41576B').setFontSize(10);
+
+  var rows = elaboradosRows_();
+  sh.getRange(4, 1, 1, ELABORADOS_HEADERS.length).setValues([ELABORADOS_HEADERS]).setBackground('#7A4A22').setFontColor('#ffffff').setFontWeight('bold');
+  if (rows.length) sh.getRange(5, 1, rows.length, ELABORADOS_HEADERS.length).setValues(rows);
+  applyBanding_(sh, 4, Math.max(rows.length + 1, 2), ELABORADOS_HEADERS.length);
   sh.setFrozenRows(4);
 }
 
@@ -1299,6 +1427,7 @@ function buildStockDashboard_() {
   var localSummary = snap.localSummary;
   var recep = readRecepcionResumen_();
   var prod = readProduccionResumen_();
+  var elab = readElaboradosResumen_();
 
   dash.clear();
   dash.setHiddenGridlines(true);
@@ -1315,7 +1444,8 @@ function buildStockDashboard_() {
     ['Faltantes operativos', snap.totalFaltantes, 'Pedido supera stock'],
     ['Pedido pendiente', snap.totalPedidoCantidad, 'Unidades solicitadas'],
     ['Recepciones', snap.totalRecepcionCantidad, 'Ingreso real acumulado'],
-    ['Producción', snap.totalProduccionCantidad, 'Salida productiva registrada']
+    ['Producción', snap.totalProduccionCantidad, 'Salida productiva registrada'],
+    ['Elaborados', snap.totalElaboradosCantidad, 'Sobrante no vendido registrado']
   ];
   for (var i = 0; i < cards.length; i++) {
     var col = 1 + ((i % 4) * 3);
@@ -1330,12 +1460,13 @@ function buildStockDashboard_() {
     var s = localSummary[local];
     var rl = recep.byLocal[local] || { movimientos: 0, cantidad: 0 };
     var pl = prod.byLocal[local] || { movimientos: 0, cantidad_producida: 0 };
-    return [local, s.productos, s.conStock, s.sinStock, s.pedidos, s.faltantes, rl.movimientos, rl.cantidad, pl.movimientos, pl.cantidad_producida];
+    var el = elab.byLocal[local] || { movimientos: 0, cantidad: 0 };
+    return [local, s.productos, s.conStock, s.sinStock, s.pedidos, s.faltantes, rl.movimientos, rl.cantidad, pl.movimientos, pl.cantidad_producida, el.movimientos, el.cantidad];
   });
-  dash.getRange('A10:J10').setValues([['Local', 'Productos', 'Con stock', 'Sin stock', 'Pedidos abiertos', 'Faltantes', 'Recepciones', 'Cant. recibida', 'Producción', 'Cant. producida']])
+  dash.getRange('A10:L10').setValues([['Local', 'Productos', 'Con stock', 'Sin stock', 'Pedidos abiertos', 'Faltantes', 'Recepciones', 'Cant. recibida', 'Producción', 'Cant. producida', 'Elaborados', 'Cant. sobrante']])
     .setBackground('#103f59').setFontColor('#ffffff').setFontWeight('bold');
   if (localRows.length) {
-    dash.getRange(11, 1, localRows.length, 10).setValues(localRows);
+    dash.getRange(11, 1, localRows.length, 12).setValues(localRows);
   }
 
   dash.getRange('A' + (12 + localRows.length) + ':L' + (12 + localRows.length)).setValues([[
@@ -2149,6 +2280,7 @@ function computeOperationalSnapshot_() {
   var demandMap = pendingDemandMap_();
   var recepcion = readRecepcionResumen_();
   var produccion = readProduccionResumen_();
+  var elaborados = readElaboradosResumen_();
   var records = [];
   var localSummary = {};
   var totalProductos = 0;
@@ -2220,6 +2352,10 @@ function computeOperationalSnapshot_() {
     totalProduccionMovimientos: produccion.total_movimientos || 0,
     totalProduccionCantidad: Object.keys(produccion.byLocal).reduce(function (sum, local) {
       return sum + numberOrZero_(produccion.byLocal[local].cantidad_producida, 0);
+    }, 0),
+    totalElaboradosMovimientos: elaborados.total_movimientos || 0,
+    totalElaboradosCantidad: Object.keys(elaborados.byLocal).reduce(function (sum, local) {
+      return sum + numberOrZero_(elaborados.byLocal[local].cantidad, 0);
     }, 0)
   };
 }
@@ -2237,7 +2373,8 @@ function buildFrontendOperationalSnapshot_() {
       cantidad_pedida: snap.totalPedidoCantidad,
       locales_con_riesgo: snap.localesConRiesgo,
       recepciones: snap.totalRecepcionMovimientos,
-      produccion: snap.totalProduccionMovimientos
+      produccion: snap.totalProduccionMovimientos,
+      elaborados: snap.totalElaboradosMovimientos
     },
     byLocal: snap.localSummary,
     openItemsByLocal: buildOpenItemsByLocal_()
@@ -2292,6 +2429,12 @@ function recepcionRows_() {
 
 function produccionRows_() {
   var sh = ss_().getSheetByName(SHEET_PRODUCCION);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getDataRange().getValues().slice(1).reverse();
+}
+
+function elaboradosRows_() {
+  var sh = ss_().getSheetByName(SHEET_ELABORADOS);
   if (!sh || sh.getLastRow() < 2) return [];
   return sh.getDataRange().getValues().slice(1).reverse();
 }
@@ -2357,7 +2500,13 @@ function latestOpsRows_(limit) {
       values: [row.fecha_hora, row.local, 'Producción', (row.producto_elaborado || row.insumo) + ' · lote ' + (row.lote || '—')]
     };
   });
-  return recep.concat(prod)
+  var elab = readElaboradosResumen_().latest.map(function (row) {
+    return {
+      stamp: comparableDateTime_(row.fecha_hora),
+      values: [row.fecha_hora, row.local, 'Elaborados', row.producto_elaborado + ' · ' + row.cantidad + ' ' + row.unidad]
+    };
+  });
+  return recep.concat(prod).concat(elab)
     .sort(function (a, b) { return b.stamp - a.stamp; })
     .slice(0, limit || 8)
     .map(function (row) { return row.values; });
@@ -2369,12 +2518,14 @@ function operationalLocals_() {
   var demandRows = activePedidoRows_();
   var recep = readRecepcionResumen_().byLocal || {};
   var prod = readProduccionResumen_().byLocal || {};
+  var elab = readElaboradosResumen_().byLocal || {};
   var map = {};
 
   Object.keys(catalog).forEach(function (local) { map[local] = true; });
   Object.keys(config).forEach(function (local) { map[local] = true; });
   Object.keys(recep).forEach(function (local) { map[local] = true; });
   Object.keys(prod).forEach(function (local) { map[local] = true; });
+  Object.keys(elab).forEach(function (local) { map[local] = true; });
   demandRows.forEach(function (row) {
     var local = normalizeLocalName_(row[3]);
     if (local) map[local] = true;
@@ -2463,7 +2614,8 @@ function normalizeLegacyLocalNames_() {
     { name: SHEET_DETALLE, headers: ['local'] },
     { name: SHEET_STOCK, headers: ['local'] },
     { name: SHEET_RECEPCION, headers: ['local'] },
-    { name: SHEET_PRODUCCION, headers: ['local'] }
+    { name: SHEET_PRODUCCION, headers: ['local'] },
+    { name: SHEET_ELABORADOS, headers: ['local'] }
   ];
   sheetSpecs.forEach(function (sheetSpec) {
     renameSpecs.forEach(function (renameSpec) {
@@ -2516,19 +2668,21 @@ function applyCorporateTabTheme_() {
   tabColors[SHEET_VIEW_BUY] = '#8A5B00';
   tabColors[SHEET_VIEW_REC] = '#2D7D9A';
   tabColors[SHEET_VIEW_PROD] = '#2B7A68';
+  tabColors[SHEET_VIEW_ELAB] = '#7A4A22';
   tabColors[SHEET_STOCK_DASH] = '#355C7D';
   tabColors[SHEET_RESUMEN] = '#4F6D7A';
   tabColors[SHEET_DETALLE] = '#7A8B99';
   tabColors[SHEET_STOCK] = '#7A8B99';
   tabColors[SHEET_RECEPCION] = '#7A8B99';
   tabColors[SHEET_PRODUCCION] = '#7A8B99';
+  tabColors[SHEET_ELABORADOS] = '#7A8B99';
   tabColors[SHEET_PEDIDOS] = '#95A5A6';
   tabColors[SHEET_CATALOGO] = '#95A5A6';
   tabColors[SHEET_CONFIG] = '#95A5A6';
 
   var order = [
-    SHEET_HOME, SHEET_STOCK_DASH, SHEET_VIEW_PED, SHEET_VIEW_STK, SHEET_VIEW_REC, SHEET_VIEW_PROD, SHEET_VIEW_BUY,
-    SHEET_RESUMEN, SHEET_DETALLE, SHEET_STOCK, SHEET_RECEPCION, SHEET_PRODUCCION, SHEET_PEDIDOS, SHEET_CATALOGO, SHEET_CONFIG
+    SHEET_HOME, SHEET_STOCK_DASH, SHEET_VIEW_PED, SHEET_VIEW_STK, SHEET_VIEW_REC, SHEET_VIEW_PROD, SHEET_VIEW_ELAB, SHEET_VIEW_BUY,
+    SHEET_RESUMEN, SHEET_DETALLE, SHEET_STOCK, SHEET_RECEPCION, SHEET_PRODUCCION, SHEET_ELABORADOS, SHEET_PEDIDOS, SHEET_CATALOGO, SHEET_CONFIG
   ];
   for (var i = 0; i < order.length; i++) {
     var sh = ss.getSheetByName(order[i]);
