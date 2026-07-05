@@ -1058,7 +1058,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
     <div class="grid2">
       <div class="field">
         <label>Encargado <span class="req">*</span><span class="auto" id="encAuto" hidden>auto</span></label>
-        <input type="text" id="encargado" placeholder="Nombre y apellido" autocomplete="name">
+        <select id="encargado"></select>
       </div>
       <div class="field">
         <label>Email <span class="req">*</span></label>
@@ -1183,7 +1183,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
         </div>
         <div class="grid2">
           <div class="field"><label>Proveedor</label><input id="recepProveedor" type="text" placeholder="Proveedor o remito"></div>
-          <div class="field"><label>Encargado</label><input id="recepEncargado" type="text" placeholder="Quién recibe"></div>
+          <div class="field"><label>Encargado</label><select id="recepEncargado"></select></div>
         </div>
         <div class="field"><label>Observaciones</label><input id="recepObs" type="text" placeholder="Faltantes, cambio, devolución, diferencia..."></div>
         <input class="stock-search" id="recepSearch" type="text" placeholder="Filtrá productos para recibir más rápido...">
@@ -1217,7 +1217,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
           <div class="field"><label>Producto elaborado</label><input id="prodNombre" type="text" placeholder="Ej: prep pizza, salsa, base burger"></div>
           <div class="field"><label>Cantidad producida</label><input id="prodCantidad" type="number" step="0.1" placeholder="0"></div>
           <div class="field"><label>Lote</label><input id="prodLote" type="text" placeholder="Código interno o turno"></div>
-          <div class="field"><label>Encargado</label><input id="prodEncargado" type="text" placeholder="Quién produjo"></div>
+          <div class="field"><label>Encargado</label><select id="prodEncargado"></select></div>
         </div>
         <div class="field"><label>Observaciones</label><input id="prodObs" type="text" placeholder="Merma, ajuste, desvío, cambio..."></div>
         <div class="quick-pick">
@@ -1256,7 +1256,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
       <div class="op-form">
         <div class="grid2">
           <div class="field"><label>Turno</label><select id="elabTurno"><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Noche">Noche</option><option value="Cierre">Cierre</option></select></div>
-          <div class="field"><label>Encargado</label><input id="elabEncargado" type="text" placeholder="Quién cuenta"></div>
+          <div class="field"><label>Encargado</label><select id="elabEncargado"></select></div>
           <div class="field"><label>Estado</label><select id="elabEstado"><option value="Sobrante">Sobrante</option><option value="En revisión">En revisión</option><option value="Aprovechable">Aprovechable</option></select></div>
           <div class="field"><label>Destino</label><select id="elabDestino"><option value="Revisar">Revisar</option><option value="Reventa">Reventa</option><option value="Guardar">Guardar</option><option value="Uso interno">Uso interno</option><option value="Descarte">Descarte</option></select></div>
         </div>
@@ -1453,7 +1453,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
       <div class="grid2">
         <div class="field">
           <label>Encargado que registra</label>
-          <input type="text" id="stockEncargado" placeholder="Nombre y apellido">
+          <select id="stockEncargado"></select>
         </div>
         <div class="field">
           <label>Observación general</label>
@@ -1997,6 +1997,44 @@ function renderLocalActions(){
     });
   });
 }
+function responsablesForLocal(local){
+  const configured = RESP[local] && RESP[local].length
+    ? RESP[local]
+    : ((CONFIG[local] && CONFIG[local].enc) ? [{ nombre:CONFIG[local].enc, email:CONFIG[local].email||"" }] : []);
+  const seen=new Set();
+  return configured.filter(item=>{
+    const name=String(item && item.nombre || "").trim();
+    if(!name) return false;
+    const key=name.toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function fillEncargadoSelect(selectId, local, currentValue="", opts={}){
+  const sel=$(selectId.startsWith("#") ? selectId : `#${selectId}`);
+  if(!sel) return;
+  const people=responsablesForLocal(local);
+  const current=String(currentValue||"").trim();
+  const placeholder=opts.placeholder || "Elegí encargado";
+  let options = people.map(person=>({ value:String(person.nombre||"").trim(), label:String(person.nombre||"").trim() }));
+  if(current && !options.some(option=>option.value===current)){
+    options = [{ value:current, label:current }].concat(options);
+  }
+  if(!options.length){
+    options = [{ value:"", label:"Sin responsables cargados" }];
+  }else if(opts.allowBlank !== false){
+    options = [{ value:"", label:placeholder }].concat(options);
+  }
+  sel.innerHTML = options.map(option=>`<option value="${esc(option.value)}">${esc(option.label)}</option>`).join("");
+  const preferred = current || (opts.preferFirst && people[0] ? String(people[0].nombre||"").trim() : "");
+  sel.value = options.some(option=>option.value===preferred) ? preferred : (options[0] ? options[0].value : "");
+}
+function selectedResponsable(local, nombre){
+  const wanted=String(nombre||"").trim().toLowerCase();
+  if(!wanted) return null;
+  return responsablesForLocal(local).find(person=>String(person.nombre||"").trim().toLowerCase()===wanted) || null;
+}
 function selectLocal(id, opts={}){
   state.local=id;
   recepUi.visibleLimit=40;
@@ -2007,7 +2045,8 @@ function selectLocal(id, opts={}){
   $("#localPick").textContent=id;
   // autocompletar encargado/email si no fueron tocados
   const c=CONFIG[id]||{};
-  if(!state.encTouched){ $("#encargado").value=c.enc||""; }
+  fillEncargadoSelect("encargado", id, !state.encTouched ? (c.enc||"") : $("#encargado").value, { preferFirst:true, placeholder:"Elegí encargado" });
+  if(!state.encTouched){ $("#encargado").value = $("#encargado").value || c.enc || ""; }
   if(!state.emailTouched){ $("#email").value=c.email||""; }
   $("#encAuto").hidden = !(c.enc && !state.encTouched);
   const cat=CATALOG[id]||[];
@@ -2179,7 +2218,15 @@ $("#urg").querySelectorAll(".urgb").forEach(b=>b.addEventListener("click",()=>{
 }));
 
 /* ---- Field tracking ---- */
-$("#encargado").addEventListener("input",()=>{state.encTouched=true;$("#encAuto").hidden=true;syncSend();});
+$("#encargado").addEventListener("change",()=>{
+  state.encTouched=true;
+  $("#encAuto").hidden=true;
+  const person=selectedResponsable(state.local, $("#encargado").value);
+  if(person && person.email && !state.emailTouched){
+    $("#email").value = person.email;
+  }
+  syncSend();
+});
 $("#email").addEventListener("input",()=>{state.emailTouched=true;syncSend();});
 ["semana","fecha_entrega"].forEach(id=>$("#"+id).addEventListener("input",syncSend));
 
@@ -2442,7 +2489,7 @@ function renderRecepcionModule(){
   renderRecepCardsOnly(state.local);
   renderRecepPhotoPanel(state.local);
   $("#recepProveedor").value = drafts.proveedor || "";
-  $("#recepEncargado").value = drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "";
+  fillEncargadoSelect("recepEncargado", state.local, drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "", { preferFirst:true });
   $("#recepObs").value = drafts.observaciones || "";
   $("#recepSearch").value = recepUi.queryByLocal[state.local] || "";
   const allRows=(CATALOG[state.local]||[]);
@@ -2486,7 +2533,7 @@ function renderProduccionModule(){
   $("#prodNombre").value = drafts.producto_elaborado || "";
   $("#prodCantidad").value = drafts.cantidad_producida || "";
   $("#prodLote").value = drafts.lote || "";
-  $("#prodEncargado").value = drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "";
+  fillEncargadoSelect("prodEncargado", state.local, drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "", { preferFirst:true });
   $("#prodObs").value = drafts.observaciones || "";
   $("#prodInsumoSearch").value = prodUi.queryByLocal[state.local] || "";
   renderProdQuickPick(state.local);
@@ -2528,7 +2575,7 @@ function renderElaboradosModule(){
   const selected=ensureElabSelection(state.local);
   renderElabCardsOnly(state.local);
   $("#elabTurno").value = drafts.turno || "Mañana";
-  $("#elabEncargado").value = drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "";
+  fillEncargadoSelect("elabEncargado", state.local, drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "", { preferFirst:true });
   $("#elabEstado").value = drafts.estado || "Sobrante";
   $("#elabDestino").value = drafts.destino || "Revisar";
   $("#elabObs").value = drafts.observaciones || "";
@@ -3181,7 +3228,7 @@ function openStock(){
   const sel=$("#stockLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
   sel.value=state.local||LOCALES[0].id;
-  $("#stockEncargado").value=$("#encargado").value.trim() || (CONFIG[sel.value]&&CONFIG[sel.value].enc) || "";
+  fillEncargadoSelect("stockEncargado", sel.value, $("#encargado").value.trim() || (CONFIG[sel.value]&&CONFIG[sel.value].enc) || "", { preferFirst:true });
   $("#stockObs").value="";
   $("#stockSearch").value=stockUi.queryByLocal[sel.value] || "";
   $("#stockType").value="Conteo parcial";
@@ -3880,6 +3927,7 @@ $("#stockLocal").addEventListener("change",()=>{
   const local=stockLocalVal();
   ensureStockDrafts(local);
   ensureStockSelection(local);
+  fillEncargadoSelect("stockEncargado", local, $("#stockEncargado").value || (CONFIG[local]&&CONFIG[local].enc) || "", { preferFirst:true });
   renderStockModal();
 });
 $("#stockSearch").addEventListener("input",()=>{
@@ -3950,7 +3998,7 @@ $("#recepPhotoInput").addEventListener("change",async e=>{
 });
 $("#recepPhotoReset").addEventListener("click",clearReceptionPhotoResult);
 $("#recepProveedor").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).proveedor=$("#recepProveedor").value; });
-$("#recepEncargado").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).encargado=$("#recepEncargado").value; });
+$("#recepEncargado").addEventListener("change",()=>{ if(state.local) ensureRecepDrafts(state.local).encargado=$("#recepEncargado").value; });
 $("#recepObs").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).observaciones=$("#recepObs").value; });
 $("#recepSearch").addEventListener("input",()=>{
   if(!state.local) return;
@@ -3971,10 +4019,10 @@ $("#recepMore").addEventListener("click",()=>{ recepUi.visibleLimit += 80; rende
 $("#prodNombre").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).producto_elaborado=$("#prodNombre").value; });
 $("#prodCantidad").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).cantidad_producida=$("#prodCantidad").value; });
 $("#prodLote").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).lote=$("#prodLote").value; });
-$("#prodEncargado").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).encargado=$("#prodEncargado").value; });
+$("#prodEncargado").addEventListener("change",()=>{ if(state.local) ensureProdDrafts(state.local).encargado=$("#prodEncargado").value; });
 $("#prodObs").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).observaciones=$("#prodObs").value; });
 $("#elabTurno").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).turno=$("#elabTurno").value; });
-$("#elabEncargado").addEventListener("input",()=>{ if(state.local) ensureElabDrafts(state.local).encargado=$("#elabEncargado").value; });
+$("#elabEncargado").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).encargado=$("#elabEncargado").value; });
 $("#elabEstado").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).estado=$("#elabEstado").value; });
 $("#elabDestino").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).destino=$("#elabDestino").value; });
 $("#elabObs").addEventListener("input",()=>{ if(state.local) ensureElabDrafts(state.local).observaciones=$("#elabObs").value; });
