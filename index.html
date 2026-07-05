@@ -872,6 +872,113 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
 
 .hint{font-size:12px;color:var(--ink-faint);margin-top:8px}
 .req{color:var(--red);font-weight:700}
+@page{
+  size:auto;
+  margin:12mm;
+}
+@media print{
+  html,body{
+    background:#fff !important;
+    color:#000 !important;
+  }
+  body{
+    font-size:13pt !important;
+    line-height:1.35 !important;
+    padding:0 !important;
+  }
+  .wrap{
+    max-width:none !important;
+    padding:0 !important;
+    margin:0 !important;
+  }
+  .hero,
+  .bar,
+  .conn,
+  .cfg,
+  .toast,
+  .home-jump,
+  .local-actions-bar,
+  button,
+  .send,
+  .nav-btn,
+  .cfg-btn,
+  .cfg-mini-btn,
+  .quick-pick-btn,
+  .stock-more,
+  .recep-intake,
+  .search-wrap,
+  .quick-pick{
+    display:none !important;
+  }
+  .tab-panel[hidden]{
+    display:none !important;
+  }
+  section,
+  .summary,
+  .stock-panel,
+  .workspace,
+  .pedido-shell,
+  .module-card,
+  .event-item,
+  .stock-card,
+  .stock-row,
+  .op-row{
+    background:#fff !important;
+    color:#000 !important;
+    border:1px solid #bbb !important;
+    box-shadow:none !important;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  body,
+  p,
+  span,
+  small,
+  label,
+  input,
+  select,
+  textarea,
+  .item .it-nm,
+  .item .it-sub,
+  .stock-line-name,
+  .stock-line-meta,
+  .stock-row-name,
+  .stock-row-meta,
+  .op-row-name,
+  .op-row-meta,
+  .event-item span,
+  .cfg-note,
+  .hint,
+  .snum,
+  .workspace-stat .m,
+  .module-card .m,
+  .stock-card .m{
+    font-size:13pt !important;
+    color:#000 !important;
+  }
+  h1{font-size:22pt !important}
+  h2{font-size:18pt !important}
+  h3{font-size:15pt !important}
+  .summary .s-big,
+  .stock-card .v,
+  .module-card .v,
+  .workspace-stat .v{
+    font-size:16pt !important;
+    color:#000 !important;
+  }
+  input,
+  select,
+  textarea{
+    border:none !important;
+    padding:0 !important;
+    background:transparent !important;
+    appearance:none !important;
+  }
+  .foot{
+    color:#000 !important;
+    font-size:11pt !important;
+  }
+}
 </style>
 </head>
 <body>
