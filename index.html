@@ -2320,17 +2320,22 @@ function qtyText(v,unidad){
   const n=num(v);
   return `${n===null?esc(v):esc(trim(n))} ${esc(unidad||"")}`.trim();
 }
+let catalogMapCache = new Map();
+function resetCatalogDerivedCaches(){ catalogMapCache = new Map(); }
+function dropCatalogDerivedCache(local){ catalogMapCache.delete(local || ""); }
 function getCatalogMap(local){
+  if(catalogMapCache.has(local)) return catalogMapCache.get(local);
   const map=new Map();
   (CATALOG[local]||[]).forEach(item=>{
     if(item.codigo) map.set(`code:${item.codigo}`,item);
     map.set(`name:${String(item.nombre||"").toLowerCase()}`,item);
   });
+  catalogMapCache.set(local, map);
   return map;
 }
-function stockMetaForItem(it){
+function stockMetaForItem(it, catalogMap){
   if(!state.local || it.free) return {status:"soft",label:it.free?"Libre":"Sin dato",message:"Sin referencia directa de stock",side:""};
-  const map=getCatalogMap(state.local);
+  const map=catalogMap || getCatalogMap(state.local);
   const rec=map.get(`code:${it.codigo}`)||map.get(`name:${String(it.nombre||"").toLowerCase()}`);
   if(!rec) return {status:"soft",label:"Sin dato",message:"No figura en el catálogo del local",side:""};
   const stock=num(rec.stock_actual);
@@ -2347,13 +2352,14 @@ function stockMetaForItem(it){
 }
 function localOperationalMetrics(){
   const cat=state.local ? (CATALOG[state.local]||[]) : [];
+  const catalogMap=state.local ? getCatalogMap(state.local) : null;
   const recepSummary=(RECEPCIONES.byLocal&&RECEPCIONES.byLocal[state.local])||{movimientos:0,cantidad:0};
   const prodSummary=(PRODUCCION.byLocal&&PRODUCCION.byLocal[state.local])||{movimientos:0,cantidad_usada:0,cantidad_producida:0};
   const elabSummary=(ELABORADOS.byLocal&&ELABORADOS.byLocal[state.local])||{movimientos:0,cantidad:0};
   const snapshotLocal=(SNAPSHOT.byLocal&&SNAPSHOT.byLocal[state.local])||{productos:0,conStock:0,sinStock:0,pedidos:0,faltantes:0};
   const noStock=cat.filter(x=>num(x.stock_actual)!==null && num(x.stock_actual)<=0).length;
   const noCount=cat.filter(x=>num(x.stock_actual)===null).length;
-  const itemSummaries=state.items.map(it=>({ it, meta:stockMetaForItem(it) }));
+  const itemSummaries=state.items.map(it=>({ it, meta:stockMetaForItem(it, catalogMap) }));
   const reviewRows=itemSummaries.filter(row=>row.meta.status==="bad" || row.meta.status==="soft" || row.meta.status==="warn");
   const riskRows=itemSummaries.filter(row=>row.meta.status==="bad");
   const softRows=itemSummaries.filter(row=>row.meta.status==="soft");
@@ -2416,8 +2422,9 @@ function renderStockIntelligence(){
     return;
   }
   const metrics={ok:0,warn:0,bad:0,soft:0};
+  const catalogMap=getCatalogMap(state.local);
   const lines=state.items.map(it=>{
-    const meta=stockMetaForItem(it);
+    const meta=stockMetaForItem(it, catalogMap);
     metrics[meta.status]=(metrics[meta.status]||0)+1;
     return `
       <div class="stock-line">
@@ -2459,8 +2466,9 @@ function dashboardCardsForLocal(cat){
 }
 function dashboardCardsForPedido(metrics, cat){
   const requestedQty=state.items.reduce((sum,it)=>sum+(num(it.qty)||0),0);
+  const catalogMap=getCatalogMap(state.local);
   const visibleStock=state.items.reduce((sum,it)=>{
-    const rec=(getCatalogMap(state.local).get(`code:${it.codigo}`)||getCatalogMap(state.local).get(`name:${String(it.nombre||"").toLowerCase()}`));
+    const rec=(catalogMap.get(`code:${it.codigo}`)||catalogMap.get(`name:${String(it.nombre||"").toLowerCase()}`));
     return sum + (rec ? (num(rec.stock_actual)||0) : 0);
   },0);
   return [
@@ -3013,14 +3021,7 @@ async function warmData(){
     const r=await fetch(`${SCRIPT_URL}?action=getBootstrap`,{method:"GET"});
     if(!r.ok)throw 0;
     const d=await r.json();
-    if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
-    if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
-    if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
-    if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
-    if(d&&d.produccion){ PRODUCCION=d.produccion; }
-    if(d&&d.elaborados){ ELABORADOS=d.elaborados; }
-    if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
-    setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
+    applyBootstrapPayload(d);
     renderStockIntelligence();
     renderRecepcionModule();
     renderProduccionModule();
@@ -3049,6 +3050,16 @@ function normalizeCatalog(raw){
   return out;
 }
 function setConn(ok,txt){ $("#connDot").classList.toggle("off",!ok); $("#connTxt").textContent=txt; }
+function applyBootstrapPayload(d){
+  if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); resetCatalogDerivedCaches(); }
+  if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
+  if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
+  if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
+  if(d&&d.produccion){ PRODUCCION=d.produccion; }
+  if(d&&d.elaborados){ ELABORADOS=d.elaborados; }
+  if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
+  setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
+}
 
 /* ---- Configuración ---- */
 const cfg=$("#cfg");
@@ -3113,24 +3124,18 @@ async function backendGet(action, params={}){
   if(!r.ok) throw new Error(`GET ${action} failed`);
   return r.json();
 }
-function queueBootstrapRefresh(delay=900){
+function queueBootstrapRefresh(delay=900, scope="ops"){
   clearTimeout(bootstrapRefreshTimer);
   bootstrapRefreshTimer = setTimeout(()=>{
     bootstrapRefreshTimer = null;
-    refreshData();
+    refreshData({ scope });
   }, delay);
 }
-async function refreshData(){
+async function refreshData(opts={}){
   try{
-    const d=await backendGet("getBootstrap",{ t:Date.now() });
-    if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); }
-    if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
-    if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
-    if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
-    if(d&&d.produccion){ PRODUCCION=d.produccion; }
-    if(d&&d.elaborados){ ELABORADOS=d.elaborados; }
-    if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
-    setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
+    const scope=opts.scope||"ops";
+    const d=await backendGet("getBootstrap",{ scope, t:Date.now() });
+    applyBootstrapPayload(d);
     renderStockIntelligence();
     renderRecepcionModule();
     renderProduccionModule();
@@ -3149,7 +3154,7 @@ async function confirmPedidoPersisted(idPedido, attempts=8, delayMs=900){
     try{
       const status = await backendGet("getPedidoStatus", { id_pedido:idPedido, t:Date.now() });
       if(status && status.ok && status.found){
-        queueBootstrapRefresh(120);
+        queueBootstrapRefresh(120, "ops");
         return {
           ok:true,
           telegramOk: !status.telegram || !status.telegram.configured || !status.telegram.found || status.telegram.ok === true || status.telegram.skipped === true,
@@ -3177,11 +3182,12 @@ async function addProducto(){
   }else{
     localCatalog.push(p("",nombre,payload.unidad,payload.proveedor,0,payload.categoria));
   }
+  dropCatalogDerivedCache(local);
   renderCfg();
   try{
     await apiPost(payload);
     await sleep(900);
-    await refreshData();
+    await refreshData({ scope:"full" });
     toast(editingCode ? "Nombre del producto actualizado" : "Producto agregado al catálogo","ok");
     resetCfgProductForm();
   }
@@ -3200,7 +3206,7 @@ async function addResponsable(){
   const btn=$("#cfgAddResp"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
   (RESP[local]=RESP[local]||[]).push({nombre,email:payload.email});
   renderCfg();
-  try{ await apiPost(payload); await sleep(900); await refreshData(); toast("Responsable agregado","ok"); }
+  try{ await apiPost(payload); await sleep(900); await refreshData({ scope:"full" }); toast("Responsable agregado","ok"); }
   catch{ toast("Error al guardar","err"); }
   finally{ renderCfg(); $("#cfgRNombre").value="";$("#cfgREmail").value=""; btn.disabled=false; btn.textContent=o; }
 }

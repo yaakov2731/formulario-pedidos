@@ -39,7 +39,7 @@ var SHEET_VIEW_ELAB = 'VISTA ELABORADOS';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
-var APP_VERSION = '2.2.0';
+var APP_VERSION = '2.2.2';
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
   'Código','Producto','Categoría','Cantidad','Unidad','Proveedor','Estado','Comprado','Entregado'];
@@ -58,18 +58,7 @@ function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'ping';
   try {
     if (action === 'getBootstrap') {
-      return json({
-        ok: true,
-        version: APP_VERSION,
-        capabilities: appCapabilities_(),
-        config: readConfig_(),
-        responsables: readResponsables_(),
-        catalog: readCatalog_(),
-        recepciones: readRecepcionResumen_(),
-        produccion: readProduccionResumen_(),
-        elaborados: readElaboradosResumen_(),
-        snapshot: buildFrontendOperationalSnapshot_()
-      });
+      return json(getBootstrapPayload_((e && e.parameter && e.parameter.scope) || 'full'));
     }
     if (action === 'parseReceiptTextAi') {
       return json(parseReceiptTextAi_(
@@ -79,6 +68,9 @@ function doGet(e) {
     }
     if (action === 'getPedidoStatus') {
       return json(getPedidoStatus_((e && e.parameter && e.parameter.id_pedido) || ''));
+    }
+    if (action === 'getTelegramStatus') {
+      return json(getTelegramStatus_());
     }
     return json({ ok: true, status: 'online', version: APP_VERSION, capabilities: appCapabilities_() });
   } catch (err) {
@@ -139,6 +131,7 @@ function addProductoCatalogo_(d) {
     codigo, d.nombre, d.descripcion || '', d.local, d.categoria || 'General',
     d.unidad || 'unidad', '', d.proveedor || '', '', '', 'Disponible', hoy, ''
   ]);
+  invalidateBootstrapCaches_();
   return { ok: true, codigo: codigo };
 }
 
@@ -166,6 +159,7 @@ function updateProductoCatalogo_(d) {
     if (rowCode !== wantedCode) continue;
     if (wantedLocal && rowLocal && rowLocal !== wantedLocal) continue;
     sh.getRange(r + 1, iNom + 1).setValue(newName);
+    invalidateBootstrapCaches_();
     return { ok: true, codigo: wantedCode, nombre: newName };
   }
 
@@ -193,6 +187,7 @@ function addResponsableConfig_(d) {
   }
   sh.insertRowBefore(insertAt);
   sh.getRange(insertAt, 1, 1, 6).setValues([[d.local, d.nombre, d.email || '', d.telefono || '', d.horario || '', 'SÍ']]);
+  invalidateBootstrapCaches_();
   return { ok: true };
 }
 
@@ -200,6 +195,44 @@ function json(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getBootstrapPayload_(scope) {
+  scope = String(scope || 'full').trim().toLowerCase() === 'ops' ? 'ops' : 'full';
+  var cache = CacheService.getScriptCache();
+  var cacheKey = 'bootstrap:' + scope;
+  try {
+    var cached = cache.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (err) {}
+
+  var payload = {
+    ok: true,
+    version: APP_VERSION,
+    capabilities: appCapabilities_(),
+    recepciones: readRecepcionResumen_(),
+    produccion: readProduccionResumen_(),
+    elaborados: readElaboradosResumen_(),
+    snapshot: buildFrontendOperationalSnapshot_()
+  };
+
+  if (scope !== 'ops') {
+    var configBundle = readConfigBundle_();
+    payload.config = configBundle.config;
+    payload.responsables = configBundle.responsables;
+    payload.catalog = readCatalog_();
+  }
+
+  try {
+    cache.put(cacheKey, JSON.stringify(payload), scope === 'ops' ? 20 : 45);
+  } catch (err) {}
+  return payload;
+}
+
+function invalidateBootstrapCaches_() {
+  try {
+    CacheService.getScriptCache().removeAll(['bootstrap:full', 'bootstrap:ops']);
+  } catch (err) {}
 }
 
 function appCapabilities_() {
@@ -226,6 +259,7 @@ function savePedido_(data) {
   appendDetalle_(data, { skipRefresh: true });   // capa normalizada: 1 fila por producto
   var telegram = notifyTelegramForPedido_(data);
   refreshOperationalViews_();
+  invalidateBootstrapCaches_();
   return {
     ok: true,
     id_pedido: data.id_pedido || '',
@@ -300,61 +334,40 @@ function readCatalog_() {
 /* ============================== READ CONFIG (encargados) ============================== */
 
 function readConfig_() {
-  var sh = ss_().getSheetByName(SHEET_CONFIG);
-  if (!sh) return {};
-  var values = sh.getDataRange().getValues();
-  var out = {};
-  var start = -1, cLocal = 0, cEnc = 1, cEmail = 2, cAct = -1;
-  for (var r = 0; r < values.length; r++) {
-    var rowLower = values[r].map(function (c) { return String(c).trim().toLowerCase(); });
-    if (rowLower.indexOf('local') > -1 && rowLower.indexOf('encargado') > -1) {
-      start = r + 1;
-      cLocal = rowLower.indexOf('local');
-      cEnc   = rowLower.indexOf('encargado');
-      cEmail = rowLower.indexOf('email');
-      cAct   = rowLower.indexOf('activo');
-      break;
-    }
-  }
-  if (start === -1) return {};
-  for (var i = start; i < values.length; i++) {
-    var local = normalizeLocalName_(values[i][cLocal]);
-    if (!local) break;                 // fin del bloque de encargados
-    if (local.charAt(0) === '🔧' || local.charAt(0) === '🔗') break;
-    if (cAct > -1 && !isActiveFlag_(values[i][cAct])) continue;
-    if (!out[local]) out[local] = {    // primero gana = encargado oficial (default del form)
-      enc:   cEnc   > -1 ? String(values[i][cEnc]   || '').trim() : '',
-      email: cEmail > -1 ? String(values[i][cEmail] || '').trim() : ''
-    };
-  }
-  return out;
+  return readConfigBundle_().config;
 }
 
 /* Todos los responsables por local (para la pantalla de Configuración). */
 function readResponsables_() {
+  return readConfigBundle_().responsables;
+}
+
+function readConfigBundle_() {
   var sh = ss_().getSheetByName(SHEET_CONFIG);
-  if (!sh) return {};
+  if (!sh) return { config: {}, responsables: {} };
   var values = sh.getDataRange().getValues();
-  var out = {}, start = -1, cLocal = 0, cEnc = 1, cEmail = 2, cAct = -1;
+  var config = {}, responsables = {}, start = -1, cLocal = 0, cEnc = 1, cEmail = 2, cAct = -1;
   for (var r = 0; r < values.length; r++) {
     var low = values[r].map(function (c) { return String(c).trim().toLowerCase(); });
     if (low.indexOf('local') > -1 && low.indexOf('encargado') > -1) {
       start = r + 1; cLocal = low.indexOf('local'); cEnc = low.indexOf('encargado'); cEmail = low.indexOf('email'); cAct = low.indexOf('activo'); break;
     }
   }
-  if (start === -1) return {};
+  if (start === -1) return { config: {}, responsables: {} };
   for (var i = start; i < values.length; i++) {
     var local = normalizeLocalName_(values[i][cLocal]);
     if (!local) break;
     if (local.charAt(0) === '🔧' || local.charAt(0) === '🔗') break;
     if (cAct > -1 && !isActiveFlag_(values[i][cAct])) continue;
-    if (!out[local]) out[local] = [];
-    out[local].push({
+    var responsable = {
       nombre: cEnc   > -1 ? String(values[i][cEnc]   || '').trim() : '',
       email:  cEmail > -1 ? String(values[i][cEmail] || '').trim() : ''
-    });
+    };
+    if (!config[local]) config[local] = { enc: responsable.nombre, email: responsable.email };
+    if (!responsables[local]) responsables[local] = [];
+    responsables[local].push(responsable);
   }
-  return out;
+  return { config: config, responsables: responsables };
 }
 
 /* ============================== WRITE PEDIDO ============================== */
@@ -409,9 +422,14 @@ function appendDetalle_(d, opts) {
 
 function findPedidoRowById_(pedidoId) {
   var sh = ss_().getSheetByName(SHEET_PEDIDOS);
-  if (!sh || sh.getLastRow() < 2) return null;
+  if (!sh || sh.getLastRow() < 1) return null;
   var values = sh.getDataRange().getValues();
-  for (var r = values.length - 1; r >= 1; r--) {
+  var firstDataRow = 0;
+  if (values.length) {
+    var firstCell = String(values[0][0] || '').trim().toUpperCase();
+    if (firstCell === 'ID_PEDIDO') firstDataRow = 1;
+  }
+  for (var r = values.length - 1; r >= firstDataRow; r--) {
     if (String(values[r][0] || '').trim() === pedidoId) return values[r];
   }
   return null;
@@ -502,7 +520,17 @@ function saveStockConteo_(d) {
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, STOCK_HEADERS.length).setValues(rows);
   updateCatalogStock_(d.local, d.items, fechaHora, tipoConteo);
   if (d.rebuild_views) refreshStockViews_();
-  return { ok: true, id_stock: conteoId, rows: rows.length };
+  var telegram = notifyTelegramForStock_({
+    id_stock: conteoId,
+    fecha_hora: fechaHora,
+    local: d.local,
+    encargado: d.encargado || '',
+    tipo_conteo: tipoConteo,
+    observaciones: d.observaciones || '',
+    items: d.items
+  });
+  invalidateBootstrapCaches_();
+  return { ok: true, id_stock: conteoId, rows: rows.length, telegram: telegram };
 }
 
 function createStockSheet_() {
@@ -616,6 +644,7 @@ function saveRecepcion_(d) {
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, RECEPCION_HEADERS.length).setValues(rows);
   if (d.update_catalog_stock !== false) addReceivedStockToCatalog_(d.local, d.items, fechaHora);
   if (d.rebuild_views !== false) refreshMovementViews_();
+  invalidateBootstrapCaches_();
   return { ok: true, id_recepcion: recepcionId, rows: rows.length };
 }
 
@@ -655,6 +684,7 @@ function saveProduccion_(d) {
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, PRODUCCION_HEADERS.length).setValues(rows);
   descontarProduccionDelCatalogo_(d.local, d.items, fechaHora, d.producto_elaborado || '');
   if (d.rebuild_views !== false) refreshMovementViews_();
+  invalidateBootstrapCaches_();
   return { ok: true, id_produccion: produccionId, rows: rows.length };
 }
 
@@ -692,7 +722,19 @@ function saveElaboradosConteo_(d) {
   var sh = ss_().getSheetByName(SHEET_ELABORADOS) || createElaboradosSheet_();
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, ELABORADOS_HEADERS.length).setValues(rows);
   if (d.rebuild_views !== false) refreshMovementViews_();
-  return { ok: true, id_conteo: conteoId, rows: rows.length };
+  var telegram = notifyTelegramForElaborados_({
+    id_conteo: conteoId,
+    fecha_hora: fechaHora,
+    local: d.local,
+    encargado: d.encargado || '',
+    turno: d.turno || '',
+    estado: d.estado || 'Sobrante',
+    destino: d.destino || 'Revisar',
+    observaciones: d.observaciones || '',
+    items: d.items
+  });
+  invalidateBootstrapCaches_();
+  return { ok: true, id_conteo: conteoId, rows: rows.length, telegram: telegram };
 }
 
 function createRecepcionSheet_() {
@@ -1664,15 +1706,84 @@ function ss_() {
 }
 
 function getTelegramSettings_() {
-  var props = PropertiesService.getScriptProperties().getProperties();
-  var enabledFlag = String(props.TELEGRAM_ENABLED || '').trim().toLowerCase();
-  var token = String(props.TELEGRAM_BOT_TOKEN || '').trim();
-  var chatId = String(props.TELEGRAM_CHAT_ID || '').trim();
-  var enabled = !!token && !!chatId && enabledFlag !== 'false' && enabledFlag !== '0' && enabledFlag !== 'no';
+  var stores = readTelegramPropertyStores_();
+  var flagMatch = findTelegramPropertyValue_(stores, ['TELEGRAM_ENABLED', 'TG_ENABLED']);
+  var tokenMatch = findTelegramPropertyValue_(stores, ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_TOKEN', 'BOT_TOKEN']);
+  var chatMatch = findTelegramPropertyValue_(stores, ['TELEGRAM_CHAT_ID', 'TELEGRAM_GROUP_ID', 'TELEGRAM_TARGET_CHAT_ID', 'CHAT_ID']);
+  var enabledFlag = normalizeTelegramFlag_(flagMatch.value);
+  var token = tokenMatch.value;
+  var chatId = chatMatch.value;
+  var enabled = !!token && !!chatId && enabledFlag !== false;
+  var sourceParts = [];
+  if (tokenMatch.source) sourceParts.push('token:' + tokenMatch.source + '/' + tokenMatch.key);
+  if (chatMatch.source) sourceParts.push('chat:' + chatMatch.source + '/' + chatMatch.key);
+  if (flagMatch.source) sourceParts.push('flag:' + flagMatch.source + '/' + flagMatch.key);
+  var reason = 'ready';
+  if (!token && !chatId) reason = 'missing_token_and_chat_id';
+  else if (!token) reason = 'missing_token';
+  else if (!chatId) reason = 'missing_chat_id';
+  else if (enabledFlag === false) reason = 'telegram_disabled_flag';
   return {
     enabled: enabled,
     token: token,
-    chat_id: chatId
+    chat_id: chatId,
+    flag: flagMatch.value,
+    source: sourceParts.join(', '),
+    reason: reason
+  };
+}
+
+function readTelegramPropertyStores_() {
+  return [
+    { name: 'script', values: safePropertyValues_(PropertiesService.getScriptProperties()) },
+    { name: 'document', values: safePropertyValues_(PropertiesService.getDocumentProperties()) },
+    { name: 'user', values: safePropertyValues_(PropertiesService.getUserProperties()) }
+  ];
+}
+
+function safePropertyValues_(store) {
+  try {
+    return store && store.getProperties ? (store.getProperties() || {}) : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+function findTelegramPropertyValue_(stores, keys) {
+  for (var s = 0; s < stores.length; s++) {
+    var store = stores[s];
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var value = String((store.values && store.values[key]) || '').trim();
+      if (!value) continue;
+      return {
+        value: value,
+        key: key,
+        source: store.name
+      };
+    }
+  }
+  return { value: '', key: '', source: '' };
+}
+
+function normalizeTelegramFlag_(value) {
+  var raw = String(value || '').trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off' || raw === 'disabled') return false;
+  if (raw === 'true' || raw === '1' || raw === 'si' || raw === 'sí' || raw === 'yes' || raw === 'on' || raw === 'enabled') return true;
+  return null;
+}
+
+function getTelegramStatus_() {
+  var settings = getTelegramSettings_();
+  return {
+    ok: true,
+    enabled: settings.enabled,
+    has_token: !!settings.token,
+    has_chat_id: !!settings.chat_id,
+    flag: settings.flag || '',
+    source: settings.source || '',
+    reason: settings.reason || ''
   };
 }
 
@@ -1716,10 +1827,22 @@ function disableTelegramNotifications() {
 }
 
 function notifyTelegramForPedido_(pedido) {
+  return notifyTelegramMessage_(pedido, buildTelegramPedidoMessage_(pedido));
+}
+
+function notifyTelegramForStock_(stock) {
+  return notifyTelegramMessage_(stock, buildTelegramStockMessage_(stock));
+}
+
+function notifyTelegramForElaborados_(conteo) {
+  return notifyTelegramMessage_(conteo, buildTelegramElaboradosMessage_(conteo));
+}
+
+function notifyTelegramMessage_(eventData, messageText) {
   var settings = getTelegramSettings_();
   if (!settings.enabled) {
-    var skipped = { ok: false, skipped: true, reason: 'telegram_disabled' };
-    appendTelegramLog_(pedido, skipped);
+    var skipped = { ok: false, skipped: true, reason: settings.reason || 'telegram_disabled' };
+    appendTelegramLog_(eventData, skipped);
     return skipped;
   }
   var response;
@@ -1728,7 +1851,7 @@ function notifyTelegramForPedido_(pedido) {
       method: 'post',
       payload: {
         chat_id: settings.chat_id,
-        text: buildTelegramPedidoMessage_(pedido),
+        text: messageText,
         parse_mode: 'HTML',
         disable_web_page_preview: 'true'
       },
@@ -1744,11 +1867,11 @@ function notifyTelegramForPedido_(pedido) {
       status_code: code,
       body: raw.slice(0, 500)
     };
-    appendTelegramLog_(pedido, result);
+    appendTelegramLog_(eventData, result);
     return result;
   } catch (err) {
     var failed = { ok: false, skipped: false, error: String(err) };
-    appendTelegramLog_(pedido, failed);
+    appendTelegramLog_(eventData, failed);
     return failed;
   }
 }
@@ -1778,6 +1901,80 @@ function buildTelegramPedidoMessage_(pedido) {
     '🛒 <b>PRODUCTOS SOLICITADOS</b>',
     '━━━━━━━━━━━━━━━━━━',
     groupedItems
+  ].filter(function (line) { return line !== ''; }).join('\n');
+}
+
+function buildTelegramStockMessage_(stock) {
+  var local = normalizeLocalName_(stock.local || '');
+  var encargado = safeTelegramText_(stock.encargado || 'Sin asignar');
+  var stockId = safeTelegramText_(stock.id_stock || '');
+  var tipoConteo = safeTelegramText_(stock.tipo_conteo || 'Conteo parcial');
+  var observaciones = safeTelegramText_(stock.observaciones || '');
+  var totalItems = (stock.items || []).filter(function (it) {
+    return numberOrNull_(it.stock_actual) !== null;
+  }).length;
+  var totalCantidad = round2_((stock.items || []).reduce(function (sum, it) {
+    return sum + numberOrZero_(it.stock_actual, 0);
+  }, 0));
+  var lines = (stock.items || []).filter(function (it) {
+    return numberOrNull_(it.stock_actual) !== null;
+  }).slice(0, 20).map(function (it) {
+    return '• ' + safeTelegramText_(it.producto || 'Producto sin nombre') + ' — ' +
+      safeTelegramText_(String(numberOrZero_(it.stock_actual, 0)) + ' ' + (it.unidad || 'unidad'));
+  });
+  return [
+    '📦 <b>STOCK ACTUALIZADO — Docks del Puerto</b>',
+    '━━━━━━━━━━━━━━━━━━',
+    '🏪 <b>Local:</b> ' + safeTelegramText_(local),
+    '👤 <b>Encargado:</b> ' + encargado,
+    '🆔 <b>ID Stock:</b> <code>' + stockId + '</code>',
+    '🧮 <b>Tipo de conteo:</b> ' + tipoConteo,
+    '📋 <b>Productos cargados:</b> ' + safeTelegramText_(String(totalItems)),
+    '📐 <b>Total relevado:</b> ' + safeTelegramText_(String(totalCantidad)),
+    observaciones ? '📝 <b>Observaciones:</b> ' + observaciones : '',
+    '',
+    '📍 <b>DETALLE</b>',
+    '━━━━━━━━━━━━━━━━━━',
+    lines.join('\n')
+  ].filter(function (line) { return line !== ''; }).join('\n');
+}
+
+function buildTelegramElaboradosMessage_(conteo) {
+  var local = normalizeLocalName_(conteo.local || '');
+  var encargado = safeTelegramText_(conteo.encargado || 'Sin asignar');
+  var conteoId = safeTelegramText_(conteo.id_conteo || '');
+  var turno = safeTelegramText_(conteo.turno || 'Sin turno');
+  var estado = safeTelegramText_(conteo.estado || 'Sobrante');
+  var destino = safeTelegramText_(conteo.destino || 'Revisar');
+  var observaciones = safeTelegramText_(conteo.observaciones || '');
+  var totalItems = (conteo.items || []).filter(function (it) {
+    return numberOrNull_(it.cantidad) !== null && numberOrZero_(it.cantidad, 0) > 0;
+  }).length;
+  var totalCantidad = round2_((conteo.items || []).reduce(function (sum, it) {
+    return sum + numberOrZero_(it.cantidad, 0);
+  }, 0));
+  var lines = (conteo.items || []).filter(function (it) {
+    return numberOrNull_(it.cantidad) !== null && numberOrZero_(it.cantidad, 0) > 0;
+  }).slice(0, 20).map(function (it) {
+    return '• ' + safeTelegramText_(it.producto_elaborado || it.producto || 'Elaborado sin nombre') + ' — ' +
+      safeTelegramText_(String(numberOrZero_(it.cantidad, 0)) + ' ' + (it.unidad || 'unidad'));
+  });
+  return [
+    '🍽️ <b>ELABORADOS / SOBRANTE — Docks del Puerto</b>',
+    '━━━━━━━━━━━━━━━━━━',
+    '🏪 <b>Local:</b> ' + safeTelegramText_(local),
+    '👤 <b>Encargado:</b> ' + encargado,
+    '🆔 <b>ID Conteo:</b> <code>' + conteoId + '</code>',
+    '🕒 <b>Turno:</b> ' + turno,
+    '🏷️ <b>Estado:</b> ' + estado,
+    '📦 <b>Destino:</b> ' + destino,
+    '📋 <b>Productos cargados:</b> ' + safeTelegramText_(String(totalItems)),
+    '📐 <b>Total marcado:</b> ' + safeTelegramText_(String(totalCantidad)),
+    observaciones ? '📝 <b>Observaciones:</b> ' + observaciones : '',
+    '',
+    '📍 <b>DETALLE</b>',
+    '━━━━━━━━━━━━━━━━━━',
+    lines.join('\n')
   ].filter(function (line) { return line !== ''; }).join('\n');
 }
 
@@ -1874,9 +2071,10 @@ function ensureTelegramLogSheet_() {
 
 function appendTelegramLog_(pedido, result) {
   var sh = ensureTelegramLogSheet_();
+  var refId = pedido.id_pedido || pedido.id_stock || pedido.id_conteo || pedido.id_produccion || pedido.id_recepcion || '';
   sh.appendRow([
     Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd HH:mm:ss'),
-    pedido.id_pedido || '',
+    refId,
     normalizeLocalName_(pedido.local || ''),
     result.ok ? 'SÍ' : 'NO',
     result.skipped ? 'SÍ' : 'NO',
@@ -1904,6 +2102,98 @@ function readTelegramLogByPedido_(pedidoId) {
     };
   }
   return { configured: getTelegramSettings_().enabled, found: false };
+}
+
+function buildPedidoPayloadFromSheets_(pedidoId) {
+  pedidoId = String(pedidoId || '').trim();
+  if (!pedidoId) return null;
+  var pedido = findPedidoRowById_(pedidoId);
+  if (!pedido) return null;
+  var detalle = findDetalleRowsByPedidoId_(pedidoId);
+  return {
+    id_pedido: pedido[0] || '',
+    fecha_hora: pedido[1] || '',
+    local: pedido[2] || '',
+    encargado: pedido[3] || '',
+    semana_pedido: pedido[4] || '',
+    email_encargado: pedido[5] || '',
+    estado: pedido[6] || '',
+    urgencia: pedido[7] || 'Normal',
+    productos_solicitados: pedido[8] || '',
+    total_productos: pedido[9] || detalle.length || 0,
+    total_estimado: pedido[10] || '',
+    fecha_entrega: pedido[11] || '',
+    observaciones: pedido[12] || '',
+    proveedor_asignado: pedido[13] || '',
+    comprado: pedido[14] || 'NO',
+    entregado: pedido[15] || 'NO',
+    notas_gerencia: pedido[16] || '',
+    items: detalle.map(function (row) {
+      return {
+        codigo: row[6] || '',
+        producto: row[7] || '',
+        categoria: row[8] || '',
+        cantidad: row[9] || '',
+        unidad: row[10] || '',
+        proveedor: row[11] || ''
+      };
+    })
+  };
+}
+
+function buildPedidoPayloadFromDetalle_(pedidoId) {
+  pedidoId = String(pedidoId || '').trim();
+  if (!pedidoId) return null;
+  var detalle = findDetalleRowsByPedidoId_(pedidoId);
+  if (!detalle.length) return null;
+  var first = detalle[0];
+  var proveedores = {};
+  var productosTexto = [];
+  detalle.forEach(function (row) {
+    var producto = String(row[7] || '').trim();
+    var cantidad = String(row[9] || '').trim();
+    var unidad = String(row[10] || '').trim();
+    var proveedor = String(row[11] || '').trim();
+    if (producto) {
+      productosTexto.push(producto + (cantidad ? ' - ' + cantidad + (unidad ? ' ' + unidad : '') : ''));
+    }
+    if (proveedor) proveedores[proveedor] = true;
+  });
+  return {
+    id_pedido: pedidoId,
+    fecha_hora: first[1] || '',
+    local: first[3] || '',
+    encargado: first[4] || '',
+    semana_pedido: first[2] || '',
+    email_encargado: '',
+    estado: 'Recibido',
+    urgencia: first[5] || 'Normal',
+    productos_solicitados: productosTexto.join(', '),
+    total_productos: detalle.length,
+    total_estimado: '',
+    fecha_entrega: '',
+    observaciones: 'Pedido reconstruido desde PEDIDOS_DETALLE para reenvio Telegram',
+    proveedor_asignado: Object.keys(proveedores).join(', '),
+    comprado: 'NO',
+    entregado: 'NO',
+    notas_gerencia: '',
+    items: detalle.map(function (row) {
+      return {
+        codigo: row[6] || '',
+        producto: row[7] || '',
+        categoria: row[8] || '',
+        cantidad: row[9] || '',
+        unidad: row[10] || '',
+        proveedor: row[11] || ''
+      };
+    })
+  };
+}
+
+function resendTelegramForPedido_(pedidoId) {
+  var pedido = buildPedidoPayloadFromSheets_(pedidoId) || buildPedidoPayloadFromDetalle_(pedidoId);
+  if (!pedido) return { ok: false, error: 'No encontré el pedido ' + pedidoId };
+  return notifyTelegramForPedido_(pedido);
 }
 
 function idx_(headerLower, names) {
@@ -2258,26 +2548,33 @@ function latestStockMap_() {
 }
 
 function pendingDemandMap_() {
+  return pendingDemandSummary_().demandMap;
+}
+
+function pendingDemandSummary_() {
   var sh = ss_().getSheetByName(SHEET_DETALLE);
-  if (!sh || sh.getLastRow() < 2) return {};
+  if (!sh || sh.getLastRow() < 2) return { demandMap: {}, activeRows: [] };
   var values = sh.getDataRange().getValues();
   var out = {};
+  var activeRows = [];
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
     var estado = String(row[12] || '').trim().toLowerCase();
     if (estado === 'entregado' || estado === 'cancelado') continue;
+    activeRows.push(row.slice(0, DETALLE_HEADERS.length));
     var key = keyFor_(row[3], row[6], row[7]);
     if (!out[key]) out[key] = { cantidad: 0, pedidos: 0 };
     out[key].cantidad += numberOrZero_(row[9], 0);
     out[key].pedidos += 1;
   }
-  return out;
+  return { demandMap: out, activeRows: activeRows };
 }
 
 function computeOperationalSnapshot_() {
   var catalog = readCatalog_();
   var stockMap = latestStockMap_();
-  var demandMap = pendingDemandMap_();
+  var demandSummary = pendingDemandSummary_();
+  var demandMap = demandSummary.demandMap;
   var recepcion = readRecepcionResumen_();
   var produccion = readProduccionResumen_();
   var elaborados = readElaboradosResumen_();
@@ -2342,7 +2639,8 @@ function computeOperationalSnapshot_() {
     totalSinStock: totalSinStock,
     totalFaltantes: totalFaltantes,
     totalPedidoCantidad: round2_(totalPedidoCantidad),
-    totalPedidosAbiertos: activePedidoRows_().length,
+    totalPedidosAbiertos: demandSummary.activeRows.length,
+    activeRows: demandSummary.activeRows,
     localesConRiesgo: localesConRiesgo
     ,
     totalRecepcionMovimientos: recepcion.total_movimientos || 0,
@@ -2377,12 +2675,15 @@ function buildFrontendOperationalSnapshot_() {
       elaborados: snap.totalElaboradosMovimientos
     },
     byLocal: snap.localSummary,
-    openItemsByLocal: buildOpenItemsByLocal_()
+    openItemsByLocal: buildOpenItemsByLocalFromRows_(snap.activeRows || [])
   };
 }
 
 function buildOpenItemsByLocal_() {
-  var rows = activePedidoRows_();
+  return buildOpenItemsByLocalFromRows_(activePedidoRows_());
+}
+
+function buildOpenItemsByLocalFromRows_(rows) {
   var out = {};
   rows.forEach(function (row) {
     var local = normalizeLocalName_(row[3]);
@@ -2409,16 +2710,7 @@ function buildOpenItemsByLocal_() {
 }
 
 function activePedidoRows_() {
-  var sh = ss_().getSheetByName(SHEET_DETALLE);
-  if (!sh || sh.getLastRow() < 2) return [];
-  var values = sh.getDataRange().getValues();
-  var out = [];
-  for (var r = 1; r < values.length; r++) {
-    var estado = String(values[r][12] || '').trim().toLowerCase();
-    if (estado === 'entregado' || estado === 'cancelado') continue;
-    out.push(values[r].slice(0, DETALLE_HEADERS.length));
-  }
-  return out;
+  return pendingDemandSummary_().activeRows;
 }
 
 function recepcionRows_() {
