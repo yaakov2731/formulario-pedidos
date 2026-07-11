@@ -40,6 +40,7 @@ var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
 var APP_VERSION = '2.2.2';
+var PRINT_FONT_SIZE = 14;
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
   'Código','Producto','Categoría','Cantidad','Unidad','Proveedor','Estado','Comprado','Entregado'];
@@ -1013,6 +1014,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Docks V2')
     .addItem('Aplicar interfaz corporativa', 'setupVersion2UI')
+    .addItem('Preparar hojas para imprimir (14 pt)', 'prepareOperationalSheetsForPrint')
     .addItem('Reconstruir vistas operativas', 'refreshOperationalViews_')
     .addItem('Reconstruir stock, recepción, producción y elaborados', 'refreshMovementViews_')
     .addItem('Setup plantilla pro', 'setupPlantillaPro')
@@ -2887,6 +2889,71 @@ function clearPresentationSheet_(sh, cols) {
   if (cols && cols > 0) {
     for (var c = 1; c <= cols; c++) sh.setColumnWidth(c, 140);
   }
+}
+
+/**
+ * Deja todas las hojas operativas listas para imprimir con texto legible.
+ * Google Sheets calcula los cortes entre filas; el ajuste de texto y la altura
+ * automática evitan que un registro quede recortado al cambiar de página.
+ */
+function prepareOperationalSheetsForPrint() {
+  applyPrintLayoutToOperationalSheets_();
+  SpreadsheetApp.getActive().toast(
+    'Hojas operativas preparadas en 14 pt con filas completas y encabezados congelados',
+    'Impresión lista',
+    6
+  );
+}
+
+function applyPrintLayoutToOperationalSheets_() {
+  var ss = ss_();
+  ss.getSheets().forEach(function (sh) {
+    if (!isPrintableOperationalSheet_(sh.getName())) return;
+    applyPrintLayoutToSheet_(sh);
+  });
+}
+
+function isPrintableOperationalSheet_(sheetName) {
+  var printableNames = [
+    SHEET_HOME,
+    SHEET_STOCK_DASH,
+    SHEET_VIEW_PED,
+    SHEET_VIEW_STK,
+    SHEET_VIEW_BUY,
+    SHEET_VIEW_REC,
+    SHEET_VIEW_PROD,
+    SHEET_VIEW_ELAB,
+    SHEET_RESUMEN,
+    SHEET_PEDIDOS,
+    SHEET_DETALLE,
+    SHEET_STOCK,
+    SHEET_RECEPCION,
+    SHEET_PRODUCCION,
+    SHEET_ELABORADOS
+  ];
+  return printableNames.indexOf(sheetName) !== -1 ||
+    sheetName.indexOf(SHEET_LOCAL_PED_PREFIX) === 0 ||
+    sheetName.indexOf(SHEET_LOCAL_STK_PREFIX) === 0;
+}
+
+function applyPrintLayoutToSheet_(sh) {
+  var lastRow = sh.getLastRow();
+  var lastColumn = sh.getLastColumn();
+  if (lastRow < 1 || lastColumn < 1) return;
+
+  var usedRange = sh.getRange(1, 1, lastRow, lastColumn);
+  usedRange
+    .setFontSize(PRINT_FONT_SIZE)
+    .setVerticalAlignment('middle')
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+
+  // Los títulos conservan jerarquía visual, pero ningún texto baja de 14 pt.
+  sh.getRange(1, 1, 1, lastColumn).setFontSize(18).setFontWeight('bold');
+  if (lastRow >= 2) sh.getRange(2, 1, 1, lastColumn).setFontSize(PRINT_FONT_SIZE);
+
+  // Al imprimir con "Repetir filas congeladas", el encabezado acompaña cada página.
+  if (sh.getFrozenRows() === 0) sh.setFrozenRows(1);
+  sh.autoResizeRows(1, lastRow);
 }
 
 function normalizeLegacyLocalNames_() {

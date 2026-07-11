@@ -73,6 +73,7 @@ re-parsear texto. El form escribe ambas en cada envío.
    - `TELEGRAM_CHAT_ID`
    - `TELEGRAM_ENABLED=true`
    También podés correr manualmente `setTelegramConfig(botToken, chatId)` desde el editor.
+   Con la versión actual, Telegram se dispara para `Pedido`, `Stock` y `Elaborados`.
 6. **OpenAI para recepciones por foto (opcional):** en Apps Script > Configuración del proyecto >
    Propiedades del script, definir:
    - `OPENAI_API_KEY`
