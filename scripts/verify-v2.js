@@ -43,7 +43,7 @@ function main() {
 
   expectRegex(html, /const SCRIPT_URL = "https:\/\/script\.google\.com\/macros\/s\/.+\/exec";/, "SCRIPT_URL configured");
 
-  ["pedido", "stock", "recepcion", "produccion", "dashboard"].forEach((tab) => {
+  ["pedido", "stock", "recepcion", "produccion", "elaborados", "dashboard"].forEach((tab) => {
     expectContains(html, `data-tab="${tab}"`, `tab ${tab}`);
   });
 
@@ -57,6 +57,9 @@ function main() {
     "id=\"prodInsumoSearch\"",
     "id=\"recepMore\"",
     "id=\"prodMore\"",
+    "id=\"elabRecentList\"",
+    "<option value=\"Marcado\">Marcado</option>",
+    "<option value=\"Crudo\">Crudo</option>",
   ].forEach((id) => expectContains(html, id, `frontend control ${id}`));
 
   [
@@ -65,6 +68,8 @@ function main() {
     "function renderDashboard()",
     "function renderRecepcionModule()",
     "function renderProduccionModule()",
+    "function renderElaboradosModule()",
+    "async function saveElaborados()",
     "function localOperationalMetrics()",
     "async function confirmPedidoPersisted(",
     "async function backendGet(",

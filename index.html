@@ -1257,7 +1257,7 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
         <div class="grid2">
           <div class="field"><label>Turno</label><select id="elabTurno"><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Noche">Noche</option><option value="Cierre">Cierre</option></select></div>
           <div class="field"><label>Encargado</label><select id="elabEncargado"></select></div>
-          <div class="field"><label>Estado</label><select id="elabEstado"><option value="Sobrante">Sobrante</option><option value="En revisión">En revisión</option><option value="Aprovechable">Aprovechable</option></select></div>
+          <div class="field"><label>Condición del sobrante</label><select id="elabEstado"><option value="">Seleccionar</option><option value="Marcado">Marcado</option><option value="Crudo">Crudo</option></select></div>
           <div class="field"><label>Destino</label><select id="elabDestino"><option value="Revisar">Revisar</option><option value="Reventa">Reventa</option><option value="Guardar">Guardar</option><option value="Uso interno">Uso interno</option><option value="Descarte">Descarte</option></select></div>
         </div>
         <div class="field"><label>Observaciones</label><input id="elabObs" type="text" placeholder="Ej: 3 kg vacío, papas marcadas, quedó de cierre..."></div>
@@ -1276,6 +1276,15 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
           <button class="cfg-btn" id="elabSave" type="button">Guardar elaborados</button>
         </div>
       </div>
+    </div>
+    <div class="stock-panel" style="margin-top:12px">
+      <div class="stock-panel-head">
+        <div>
+          <h3>Últimos ingresos de sobrantes</h3>
+          <p>Fecha, hora y condición informada en cada carga.</p>
+        </div>
+      </div>
+      <div class="event-list" id="elabRecentList"></div>
     </div>
   </section>
 
@@ -2568,11 +2577,12 @@ function renderProduccionModule(){
 }
 
 function renderElaboradosModule(){
-  const box=$("#elabGrid"), cards=$("#elabCards");
-  if(!box || !cards) return;
+  const box=$("#elabGrid"), cards=$("#elabCards"), recent=$("#elabRecentList");
+  if(!box || !cards || !recent) return;
   if(!state.local){
     cards.innerHTML="";
     box.innerHTML=`<div class="stock-empty">Elegí un local para cargar elaborados no vendidos.</div>`;
+    recent.innerHTML=`<div class="stock-empty">Elegí un local para ver los últimos ingresos.</div>`;
     $("#elabMeta").textContent="Sin local";
     $("#elabCatalogMeta").textContent="";
     $("#elabQuickPickMeta").textContent="";
@@ -2584,7 +2594,7 @@ function renderElaboradosModule(){
   renderElabCardsOnly(state.local);
   $("#elabTurno").value = drafts.turno || "Mañana";
   fillEncargadoSelect("elabEncargado", state.local, drafts.encargado || $("#encargado").value.trim() || (CONFIG[state.local]&&CONFIG[state.local].enc) || "", { preferFirst:true });
-  $("#elabEstado").value = drafts.estado || "Sobrante";
+  $("#elabEstado").value = drafts.estado || "";
   $("#elabDestino").value = drafts.destino || "Revisar";
   $("#elabObs").value = drafts.observaciones || "";
   $("#elabSearch").value = elabUi.queryByLocal[state.local] || "";
@@ -2609,6 +2619,12 @@ function renderElaboradosModule(){
   $("#elabMeta").textContent = filled
     ? `${filled} producto${filled===1?"":"s"} con cantidad cargada`
     : (selected.length ? `${selected.length} producto${selected.length===1?"":"s"} seleccionado${selected.length===1?"":"s"}` : "Sumá sobrantes del turno");
+  const recentRows=(ELABORADOS.latest||[]).filter(x=>x.local===state.local).slice(0,8);
+  recent.innerHTML = recentRows.length ? recentRows.map(row=>`
+    <div class="event-item">
+      <strong>${esc(row.producto_elaborado||"Elaborado")}</strong>
+      <span>${esc(row.fecha_hora)} · ${esc(row.estado||"Sin condición")} · ${esc(trim(num(row.cantidad)||0))} ${esc(row.unidad||"")} · ${esc(row.destino||"Revisar")}</span>
+    </div>`).join("") : `<div class="stock-empty">Todavía no hay sobrantes cargados para este local.</div>`;
 }
 
 function renderDashboard(){
@@ -2683,7 +2699,7 @@ function renderDashboard(){
   elab.innerHTML = elabRows.length ? elabRows.map(row=>`
     <div class="event-item">
       <strong>${esc(row.producto_elaborado)}</strong>
-      <span>${esc(row.fecha_hora)} · ${esc(trim(num(row.cantidad)||0))} ${esc(row.unidad||"")} · ${esc(row.destino||"Revisar")}</span>
+      <span>${esc(row.fecha_hora)} · ${esc(row.estado||"Sin condición")} · ${esc(trim(num(row.cantidad)||0))} ${esc(row.unidad||"")} · ${esc(row.destino||"Revisar")}</span>
     </div>`).join("") : `<div class="stock-empty">Todavía no hay elaborados no vendidos cargados para este local.</div>`;
 }
 
@@ -2970,6 +2986,8 @@ async function saveElaborados(){
     return;
   }
   const drafts=ensureElabDrafts(state.local);
+  const condicion=$("#elabEstado").value;
+  if(!condicion){ toast("Elegí si el sobrante ingresó Marcado o Crudo","err"); $("#elabEstado").focus(); return; }
   const items=ensureElabSelection(state.local).map(key=>{
     const item=prodCatalogRecord(state.local, key);
     const rec=item || {};
@@ -2979,7 +2997,7 @@ async function saveElaborados(){
       categoria:rec.categoria||"",
       unidad:rec.unidad||"unidad",
       cantidad:drafts.items[key]||"",
-      estado:drafts.estado || $("#elabEstado").value,
+      estado:condicion,
       destino:drafts.destino || $("#elabDestino").value
     };
   }).filter(it=>num(it.cantidad)>0);
@@ -2992,7 +3010,7 @@ async function saveElaborados(){
     rebuild_views:false,
     encargado:$("#elabEncargado").value.trim() || $("#encargado").value.trim(),
     turno:$("#elabTurno").value,
-    estado:$("#elabEstado").value,
+    estado:condicion,
     destino:$("#elabDestino").value,
     observaciones:$("#elabObs").value.trim(),
     items
@@ -3624,7 +3642,7 @@ function ensureProdDrafts(local){
 }
 function ensureElabDrafts(local){
   if(elabUi.drafts[local]) return elabUi.drafts[local];
-  const drafts={ turno:"Mañana", encargado:(CONFIG[local]&&CONFIG[local].enc)||"", estado:"Sobrante", destino:"Revisar", observaciones:"", items:{} };
+  const drafts={ turno:"Mañana", encargado:(CONFIG[local]&&CONFIG[local].enc)||"", estado:"", destino:"Revisar", observaciones:"", items:{} };
   (CATALOG[local]||[]).forEach(item=>{
     drafts.items[stockKey(item.codigo,item.nombre)] = "";
   });
@@ -3710,6 +3728,7 @@ function applyElabOptimistic(local, payload){
       producto_elaborado:it.producto_elaborado||"",
       unidad:it.unidad||"unidad",
       cantidad:it.cantidad,
+      estado:it.estado||payload.estado||"",
       destino:it.destino||payload.destino||"",
       fecha_hora:now
     });
