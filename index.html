@@ -3301,6 +3301,7 @@ async function warmData(){
     renderReportesModule();
     renderDashboard();
     renderWorkspaceStats();
+    if(!cfg.hidden) renderCfg();
   }catch{
     LIVE_META = { version:"", capabilities:{} };
     renderLiveWarning();
@@ -3433,6 +3434,7 @@ async function refreshData(opts={}){
     renderReportesModule();
     renderDashboard();
     renderWorkspaceStats();
+    if(!cfg.hidden) renderCfg();
     return true;
   }catch{
     LIVE_META = { version:"", capabilities:{} };
