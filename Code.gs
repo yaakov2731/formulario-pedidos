@@ -10,6 +10,7 @@
  * Endpoints:
  *   GET  ?action=getBootstrap  -> { ok, config, catalog }  (alimenta el form)
  *   GET  ?action=ping          -> { ok, status, version }
+ *   GET  ?action=getElaboradosReport&local=...&desde=YYYY-MM-DD&hasta=YYYY-MM-DD
  *   POST {json del pedido}      -> agrega fila en "PEDIDOS RECIBIDOS"
  *
  * Funciones manuales (correr una vez desde el editor):
@@ -39,7 +40,7 @@ var SHEET_VIEW_ELAB = 'VISTA ELABORADOS';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
-var APP_VERSION = '2.2.2';
+var APP_VERSION = '2.3.0';
 var PRINT_FONT_SIZE = 14;
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
@@ -72,6 +73,13 @@ function doGet(e) {
     }
     if (action === 'getTelegramStatus') {
       return json(getTelegramStatus_());
+    }
+    if (action === 'getElaboradosReport') {
+      return json(getElaboradosReport_(
+        (e && e.parameter && e.parameter.local) || '',
+        (e && e.parameter && e.parameter.desde) || '',
+        (e && e.parameter && e.parameter.hasta) || ''
+      ));
     }
     return json({ ok: true, status: 'online', version: APP_VERSION, capabilities: appCapabilities_() });
   } catch (err) {
@@ -245,6 +253,7 @@ function appCapabilities_() {
     recepcion: true,
     produccion: true,
     elaborados: true,
+    elaborados_report: true,
     dashboard_v2: true,
     local_alias_normalization: true,
     movement_views: true,
@@ -1008,6 +1017,75 @@ function readElaboradosResumen_() {
     byLocal[event.local].cantidad += numberOrZero_(event.cantidad, 0);
   });
   return { latest: latest, byLocal: byLocal, total_movimientos: allEvents.length };
+}
+
+function getElaboradosReport_(local, desde, hasta) {
+  local = normalizeLocalName_(local);
+  if (!local) return { ok: false, error: 'Falta local', rows: [] };
+  var sh = ss_().getSheetByName(SHEET_ELABORADOS);
+  if (!sh || sh.getLastRow() < 2) {
+    return { ok: true, local: local, desde: desde || '', hasta: hasta || '', rows: [], total: 0 };
+  }
+
+  var start = reportDateBoundary_(desde, false);
+  var end = reportDateBoundary_(hasta, true);
+  var rows = sh.getDataRange().getValues().slice(1).filter(function (row) {
+    if (normalizeLocalName_(row[2]) !== local) return false;
+    var estado = normalizeLooseText_(row[10]);
+    if (estado !== 'marcado' && estado !== 'crudo') return false;
+    var stamp = comparableDateTime_(row[1]);
+    if (start && stamp < start) return false;
+    if (end && stamp > end) return false;
+    return true;
+  }).map(function (row) {
+    return {
+      id_conteo: String(row[0] || ''),
+      fecha_hora: formatReportDateTime_(row[1]),
+      timestamp: comparableDateTime_(row[1]),
+      local: normalizeLocalName_(row[2]),
+      encargado: String(row[3] || ''),
+      turno: String(row[4] || ''),
+      codigo: String(row[5] || ''),
+      producto_elaborado: String(row[6] || ''),
+      categoria: String(row[7] || ''),
+      unidad: String(row[8] || 'unidad'),
+      cantidad: numberOrZero_(row[9], 0),
+      estado: String(row[10] || ''),
+      destino: String(row[11] || 'Revisar'),
+      observaciones: String(row[12] || '')
+    };
+  }).sort(function (a, b) { return b.timestamp - a.timestamp; });
+
+  return {
+    ok: true,
+    local: local,
+    desde: desde || '',
+    hasta: hasta || '',
+    generated_at: Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'dd/MM/yyyy HH:mm'),
+    rows: rows,
+    total: rows.length
+  };
+}
+
+function reportDateBoundary_(value, endOfDay) {
+  var match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return 0;
+  return new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0
+  ).getTime();
+}
+
+function formatReportDateTime_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'America/Argentina/Buenos_Aires', 'dd/MM/yyyy HH:mm');
+  }
+  return String(value || '');
 }
 
 function onOpen() {

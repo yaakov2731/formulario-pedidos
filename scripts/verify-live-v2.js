@@ -50,11 +50,13 @@ async function main() {
 
   expect(!!bootstrap.recepciones, "recepciones present", "recepciones missing in live deployment");
   expect(!!bootstrap.produccion, "produccion present", "produccion missing in live deployment");
+  expect(!!bootstrap.elaborados, "elaborados present", "elaborados missing in live deployment");
   expect(!!bootstrap.snapshot, "snapshot present", "snapshot missing in live deployment");
 
   expect(!!(ping.capabilities && ping.capabilities.bootstrap_v2), "ping bootstrap_v2 enabled", "ping missing bootstrap_v2 capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.recepcion), "bootstrap recepcion enabled", "bootstrap missing recepcion capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.produccion), "bootstrap produccion enabled", "bootstrap missing produccion capability");
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.elaborados_report), "elaborados report enabled", "bootstrap missing elaborados_report capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.dashboard_v2), "bootstrap dashboard_v2 enabled", "bootstrap missing dashboard_v2 capability");
 
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.totals), "snapshot totals present", "snapshot totals missing");
@@ -76,6 +78,11 @@ async function main() {
   expect(snapshotKeys.includes("Brooklyn"), "snapshot Brooklyn present", "snapshot missing Brooklyn");
   const openItemsKeys = Object.keys((bootstrap.snapshot && bootstrap.snapshot.openItemsByLocal) || {});
   expect(!openItemsKeys.includes("Pizzería"), "snapshot Pizzería removed/inactive", "snapshot still exposes legacy local Pizzería");
+
+  const report = await getJson(`${scriptUrl}?action=getElaboradosReport&local=${encodeURIComponent("Umo Grill")}`);
+  expect(report && report.ok === true, "elaborados report responded", "elaborados report did not return ok:true");
+  expect(Array.isArray(report && report.rows), "elaborados report rows present", "elaborados report rows missing");
+  expect(report && report.local === "Umo Grill", "elaborados report local normalized", "elaborados report local mismatch");
 
   if (process.exitCode) {
     console.error("\nLive V2 verification failed. The published /exec is behind the local code.");

@@ -876,6 +876,40 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
   size:auto;
   margin:12mm;
 }
+.report-toolbar{display:grid;grid-template-columns:minmax(180px,1.2fr) repeat(2,minmax(150px,.8fr)) auto auto;gap:10px;align-items:end;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-soft);margin-bottom:14px}
+.report-toolbar .field{margin:0}
+.report-status{grid-column:1/-1;font-size:12px;color:var(--ink-faint)}
+.report-document{--report-blue:#1d416b;--report-green:#4d8334;--report-orange:#cf5908;--report-gold:#c99b00;background:#fff;color:#171717;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.report-page{min-height:720px;padding:28px 30px 24px;background:#fff}
+.report-page+.report-page{border-top:10px solid var(--canvas)}
+.report-title{text-align:center;margin:0;color:var(--report-blue);font-size:28px;line-height:1.1;letter-spacing:.01em}
+.report-subtitle{text-align:center;margin:8px 0 18px;color:#666;font-size:15px}
+.report-section-title{margin:18px 0 0;padding:11px 14px;color:#fff;background:var(--report-blue);font-size:16px;line-height:1.2;text-transform:uppercase}
+.report-section-title.green{background:var(--report-green)}
+.report-section-title.orange{background:var(--report-orange)}
+.report-section-title.gold{background:var(--report-gold)}
+.report-table-wrap{overflow:auto}
+.report-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+.report-table th,.report-table td{border:1px solid #222;padding:7px 8px;vertical-align:middle}
+.report-table th{background:var(--report-blue);color:#fff;font-weight:800;text-align:center}
+.report-table td:nth-child(1),.report-table td:nth-child(3),.report-table td:nth-child(4){text-align:center}
+.report-summary td:first-child{font-weight:800;text-align:center}
+.report-summary td:nth-child(2){font-weight:800}
+.report-note{margin:16px 0 0;padding:11px 13px;border-left:4px solid #c91818;background:#fff7f4;font-size:13px;line-height:1.45}
+.report-note strong{color:#b11414}
+.report-empty{padding:42px 20px;text-align:center;color:var(--ink-faint)}
+.report-net-input{width:100%;min-width:72px;border:none;border-bottom:1px solid #555;border-radius:0;background:transparent;text-align:center;font:inherit;padding:3px}
+.report-net-value{display:block;min-height:22px;text-align:center;font-weight:800}
+.report-signatures{margin-top:24px}
+.report-signatures td{height:50px;text-align:center!important;vertical-align:bottom}
+.report-footer{text-align:center;color:#666;font-size:11px;margin-top:28px}
+.report-condition{display:inline-flex;padding:3px 8px;border-radius:999px;background:#eef3f8;color:var(--report-blue);font-weight:800}
+@media(max-width:900px){
+  .report-toolbar{grid-template-columns:1fr 1fr}
+  .report-toolbar .field:first-child{grid-column:1/-1}
+  .report-page{padding:20px 14px;min-height:0}
+  .report-title{font-size:22px}
+}
 @media print{
   html,body{
     background:#fff !important;
@@ -978,6 +1012,33 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
     color:#000 !important;
     font-size:11pt !important;
   }
+  @page{size:A4 landscape;margin:9mm}
+  body.report-printing{font-size:13pt !important}
+  body.report-printing .wrap>.hero,
+  body.report-printing .wrap>.foot,
+  body.report-printing .report-toolbar,
+  body.report-printing .report-screen-head{display:none !important}
+  body.report-printing .tab-panel[data-tab="reportes"]{display:block !important}
+  body.report-printing .tab-panel[data-tab="reportes"]{border:0 !important;border-radius:0 !important;box-shadow:none !important;background:#fff !important;padding:0 !important;margin:0 !important}
+  body.report-printing .report-document{border:none !important;border-radius:0 !important;box-shadow:none !important;overflow:visible !important}
+  body.report-printing .report-page{min-height:0;padding:0;background:#fff !important;break-after:page;page-break-after:always}
+  body.report-printing .report-page:last-child{break-after:auto;page-break-after:auto}
+  body.report-printing .report-page+.report-page{border-top:none !important}
+  body.report-printing .report-title{font-size:22pt !important;color:#1d416b !important}
+  body.report-printing .report-subtitle{font-size:13pt !important;color:#555 !important}
+  body.report-printing .report-section-title{font-size:14pt !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.report-printing .report-table{font-size:13pt !important}
+  body.report-printing .report-table th,
+  body.report-printing .report-table td{padding:5px 6px !important;border:1px solid #111 !important}
+  body.report-printing .report-table th{color:#fff !important;background:#1d416b !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.report-printing .report-section-title.green{background:#4d8334 !important}
+  body.report-printing .report-section-title.orange{background:#cf5908 !important}
+  body.report-printing .report-section-title.gold{background:#c99b00 !important}
+  body.report-printing .report-net-input{display:block !important;border-bottom:1px solid #333 !important;font-size:13pt !important;text-align:center !important;appearance:textfield !important;outline:none !important;box-shadow:none !important}
+  body.report-printing .report-net-input::-webkit-inner-spin-button,
+  body.report-printing .report-net-input::-webkit-outer-spin-button{display:none !important}
+  body.report-printing .report-note{font-size:13pt !important;border:0 !important;border-left:4px solid #c91818 !important;background:#fff !important}
+  body.report-printing .report-footer{font-size:10pt !important;color:#555 !important}
 }
 </style>
 </head>
@@ -1288,6 +1349,25 @@ body.compact-mobile-shell.compact-mobile-shell-xs .workspace-stats{grid-template
     </div>
   </section>
 
+  <section class="tab-panel" data-tab="reportes" hidden>
+    <div class="shead report-screen-head">
+      <div><p class="skicker">Reportes</p><h2>Sobrantes marcados y crudos</h2></div>
+      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      <span class="snum" id="reportMeta">Sin cargar</span>
+    </div>
+    <div class="report-toolbar">
+      <div class="field"><label>Local</label><select id="reportLocal"></select></div>
+      <div class="field"><label>Desde</label><input id="reportDesde" type="date"></div>
+      <div class="field"><label>Hasta</label><input id="reportHasta" type="date"></div>
+      <button class="cfg-btn alt" id="reportLoad" type="button">Actualizar reporte</button>
+      <button class="cfg-btn" id="reportPrint" type="button" disabled>Imprimir reporte</button>
+      <div class="report-status" id="reportStatus">Elegí un local y, si necesitás, un rango de fechas.</div>
+    </div>
+    <div class="report-document" id="reportDocument">
+      <div class="report-empty">Abrí la pestaña para cargar todos los sobrantes Marcados y Crudos del local.</div>
+    </div>
+  </section>
+
   <section class="tab-panel" data-tab="dashboard" hidden>
     <div class="shead">
       <div><p class="skicker">Admin</p><h2>Lectura ejecutiva del local</h2></div>
@@ -1587,6 +1667,7 @@ let RESP = {};
 let RECEPCIONES = { latest:[], byLocal:{} };
 let PRODUCCION = { latest:[], byLocal:{} };
 let ELABORADOS = { latest:[], byLocal:{} };
+let ELABORADOS_REPORT = { rows:[], local:"", desde:"", hasta:"", generated_at:"" };
 let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
 
@@ -1615,6 +1696,7 @@ const TAB_META = {
   recepcion:{ badge:"Modo recepción", title:"Ingreso recibido del local", desc:"Registrá mercadería recibida y actualizá stock sin tocar la planilla manualmente." },
   produccion:{ badge:"Modo producción", title:"Consumo de insumos y lote", desc:"Trazá producción semanal con descuentos automáticos sobre el stock real." },
   elaborados:{ badge:"Modo elaborados", title:"Sobrante no vendido", desc:"Contá elaborados o sobrantes por turno para dejar lectura operativa del cierre." },
+  reportes:{ badge:"Modo reportes", title:"Informe de sobrantes", desc:"Revisá e imprimí los elaborados Marcados y Crudos con formato operativo." },
   dashboard:{ badge:"Modo admin", title:"Métricas ejecutivas por local", desc:"Leé riesgo, flujo y faltantes desde una vista exclusiva de gerencia." }
 };
 const PEDIDO_STEPS = [
@@ -1787,6 +1869,7 @@ function setTab(tab){
   if(state.tab==="recepcion") renderRecepcionModule();
   if(state.tab==="produccion") renderProduccionModule();
   if(state.tab==="elaborados") renderElaboradosModule();
+  if(state.tab==="reportes") renderReportesModule();
   if(state.tab==="dashboard") renderDashboard();
   const focusMap = {
     home: '[data-tab="home"]',
@@ -1796,6 +1879,7 @@ function setTab(tab){
     recepcion: '[data-tab="recepcion"]',
     produccion: '[data-tab="produccion"]',
     elaborados: '[data-tab="elaborados"]',
+    reportes: '[data-tab="reportes"]',
     dashboard: '[data-tab="dashboard"]'
   };
   scrollIntoAppView(focusMap[state.tab] || ".workspace");
@@ -1989,6 +2073,7 @@ function renderLocalActions(){
     ['recepcion','📥','Recepción'],
     ['produccion','🏭','Producción'],
     ['elaborados','🍟','Elaborados'],
+    ['reportes','🖨️','Reportes'],
     ['enviar','✈️','Enviar']
   ].map(([tab,ico,label])=>`<button type="button" class="local-action" data-go="${tab}"><span>${ico}</span>${label}</button>`).join("");
   boxes.forEach(box=>{
@@ -2046,6 +2131,8 @@ function selectedResponsable(local, nombre){
 }
 function selectLocal(id, opts={}){
   state.local=id;
+  reportUi.local=id;
+  reportUi.loaded=false;
   recepUi.visibleLimit=40;
   prodUi.visibleLimit=40;
   if(!opts.silent) setTab("local");
@@ -2068,6 +2155,7 @@ function selectLocal(id, opts={}){
   renderRecepcionModule();
   renderProduccionModule();
   renderElaboradosModule();
+  renderReportesModule();
   renderDashboard();
   renderWorkspaceStats();
   renderHome();
@@ -2627,6 +2715,171 @@ function renderElaboradosModule(){
     </div>`).join("") : `<div class="stock-empty">Todavía no hay sobrantes cargados para este local.</div>`;
 }
 
+const reportUi={ loading:false, loaded:false, local:"" };
+function reportPeriodLabel(data){
+  const desde=data.desde||"", hasta=data.hasta||"";
+  if(desde&&hasta) return `Del ${formatIsoDate(desde)} al ${formatIsoDate(hasta)}`;
+  if(desde) return `Desde el ${formatIsoDate(desde)}`;
+  if(hasta) return `Hasta el ${formatIsoDate(hasta)}`;
+  return "Todos los ingresos registrados";
+}
+function formatIsoDate(value){
+  const parts=String(value||"").split("-");
+  return parts.length===3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : String(value||"");
+}
+function reportQuantity(rows){
+  const totals=new Map();
+  rows.forEach(row=>{
+    const unit=String(row.unidad||"unidad").trim()||"unidad";
+    totals.set(unit,(totals.get(unit)||0)+(num(row.cantidad)||0));
+  });
+  return [...totals.entries()].map(([unit,total])=>`${reportNumber(total)} ${unit}`).join(" + ")||"0";
+}
+function reportNumber(value){
+  const amount=num(value)||0;
+  return new Intl.NumberFormat("es-AR",{maximumFractionDigits:2}).format(amount);
+}
+function reportRowsByCondition(rows, condition){
+  const wanted=condition.toLowerCase();
+  return rows.filter(row=>String(row.estado||"").trim().toLowerCase()===wanted);
+}
+function reportDetailTable(rows, emptyText){
+  const body=rows.length ? rows.map(row=>`<tr>
+    <td>${esc(row.codigo||"—")}</td>
+    <td>${esc(row.producto_elaborado||"Sin nombre")}</td>
+    <td>${esc(reportNumber(row.cantidad))}</td>
+    <td>${esc(row.unidad||"unidad")}</td>
+    <td>${esc(row.destino||"Revisar")}</td>
+    <td>${esc(row.fecha_hora||"—")}</td>
+  </tr>`).join("") : `<tr><td colspan="6">${esc(emptyText)}</td></tr>`;
+  return `<div class="report-table-wrap"><table class="report-table">
+    <colgroup><col style="width:11%"><col style="width:27%"><col style="width:11%"><col style="width:11%"><col style="width:18%"><col style="width:22%"></colgroup>
+    <thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Unidad</th><th>Destino</th><th>Ingreso</th></tr></thead>
+    <tbody>${body}</tbody>
+  </table></div>`;
+}
+function aggregateCrudoForPurchase(rows){
+  const grouped=new Map();
+  rows.forEach(row=>{
+    const key=`${row.codigo||""}|${row.producto_elaborado||""}|${row.unidad||"unidad"}`;
+    if(!grouped.has(key)) grouped.set(key,{codigo:row.codigo||"—",producto:row.producto_elaborado||"Sin nombre",unidad:row.unidad||"unidad",cantidad:0});
+    grouped.get(key).cantidad+=(num(row.cantidad)||0);
+  });
+  return [...grouped.values()].sort((a,b)=>a.producto.localeCompare(b.producto,"es"));
+}
+function renderReportDocument(){
+  const doc=$("#reportDocument");
+  if(!doc) return;
+  if(reportUi.loading){ doc.innerHTML=`<div class="report-empty">Cargando sobrantes Marcados y Crudos...</div>`; return; }
+  if(!reportUi.loaded){ doc.innerHTML=`<div class="report-empty">Seleccioná un local y actualizá el reporte.</div>`; return; }
+  const data=ELABORADOS_REPORT||{rows:[]};
+  const rows=data.rows||[];
+  const marked=reportRowsByCondition(rows,"Marcado");
+  const raw=reportRowsByCondition(rows,"Crudo");
+  const stored=rows.filter(row=>String(row.destino||"").toLowerCase()==="guardar");
+  const resale=rows.filter(row=>String(row.destino||"").toLowerCase()==="reventa");
+  const people=[...new Set(rows.map(row=>String(row.encargado||"").trim()).filter(Boolean))];
+  const responsible=people.length ? people.join(", ") : "Sin responsable informado";
+  const local=data.local||reportUi.local||state.local||"Local";
+  const period=reportPeriodLabel(data);
+  const purchaseRows=aggregateCrudoForPurchase(raw);
+  const purchaseBody=purchaseRows.length ? purchaseRows.map((row,index)=>`<tr data-report-net-row>
+    <td>${esc(row.codigo)}</td><td>${esc(row.producto)}</td><td>${esc(row.unidad)}</td>
+    <td><input class="report-net-input" type="number" min="0" step="0.1" data-report-gross aria-label="Pedido bruto ${esc(row.producto)}"></td>
+    <td data-report-stock="${esc(row.cantidad)}">${esc(reportNumber(row.cantidad))}</td>
+    <td><span class="report-net-value" data-report-net>—</span></td><td>☐ Validado</td>
+  </tr>`).join("") : `<tr><td colspan="7">No hay sobrantes Crudos para cruzar con la compra.</td></tr>`;
+  doc.innerHTML=`
+    <article class="report-page">
+      <h1 class="report-title">${esc(local.toUpperCase())} — CONTROL DE SOBRANTES</h1>
+      <p class="report-subtitle">${esc(period)} · Responsable de cierre: ${esc(responsible)}</p>
+      <div class="report-table-wrap"><table class="report-table report-summary">
+        <thead><tr><th>Indicador</th><th>Resultado</th><th>Criterio operativo</th></tr></thead>
+        <tbody>
+          <tr><td>Sobrante Marcado</td><td>${esc(reportQuantity(marked))}</td><td>Producto elaborado; definir destino antes de reutilizar</td></tr>
+          <tr><td>Sobrante Crudo</td><td>${esc(reportQuantity(raw))}</td><td>Validar conservación y existencia antes de descontar compras</td></tr>
+          <tr><td>Destino Guardar</td><td>${esc(reportQuantity(stored))}</td><td>Disponible potencial sujeto a control físico</td></tr>
+          <tr><td>Destino Reventa</td><td>${esc(reportQuantity(resale))}</td><td>No usar automáticamente para reducir compras del local</td></tr>
+        </tbody>
+      </table></div>
+      <h2 class="report-section-title orange">Sobrantes Marcados</h2>
+      ${reportDetailTable(marked,"No hay sobrantes Marcados en el período seleccionado.")}
+      <p class="report-footer">Docks del Puerto — Control Operativo de Gastronomía</p>
+    </article>
+    <article class="report-page">
+      <h1 class="report-title">${esc(local.toUpperCase())} — SOBRANTES CRUDOS</h1>
+      <p class="report-subtitle">Control separado para no distorsionar la compra operativa</p>
+      <h2 class="report-section-title green">Crudos para guardar, revisar o definir destino</h2>
+      ${reportDetailTable(raw,"No hay sobrantes Crudos en el período seleccionado.")}
+      <p class="report-note"><strong>Alerta de control:</strong> no descontar automáticamente estos sobrantes de la compra. Primero validar existencia, peso, conservación y destino.</p>
+      <p class="report-footer">Docks del Puerto — Control Operativo de Gastronomía</p>
+    </article>
+    <article class="report-page">
+      <h1 class="report-title">${esc(local.toUpperCase())} — HOJA DE COMPRA NETA</h1>
+      <p class="report-subtitle">Completar al recibir el próximo pedido · Cálculo: Pedido bruto − sobrante Crudo validado = Compra neta</p>
+      <h2 class="report-section-title">Cruce con sobrantes Crudos</h2>
+      <div class="report-table-wrap"><table class="report-table">
+        <colgroup><col style="width:10%"><col style="width:25%"><col style="width:10%"><col style="width:14%"><col style="width:15%"><col style="width:13%"><col style="width:13%"></colgroup>
+        <thead><tr><th>Código</th><th>Producto</th><th>Unidad</th><th>Pedido bruto</th><th>Crudo a validar</th><th>Compra neta</th><th>Control</th></tr></thead>
+        <tbody>${purchaseBody}</tbody>
+      </table></div>
+      <p class="report-note"><strong>Regla de uso:</strong> validar físicamente el sobrante Crudo; luego completar el pedido bruto. Si el resultado es negativo, comprar cero y registrar el excedente.</p>
+      <table class="report-table report-signatures"><thead><tr><th>Preparó</th><th>Revisó sobrantes</th><th>Autorizó compra</th><th>Fecha</th></tr></thead><tbody><tr><td>________________</td><td>________________</td><td>________________</td><td>____ / ____ / ______</td></tr></tbody></table>
+      <p class="report-footer">Docks del Puerto — Control Operativo de Gastronomía</p>
+    </article>`;
+}
+function renderReportesModule(){
+  const sel=$("#reportLocal");
+  if(!sel) return;
+  const chosen=reportUi.local||state.local||(LOCALES[0]&&LOCALES[0].id)||"";
+  sel.innerHTML=LOCALES.map(local=>`<option value="${esc(local.id)}">${esc(local.id)}</option>`).join("");
+  reportUi.local=LOCALES.some(local=>local.id===chosen)?chosen:((LOCALES[0]&&LOCALES[0].id)||"");
+  sel.value=reportUi.local;
+  renderReportDocument();
+  if(state.tab==="reportes"&&!reportUi.loading&&!reportUi.loaded) loadElaboradosReport();
+}
+async function loadElaboradosReport(){
+  const local=$("#reportLocal").value;
+  const desde=$("#reportDesde").value;
+  const hasta=$("#reportHasta").value;
+  if(desde&&hasta&&desde>hasta){ toast("La fecha Desde no puede ser posterior a Hasta","err"); return; }
+  reportUi.local=local;
+  reportUi.loading=true;
+  reportUi.loaded=false;
+  $("#reportLoad").disabled=true;
+  $("#reportPrint").disabled=true;
+  $("#reportStatus").textContent="Consultando todos los ingresos de Elaborados...";
+  renderReportDocument();
+  try{
+    const data=await backendGet("getElaboradosReport",{local,desde,hasta,t:Date.now()});
+    if(!data||data.ok===false||!Array.isArray(data.rows)) throw new Error(data&&data.error||"Reporte no disponible");
+    ELABORADOS_REPORT=data;
+    reportUi.loaded=true;
+    $("#reportMeta").textContent=`${data.total||0} registro${data.total===1?"":"s"}`;
+    $("#reportStatus").textContent=`Actualizado ${data.generated_at||"ahora"} · ${reportPeriodLabel(data)}`;
+    $("#reportPrint").disabled=false;
+  }catch{
+    ELABORADOS_REPORT={rows:[],local,desde,hasta};
+    $("#reportMeta").textContent="No disponible";
+    $("#reportStatus").textContent="No se pudo leer el detalle. El Apps Script debe incluir el endpoint de reportes.";
+    toast("No se pudo cargar el reporte de sobrantes","err");
+  }finally{
+    reportUi.loading=false;
+    $("#reportLoad").disabled=false;
+    renderReportDocument();
+  }
+}
+function printElaboradosReport(){
+  if(!reportUi.loaded) return;
+  document.body.classList.add("report-printing");
+  requestAnimationFrame(()=>window.print());
+}
+function updateReportNet(row){
+  const gross=num(row.querySelector("[data-report-gross]").value);
+  const stock=num(row.querySelector("[data-report-stock]").dataset.reportStock)||0;
+  row.querySelector("[data-report-net]").textContent=gross===null?"—":reportNumber(Math.max(0,gross-stock));
+}
+
 function renderDashboard(){
   const cards=$("#dashCards"), recep=$("#dashRecepList"), prod=$("#dashProdList"), elab=$("#dashElabList");
   const riskList=$("#dashRiskList"), pedidoList=$("#dashPedidoList"), openList=$("#dashOpenList");
@@ -3021,6 +3274,7 @@ async function saveElaborados(){
     await apiPost(payload);
     applyElabOptimistic(state.local, payload);
     clearElabDrafts(state.local);
+    reportUi.loaded=false;
     toast("Elaborados registrados","ok");
     renderElaboradosModule();
     renderDashboard();
@@ -3044,6 +3298,7 @@ async function warmData(){
     renderRecepcionModule();
     renderProduccionModule();
     renderElaboradosModule();
+    renderReportesModule();
     renderDashboard();
     renderWorkspaceStats();
   }catch{
@@ -3158,6 +3413,7 @@ async function refreshData(opts={}){
     renderRecepcionModule();
     renderProduccionModule();
     renderElaboradosModule();
+    renderReportesModule();
     renderDashboard();
     renderWorkspaceStats();
     return true;
@@ -4006,6 +4262,26 @@ $("#adminBtn").addEventListener("click",()=>{
 $("#recepSave").addEventListener("click",saveReception);
 $("#prodSave").addEventListener("click",saveProduction);
 $("#elabSave").addEventListener("click",saveElaborados);
+$("#reportLoad").addEventListener("click",loadElaboradosReport);
+$("#reportPrint").addEventListener("click",printElaboradosReport);
+$("#reportLocal").addEventListener("change",()=>{
+  reportUi.local=$("#reportLocal").value;
+  reportUi.loaded=false;
+  $("#reportMeta").textContent="Sin cargar";
+  $("#reportPrint").disabled=true;
+  renderReportDocument();
+});
+[$("#reportDesde"),$("#reportHasta")].forEach(input=>input.addEventListener("change",()=>{
+  reportUi.loaded=false;
+  $("#reportMeta").textContent="Sin cargar";
+  $("#reportPrint").disabled=true;
+  renderReportDocument();
+}));
+$("#reportDocument").addEventListener("input",e=>{
+  if(!e.target.matches("[data-report-gross]")) return;
+  const row=e.target.closest("[data-report-net-row]");
+  if(row) updateReportNet(row);
+});
 $("#recepClear").addEventListener("click",clearReceptionDraftForm);
 $("#prodClear").addEventListener("click",clearProductionDraftForm);
 $("#elabClear").addEventListener("click",clearElabDraftForm);
@@ -4111,6 +4387,7 @@ $("#elabGrid").addEventListener("click",e=>{
 });
 window.addEventListener("resize", syncCompactMobileShell);
 window.addEventListener("orientationchange", syncCompactMobileShell);
+window.addEventListener("afterprint",()=>document.body.classList.remove("report-printing"));
 if(window.visualViewport){
   window.visualViewport.addEventListener("resize", syncCompactMobileShell);
 }
@@ -4126,6 +4403,7 @@ renderStockIntelligence();
 renderRecepcionModule();
 renderProduccionModule();
 renderElaboradosModule();
+renderReportesModule();
 renderDashboard();
 renderWorkspaceStats();
 setTab("home");
