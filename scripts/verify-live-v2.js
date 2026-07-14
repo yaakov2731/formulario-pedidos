@@ -57,6 +57,8 @@ async function main() {
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.recepcion), "bootstrap recepcion enabled", "bootstrap missing recepcion capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.produccion), "bootstrap produccion enabled", "bootstrap missing produccion capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.elaborados_report), "elaborados report enabled", "bootstrap missing elaborados_report capability");
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.catalog_product_status), "catalog product confirmation enabled", "bootstrap missing catalog_product_status capability");
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.sheet_report_elaborados), "Google Sheets elaborados report enabled", "bootstrap missing sheet_report_elaborados capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.dashboard_v2), "bootstrap dashboard_v2 enabled", "bootstrap missing dashboard_v2 capability");
 
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.totals), "snapshot totals present", "snapshot totals missing");
@@ -83,6 +85,10 @@ async function main() {
   expect(report && report.ok === true, "elaborados report responded", "elaborados report did not return ok:true");
   expect(Array.isArray(report && report.rows), "elaborados report rows present", "elaborados report rows missing");
   expect(report && report.local === "Umo Grill", "elaborados report local normalized", "elaborados report local mismatch");
+
+  const catalogStatus = await getJson(`${scriptUrl}?action=getCatalogProductStatus&local=${encodeURIComponent("Umo Grill")}`);
+  expect(catalogStatus && catalogStatus.ok === true, "catalog product status responded", "catalog product status did not return ok:true");
+  expect(Number(catalogStatus && catalogStatus.local_count) > 0, "Umo Grill catalog available", "Umo Grill catalog is empty or unavailable");
 
   if (process.exitCode) {
     console.error("\nLive V2 verification failed. The published /exec is behind the local code.");

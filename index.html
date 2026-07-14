@@ -3397,6 +3397,23 @@ async function backendGet(action, params={}){
   if(!r.ok) throw new Error(`GET ${action} failed`);
   return r.json();
 }
+async function confirmCatalogProduct(local, expected, attempts=7, delayMs=700){
+  for(let attempt=0;attempt<attempts;attempt++){
+    try{
+      const status=await backendGet("getCatalogProductStatus",{
+        local,
+        codigo:expected.codigo||"",
+        nombre:expected.nombre||"",
+        t:Date.now()
+      });
+      const product=status&&status.product;
+      const sameName=product&&normalizeLooseText(product.nombre)===normalizeLooseText(expected.nombre);
+      if(status&&status.ok&&status.found&&sameName) return product;
+    }catch{}
+    await sleep(delayMs);
+  }
+  return null;
+}
 function queueBootstrapRefresh(delay=900, scope="ops"){
   clearTimeout(bootstrapRefreshTimer);
   bootstrapRefreshTimer = setTimeout(()=>{
@@ -3448,24 +3465,17 @@ async function addProducto(){
     categoria:$("#cfgPCat").value.trim(),unidad:$("#cfgPUnidad").value,proveedor:$("#cfgPProv").value.trim()};
   if(cfgProductEdit){ payload.codigo = cfgProductEdit.codigo; }
   const btn=$("#cfgAddProd"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
-  const localCatalog=(CATALOG[local]=CATALOG[local]||[]);
   const editingCode = cfgProductEdit && cfgProductEdit.codigo;
-  const editingIndex = editingCode ? localCatalog.findIndex(item => String(item.codigo||"") === String(editingCode)) : -1;
-  if(editingIndex > -1){
-    localCatalog[editingIndex] = { ...localCatalog[editingIndex], nombre };
-  }else{
-    localCatalog.push(p("",nombre,payload.unidad,payload.proveedor,0,payload.categoria));
-  }
-  dropCatalogDerivedCache(local);
-  renderCfg();
   try{
     await apiPost(payload);
-    await sleep(900);
-    await refreshData({ scope:"full" });
+    const saved=await confirmCatalogProduct(local,{codigo:editingCode||"",nombre});
+    if(!saved) throw new Error("El producto no apareció en Google Sheets");
+    const refreshed=await refreshData({ scope:"full" });
+    if(!refreshed) throw new Error("No se pudo refrescar el catálogo");
     toast(editingCode ? "Nombre del producto actualizado" : "Producto agregado al catálogo","ok");
     resetCfgProductForm();
   }
-  catch{ toast("Error al guardar","err"); }
+  catch(err){ toast(err&&err.message?err.message:"Error al guardar el producto","err"); }
   finally{
     renderCfg();
     btn.disabled=false;

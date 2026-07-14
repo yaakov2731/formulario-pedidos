@@ -37,10 +37,11 @@ var SHEET_VIEW_BUY = 'VISTA COMPRAS';
 var SHEET_VIEW_REC = 'VISTA RECEPCION';
 var SHEET_VIEW_PROD = 'VISTA PRODUCCION';
 var SHEET_VIEW_ELAB = 'VISTA ELABORADOS';
+var SHEET_REPORT_ELAB = 'REPORTE SOBRANTES';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
-var APP_VERSION = '2.3.0';
+var APP_VERSION = '2.3.1';
 var PRINT_FONT_SIZE = 14;
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
@@ -80,6 +81,16 @@ function doGet(e) {
         (e && e.parameter && e.parameter.desde) || '',
         (e && e.parameter && e.parameter.hasta) || ''
       ));
+    }
+    if (action === 'getCatalogProductStatus') {
+      return json(getCatalogProductStatus_(
+        (e && e.parameter && e.parameter.local) || '',
+        (e && e.parameter && e.parameter.codigo) || '',
+        (e && e.parameter && e.parameter.nombre) || ''
+      ));
+    }
+    if (action === 'refreshElaboradosReportSheet') {
+      return json(refreshElaboradosReportSheet());
     }
     return json({ ok: true, status: 'online', version: APP_VERSION, capabilities: appCapabilities_() });
   } catch (err) {
@@ -124,10 +135,30 @@ function addProductoCatalogo_(d) {
   var sh = ss_().getSheetByName(SHEET_CATALOGO);
   if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CATALOGO };
   var values = sh.getDataRange().getValues();
+  if (!values.length) return { ok: false, error: 'El catálogo no tiene encabezados' };
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var iCod = idx_(head, ['código', 'codigo']);
+  var iNom = idx_(head, ['producto', 'nombre']);
+  var iDesc = idx_(head, ['descripción', 'descripcion']);
+  var iLocal = idx_(head, ['local_aplicable', 'local']);
+  var iCat = idx_(head, ['categoría', 'categoria']);
+  var iUni = idx_(head, ['unidad_medida', 'unidad']);
+  var iProv = idx_(head, ['proveedor']);
+  var iEstado = idx_(head, ['estado']);
+  var iFecha = idx_(head, ['fecha', 'fecha_alta']);
+  if (iCod < 0 || iNom < 0 || iLocal < 0) {
+    return { ok: false, error: 'No encuentro las columnas Código, Producto y Local en el catálogo' };
+  }
+
   var prefix = prefixFor_(d.local);
   var maxNum = 0;
   for (var r = 1; r < values.length; r++) {
-    var cod = String(values[r][0] || '').trim();
+    var rowLocal = normalizeLocalName_(values[r][iLocal]);
+    var rowName = String(values[r][iNom] || '').trim();
+    if (rowLocal === d.local && normalizeLooseText_(rowName) === normalizeLooseText_(d.nombre)) {
+      return { ok: true, codigo: String(values[r][iCod] || ''), existing: true, nombre: rowName };
+    }
+    var cod = String(values[r][iCod] || '').trim();
     if (cod.indexOf(prefix) === 0) {
       var num = parseInt(cod.slice(prefix.length), 10);
       if (!isNaN(num) && num > maxNum) maxNum = num;
@@ -135,13 +166,63 @@ function addProductoCatalogo_(d) {
   }
   var codigo = prefix + ('000' + (maxNum + 1)).slice(-3);
   var hoy = Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd');
-  // Código,Producto,Descripción,Local_Aplicable,Categoría,Unidad_Medida,Precio_Unitario,Proveedor,Stock_Actual,Stock_Mínimo,Estado,Fecha,Notas
-  sh.appendRow([
-    codigo, d.nombre, d.descripcion || '', d.local, d.categoria || 'General',
-    d.unidad || 'unidad', '', d.proveedor || '', '', '', 'Disponible', hoy, ''
-  ]);
+  var newRow = new Array(values[0].length).fill('');
+  newRow[iCod] = codigo;
+  newRow[iNom] = String(d.nombre).trim();
+  newRow[iLocal] = d.local;
+  if (iDesc > -1) newRow[iDesc] = d.descripcion || '';
+  if (iCat > -1) newRow[iCat] = d.categoria || 'General';
+  if (iUni > -1) newRow[iUni] = d.unidad || 'unidad';
+  if (iProv > -1) newRow[iProv] = d.proveedor || '';
+  if (iEstado > -1) newRow[iEstado] = 'Disponible';
+  if (iFecha > -1) newRow[iFecha] = hoy;
+  sh.getRange(sh.getLastRow() + 1, 1, 1, newRow.length).setValues([newRow]);
   invalidateBootstrapCaches_();
-  return { ok: true, codigo: codigo };
+  return { ok: true, codigo: codigo, nombre: String(d.nombre).trim(), local: d.local };
+}
+
+function getCatalogProductStatus_(local, codigo, nombre) {
+  local = normalizeLocalName_(local);
+  var sh = ss_().getSheetByName(SHEET_CATALOGO);
+  if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CATALOGO, found: false };
+  var values = sh.getDataRange().getValues();
+  if (!values.length) return { ok: false, error: 'El catálogo no tiene encabezados', found: false };
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var iCod = idx_(head, ['código', 'codigo']);
+  var iNom = idx_(head, ['producto', 'nombre']);
+  var iLocal = idx_(head, ['local_aplicable', 'local']);
+  var iCat = idx_(head, ['categoría', 'categoria']);
+  var iUni = idx_(head, ['unidad_medida', 'unidad']);
+  var iProv = idx_(head, ['proveedor']);
+  if (iCod < 0 || iNom < 0 || iLocal < 0) {
+    return { ok: false, error: 'No encuentro las columnas principales del catálogo', found: false };
+  }
+  var wantedCode = String(codigo || '').trim();
+  var wantedName = normalizeLooseText_(nombre);
+  var localCount = 0;
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    if (normalizeLocalName_(row[iLocal]) !== local) continue;
+    localCount++;
+    var rowCode = String(row[iCod] || '').trim();
+    var rowName = String(row[iNom] || '').trim();
+    if ((wantedCode && rowCode === wantedCode) || (wantedName && normalizeLooseText_(rowName) === wantedName)) {
+      return {
+        ok: true,
+        found: true,
+        local: local,
+        local_count: localCount,
+        product: {
+          codigo: rowCode,
+          nombre: rowName,
+          categoria: iCat > -1 ? String(row[iCat] || '') : '',
+          unidad: iUni > -1 ? String(row[iUni] || 'unidad') : 'unidad',
+          proveedor: iProv > -1 ? String(row[iProv] || '') : ''
+        }
+      };
+    }
+  }
+  return { ok: true, found: false, local: local, local_count: localCount };
 }
 
 /* Corrige el nombre de un producto ya existente en el catálogo. */
@@ -254,6 +335,8 @@ function appCapabilities_() {
     produccion: true,
     elaborados: true,
     elaborados_report: true,
+    catalog_product_status: true,
+    sheet_report_elaborados: true,
     dashboard_v2: true,
     local_alias_normalization: true,
     movement_views: true,
@@ -731,6 +814,7 @@ function saveElaboradosConteo_(d) {
 
   var sh = ss_().getSheetByName(SHEET_ELABORADOS) || createElaboradosSheet_();
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, ELABORADOS_HEADERS.length).setValues(rows);
+  try { buildReporteSobrantes_(); } catch (reportErr) {}
   if (d.rebuild_views !== false) refreshMovementViews_();
   var telegram = notifyTelegramForElaborados_({
     id_conteo: conteoId,
@@ -1092,6 +1176,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Docks V2')
     .addItem('Aplicar interfaz corporativa', 'setupVersion2UI')
+    .addItem('Actualizar REPORTE SOBRANTES', 'refreshElaboradosReportSheet')
     .addItem('Preparar hojas para imprimir (14 pt)', 'prepareOperationalSheetsForPrint')
     .addItem('Reconstruir vistas operativas', 'refreshOperationalViews_')
     .addItem('Reconstruir stock, recepción, producción y elaborados', 'refreshMovementViews_')
@@ -1178,6 +1263,7 @@ function ensureVersion2Sheets_() {
   ensureSheet_(SHEET_VIEW_REC);
   ensureSheet_(SHEET_VIEW_PROD);
   ensureSheet_(SHEET_VIEW_ELAB);
+  ensureSheet_(SHEET_REPORT_ELAB);
   ensureSheet_(SHEET_VIEW_BUY);
   ensureSheet_(SHEET_RESUMEN);
 }
@@ -1252,6 +1338,7 @@ function refreshOperationalViews_() {
   buildVistaRecepcion_();
   buildVistaProduccion_();
   buildVistaElaborados_();
+  buildReporteSobrantes_();
   buildLocalPedidoViews_();
   buildLocalStockViews_();
   applyCorporateTabTheme_();
@@ -1264,6 +1351,7 @@ function refreshMovementViews_() {
   buildVistaRecepcion_();
   buildVistaProduccion_();
   buildVistaElaborados_();
+  buildReporteSobrantes_();
   buildLocalStockViews_();
   applyCorporateTabTheme_();
 }
@@ -1316,7 +1404,7 @@ function buildInicioOperativo_() {
   if (conteos.length) sh.getRange(16, 5, conteos.length, 4).setValues(conteos);
   if (movs.length) sh.getRange(16, 9, movs.length, 4).setValues(movs);
 
-  sh.getRange('A26:L26').merge().setValue('Accesos recomendados: VISTA PEDIDOS · VISTA STOCK · VISTA RECEPCION · VISTA PRODUCCION · VISTA ELABORADOS · VISTA COMPRAS · DASHBOARD STOCK')
+  sh.getRange('A26:L26').merge().setValue('Accesos recomendados: REPORTE SOBRANTES · VISTA PEDIDOS · VISTA STOCK · VISTA RECEPCION · VISTA PRODUCCION · VISTA ELABORADOS · VISTA COMPRAS')
     .setBackground('#EAF2F6').setFontColor('#41576B').setFontWeight('bold');
   sh.setColumnWidths(1, 12, 145);
   sh.setFrozenRows(3);
@@ -1431,6 +1519,147 @@ function buildVistaElaborados_() {
   if (rows.length) sh.getRange(5, 1, rows.length, ELABORADOS_HEADERS.length).setValues(rows);
   applyBanding_(sh, 4, Math.max(rows.length + 1, 2), ELABORADOS_HEADERS.length);
   sh.setFrozenRows(4);
+}
+
+function refreshElaboradosReportSheet() {
+  var result = buildReporteSobrantes_();
+  applyCorporateTabTheme_();
+  return result;
+}
+
+function buildReporteSobrantes_() {
+  var ss = ss_();
+  var existing = ss.getSheetByName(SHEET_REPORT_ELAB);
+  var previousActive = ss.getActiveSheet();
+  var sh = existing || ss.insertSheet(SHEET_REPORT_ELAB);
+  if (!existing) {
+    ss.setActiveSheet(sh);
+    ss.moveActiveSheet(Math.min(2, ss.getSheets().length));
+    if (previousActive) ss.setActiveSheet(previousActive);
+  }
+  clearPresentationSheet_(sh, 9);
+  sh.setTabColor('#D05A08');
+
+  var rows = elaboradosRows_().filter(function (row) {
+    var estado = normalizeLooseText_(row[10]);
+    return estado === 'marcado' || estado === 'crudo';
+  });
+  var marked = rows.filter(function (row) { return normalizeLooseText_(row[10]) === 'marcado'; });
+  var raw = rows.filter(function (row) { return normalizeLooseText_(row[10]) === 'crudo'; });
+  var headers = ['Local', 'Ingreso', 'Encargado', 'Código', 'Producto', 'Cantidad', 'Unidad', 'Destino', 'Observaciones'];
+
+  sh.getRange('A1:I1').merge().setValue('CONTROL DE SOBRANTES · MARCADO Y CRUDO')
+    .setBackground('#1D416B').setFontColor('#ffffff').setFontWeight('bold').setFontSize(20)
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sh.setRowHeight(1, 42);
+  sh.getRange('A2:I2').merge().setValue(
+    'Reporte automático desde CONTEO ELABORADOS · Actualizado ' +
+    Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'dd/MM/yyyy HH:mm')
+  ).setBackground('#EAF2F6').setFontColor('#41576B').setHorizontalAlignment('center');
+
+  sh.getRange('A4:C4').setValues([['Indicador', 'Resultado', 'Uso operativo']])
+    .setBackground('#1D416B').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
+  sh.getRange('A5:C7').setValues([
+    ['Sobrantes Marcados', reportSheetQuantity_(marked), 'Producto elaborado; revisar destino'],
+    ['Sobrantes Crudos', reportSheetQuantity_(raw), 'Validar antes de descontar compras'],
+    ['Registros incluidos', rows.length, 'Solo estados Marcado y Crudo']
+  ]).setBorder(true, true, true, true, true, true).setWrap(true);
+
+  var nextRow = 9;
+  nextRow = writeSobrantesSection_(sh, nextRow, 'SOBRANTES MARCADOS', '#D05A08', headers, marked);
+  nextRow += 2;
+  nextRow = writeSobrantesSection_(sh, nextRow, 'SOBRANTES CRUDOS', '#4D8334', headers, raw);
+  nextRow += 2;
+  writeCompraNetaSection_(sh, nextRow, raw);
+
+  var widths = [120, 155, 155, 95, 230, 105, 90, 135, 260];
+  for (var c = 0; c < widths.length; c++) sh.setColumnWidth(c + 1, widths[c]);
+  var lastRow = Math.max(sh.getLastRow(), 7);
+  sh.getRange(1, 1, lastRow, 9).setFontSize(14).setVerticalAlignment('middle').setWrap(true);
+  sh.getRange('A1:I1').setFontSize(20);
+  sh.setFrozenRows(2);
+  sh.autoResizeRows(1, lastRow);
+  return {
+    ok: true,
+    sheet: SHEET_REPORT_ELAB,
+    sheet_index: sh.getIndex(),
+    hidden: sh.isSheetHidden(),
+    total: rows.length,
+    marked: marked.length,
+    raw: raw.length
+  };
+}
+
+function writeSobrantesSection_(sh, startRow, title, color, headers, rows) {
+  sh.getRange(startRow, 1, 1, 9).merge().setValue(title)
+    .setBackground(color).setFontColor('#ffffff').setFontWeight('bold').setFontSize(16);
+  sh.getRange(startRow + 1, 1, 1, 9).setValues([headers])
+    .setBackground('#1D416B').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
+  if (!rows.length) {
+    sh.getRange(startRow + 2, 1, 1, 9).merge().setValue('Sin registros para esta condición.')
+      .setFontColor('#667788').setHorizontalAlignment('center').setBorder(true, true, true, true, false, false);
+    return startRow + 3;
+  }
+  var values = rows.map(function (row) {
+    return [
+      normalizeLocalName_(row[2]),
+      formatReportDateTime_(row[1]),
+      row[3] || '',
+      row[5] || '',
+      row[6] || '',
+      numberOrZero_(row[9], 0),
+      row[8] || 'unidad',
+      row[11] || 'Revisar',
+      row[12] || ''
+    ];
+  });
+  sh.getRange(startRow + 2, 1, values.length, 9).setValues(values)
+    .setBorder(true, true, true, true, true, true);
+  applyBanding_(sh, startRow + 1, values.length + 1, 9);
+  return startRow + 2 + values.length;
+}
+
+function writeCompraNetaSection_(sh, startRow, rawRows) {
+  sh.getRange(startRow, 1, 1, 9).merge().setValue('HOJA DE COMPRA NETA · VALIDAR SOBRANTE CRUDO')
+    .setBackground('#1D416B').setFontColor('#ffffff').setFontWeight('bold').setFontSize(16);
+  var headers = ['Local', 'Código', 'Producto', 'Unidad', 'Pedido bruto', 'Crudo a validar', 'Compra neta', 'Control', 'Último ingreso'];
+  sh.getRange(startRow + 1, 1, 1, 9).setValues([headers])
+    .setBackground('#1D416B').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
+  var grouped = {};
+  rawRows.forEach(function (row) {
+    var key = [normalizeLocalName_(row[2]), row[5] || '', row[6] || '', row[8] || 'unidad'].join('||');
+    if (!grouped[key]) grouped[key] = {
+      local: normalizeLocalName_(row[2]), codigo: row[5] || '', producto: row[6] || '', unidad: row[8] || 'unidad',
+      cantidad: 0, ingreso: formatReportDateTime_(row[1])
+    };
+    grouped[key].cantidad += numberOrZero_(row[9], 0);
+  });
+  var items = Object.keys(grouped).map(function (key) { return grouped[key]; });
+  if (!items.length) {
+    sh.getRange(startRow + 2, 1, 1, 9).merge().setValue('Sin sobrantes Crudos para cruzar con compras.')
+      .setFontColor('#667788').setHorizontalAlignment('center').setBorder(true, true, true, true, false, false);
+    return;
+  }
+  var values = items.map(function (item) {
+    return [item.local, item.codigo, item.producto, item.unidad, '', round2_(item.cantidad), '', false, item.ingreso];
+  });
+  var firstDataRow = startRow + 2;
+  sh.getRange(firstDataRow, 1, values.length, 9).setValues(values).setBorder(true, true, true, true, true, true);
+  for (var i = 0; i < values.length; i++) {
+    var rowNumber = firstDataRow + i;
+    sh.getRange(rowNumber, 7).setFormula('=IF(E' + rowNumber + '="","",MAX(0,E' + rowNumber + '-F' + rowNumber + '))');
+  }
+  sh.getRange(firstDataRow, 8, values.length, 1).insertCheckboxes();
+}
+
+function reportSheetQuantity_(rows) {
+  if (!rows.length) return '0';
+  var totals = {};
+  rows.forEach(function (row) {
+    var unit = String(row[8] || 'unidad').trim() || 'unidad';
+    totals[unit] = (totals[unit] || 0) + numberOrZero_(row[9], 0);
+  });
+  return Object.keys(totals).map(function (unit) { return round2_(totals[unit]) + ' ' + unit; }).join(' + ');
 }
 
 function buildLocalPedidoViews_() {
@@ -3001,6 +3230,7 @@ function isPrintableOperationalSheet_(sheetName) {
     SHEET_VIEW_REC,
     SHEET_VIEW_PROD,
     SHEET_VIEW_ELAB,
+    SHEET_REPORT_ELAB,
     SHEET_RESUMEN,
     SHEET_PEDIDOS,
     SHEET_DETALLE,
@@ -3106,6 +3336,7 @@ function applyCorporateTabTheme_() {
   tabColors[SHEET_VIEW_REC] = '#2D7D9A';
   tabColors[SHEET_VIEW_PROD] = '#2B7A68';
   tabColors[SHEET_VIEW_ELAB] = '#7A4A22';
+  tabColors[SHEET_REPORT_ELAB] = '#D05A08';
   tabColors[SHEET_STOCK_DASH] = '#355C7D';
   tabColors[SHEET_RESUMEN] = '#4F6D7A';
   tabColors[SHEET_DETALLE] = '#7A8B99';
@@ -3118,7 +3349,7 @@ function applyCorporateTabTheme_() {
   tabColors[SHEET_CONFIG] = '#95A5A6';
 
   var order = [
-    SHEET_HOME, SHEET_STOCK_DASH, SHEET_VIEW_PED, SHEET_VIEW_STK, SHEET_VIEW_REC, SHEET_VIEW_PROD, SHEET_VIEW_ELAB, SHEET_VIEW_BUY,
+    SHEET_HOME, SHEET_REPORT_ELAB, SHEET_STOCK_DASH, SHEET_VIEW_PED, SHEET_VIEW_STK, SHEET_VIEW_REC, SHEET_VIEW_PROD, SHEET_VIEW_ELAB, SHEET_VIEW_BUY,
     SHEET_RESUMEN, SHEET_DETALLE, SHEET_STOCK, SHEET_RECEPCION, SHEET_PRODUCCION, SHEET_ELABORADOS, SHEET_PEDIDOS, SHEET_CATALOGO, SHEET_CONFIG
   ];
   for (var i = 0; i < order.length; i++) {
