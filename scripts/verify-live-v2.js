@@ -60,6 +60,7 @@ async function main() {
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.catalog_product_status), "catalog product confirmation enabled", "bootstrap missing catalog_product_status capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.sheet_report_elaborados), "Google Sheets elaborados report enabled", "bootstrap missing sheet_report_elaborados capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.dashboard_v2), "bootstrap dashboard_v2 enabled", "bootstrap missing dashboard_v2 capability");
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.operation_status), "operation confirmation enabled", "bootstrap missing operation_status capability");
 
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.totals), "snapshot totals present", "snapshot totals missing");
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.byLocal), "snapshot byLocal present", "snapshot byLocal missing");
@@ -89,6 +90,10 @@ async function main() {
   const catalogStatus = await getJson(`${scriptUrl}?action=getCatalogProductStatus&local=${encodeURIComponent("Umo Grill")}`);
   expect(catalogStatus && catalogStatus.ok === true, "catalog product status responded", "catalog product status did not return ok:true");
   expect(Number(catalogStatus && catalogStatus.local_count) > 0, "Umo Grill catalog available", "Umo Grill catalog is empty or unavailable");
+
+  const operationStatus = await getJson(`${scriptUrl}?action=getOperationStatus&type=stock&id=VERIFY-NOT-FOUND`);
+  expect(operationStatus && operationStatus.ok === true, "operation status responded", "operation status did not return ok:true");
+  expect(operationStatus && operationStatus.found === false, "operation status handles missing ids", "operation status returned an unexpected match");
 
   if (process.exitCode) {
     console.error("\nLive V2 verification failed. The published /exec is behind the local code.");

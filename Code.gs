@@ -41,7 +41,7 @@ var SHEET_REPORT_ELAB = 'REPORTE SOBRANTES';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
-var APP_VERSION = '2.3.1';
+var APP_VERSION = '2.3.2';
 var PRINT_FONT_SIZE = 14;
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
@@ -71,6 +71,12 @@ function doGet(e) {
     }
     if (action === 'getPedidoStatus') {
       return json(getPedidoStatus_((e && e.parameter && e.parameter.id_pedido) || ''));
+    }
+    if (action === 'getOperationStatus') {
+      return json(getOperationStatus_(
+        (e && e.parameter && e.parameter.type) || '',
+        (e && e.parameter && e.parameter.id) || ''
+      ));
     }
     if (action === 'getTelegramStatus') {
       return json(getTelegramStatus_());
@@ -342,6 +348,7 @@ function appCapabilities_() {
     movement_views: true,
     bootstrap_v2: true,
     pedido_status: true,
+    operation_status: true,
     telegram_notify: telegram.enabled,
     receipt_ai_parse: openai.enabled
   };
@@ -380,6 +387,30 @@ function getPedidoStatus_(pedidoId) {
     detalle_count: detalle.length,
     telegram: telegram
   };
+}
+
+function getOperationStatus_(type, operationId) {
+  type = String(type || '').trim().toLowerCase();
+  operationId = String(operationId || '').trim();
+  if (!operationId) return { ok: false, error: 'Falta id de operación' };
+
+  var sheetName = '';
+  if (type === 'stock') sheetName = SHEET_STOCK;
+  if (type === 'reception' || type === 'recepcion') sheetName = SHEET_RECEPCION;
+  if (type === 'production' || type === 'produccion') sheetName = SHEET_PRODUCCION;
+  if (type === 'elaborados') sheetName = SHEET_ELABORADOS;
+  if (!sheetName) return { ok: false, error: 'Tipo de operación inválido' };
+
+  var sh = ss_().getSheetByName(sheetName);
+  if (!sh || sh.getLastRow() < 2) {
+    return { ok: true, found: false, type: type, id: operationId, rows: 0 };
+  }
+  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues();
+  var rows = 0;
+  for (var r = 0; r < ids.length; r++) {
+    if (String(ids[r][0] || '').trim() === operationId) rows++;
+  }
+  return { ok: true, found: rows > 0, type: type, id: operationId, rows: rows };
 }
 
 /* ============================== READ CATALOG ============================== */

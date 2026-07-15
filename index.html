@@ -2990,6 +2990,8 @@ async function saveReception(){
   btn.disabled=true; btn.textContent="Guardando...";
   try{
     await apiPost(payload);
+    const confirmed=await confirmOperationPersisted("reception",payload.id_recepcion);
+    if(!confirmed) throw new Error("La recepción no fue confirmada por Google Sheets");
     applyReceptionOptimistic(state.local, items);
     clearRecepDrafts(state.local);
     toast("Recepción registrada","ok");
@@ -3217,6 +3219,8 @@ async function saveProduction(){
   btn.disabled=true; btn.textContent="Guardando...";
   try{
     await apiPost(payload);
+    const confirmed=await confirmOperationPersisted("production",payload.id_produccion);
+    if(!confirmed) throw new Error("La producción no fue confirmada por Google Sheets");
     applyProductionOptimistic(state.local, payload);
     clearProdDrafts(state.local);
     toast("Producción registrada","ok");
@@ -3272,6 +3276,8 @@ async function saveElaborados(){
   btn.disabled=true; btn.textContent="Guardando...";
   try{
     await apiPost(payload);
+    const confirmed=await confirmOperationPersisted("elaborados",payload.id_conteo);
+    if(!confirmed) throw new Error("El conteo no fue confirmado por Google Sheets");
     applyElabOptimistic(state.local, payload);
     clearElabDrafts(state.local);
     reportUi.loaded=false;
@@ -3458,6 +3464,16 @@ async function confirmPedidoPersisted(idPedido, attempts=8, delayMs=900){
     await sleep(delayMs);
   }
   return { ok:false, telegramOk:false };
+}
+async function confirmOperationPersisted(type, id, attempts=8, delayMs=700){
+  for(let attempt=0; attempt<attempts; attempt++){
+    try{
+      const status=await backendGet("getOperationStatus",{type,id,t:Date.now()});
+      if(status&&status.ok&&status.found) return status;
+    }catch{}
+    await sleep(delayMs);
+  }
+  return null;
 }
 async function addProducto(){
   const local=cfgLocalVal();
@@ -4200,6 +4216,8 @@ async function saveStock(){
   btn.disabled=true; btn.textContent="Guardando...";
   try{
     await apiPost(payload);
+    const confirmed=await confirmOperationPersisted("stock",payload.id_stock);
+    if(!confirmed) throw new Error("El stock no fue confirmado por Google Sheets");
     syncCatalogStockFromDrafts(local);
     if(state.local===local) renderStockIntelligence();
     if(state.local===local) renderWorkspaceStats();
