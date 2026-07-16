@@ -12,19 +12,22 @@ Neutros tintados hacia el azul portuario. Nunca `#000` / `#fff`.
 
 | Rol | Valor | Uso |
 |---|---|---|
-| `--bg` | `oklch(0.985 0.004 230)` | fondo app |
-| `--surface` | `oklch(1 0 0 / 1)` tint `oklch(0.995 0.003 230)` | tarjetas, panel |
-| `--ink` | `oklch(0.27 0.02 240)` | texto principal |
-| `--ink-soft` | `oklch(0.50 0.02 240)` | texto secundario |
-| `--line` | `oklch(0.90 0.008 240)` | bordes |
-| `--brand` | `oklch(0.55 0.11 225)` | acento marino (puerto) — primario |
-| `--brand-strong` | `oklch(0.45 0.12 235)` | hover / activo |
+| `--bg` | `oklch(0.975 0.009 86)` | fondo marfil |
+| `--surface` | `oklch(0.993 0.005 86)` | tarjetas y paneles |
+| `--ink` | `oklch(0.245 0.026 230)` | grafito azulado principal |
+| `--ink-soft` | `oklch(0.47 0.025 225)` | texto secundario |
+| `--line` | `oklch(0.865 0.016 220)` | bordes acero |
+| `--brand` | `oklch(0.405 0.082 215)` | azul petróleo primario |
+| `--brand-strong` | `oklch(0.31 0.068 220)` | azul petróleo profundo |
+| `--steel` | `oklch(0.58 0.038 220)` | acento secundario acero |
+| `--copper` | `oklch(0.61 0.105 55)` | detalle cobre restringido |
 | `--green` | `oklch(0.62 0.13 150)` | GreenFresh + urgencia baja |
 | `--amber` | `oklch(0.74 0.14 75)` | urgencia normal |
 | `--red` | `oklch(0.58 0.18 25)` | urgencia urgente, eliminar |
 
-Estrategia de color: **restrained**. Neutros + un acento marino. GreenFresh y los
-estados de urgencia son los únicos colores fuertes, y siempre con significado.
+Estrategia de color: **restrained**. Marfil, petróleo y acero forman la identidad.
+El cobre aparece únicamente en líneas de profundidad, foco o marca. GreenFresh y
+los estados de urgencia conservan sus colores semánticos.
 
 ## Typography
 
@@ -33,9 +36,18 @@ estados de urgencia son los únicos colores fuertes, y siempre con significado.
 - Jerarquía por tamaño + peso (500/600/700), no por bordes gruesos de colores.
 - Line-length de observaciones ≤ 70ch.
 
+## Profundidad 3D
+
+- Tres niveles compartidos: `--depth-low`, `--depth-mid` y `--depth-high`.
+- La profundidad se construye con borde iluminado, sombra azulada y base inferior
+  corta. No se usan perspectiva, WebGL, tilt ni recursos gráficos pesados.
+- En mouse el hover puede elevar como máximo 1px. En táctil cambia la sombra sin
+  desplazar el control. `prefers-reduced-motion` elimina todo desplazamiento.
+- En pantallas de hasta 560px las sombras pierden alcance y no usan blur decorativo.
+
 ## Buttons & controls
 
-- **Normales.** Radio 10px. Sin `scale`, sin `translateY` saltarín, sin glow, sin shimmer.
+- **Normales.** Radio 10px. Sin `scale`, glow, shimmer ni movimientos mayores a 1px.
 - Estado hover: oscurecer fondo levemente + sombra sutil. Transición 150ms ease-out.
 - Tap target ≥ 44px alto, pero proporción sana (no botones gigantes).
 - Selección de local/urgencia: borde + relleno tenue del color del rol + check discreto.
@@ -49,8 +61,9 @@ estados de urgencia son los únicos colores fuertes, y siempre con significado.
 
 ## Motion
 
-- Solo `opacity` y `transform` puntuales (entrada de filas, check). Ease-out.
+- Solo `opacity` y `transform` puntuales (entrada de filas, check y hover de 1px). Ease-out.
 - Nada de gradientes animados de fondo.
+- Todos los efectos deben tener alternativa bajo `prefers-reduced-motion`.
 
 ## Bans (heredados de impeccable)
 
