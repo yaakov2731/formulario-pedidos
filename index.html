@@ -622,7 +622,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .tab-panel[data-tab="stock"],
   .tab-panel[data-tab="recepcion"],
   .tab-panel[data-tab="produccion"],
-  .tab-panel[data-tab="dashboard"]{
+  .tab-panel[data-tab="reportes"]{
     margin-bottom:92px;
   }
   .pedido-shell,
@@ -802,7 +802,7 @@ body.compact-mobile-shell .tab-panel[data-tab="home"],
 body.compact-mobile-shell .tab-panel[data-tab="stock"],
 body.compact-mobile-shell .tab-panel[data-tab="recepcion"],
 body.compact-mobile-shell .tab-panel[data-tab="produccion"],
-body.compact-mobile-shell .tab-panel[data-tab="dashboard"]{margin-bottom:92px}
+body.compact-mobile-shell .tab-panel[data-tab="reportes"]{margin-bottom:92px}
 body.compact-mobile-shell .workspace{
   position:relative;
   padding:10px 10px 10px;
@@ -1026,40 +1026,6 @@ button:focus-visible,[role="button"]:focus-visible,input:focus-visible,select:fo
   size:auto;
   margin:12mm;
 }
-.report-toolbar{display:grid;grid-template-columns:minmax(180px,1.2fr) repeat(2,minmax(150px,.8fr)) auto auto;gap:10px;align-items:end;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-soft);margin-bottom:14px}
-.report-toolbar .field{margin:0}
-.report-status{grid-column:1/-1;font-size:12px;color:var(--ink-faint)}
-.report-document{--report-blue:#1d416b;--report-green:#4d8334;--report-orange:#cf5908;--report-gold:#c99b00;background:#fff;color:#171717;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
-.report-page{min-height:720px;padding:28px 30px 24px;background:#fff}
-.report-page+.report-page{border-top:10px solid var(--canvas)}
-.report-title{text-align:center;margin:0;color:var(--report-blue);font-size:28px;line-height:1.1;letter-spacing:.01em}
-.report-subtitle{text-align:center;margin:8px 0 18px;color:#666;font-size:15px}
-.report-section-title{margin:18px 0 0;padding:11px 14px;color:#fff;background:var(--report-blue);font-size:16px;line-height:1.2;text-transform:uppercase}
-.report-section-title.green{background:var(--report-green)}
-.report-section-title.orange{background:var(--report-orange)}
-.report-section-title.gold{background:var(--report-gold)}
-.report-table-wrap{overflow:auto}
-.report-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
-.report-table th,.report-table td{border:1px solid #222;padding:7px 8px;vertical-align:middle}
-.report-table th{background:var(--report-blue);color:#fff;font-weight:800;text-align:center}
-.report-table td:nth-child(1),.report-table td:nth-child(3),.report-table td:nth-child(4){text-align:center}
-.report-summary td:first-child{font-weight:800;text-align:center}
-.report-summary td:nth-child(2){font-weight:800}
-.report-note{margin:16px 0 0;padding:11px 13px;border-left:4px solid #c91818;background:#fff7f4;font-size:13px;line-height:1.45}
-.report-note strong{color:#b11414}
-.report-empty{padding:42px 20px;text-align:center;color:var(--ink-faint)}
-.report-net-input{width:100%;min-width:72px;border:none;border-bottom:1px solid #555;border-radius:0;background:transparent;text-align:center;font:inherit;padding:3px}
-.report-net-value{display:block;min-height:22px;text-align:center;font-weight:800}
-.report-signatures{margin-top:24px}
-.report-signatures td{height:50px;text-align:center!important;vertical-align:bottom}
-.report-footer{text-align:center;color:#666;font-size:11px;margin-top:28px}
-.report-condition{display:inline-flex;padding:3px 8px;border-radius:999px;background:#eef3f8;color:var(--report-blue);font-weight:800}
-@media(max-width:900px){
-  .report-toolbar{grid-template-columns:1fr 1fr}
-  .report-toolbar .field:first-child{grid-column:1/-1}
-  .report-page{padding:20px 14px;min-height:0}
-  .report-title{font-size:22px}
-}
 @media print{
   html,body{
     background:#fff !important;
@@ -1162,42 +1128,159 @@ button:focus-visible,[role="button"]:focus-visible,input:focus-visible,select:fo
     color:#000 !important;
     font-size:11pt !important;
   }
-  @page{size:A4 landscape;margin:9mm}
-  body.report-printing{font-size:13pt !important}
-  body.report-printing .wrap>.hero,
-  body.report-printing .wrap>.foot,
-  body.report-printing .report-toolbar,
-  body.report-printing .report-screen-head{display:none !important}
-  body.report-printing .tab-panel[data-tab="reportes"]{display:block !important}
-  body.report-printing .tab-panel[data-tab="reportes"]{border:0 !important;border-radius:0 !important;box-shadow:none !important;background:#fff !important;padding:0 !important;margin:0 !important}
-  body.report-printing .report-document{border:none !important;border-radius:0 !important;box-shadow:none !important;overflow:visible !important}
-  body.report-printing .report-page{min-height:0;padding:0;background:#fff !important;break-after:page;page-break-after:always}
-  body.report-printing .report-page:last-child{break-after:auto;page-break-after:auto}
-  body.report-printing .report-page+.report-page{border-top:none !important}
-  body.report-printing .report-title{font-size:22pt !important;color:#1d416b !important}
-  body.report-printing .report-subtitle{font-size:13pt !important;color:#555 !important}
-  body.report-printing .report-section-title{font-size:14pt !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body.report-printing .report-table{font-size:13pt !important}
-  body.report-printing .report-table th,
-  body.report-printing .report-table td{padding:5px 6px !important;border:1px solid #111 !important}
-  body.report-printing .report-table th{color:#fff !important;background:#1d416b !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body.report-printing .report-section-title.green{background:#4d8334 !important}
-  body.report-printing .report-section-title.orange{background:#cf5908 !important}
-  body.report-printing .report-section-title.gold{background:#c99b00 !important}
-  body.report-printing .report-net-input{display:block !important;border-bottom:1px solid #333 !important;font-size:13pt !important;text-align:center !important;appearance:textfield !important;outline:none !important;box-shadow:none !important}
-  body.report-printing .report-net-input::-webkit-inner-spin-button,
-  body.report-printing .report-net-input::-webkit-outer-spin-button{display:none !important}
-  body.report-printing .report-note{font-size:13pt !important;border:0 !important;border-left:4px solid #c91818 !important;background:#fff !important}
-  body.report-printing .report-footer{font-size:10pt !important;color:#555 !important}
+}
+
+/* ===== Shell profesional basado en la referencia aprobada ===== */
+:root{
+  --shell-nav:#13242d;
+  --shell-nav-soft:#1a303b;
+  --shell-nav-text:#d8e3e8;
+  --shell-nav-muted:#8fa6b2;
+  --shell-width:264px;
+  --content-max:1320px;
+}
+body{padding:0;background:#f8f7f2}
+.app-shell{min-height:100vh}
+.app-main{min-width:0;margin-left:var(--shell-width);min-height:100vh}
+.shell-sidebar{
+  position:fixed;inset:0 auto 0 0;z-index:80;width:var(--shell-width);display:flex;flex-direction:column;
+  padding:24px 18px 20px;background:var(--shell-nav);color:var(--shell-nav-text);
+  box-shadow:10px 0 32px oklch(.18 .03 225 / .08);transition:transform .32s var(--ease)
+}
+.shell-brand{display:flex;align-items:center;gap:12px;padding:4px 6px 28px;border:0;background:transparent;color:inherit;text-decoration:none;font:inherit;text-align:left;cursor:pointer}
+.shell-brand-mark{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:#176178;color:#bce6f3;font-weight:800;letter-spacing:.05em}
+.shell-brand-copy strong{display:block;font-size:14px;letter-spacing:.02em;text-transform:uppercase}
+.shell-brand-copy span{display:block;margin-top:2px;color:var(--shell-nav-muted);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.shell-nav{display:flex;flex-direction:column;gap:4px}
+.shell-nav-label{padding:15px 12px 7px;color:var(--shell-nav-muted);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.shell-nav-btn{width:100%;min-height:46px;display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--shell-nav-text);font:inherit;font-size:14px;font-weight:550;text-align:left;cursor:pointer;transition:background .3s var(--ease),border-color .3s var(--ease),transform .3s var(--ease),color .3s var(--ease)}
+.shell-nav-btn svg{width:20px;height:20px;flex:none;stroke:currentColor}
+.shell-nav-btn:hover{background:oklch(1 0 0 / .07);border-color:oklch(1 0 0 / .08);transform:translateX(2px)}
+.shell-nav-btn[aria-current="page"]{background:#1c3b48;border-color:#285261;color:#fff;box-shadow:inset 3px 0 0 #5db3c8}
+.shell-sidebar-foot{margin-top:auto;padding:14px 14px 13px;border:1px solid oklch(1 0 0 / .10);border-radius:13px;background:oklch(1 0 0 / .025)}
+.shell-sidebar-foot span{display:block;color:var(--shell-nav-muted);font-size:11px}
+.shell-sidebar-foot strong{display:block;margin-top:3px;color:#fff;font-size:14px}
+.shell-scrim{position:fixed;inset:0;z-index:75;border:0;background:oklch(.15 .03 225 / .5);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .3s var(--ease)}
+.shell-menu-btn{display:none;width:44px;height:44px;flex:none;place-items:center;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);cursor:pointer}
+.shell-menu-btn svg{width:21px;height:21px;stroke:currentColor}
+.topbar-context{display:flex;flex-direction:column;min-width:0}
+.topbar-context small{font-size:10px;color:var(--ink-soft);letter-spacing:.1em;text-transform:uppercase;font-weight:750}
+.topbar-context strong{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.wrap{max-width:var(--content-max);margin:0 auto;padding:0 32px 130px}
+.hero{position:sticky;top:0;z-index:55;min-height:74px;margin:0 -32px 28px;padding:14px 32px;border-radius:0;border-bottom:1px solid var(--line);background:oklch(.985 .005 86 / .96);color:var(--ink);box-shadow:0 8px 24px oklch(.24 .03 225 / .05);backdrop-filter:blur(14px);overflow:visible}
+.hero-bg,.hero-foot,.hero .mark,.hero .hero-txt,.hero-actions{display:none}
+.hero-row{display:flex;align-items:center;gap:14px;min-height:45px}
+.hero .conn{margin-left:auto;color:var(--ink-soft);background:var(--surface);border-color:var(--line);box-shadow:none}
+.hero .admin-chip{color:var(--brand-strong);background:var(--brand-tint);border-color:var(--line)}
+section{counter-increment:none;background:var(--surface);border-color:var(--line);border-radius:16px;padding:clamp(18px,2vw,28px);margin-bottom:18px;box-shadow:0 1px 2px oklch(.24 .03 225 / .04),0 14px 34px oklch(.24 .03 225 / .055)}
+.shead::before{display:none}
+.shead{align-items:flex-start;margin-bottom:20px}
+.shead h2{font-size:clamp(20px,2.2vw,28px);font-weight:760;letter-spacing:-.035em}
+.skicker{color:var(--ink-soft);font-size:10px;letter-spacing:.12em}
+.home-shell,.pedido-shell,.workspace{padding:clamp(22px,3vw,36px);background:var(--surface);border-radius:18px}
+.home-local-block{background:transparent;border:0;box-shadow:none;padding:0}
+.locales{grid-template-columns:repeat(5,minmax(128px,1fr));gap:12px}
+.local{min-height:112px;justify-content:space-between;padding:15px;border-radius:13px;background:#fff;box-shadow:none}
+.local:hover{box-shadow:0 12px 28px oklch(.24 .03 225 / .08);transform:translateY(-2px)}
+.local-actions-bar.show{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.local-action{min-height:92px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font-size:13px;font-weight:700;text-align:left;box-shadow:none}
+.local-action span{font-size:20px}
+.local-action:hover{border-color:var(--line-strong);box-shadow:0 12px 28px oklch(.24 .03 225 / .08);transform:translateY(-2px)}
+.pedido-progress{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pedido-step-btn{min-height:72px;border-radius:11px;box-shadow:none}
+.stock-panel,.module-card,.workspace-stat,.event-item,.op-row,.recep-photo-panel,.cfg-block{background:#fff;border-color:var(--line);box-shadow:none}
+.module-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.dash-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.module-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.module-stack .stock-panel{margin:0!important}
+.event-item{min-height:64px;border-radius:10px}
+.bar{left:var(--shell-width);padding:12px 28px calc(12px + env(safe-area-inset-bottom));background:oklch(.985 .005 86 / .96);border-top:1px solid var(--line);box-shadow:0 -12px 30px oklch(.24 .03 225 / .07);backdrop-filter:blur(14px)}
+.bar-in{max-width:var(--content-max)}
+.cfg{z-index:100}
+.cfg-panel{max-width:720px;border-radius:16px;box-shadow:0 28px 70px oklch(.18 .04 225 / .24)}
+.cfg-head{background:var(--shell-nav)}
+.shell-report-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.shell-report-head h2{font-size:clamp(26px,3vw,42px);line-height:1.05;letter-spacing:-.045em}
+.shell-report-head p{margin-top:8px;color:var(--ink-soft);max-width:60ch}
+
+@media(max-width:1080px){
+  :root{--shell-width:236px}
+  .wrap{padding-left:24px;padding-right:24px}
+  .hero{margin-left:-24px;margin-right:-24px;padding-left:24px;padding-right:24px}
+  .locales{grid-template-columns:repeat(3,minmax(128px,1fr))}
+  .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:900px){
+  :root{--shell-width:268px}
+  .app-main{margin-left:0}
+  .shell-sidebar{transform:translateX(-104%);box-shadow:20px 0 50px oklch(.15 .03 225 / .25)}
+  body.shell-menu-open .shell-sidebar{transform:translateX(0)}
+  body.shell-menu-open .shell-scrim{opacity:1;pointer-events:auto}
+  .shell-menu-btn{display:grid}
+  .bar{left:0}
+  .module-stack{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .app-shell{padding:0!important}
+  .wrap{padding:0 14px 112px}
+  .hero{min-height:66px;margin:0 -14px 16px;padding:10px 14px}
+  .hero .conn{padding:6px 8px;font-size:10px}
+  section,.home-shell,.pedido-shell,.workspace{width:100%;max-width:100%;padding:16px;border-radius:13px;margin:0 0 12px}
+  .home-local-block,.locales,.local{width:100%;max-width:100%;min-width:0}
+  .locales{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .local{min-height:94px;padding:12px}
+  .local-actions-bar.show{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pedido-progress{display:flex;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .pedido-step-btn{min-width:148px}
+  .module-grid,.dash-grid{grid-template-columns:1fr}
+  .shell-report-head{display:block}
+  .shell-report-head .snum{display:block;margin-top:10px}
+  .bar{padding:9px 12px calc(9px + env(safe-area-inset-bottom))}
+  body.compact-mobile-shell .wrap{padding:0 10px 112px}
+  body.compact-mobile-shell section,
+  body.compact-mobile-shell .home-shell,
+  body.compact-mobile-shell .pedido-shell,
+  body.compact-mobile-shell .workspace{width:100%;max-width:100%;margin-left:0;margin-right:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .shell-sidebar,.shell-scrim,.shell-nav-btn,.local,.tab-panel:not([hidden]){transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }
 </style>
 </head>
-<body>
+<body data-design-version="professional-shell-v1">
+<div class="app-shell">
+  <aside class="shell-sidebar" id="shellSidebar" aria-label="Navegación principal">
+    <button class="shell-brand" type="button" data-shell-tab="home" aria-label="Ir al inicio">
+      <span class="shell-brand-mark">DP</span>
+      <span class="shell-brand-copy"><strong>Docks del Puerto</strong><span>Operaciones</span></span>
+    </button>
+    <nav class="shell-nav">
+      <div class="shell-nav-label">Operación</div>
+      <button class="shell-nav-btn" type="button" data-shell-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg><span>Inicio</span></button>
+      <button class="shell-nav-btn" type="button" data-shell-tab="pedido"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/></svg><span>Pedido</span></button>
+      <button class="shell-nav-btn" type="button" data-shell-tab="stock"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="m3 8 9 5 9-5v9l-9 5-9-5V8Z"/></svg><span>Stock real</span></button>
+      <button class="shell-nav-btn" type="button" data-shell-tab="recepcion"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 3v12m0 0 5-5m-5 5-5-5"/><path d="M5 21h14"/></svg><span>Recepción</span></button>
+      <button class="shell-nav-btn" type="button" data-shell-tab="produccion"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 0-5-5L7.5 3.5 10.5 6.5 8 9a4 4 0 0 0-5.7 5.1L10 21.8a4 4 0 0 0 5.1-5.7l2.5-2.5 3 3 2.2-2.2a4 4 0 0 0-5-5l-3.1 3.1"/></svg><span>Producción</span></button>
+      <button class="shell-nav-btn" type="button" data-shell-tab="elaborados"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg><span>Elaborados</span></button>
+      <div class="shell-nav-label">Control</div>
+      <button class="shell-nav-btn" type="button" data-shell-tab="reportes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 20V10m6 10V4m6 16v-7m6 7H2"/></svg><span>Reportes</span></button>
+      <button class="shell-nav-btn" type="button" data-admin-nav><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg><span>Administración</span></button>
+    </nav>
+    <div class="shell-sidebar-foot"><span>Local activo</span><strong id="sidebarLocalName">Seleccioná un local</strong></div>
+  </aside>
+  <button class="shell-scrim" id="shellScrim" type="button" aria-label="Cerrar menú"></button>
+  <main class="app-main">
 <div class="wrap">
 
   <header class="hero">
     <div class="hero-bg" aria-hidden="true"></div>
     <div class="hero-row">
+      <button class="shell-menu-btn" id="shellMenuBtn" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="shellSidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="topbar-context"><small id="topbarEyebrow">Pedidos semanales</small><strong id="topbarLocal">Seleccioná un local</strong></div>
       <div class="mark">DP</div>
       <div class="hero-txt">
         <h1>Pedidos Semanales</h1>
@@ -1373,20 +1456,20 @@ button:focus-visible,[role="button"]:focus-visible,input:focus-visible,select:fo
             <span>Seguís usando la grilla manual para entradas rápidas, parciales o correcciones.</span>
           </button>
           <button class="recep-intake-btn" id="recepPhotoBtn" type="button">
-            <strong>Importar Excel</strong>
-            <span>Subí un Excel o CSV con artículos y cantidades. La app arma la recepción y al guardar actualiza stock.</span>
+            <strong>Cargar desde foto</strong>
+            <span>Fotografiá la boleta o remito. La app propone los artículos y siempre permite corregirlos a mano.</span>
           </button>
         </div>
-        <input id="recepPhotoInput" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
+        <input id="recepPhotoInput" type="file" accept="image/*" capture="environment" hidden>
         <div class="recep-photo-panel" id="recepPhotoPanel">
           <div class="recep-photo-head">
             <div>
-              <strong>Importador de Excel</strong>
-              <span id="recepPhotoSubtext">Todavía no cargaste un archivo. La recepción manual sigue disponible abajo.</span>
+              <strong>Asistente desde foto</strong>
+              <span id="recepPhotoSubtext">Todavía no cargaste una foto. La recepción manual sigue disponible abajo.</span>
             </div>
             <div class="recep-photo-chip" id="recepPhotoChip">Manual</div>
           </div>
-          <div class="recep-photo-meta" id="recepPhotoMeta">El Excel arma un borrador de recepción. Cuando guardás, también impacta stock.</div>
+          <div class="recep-photo-meta" id="recepPhotoMeta">La foto arma un borrador de recepción. Cuando guardás, también impacta stock.</div>
           <div class="recep-photo-list" id="recepPhotoMatches"></div>
           <div class="recep-photo-actions" id="recepPhotoActions" hidden>
             <button class="cfg-btn alt" id="recepPhotoReset" type="button">Limpiar archivo</button>
@@ -1500,27 +1583,8 @@ button:focus-visible,[role="button"]:focus-visible,input:focus-visible,select:fo
   </section>
 
   <section class="tab-panel" data-tab="reportes" hidden>
-    <div class="shead report-screen-head">
-      <div><p class="skicker">Reportes</p><h2>Sobrantes marcados y crudos</h2></div>
-      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
-      <span class="snum" id="reportMeta">Sin cargar</span>
-    </div>
-    <div class="report-toolbar">
-      <div class="field"><label>Local</label><select id="reportLocal"></select></div>
-      <div class="field"><label>Desde</label><input id="reportDesde" type="date"></div>
-      <div class="field"><label>Hasta</label><input id="reportHasta" type="date"></div>
-      <button class="cfg-btn alt" id="reportLoad" type="button">Actualizar reporte</button>
-      <button class="cfg-btn" id="reportPrint" type="button" disabled>Imprimir reporte</button>
-      <div class="report-status" id="reportStatus">Elegí un local y, si necesitás, un rango de fechas.</div>
-    </div>
-    <div class="report-document" id="reportDocument">
-      <div class="report-empty">Abrí la pestaña para cargar todos los sobrantes Marcados y Crudos del local.</div>
-    </div>
-  </section>
-
-  <section class="tab-panel" data-tab="dashboard" hidden>
-    <div class="shead">
-      <div><p class="skicker">Admin</p><h2>Lectura ejecutiva del local</h2></div>
+    <div class="shell-report-head">
+      <div><p class="skicker">Lectura ejecutiva</p><h2>Lo importante, sin buscarlo</h2><p>Riesgos, pedidos y movimientos recientes del local en una sola lectura.</p></div>
       <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
       <span class="snum" id="dashMeta">Sin local</span>
     </div>
@@ -1599,6 +1663,8 @@ button:focus-visible,[role="button"]:focus-visible,input:focus-visible,select:fo
 
   <p class="foot"><b>Docks del Puerto</b> · Polo Gastronómico<br>Puerto de Frutos, Tigre · Buenos Aires</p>
 
+</div>
+  </main>
 </div>
 
 <!-- Sticky submit -->
@@ -1724,20 +1790,18 @@ button:focus-visible,[role="button"]:focus-visible,input:focus-visible,select:fo
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 "use strict";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxlRbGLZpFV_63-nyGod4GFGqYnN8XbTB6EciJAkjiabuWu32pQh6KehzBmIGZkDGBZ/exec";
 
-/* ---- Locales (Pizzería fuera, GreenFresh dentro) ---- */
+/* ---- Locales operativos reales ---- */
 const LOCALES = [
   { id:"Umo Grill",      emoji:"🥩", accent:"oklch(0.58 0.16 35)" },
   { id:"GreenFresh",     emoji:"🥗", accent:"oklch(0.62 0.13 150)" },
   { id:"Puerto Gelato",  emoji:"🍦", accent:"oklch(0.72 0.12 350)" },
   { id:"Trento Café",    emoji:"☕", accent:"oklch(0.55 0.07 60)" },
-  { id:"Brooklyn", emoji:"🍔", accent:"oklch(0.70 0.13 60)" },
-  { id:"Eventos",        emoji:"🎉", accent:"oklch(0.58 0.12 300)" },
-  { id:"Shopping",       emoji:"🛍️", accent:"oklch(0.55 0.11 225)" },
+  { id:"Brooklyn",       emoji:"🍔", accent:"oklch(0.70 0.13 60)" },
 ];
 
 /* ---- Encargados por local (snapshot de CONFIGURACIÓN; el script puede sobreescribir) ---- */
@@ -1817,12 +1881,11 @@ let RESP = {};
 let RECEPCIONES = { latest:[], byLocal:{} };
 let PRODUCCION = { latest:[], byLocal:{} };
 let ELABORADOS = { latest:[], byLocal:{} };
-let ELABORADOS_REPORT = { rows:[], local:"", desde:"", hasta:"", generated_at:"" };
 let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
 
 /* ---- State ---- */
-const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"datos", admin:false };
+const state = { local:"Umo Grill", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"datos", admin:false };
 let uid = 0;
 let bootstrapRefreshTimer = null;
 
@@ -1846,8 +1909,7 @@ const TAB_META = {
   recepcion:{ badge:"Modo recepción", title:"Ingreso recibido del local", desc:"Registrá mercadería recibida y actualizá stock sin tocar la planilla manualmente." },
   produccion:{ badge:"Modo producción", title:"Consumo de insumos y lote", desc:"Trazá producción semanal con descuentos automáticos sobre el stock real." },
   elaborados:{ badge:"Modo elaborados", title:"Sobrante no vendido", desc:"Contá elaborados o sobrantes por turno para dejar lectura operativa del cierre." },
-  reportes:{ badge:"Modo reportes", title:"Informe de sobrantes", desc:"Revisá e imprimí los elaborados Marcados y Crudos con formato operativo." },
-  dashboard:{ badge:"Modo admin", title:"Métricas ejecutivas por local", desc:"Leé riesgo, flujo y faltantes desde una vista exclusiva de gerencia." }
+  reportes:{ badge:"Modo reportes", title:"Lectura ejecutiva del local", desc:"Leé riesgos, pedidos y movimientos recientes sin recorrer la plantilla." }
 };
 const PEDIDO_STEPS = [
   { id:"datos", title:"Datos", meta:"Local, encargado y entrega" },
@@ -1886,6 +1948,27 @@ function syncCompactMobileShell(){
   document.body.classList.toggle("compact-mobile-shell-xs", compactXs);
 }
 
+function closeShellMenu(){
+  document.body.classList.remove("shell-menu-open");
+  const menuBtn=$("#shellMenuBtn");
+  if(menuBtn) menuBtn.setAttribute("aria-expanded","false");
+}
+
+function syncShellContext(){
+  const meta=TAB_META[state.tab]||TAB_META.home;
+  const local=state.local||"Seleccioná un local";
+  const sidebarLocal=$("#sidebarLocalName");
+  const topbarLocal=$("#topbarLocal");
+  const topbarEyebrow=$("#topbarEyebrow");
+  if(sidebarLocal) sidebarLocal.textContent=local;
+  if(topbarLocal) topbarLocal.textContent=state.local ? local : meta.title;
+  if(topbarEyebrow) topbarEyebrow.textContent=state.local ? `${meta.badge} · ${local}` : meta.badge;
+  document.querySelectorAll("[data-shell-tab]").forEach(btn=>{
+    const active=btn.dataset.shellTab===state.tab || (state.tab==="local"&&btn.dataset.shellTab==="home");
+    if(active) btn.setAttribute("aria-current","page"); else btn.removeAttribute("aria-current");
+  });
+}
+
 function scrollIntoAppView(selector){
   if(document.body.classList.contains("compact-mobile-shell")){
     window.scrollTo({ top:0, behavior:"smooth" });
@@ -1893,19 +1976,16 @@ function scrollIntoAppView(selector){
   }
   const target = document.querySelector(selector);
   if(!target) return;
-  if(isMobileViewport()){
-    const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - 72);
-    window.scrollTo({ top, behavior:"smooth" });
-    return;
-  }
-  target.scrollIntoView({ block:"start", behavior:"smooth" });
+  const heroHeight = document.querySelector(".hero")?.getBoundingClientRect().height || 74;
+  const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - heroHeight - 12);
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top, behavior:reducedMotion ? "auto" : "smooth" });
 }
 
 function setAdminMode(enabled){
   state.admin = !!enabled;
   $("#adminChip").classList.toggle("show", state.admin);
   $("#adminBtn").querySelector("span").textContent = state.admin ? "Salir Admin" : "Admin";
-  if(!state.admin && state.tab === "dashboard") state.tab = "home";
 }
 
 function homeCard(label, meta, stat, action, icon, colors){
@@ -2019,8 +2099,7 @@ function setTab(tab){
   if(state.tab==="recepcion") renderRecepcionModule();
   if(state.tab==="produccion") renderProduccionModule();
   if(state.tab==="elaborados") renderElaboradosModule();
-  if(state.tab==="reportes") renderReportesModule();
-  if(state.tab==="dashboard") renderDashboard();
+  if(state.tab==="reportes") renderDashboard();
   const focusMap = {
     home: '[data-tab="home"]',
     local: '[data-tab="local"]',
@@ -2029,9 +2108,10 @@ function setTab(tab){
     recepcion: '[data-tab="recepcion"]',
     produccion: '[data-tab="produccion"]',
     elaborados: '[data-tab="elaborados"]',
-    reportes: '[data-tab="reportes"]',
-    dashboard: '[data-tab="dashboard"]'
+    reportes: '[data-tab="reportes"]'
   };
+  syncShellContext();
+  closeShellMenu();
   scrollIntoAppView(focusMap[state.tab] || ".workspace");
 }
 
@@ -2109,7 +2189,7 @@ function renderRecepPhotoPanel(local){
   if(!chip || !sub || !meta || !list || !actions) return;
   if(!local){
     chip.textContent="Manual";
-    sub.textContent="Elegí un local para habilitar la importación desde Excel.";
+    sub.textContent="Elegí un local para habilitar la lectura desde foto.";
     meta.textContent="La recepción manual queda disponible cuando selecciones un local.";
     list.innerHTML="";
     actions.hidden=true;
@@ -2118,22 +2198,22 @@ function renderRecepPhotoPanel(local){
   const photo=getRecepPhotoState(local);
   const unknownItems = photo && Array.isArray(photo.unknownItems) ? photo.unknownItems : [];
   if(recepUi.ocrBusy){
-    chip.textContent="Importando";
-    sub.textContent="Procesando el archivo Excel...";
-    meta.textContent="Esto puede tardar unos segundos si el archivo tiene muchas filas.";
+    chip.textContent="Leyendo";
+    sub.textContent="Procesando la foto de la boleta...";
+    meta.textContent="Esto puede tardar unos segundos. No cierres esta pantalla.";
     list.innerHTML="";
     actions.hidden=true;
     return;
   }
   if(!photo){
     chip.textContent="Manual";
-    sub.textContent="Todavía no cargaste un Excel. La recepción manual sigue disponible abajo.";
-    meta.textContent="El archivo arma un borrador de recepción y al guardar también impacta stock.";
+    sub.textContent="Todavía no cargaste una foto. La recepción manual sigue disponible abajo.";
+    meta.textContent="La foto arma un borrador de recepción y al guardar también impacta stock.";
     list.innerHTML="";
     actions.hidden=true;
     return;
   }
-  chip.textContent=photo.matches.length ? (photo.engineLabel || "Excel listo") : (unknownItems.length ? "Catálogo" : "Revisar");
+  chip.textContent=photo.matches.length ? (photo.engineLabel || "Foto lista") : (unknownItems.length ? "Catálogo" : "Revisar");
   sub.textContent = photo.fileName
     ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`
     : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`;
@@ -2223,7 +2303,7 @@ function renderLocalActions(){
     ['recepcion','📥','Recepción'],
     ['produccion','🏭','Producción'],
     ['elaborados','🍟','Elaborados'],
-    ['reportes','🖨️','Reportes'],
+    ['reportes','📊','Reportes'],
     ['enviar','✈️','Enviar']
   ].map(([tab,ico,label])=>`<button type="button" class="local-action" data-go="${tab}"><span>${ico}</span>${label}</button>`).join("");
   boxes.forEach(box=>{
@@ -2281,8 +2361,6 @@ function selectedResponsable(local, nombre){
 }
 function selectLocal(id, opts={}){
   state.local=id;
-  reportUi.local=id;
-  reportUi.loaded=false;
   recepUi.visibleLimit=40;
   prodUi.visibleLimit=40;
   if(!opts.silent) setTab("local");
@@ -2305,11 +2383,11 @@ function selectLocal(id, opts={}){
   renderRecepcionModule();
   renderProduccionModule();
   renderElaboradosModule();
-  renderReportesModule();
   renderDashboard();
   renderWorkspaceStats();
   renderHome();
   renderPedidoFlow();
+  syncShellContext();
   syncSend();
   if(navigator.vibrate) navigator.vibrate(8);
 }
@@ -2865,171 +2943,6 @@ function renderElaboradosModule(){
     </div>`).join("") : `<div class="stock-empty">Todavía no hay sobrantes cargados para este local.</div>`;
 }
 
-const reportUi={ loading:false, loaded:false, local:"" };
-function reportPeriodLabel(data){
-  const desde=data.desde||"", hasta=data.hasta||"";
-  if(desde&&hasta) return `Del ${formatIsoDate(desde)} al ${formatIsoDate(hasta)}`;
-  if(desde) return `Desde el ${formatIsoDate(desde)}`;
-  if(hasta) return `Hasta el ${formatIsoDate(hasta)}`;
-  return "Todos los ingresos registrados";
-}
-function formatIsoDate(value){
-  const parts=String(value||"").split("-");
-  return parts.length===3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : String(value||"");
-}
-function reportQuantity(rows){
-  const totals=new Map();
-  rows.forEach(row=>{
-    const unit=String(row.unidad||"unidad").trim()||"unidad";
-    totals.set(unit,(totals.get(unit)||0)+(num(row.cantidad)||0));
-  });
-  return [...totals.entries()].map(([unit,total])=>`${reportNumber(total)} ${unit}`).join(" + ")||"0";
-}
-function reportNumber(value){
-  const amount=num(value)||0;
-  return new Intl.NumberFormat("es-AR",{maximumFractionDigits:2}).format(amount);
-}
-function reportRowsByCondition(rows, condition){
-  const wanted=condition.toLowerCase();
-  return rows.filter(row=>String(row.estado||"").trim().toLowerCase()===wanted);
-}
-function reportDetailTable(rows, emptyText){
-  const body=rows.length ? rows.map(row=>`<tr>
-    <td>${esc(row.codigo||"—")}</td>
-    <td>${esc(row.producto_elaborado||"Sin nombre")}</td>
-    <td>${esc(reportNumber(row.cantidad))}</td>
-    <td>${esc(row.unidad||"unidad")}</td>
-    <td>${esc(row.destino||"Revisar")}</td>
-    <td>${esc(row.fecha_hora||"—")}</td>
-  </tr>`).join("") : `<tr><td colspan="6">${esc(emptyText)}</td></tr>`;
-  return `<div class="report-table-wrap"><table class="report-table">
-    <colgroup><col style="width:11%"><col style="width:27%"><col style="width:11%"><col style="width:11%"><col style="width:18%"><col style="width:22%"></colgroup>
-    <thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Unidad</th><th>Destino</th><th>Ingreso</th></tr></thead>
-    <tbody>${body}</tbody>
-  </table></div>`;
-}
-function aggregateCrudoForPurchase(rows){
-  const grouped=new Map();
-  rows.forEach(row=>{
-    const key=`${row.codigo||""}|${row.producto_elaborado||""}|${row.unidad||"unidad"}`;
-    if(!grouped.has(key)) grouped.set(key,{codigo:row.codigo||"—",producto:row.producto_elaborado||"Sin nombre",unidad:row.unidad||"unidad",cantidad:0});
-    grouped.get(key).cantidad+=(num(row.cantidad)||0);
-  });
-  return [...grouped.values()].sort((a,b)=>a.producto.localeCompare(b.producto,"es"));
-}
-function renderReportDocument(){
-  const doc=$("#reportDocument");
-  if(!doc) return;
-  if(reportUi.loading){ doc.innerHTML=`<div class="report-empty">Cargando sobrantes Marcados y Crudos...</div>`; return; }
-  if(!reportUi.loaded){ doc.innerHTML=`<div class="report-empty">Seleccioná un local y actualizá el reporte.</div>`; return; }
-  const data=ELABORADOS_REPORT||{rows:[]};
-  const rows=data.rows||[];
-  const marked=reportRowsByCondition(rows,"Marcado");
-  const raw=reportRowsByCondition(rows,"Crudo");
-  const stored=rows.filter(row=>String(row.destino||"").toLowerCase()==="guardar");
-  const resale=rows.filter(row=>String(row.destino||"").toLowerCase()==="reventa");
-  const people=[...new Set(rows.map(row=>String(row.encargado||"").trim()).filter(Boolean))];
-  const responsible=people.length ? people.join(", ") : "Sin responsable informado";
-  const local=data.local||reportUi.local||state.local||"Local";
-  const period=reportPeriodLabel(data);
-  const purchaseRows=aggregateCrudoForPurchase(raw);
-  const purchaseBody=purchaseRows.length ? purchaseRows.map((row,index)=>`<tr data-report-net-row>
-    <td>${esc(row.codigo)}</td><td>${esc(row.producto)}</td><td>${esc(row.unidad)}</td>
-    <td><input class="report-net-input" type="number" min="0" step="0.1" data-report-gross aria-label="Pedido bruto ${esc(row.producto)}"></td>
-    <td data-report-stock="${esc(row.cantidad)}">${esc(reportNumber(row.cantidad))}</td>
-    <td><span class="report-net-value" data-report-net>—</span></td><td>☐ Validado</td>
-  </tr>`).join("") : `<tr><td colspan="7">No hay sobrantes Crudos para cruzar con la compra.</td></tr>`;
-  doc.innerHTML=`
-    <article class="report-page">
-      <h1 class="report-title">${esc(local.toUpperCase())} — CONTROL DE SOBRANTES</h1>
-      <p class="report-subtitle">${esc(period)} · Responsable de cierre: ${esc(responsible)}</p>
-      <div class="report-table-wrap"><table class="report-table report-summary">
-        <thead><tr><th>Indicador</th><th>Resultado</th><th>Criterio operativo</th></tr></thead>
-        <tbody>
-          <tr><td>Sobrante Marcado</td><td>${esc(reportQuantity(marked))}</td><td>Producto elaborado; definir destino antes de reutilizar</td></tr>
-          <tr><td>Sobrante Crudo</td><td>${esc(reportQuantity(raw))}</td><td>Validar conservación y existencia antes de descontar compras</td></tr>
-          <tr><td>Destino Guardar</td><td>${esc(reportQuantity(stored))}</td><td>Disponible potencial sujeto a control físico</td></tr>
-          <tr><td>Destino Reventa</td><td>${esc(reportQuantity(resale))}</td><td>No usar automáticamente para reducir compras del local</td></tr>
-        </tbody>
-      </table></div>
-      <h2 class="report-section-title orange">Sobrantes Marcados</h2>
-      ${reportDetailTable(marked,"No hay sobrantes Marcados en el período seleccionado.")}
-      <p class="report-footer">Docks del Puerto — Control Operativo de Gastronomía</p>
-    </article>
-    <article class="report-page">
-      <h1 class="report-title">${esc(local.toUpperCase())} — SOBRANTES CRUDOS</h1>
-      <p class="report-subtitle">Control separado para no distorsionar la compra operativa</p>
-      <h2 class="report-section-title green">Crudos para guardar, revisar o definir destino</h2>
-      ${reportDetailTable(raw,"No hay sobrantes Crudos en el período seleccionado.")}
-      <p class="report-note"><strong>Alerta de control:</strong> no descontar automáticamente estos sobrantes de la compra. Primero validar existencia, peso, conservación y destino.</p>
-      <p class="report-footer">Docks del Puerto — Control Operativo de Gastronomía</p>
-    </article>
-    <article class="report-page">
-      <h1 class="report-title">${esc(local.toUpperCase())} — HOJA DE COMPRA NETA</h1>
-      <p class="report-subtitle">Completar al recibir el próximo pedido · Cálculo: Pedido bruto − sobrante Crudo validado = Compra neta</p>
-      <h2 class="report-section-title">Cruce con sobrantes Crudos</h2>
-      <div class="report-table-wrap"><table class="report-table">
-        <colgroup><col style="width:10%"><col style="width:25%"><col style="width:10%"><col style="width:14%"><col style="width:15%"><col style="width:13%"><col style="width:13%"></colgroup>
-        <thead><tr><th>Código</th><th>Producto</th><th>Unidad</th><th>Pedido bruto</th><th>Crudo a validar</th><th>Compra neta</th><th>Control</th></tr></thead>
-        <tbody>${purchaseBody}</tbody>
-      </table></div>
-      <p class="report-note"><strong>Regla de uso:</strong> validar físicamente el sobrante Crudo; luego completar el pedido bruto. Si el resultado es negativo, comprar cero y registrar el excedente.</p>
-      <table class="report-table report-signatures"><thead><tr><th>Preparó</th><th>Revisó sobrantes</th><th>Autorizó compra</th><th>Fecha</th></tr></thead><tbody><tr><td>________________</td><td>________________</td><td>________________</td><td>____ / ____ / ______</td></tr></tbody></table>
-      <p class="report-footer">Docks del Puerto — Control Operativo de Gastronomía</p>
-    </article>`;
-}
-function renderReportesModule(){
-  const sel=$("#reportLocal");
-  if(!sel) return;
-  const chosen=reportUi.local||state.local||(LOCALES[0]&&LOCALES[0].id)||"";
-  sel.innerHTML=LOCALES.map(local=>`<option value="${esc(local.id)}">${esc(local.id)}</option>`).join("");
-  reportUi.local=LOCALES.some(local=>local.id===chosen)?chosen:((LOCALES[0]&&LOCALES[0].id)||"");
-  sel.value=reportUi.local;
-  renderReportDocument();
-  if(state.tab==="reportes"&&!reportUi.loading&&!reportUi.loaded) loadElaboradosReport();
-}
-async function loadElaboradosReport(){
-  const local=$("#reportLocal").value;
-  const desde=$("#reportDesde").value;
-  const hasta=$("#reportHasta").value;
-  if(desde&&hasta&&desde>hasta){ toast("La fecha Desde no puede ser posterior a Hasta","err"); return; }
-  reportUi.local=local;
-  reportUi.loading=true;
-  reportUi.loaded=false;
-  $("#reportLoad").disabled=true;
-  $("#reportPrint").disabled=true;
-  $("#reportStatus").textContent="Consultando todos los ingresos de Elaborados...";
-  renderReportDocument();
-  try{
-    const data=await backendGet("getElaboradosReport",{local,desde,hasta,t:Date.now()});
-    if(!data||data.ok===false||!Array.isArray(data.rows)) throw new Error(data&&data.error||"Reporte no disponible");
-    ELABORADOS_REPORT=data;
-    reportUi.loaded=true;
-    $("#reportMeta").textContent=`${data.total||0} registro${data.total===1?"":"s"}`;
-    $("#reportStatus").textContent=`Actualizado ${data.generated_at||"ahora"} · ${reportPeriodLabel(data)}`;
-    $("#reportPrint").disabled=false;
-  }catch{
-    ELABORADOS_REPORT={rows:[],local,desde,hasta};
-    $("#reportMeta").textContent="No disponible";
-    $("#reportStatus").textContent="No se pudo leer el detalle. El Apps Script debe incluir el endpoint de reportes.";
-    toast("No se pudo cargar el reporte de sobrantes","err");
-  }finally{
-    reportUi.loading=false;
-    $("#reportLoad").disabled=false;
-    renderReportDocument();
-  }
-}
-function printElaboradosReport(){
-  if(!reportUi.loaded) return;
-  document.body.classList.add("report-printing");
-  requestAnimationFrame(()=>window.print());
-}
-function updateReportNet(row){
-  const gross=num(row.querySelector("[data-report-gross]").value);
-  const stock=num(row.querySelector("[data-report-stock]").dataset.reportStock)||0;
-  row.querySelector("[data-report-net]").textContent=gross===null?"—":reportNumber(Math.max(0,gross-stock));
-}
-
 function renderDashboard(){
   const cards=$("#dashCards"), recep=$("#dashRecepList"), prod=$("#dashProdList"), elab=$("#dashElabList");
   const riskList=$("#dashRiskList"), pedidoList=$("#dashPedidoList"), openList=$("#dashOpenList");
@@ -3156,158 +3069,44 @@ async function saveReception(){
     btn.disabled=false; btn.textContent=orig;
   }
 }
-function parseImportNumber(value){
-  const raw=String(value==null?"":value).trim();
-  if(!raw) return null;
-  const cleaned=raw.replace(/[$\s]/g,"");
-  let normalized=cleaned;
-  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(cleaned)){
-    normalized=cleaned.replace(/\./g,"").replace(",",".");
-  }else if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(cleaned)){
-    normalized=cleaned.replace(/,/g,"");
-  }else{
-    normalized=cleaned.replace(",",".");
-  }
-  const parsed=parseFloat(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-function findReceiptImportHeaderIndex(rows){
-  for(let i=0;i<Math.min(rows.length, 25);i++){
-    const header=(rows[i]||[]).map(cell=>normalizeLooseText(cell));
-    const hasProduct=header.some(cell=>/\b(articulo|articulos|producto|productos|nombre articulo|descripcion|detalle)\b/.test(cell));
-    const hasQty=header.some(cell=>/\b(cant|cantidad)\b/.test(cell));
-    if(hasProduct && hasQty) return i;
-  }
-  return -1;
-}
-function buildReceiptImportColumnMap(headerRow){
-  const header=(headerRow||[]).map(cell=>normalizeLooseText(cell));
-  const findIndex=(patterns)=>header.findIndex(cell=>patterns.some(pattern=>cell.includes(pattern)));
-  return {
-    code:findIndex(["cod", "codigo"]),
-    product:findIndex(["nombre articulo", "articulo", "producto", "descripcion"]),
-    detail:findIndex(["detalle"]),
-    qty:findIndex(["cantidad", "cant"]),
-    unit:findIndex(["unidad", "u/m", "um"]),
-    price:findIndex(["precio", "p.u", "p u", "unitario"]),
-    amount:findIndex(["importe", "total"]),
-    provider:findIndex(["proveedor"])
-  };
-}
-function readReceiptRowsFromWorkbook(file){
-  const workbook=XLSX.read(file, { type:"array", raw:false, cellDates:false });
-  const sheet=workbook.Sheets[workbook.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(sheet, { header:1, raw:false, defval:"" });
-  const headerIndex=findReceiptImportHeaderIndex(rows);
-  if(headerIndex < 0) throw new Error("No encontré encabezados de artículo y cantidad en el archivo");
-  const map=buildReceiptImportColumnMap(rows[headerIndex]);
-  if(map.product < 0 || map.qty < 0) throw new Error("El Excel necesita columnas de artículo/producto y cantidad");
-  const out=[];
-  let blankRun=0;
-  for(let i=headerIndex + 1;i<rows.length;i++){
-    const row=rows[i]||[];
-    const joined=normalizeLooseText(row.join(" "));
-    if(!joined){
-      blankRun += 1;
-      if(blankRun >= 3 && out.length) break;
-      continue;
-    }
-    blankRun=0;
-    if(isReceiptStopLine(joined)) break;
-    const productParts=[
-      map.product > -1 ? row[map.product] : "",
-      map.detail > -1 ? row[map.detail] : ""
-    ].map(v=>String(v||"").trim()).filter(Boolean);
-    const product=productParts.join(" ").trim();
-    const qty=parseImportNumber(map.qty > -1 ? row[map.qty] : "");
-    if(!product || !(qty > 0)) continue;
-    out.push({
-      codigo: map.code > -1 ? String(row[map.code]||"").trim() : "",
-      producto: product,
-      cantidad_recibida: qty,
-      unidad: map.unit > -1 ? String(row[map.unit]||"").trim() : "",
-      precio: map.price > -1 ? parseImportNumber(row[map.price]) : null,
-      importe: map.amount > -1 ? parseImportNumber(row[map.amount]) : null,
-      proveedor: map.provider > -1 ? String(row[map.provider]||"").trim() : "",
-      sourceLine: row.filter(Boolean).join(" | ")
-    });
-  }
-  return out;
-}
-function parseReceptionExcelRows(rows, local){
-  const catalog=CATALOG[local]||[];
-  const matches=[];
-  const unknownItems=[];
-  rows.forEach(entry=>{
-    const sourceLine=`${entry.producto} ${entry.precio||""} ${entry.cantidad_recibida||""} ${entry.importe||""}`.trim();
-    let best=null;
-    let bestScore=0;
-    catalog.forEach(item=>{
-      const score=scoreCatalogMatch(sourceLine, item) + scoreCatalogMatch(entry.producto, item);
-      if(score > bestScore){
-        best=item;
-        bestScore=score;
-      }
-    });
-    if(!best || bestScore < 6){
-      unknownItems.push({
-        producto:entry.producto,
-        cantidad_recibida:trim(entry.cantidad_recibida||0),
-        unidad:entry.unidad || "unidad",
-        categoria:"",
-        proveedor:entry.proveedor || "",
-        score:bestScore,
-        sourceLine:entry.sourceLine || entry.producto
-      });
-      return;
-    }
-    matches.push({
-      key:stockKey(best.codigo,best.nombre),
-      codigo:best.codigo||"",
-      producto:best.nombre||"",
-      categoria:best.categoria||"",
-      unidad:best.unidad||entry.unidad||"unidad",
-      proveedor:best.proveedor||entry.proveedor||"",
-      cantidad_recibida:entry.cantidad_recibida,
-      score:bestScore,
-      sourceLine:entry.sourceLine || entry.producto
-    });
-  });
-  const grouped=new Map();
-  matches.forEach(match=>{
-    const current=grouped.get(match.key);
-    if(current){
-      current.cantidad_recibida = trim((num(current.cantidad_recibida)||0) + (num(match.cantidad_recibida)||0));
-      current.score = Math.max(current.score, match.score);
-      return;
-    }
-    grouped.set(match.key, Object.assign({}, match, { cantidad_recibida:trim(num(match.cantidad_recibida)||0) }));
-  });
-  return {
-    matches:[...grouped.values()].sort((a,b)=>b.score-a.score),
-    unknown_items:mergeUnknownPhotoItems(unknownItems),
-    proveedor:(rows.find(row=>row.proveedor)||{}).proveedor || ""
-  };
-}
 async function loadReceptionFromPhoto(file){
   if(!state.local){ toast("Elegí un local primero","err"); return; }
   if(!file) return;
-  if(typeof XLSX === "undefined" || !XLSX || typeof XLSX.read !== "function"){
-    toast("No pude cargar el lector de Excel en este equipo","err");
+  if(typeof Tesseract === "undefined" || !Tesseract || typeof Tesseract.recognize !== "function"){
+    toast("No pude cargar el lector OCR en este equipo","err");
     return;
   }
   recepUi.ocrBusy=true;
   renderRecepPhotoPanel(state.local);
   try{
-    const buffer=await file.arrayBuffer();
-    const importedRows=readReceiptRowsFromWorkbook(buffer);
-    const parsed=parseReceptionExcelRows(importedRows, state.local);
-    const unknownItems=Array.isArray(parsed.unknown_items) ? parsed.unknown_items : [];
-    const engineLabel="Excel";
-    const engineMeta=`Importé ${importedRows.length} fila${importedRows.length===1?"":"s"} del archivo. Al guardar recepción, también se actualiza stock.${unknownItems.length ? ` Detecté ${unknownItems.length} producto${unknownItems.length===1?"":"s"} fuera del catálogo para dar de alta.` : ""}`;
+    const result=await Tesseract.recognize(file,"spa+eng");
+    const rawText=(result&&result.data&&result.data.text)||"";
+    const filteredText=filterReceiptRelevantText(rawText);
+    const text=filteredText||rawText;
+    let parsed=parseReceiptPhotoText(text,state.local);
+    const localUnknownItems=Array.isArray(parsed.unknown_items)?parsed.unknown_items:[];
+    let engineLabel="OCR";
+    let engineMeta="Filtré la foto para leer solo líneas de artículo, precio, cantidad e importe. Podés corregir cantidades antes de guardar.";
+    if(capabilityEnabled("receipt_ai_parse")){
+      try{
+        const aiParsed=await backendGet("parseReceiptTextAi",{local:state.local,text:text.slice(0,4000),t:Date.now()});
+        if(aiParsed&&aiParsed.ok&&Array.isArray(aiParsed.matches)){
+          parsed={
+            rawText,
+            matches:aiParsed.matches,
+            proveedor:aiParsed.proveedor||parsed.proveedor||"",
+            unknown_items:mergeUnknownPhotoItems(aiParsed.unknown_items||[],localUnknownItems)
+          };
+          engineLabel="AI + OCR";
+          engineMeta=`Interpretado con ${aiParsed.model||"OpenAI"}. Revisá las cantidades antes de guardar.${parsed.unknown_items.length?` ${parsed.unknown_items.length} producto${parsed.unknown_items.length===1?"":"s"} quedó fuera del catálogo.`:""}`;
+        }
+      }catch{}
+    }
+    if(!Array.isArray(parsed.unknown_items)) parsed.unknown_items=localUnknownItems;
+    const unknownItems=parsed.unknown_items;
     recepUi.photoByLocal[state.local]={
-      fileName:file.name||"archivo",
-      rawText:"",
+      fileName:file.name||"boleta",
+      rawText,
       matches:parsed.matches,
       unknownItems,
       engineLabel,
@@ -3320,12 +3119,12 @@ async function loadReceptionFromPhoto(file){
     renderRecepcionModule();
     renderWorkspaceStats();
     if(parsed.matches.length || unknownItems.length){
-      toast(`Excel importado: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${unknownItems.length ? ` · ${unknownItems.length} fuera del catálogo` : ""}`,"ok");
+      toast(`${engineLabel}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${unknownItems.length?` · ${unknownItems.length} fuera del catálogo`:""}`,"ok");
     }else{
-      toast("Leí el archivo, pero no encontré coincidencias claras. Revisá las columnas o completá a mano.","err");
+      toast("Leí la foto, pero no encontré coincidencias claras. Podés completar a mano.","err");
     }
   }catch{
-    toast("No pude leer el Excel. Revisá que tenga columnas de artículo y cantidad.","err");
+    toast("No pude leer la foto. Probá con otra imagen o cargá a mano.","err");
   }finally{
     recepUi.ocrBusy=false;
     renderRecepPhotoPanel(state.local);
@@ -3430,7 +3229,6 @@ async function saveElaborados(){
     if(!confirmed) throw new Error("El conteo no fue confirmado por Google Sheets");
     applyElabOptimistic(state.local, payload);
     clearElabDrafts(state.local);
-    reportUi.loaded=false;
     toast("Elaborados registrados","ok");
     renderElaboradosModule();
     renderDashboard();
@@ -3454,7 +3252,6 @@ async function warmData(){
     renderRecepcionModule();
     renderProduccionModule();
     renderElaboradosModule();
-    renderReportesModule();
     renderDashboard();
     renderWorkspaceStats();
     if(!cfg.hidden) renderCfg();
@@ -3587,7 +3384,6 @@ async function refreshData(opts={}){
     renderRecepcionModule();
     renderProduccionModule();
     renderElaboradosModule();
-    renderReportesModule();
     renderDashboard();
     renderWorkspaceStats();
     if(!cfg.hidden) renderCfg();
@@ -4381,6 +4177,12 @@ async function saveStock(){
   }
 }
 $("#stockBtn").addEventListener("click",()=>setTab("stock"));
+document.querySelectorAll("[data-shell-tab]").forEach(btn=>btn.addEventListener("click",()=>setTab(btn.dataset.shellTab)));
+$("#shellMenuBtn").addEventListener("click",()=>{
+  const open=document.body.classList.toggle("shell-menu-open");
+  $("#shellMenuBtn").setAttribute("aria-expanded",String(open));
+});
+$("#shellScrim").addEventListener("click",closeShellMenu);
 $("#stockInlineBtn").addEventListener("click",openStock);
 $("#stockClose").addEventListener("click",closeStock);
 stockModal.addEventListener("click",e=>{ if(e.target===stockModal) closeStock(); });
@@ -4422,46 +4224,22 @@ $("#stockGrid").addEventListener("click",e=>{
   renderStockModal();
 });
 $("#stockSave").addEventListener("click",saveStock);
-$("#adminBtn").addEventListener("click",()=>{
-  if(state.admin){
-    setAdminMode(false);
-    setTab("home");
-    toast("Modo admin cerrado","ok");
-    return;
+function openAdminNavigation(){
+  if(!state.admin){
+    const pin=window.prompt("Código admin");
+    if(pin===null) return;
+    if(pin.trim()!==ADMIN_PIN){ toast("Código admin inválido","err"); return; }
+    setAdminMode(true);
+    toast("Modo admin habilitado","ok");
   }
-  const pin = window.prompt("Código admin");
-  if(pin===null) return;
-  if(pin.trim() !== ADMIN_PIN){
-    toast("Código admin inválido","err");
-    return;
-  }
-  setAdminMode(true);
-  setTab("dashboard");
-  toast("Modo admin habilitado","ok");
-});
+  closeShellMenu();
+  openCfg();
+}
+$("#adminBtn").addEventListener("click",openAdminNavigation);
+document.querySelectorAll("[data-admin-nav]").forEach(btn=>btn.addEventListener("click",openAdminNavigation));
 $("#recepSave").addEventListener("click",saveReception);
 $("#prodSave").addEventListener("click",saveProduction);
 $("#elabSave").addEventListener("click",saveElaborados);
-$("#reportLoad").addEventListener("click",loadElaboradosReport);
-$("#reportPrint").addEventListener("click",printElaboradosReport);
-$("#reportLocal").addEventListener("change",()=>{
-  reportUi.local=$("#reportLocal").value;
-  reportUi.loaded=false;
-  $("#reportMeta").textContent="Sin cargar";
-  $("#reportPrint").disabled=true;
-  renderReportDocument();
-});
-[$("#reportDesde"),$("#reportHasta")].forEach(input=>input.addEventListener("change",()=>{
-  reportUi.loaded=false;
-  $("#reportMeta").textContent="Sin cargar";
-  $("#reportPrint").disabled=true;
-  renderReportDocument();
-}));
-$("#reportDocument").addEventListener("input",e=>{
-  if(!e.target.matches("[data-report-gross]")) return;
-  const row=e.target.closest("[data-report-net-row]");
-  if(row) updateReportNet(row);
-});
 $("#recepClear").addEventListener("click",clearReceptionDraftForm);
 $("#prodClear").addEventListener("click",clearProductionDraftForm);
 $("#elabClear").addEventListener("click",clearElabDraftForm);
@@ -4567,7 +4345,6 @@ $("#elabGrid").addEventListener("click",e=>{
 });
 window.addEventListener("resize", syncCompactMobileShell);
 window.addEventListener("orientationchange", syncCompactMobileShell);
-window.addEventListener("afterprint",()=>document.body.classList.remove("report-printing"));
 if(window.visualViewport){
   window.visualViewport.addEventListener("resize", syncCompactMobileShell);
 }
@@ -4575,6 +4352,7 @@ if(window.visualViewport){
 /* ---- Init ---- */
 syncCompactMobileShell();
 renderLocales(); renderItems(); syncSend();
+selectLocal(state.local,{silent:true});
 renderLocalActions();
 setAdminMode(false);
 setConn(true,"Catálogo local");
@@ -4583,7 +4361,6 @@ renderStockIntelligence();
 renderRecepcionModule();
 renderProduccionModule();
 renderElaboradosModule();
-renderReportesModule();
 renderDashboard();
 renderWorkspaceStats();
 setTab("home");

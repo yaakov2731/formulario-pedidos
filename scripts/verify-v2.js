@@ -28,6 +28,11 @@ function expectRegex(source, regex, label) {
   else pass(label);
 }
 
+function expectNotContains(source, needle, label) {
+  if (source.includes(needle)) fail(`${label} still present: ${needle}`);
+  else pass(label);
+}
+
 function main() {
   if (!fs.existsSync(indexPath)) {
     fail("index.html not found");
@@ -43,7 +48,7 @@ function main() {
 
   expectRegex(html, /const SCRIPT_URL = "https:\/\/script\.google\.com\/macros\/s\/.+\/exec";/, "SCRIPT_URL configured");
 
-  ["pedido", "stock", "recepcion", "produccion", "elaborados", "reportes", "dashboard"].forEach((tab) => {
+  ["pedido", "stock", "recepcion", "produccion", "elaborados", "reportes"].forEach((tab) => {
     expectContains(html, `data-tab="${tab}"`, `tab ${tab}`);
   });
 
@@ -58,8 +63,13 @@ function main() {
     "id=\"recepMore\"",
     "id=\"prodMore\"",
     "id=\"elabRecentList\"",
-    "id=\"reportDocument\"",
-    "id=\"reportPrint\"",
+    "id=\"shellSidebar\"",
+    "data-design-version=\"professional-shell-v1\"",
+    "id=\"shellMenuBtn\"",
+    "id=\"sidebarLocalName\"",
+    "data-admin-nav",
+    "Cargar desde foto",
+    "tesseract.min.js",
     "<option value=\"Marcado\">Marcado</option>",
     "<option value=\"Crudo\">Crudo</option>",
   ].forEach((id) => expectContains(html, id, `frontend control ${id}`));
@@ -72,9 +82,6 @@ function main() {
     "function renderProduccionModule()",
     "function renderElaboradosModule()",
     "async function saveElaborados()",
-    "function renderReportesModule()",
-    "async function loadElaboradosReport()",
-    "function printElaboradosReport()",
     "async function confirmCatalogProduct(",
     "function localOperationalMetrics()",
     "async function confirmPedidoPersisted(",
@@ -84,6 +91,17 @@ function main() {
     "applyReceptionOptimistic(",
     "applyProductionOptimistic(",
   ].forEach((needle) => expectContains(html, needle, `frontend logic ${needle}`));
+
+  expectNotContains(html, "renderReportesModule", "app report renderer removed");
+  expectNotContains(html, 'id="reportPrint"', "app report print control removed");
+  expectContains(html, 'data-shell-tab="reportes"', "executive report navigation");
+  expectContains(html, "if(state.tab===\"reportes\") renderDashboard();", "executive report uses live dashboard data");
+  ["Umo Grill", "GreenFresh", "Puerto Gelato", "Trento Café", "Brooklyn"].forEach((local) => {
+    expectContains(html, `{ id:\"${local}\"`, `real local ${local}`);
+  });
+  ["Ciro", "Eventos", "Shopping"].forEach((local) => {
+    expectNotContains(html, `{ id:\"${local}\"`, `legacy local hidden ${local}`);
+  });
 
   [
     "var SHEET_RECEPCION = 'CONTROL RECEPCION';",
