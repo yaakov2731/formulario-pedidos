@@ -1422,12 +1422,58 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
 #cfg .cfg-block-head h3{font-size:17px;font-weight:600}
 @media(max-width:1020px) and (min-width:761px){#cfg{left:84px}}
 @media(max-width:760px){#cfg{left:0}#cfg .cfg-head{min-height:64px;padding:10px 16px}#cfg .cfg-body{padding:30px 16px 96px}}
+
+/* ===== Experiencia móvil tipo app: estable, compacta y táctil ===== */
+.mobile-tabbar{display:none}
+@media(max-width:760px){
+  html{background:#edf3f5;overscroll-behavior-y:none}
+  body{background:#edf3f5;overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  body.compact-mobile-shell *,body.compact-mobile-shell *::before,body.compact-mobile-shell *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  button,a,input,select,textarea{touch-action:manipulation}
+  .wrap,body.compact-mobile-shell .wrap{padding:0 12px calc(88px + env(safe-area-inset-bottom))}
+  .hero{top:0;z-index:70;min-height:62px;margin:0 -12px 12px;padding:8px 14px;background:#fbfaf6;border-bottom:1px solid var(--line);box-shadow:0 2px 10px oklch(24% .03 225 / .06);backdrop-filter:none}
+  .hero-row{min-height:46px}.shell-menu-btn{width:42px;height:42px;border-radius:12px}.topbar-context small{font-size:9.5px}.topbar-context strong{font-size:14px}
+  .home-hero-panel{padding:20px;border-radius:18px;box-shadow:0 10px 24px oklch(20% .04 230 / .16)}
+  .home-hero-panel::after{width:190px;right:-105px;top:-95px;border-width:40px}
+  .home-hero-panel h2{font-size:28px;line-height:1.05}.home-hero-lede{font-size:13px;line-height:1.45}
+  .locales,body.compact-mobile-shell .locales{margin-top:18px;gap:8px}
+  .local.local-choice,body.compact-mobile-shell .local.local-choice{min-height:44px;padding:0 11px;border-radius:11px}
+  .local.local-choice .nm{font-size:12px}
+  .home-modules-head{margin:22px 2px 14px;gap:8px}.home-modules-head h2{font-size:21px}.home-system-status{min-height:25px;font-size:10px}
+  .local-actions-bar.show,body.compact-mobile-shell .local-actions-bar.show{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .local-action,body.compact-mobile-shell .local-action{min-height:148px;padding:14px;border-radius:16px;box-shadow:0 3px 10px oklch(24% .035 225 / .07)}
+  .local-action:hover,.local-action:active{transform:none;box-shadow:0 3px 10px oklch(24% .035 225 / .07)}
+  .local-action .module-icon{width:38px;height:38px;border-radius:11px}.local-action .module-icon svg{width:19px;height:19px}
+  .module-copy{margin-top:14px}.module-copy strong{font-size:15px}.module-copy small{display:none}
+  .local-action .module-link{margin-top:auto;align-items:flex-end}.module-link b{font-size:11px}.module-link em{max-width:70px;font-size:9.5px;line-height:1.15;text-align:right}
+  .tab-panel,body.compact-mobile-shell .tab-panel{margin-bottom:14px}
+  .shead,.shell-report-head,.pedido-shell-head{margin-bottom:16px;gap:8px}.shead h2,.shell-report-head h2,.pedido-shell-head h2{font-size:28px;line-height:1.08}
+  .shell-report-head p,.pedido-shell-head p{font-size:13px;line-height:1.45}
+  .pedido-progress{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}.pedido-step-btn{min-width:0;padding:7px 4px}.pedido-step-btn strong{font-size:10px}
+  .pedido-screen,.stock-panel,.report-reference-card{padding:15px;border-radius:16px;box-shadow:0 2px 8px oklch(24% .035 225 / .055)}
+  .stock-actions,.stock-overview,.module-grid,.dash-grid{gap:10px}.stock-card.metric{padding:14px}.metric-value,.stock-card .v{font-size:24px}
+  .field input,.field select,.field textarea,input.stock-search{min-height:48px;font-size:16px}
+  .recep-intake-btn{min-height:112px;padding:16px}
+  .op-row,body.compact-mobile-shell .op-row{grid-template-columns:minmax(0,1fr) 88px;padding:13px;gap:10px}
+  .op-row input{font-size:16px}
+  .bar{left:8px;right:8px;bottom:8px;z-index:94;border-radius:16px}
+  .mobile-tabbar{position:fixed;left:0;right:0;bottom:0;z-index:90;height:calc(68px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start;padding:6px 6px env(safe-area-inset-bottom);border-top:1px solid var(--line);background:#fff;box-shadow:0 -5px 18px oklch(24% .035 225 / .08)}
+  .mobile-tabbar button{min-width:0;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:12px;background:transparent;color:var(--ink-soft);font:inherit;font-size:10px;font-weight:600}
+  .mobile-tabbar button svg{width:21px;height:21px}.mobile-tabbar button[aria-current="page"]{background:var(--brand-tint);color:var(--brand-strong)}
+  body.mobile-pedido-mode .mobile-tabbar{display:none}
+  body.mobile-pedido-mode .wrap{padding-bottom:96px}
+  .shell-sidebar{transition:none}.shell-scrim{transition:none;backdrop-filter:none}
+}
+@media(max-width:360px){
+  .local-action,body.compact-mobile-shell .local-action{min-height:140px;padding:12px}
+  .module-link em{display:none}.home-hero-panel h2{font-size:26px}
+}
 @media(prefers-reduced-motion:reduce){
   .shell-sidebar,.shell-scrim,.shell-nav-btn,.local,.tab-panel:not([hidden]){transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }
 </style>
 </head>
-<body data-design-version="reference-handoff-v2">
+<body data-design-version="reference-handoff-v3-mobile-app">
 <div class="app-shell">
   <aside class="shell-sidebar" id="shellSidebar" aria-label="Navegación principal">
     <button class="shell-brand" type="button" data-shell-tab="home" aria-label="Ir al inicio">
@@ -1814,6 +1860,14 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   </main>
 </div>
 
+<nav class="mobile-tabbar" id="mobileTabbar" aria-label="Navegación móvil">
+  <button type="button" data-shell-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg><span>Inicio</span></button>
+  <button type="button" data-shell-tab="pedido"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/></svg><span>Pedido</span></button>
+  <button type="button" data-shell-tab="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="m3 8 9 5 9-5v9l-9 5-9-5V8Z"/></svg><span>Stock</span></button>
+  <button type="button" data-shell-tab="recepcion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v12m0 0 5-5m-5 5-5-5"/><path d="M5 21h14"/></svg><span>Recepción</span></button>
+  <button type="button" data-mobile-more><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></button>
+</nav>
+
 <!-- Sticky submit -->
 <div class="bar tab-panel" data-tab="pedido">
   <div class="bar-in">
@@ -2118,7 +2172,7 @@ function syncShellContext(){
 
 function scrollIntoAppView(selector){
   if(document.body.classList.contains("compact-mobile-shell")){
-    window.scrollTo({ top:0, behavior:"smooth" });
+    window.scrollTo({ top:0, behavior:"auto" });
     return;
   }
   const target = document.querySelector(selector);
@@ -2240,6 +2294,7 @@ function setTab(tab){
     panel.hidden = !isTab;
   });
   document.body.classList.toggle("mobile-home-mode", isMobileViewport() && state.tab==="home");
+  document.body.classList.toggle("mobile-pedido-mode", isMobileViewport() && state.tab==="pedido");
   if(state.tab==="home") renderHome();
   if(state.tab==="local") renderLocalHub();
   if(state.tab==="pedido") renderPedidoFlow();
@@ -4306,6 +4361,10 @@ $("#shellMenuBtn").addEventListener("click",()=>{
   $("#shellMenuBtn").setAttribute("aria-expanded",String(open));
 });
 $("#shellScrim").addEventListener("click",closeShellMenu);
+document.querySelectorAll("[data-mobile-more]").forEach(btn=>btn.addEventListener("click",()=>{
+  document.body.classList.add("shell-menu-open");
+  $("#shellMenuBtn").setAttribute("aria-expanded","true");
+}));
 $("#stockInlineBtn").addEventListener("click",openStock);
 $("#stockClose").addEventListener("click",closeStock);
 stockModal.addEventListener("click",e=>{ if(e.target===stockModal) closeStock(); });
