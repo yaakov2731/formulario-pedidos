@@ -1462,7 +1462,12 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   .mobile-tabbar button svg{width:21px;height:21px}.mobile-tabbar button[aria-current="page"]{background:var(--brand-tint);color:var(--brand-strong)}
   body.mobile-pedido-mode .mobile-tabbar{display:none}
   body.mobile-pedido-mode .wrap{padding-bottom:96px}
-  .shell-sidebar{transition:none}.shell-scrim{transition:none;backdrop-filter:none}
+  .shell-sidebar{z-index:120;transition:none}.shell-scrim{z-index:115;transition:none;backdrop-filter:none}
+  body.shell-menu-open,body.modal-open{height:100dvh;overflow:hidden;overscroll-behavior:none}
+  body.modal-open .mobile-tabbar,body.modal-open .bar{display:none!important}
+  .cfg{z-index:130;overscroll-behavior:contain;touch-action:pan-y}
+  .cfg-panel{max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
+  .toast{z-index:140}
 }
 @media(max-width:360px){
   .local-action,body.compact-mobile-shell .local-action{min-height:140px;padding:12px}
@@ -2806,8 +2811,12 @@ async function submit(){
   const btn=$("#send"); const orig=btn.innerHTML;
   btn.disabled=true; btn.innerHTML=`<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Enviando...`;
   try{
-    await apiPost(payload);
+    const backendResult = await apiPost(payload);
     const confirmed = await confirmPedidoPersisted(payload.id_pedido);
+    const telegramOk = !!(
+      (backendResult && backendResult.telegram && backendResult.telegram.ok === true) ||
+      (confirmed && confirmed.telegramOk === true)
+    );
     if(!confirmed.ok){
       const refreshed = await refreshData();
       if(refreshed){
@@ -2816,7 +2825,7 @@ async function submit(){
       }else{
         toast("No pude confirmar el pedido. Revisá la planilla antes de reenviar.","err");
       }
-    }else if(!confirmed.telegramOk){
+    }else if(!telegramOk){
       toast("Pedido guardado, pero Telegram no confirmó la notificación","err");
       resetForm();
     }else{
@@ -2835,7 +2844,7 @@ function resetForm(){
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
   if(state.local) selectLocal(state.local);
   renderPedidoFlow();
-  window.scrollTo({top:0,behavior:"smooth"});
+  window.scrollTo({top:0,behavior:"auto"});
 }
 
 /* ---- Utils ---- */
@@ -3469,6 +3478,10 @@ function applyBootstrapPayload(d){
 /* ---- Configuración ---- */
 const cfg=$("#cfg");
 let cfgProductEdit = null;
+function syncModalLock(){
+  const modalVisible = !cfg.hidden || !stockModal.hidden;
+  document.body.classList.toggle("modal-open", modalVisible);
+}
 function openCfg(){
   const sel=$("#cfgLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
@@ -3477,8 +3490,9 @@ function openCfg(){
   resetCfgProductForm();
   renderCfg();
   cfg.hidden=false;
+  syncModalLock();
 }
-function closeCfg(){ cfg.hidden=true; }
+function closeCfg(){ cfg.hidden=true; syncModalLock(); }
 function cfgLocalVal(){ return $("#cfgLocal").value; }
 function resetCfgProductForm(){
   cfgProductEdit = null;
@@ -3580,7 +3594,7 @@ async function confirmPedidoPersisted(idPedido, attempts=8, delayMs=900){
         queueBootstrapRefresh(120, "ops");
         return {
           ok:true,
-          telegramOk: !status.telegram || !status.telegram.configured || !status.telegram.found || status.telegram.ok === true || status.telegram.skipped === true,
+          telegramOk: !!(status.telegram && status.telegram.found && status.telegram.ok === true),
           status
         };
       }
@@ -3669,8 +3683,9 @@ function openStock(){
   stockUi.visibleLimit=12;
   renderStockModal();
   stockModal.hidden=false;
+  syncModalLock();
 }
-function closeStock(){ stockModal.hidden=true; }
+function closeStock(){ stockModal.hidden=true; syncModalLock(); }
 function stockLocalVal(){ return $("#stockLocal").value; }
 function stockKey(code,name){ return `${code||""}||${String(name||"").toLowerCase()}`; }
 function ensureStockSelection(local){ return stockUi.selectedByLocal[local] || (stockUi.selectedByLocal[local]=[]); }
@@ -4339,13 +4354,18 @@ async function saveStock(){
   const btn=$("#stockSave"); const orig=btn.textContent;
   btn.disabled=true; btn.textContent="Guardando...";
   try{
-    await apiPost(payload);
+    const backendResult=await apiPost(payload);
     const confirmed=await confirmOperationPersisted("stock",payload.id_stock);
     if(!confirmed) throw new Error("El stock no fue confirmado por Google Sheets");
     syncCatalogStockFromDrafts(local);
     if(state.local===local) renderStockIntelligence();
     if(state.local===local) renderWorkspaceStats();
-    toast("Stock real actualizado","ok");
+    const telegram = confirmed.telegram || (backendResult && backendResult.telegram) || null;
+    if(telegram && telegram.ok===true){
+      toast("Stock actualizado y Telegram enviado","ok");
+    }else{
+      toast("Stock guardado, pero Telegram no confirmó el envío","err");
+    }
     closeStock();
     queueBootstrapRefresh(1100);
   }catch{
@@ -4368,6 +4388,12 @@ document.querySelectorAll("[data-mobile-more]").forEach(btn=>btn.addEventListene
 $("#stockInlineBtn").addEventListener("click",openStock);
 $("#stockClose").addEventListener("click",closeStock);
 stockModal.addEventListener("click",e=>{ if(e.target===stockModal) closeStock(); });
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape") return;
+  if(!stockModal.hidden){ closeStock(); return; }
+  if(!cfg.hidden){ closeCfg(); return; }
+  closeShellMenu();
+});
 $("#stockLocal").addEventListener("change",()=>{
   const local=stockLocalVal();
   ensureStockDrafts(local);

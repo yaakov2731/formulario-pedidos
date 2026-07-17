@@ -41,7 +41,7 @@ var SHEET_REPORT_ELAB = 'REPORTE SOBRANTES';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
-var APP_VERSION = '2.3.2';
+var APP_VERSION = '2.3.3';
 var PRINT_FONT_SIZE = 14;
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',
@@ -410,7 +410,14 @@ function getOperationStatus_(type, operationId) {
   for (var r = 0; r < ids.length; r++) {
     if (String(ids[r][0] || '').trim() === operationId) rows++;
   }
-  return { ok: true, found: rows > 0, type: type, id: operationId, rows: rows };
+  return {
+    ok: true,
+    found: rows > 0,
+    type: type,
+    id: operationId,
+    rows: rows,
+    telegram: readTelegramLogByPedido_(operationId)
+  };
 }
 
 /* ============================== READ CATALOG ============================== */
@@ -2116,6 +2123,7 @@ function normalizeTelegramFlag_(value) {
 
 function getTelegramStatus_() {
   var settings = getTelegramSettings_();
+  var probe = settings.enabled ? probeTelegramTarget_(settings) : { bot_ok: false, chat_ok: false, reason: settings.reason || 'telegram_disabled' };
   return {
     ok: true,
     enabled: settings.enabled,
@@ -2123,8 +2131,39 @@ function getTelegramStatus_() {
     has_chat_id: !!settings.chat_id,
     flag: settings.flag || '',
     source: settings.source || '',
-    reason: settings.reason || ''
+    reason: settings.reason || '',
+    bot_ok: probe.bot_ok === true,
+    chat_ok: probe.chat_ok === true,
+    probe_status: probe.status_code || '',
+    probe_reason: probe.reason || ''
   };
+}
+
+function probeTelegramTarget_(settings) {
+  try {
+    var botResponse = UrlFetchApp.fetch('https://api.telegram.org/bot' + settings.token + '/getMe', {
+      muteHttpExceptions: true
+    });
+    var botCode = botResponse.getResponseCode();
+    var botBody = parseJsonSafe_(botResponse.getContentText() || '');
+    if (botCode < 200 || botCode >= 300 || !botBody || botBody.ok !== true) {
+      return { bot_ok: false, chat_ok: false, status_code: botCode, reason: 'bot_probe_failed' };
+    }
+    var chatResponse = UrlFetchApp.fetch(
+      'https://api.telegram.org/bot' + settings.token + '/getChat?chat_id=' + encodeURIComponent(settings.chat_id),
+      { muteHttpExceptions: true }
+    );
+    var chatCode = chatResponse.getResponseCode();
+    var chatBody = parseJsonSafe_(chatResponse.getContentText() || '');
+    return {
+      bot_ok: true,
+      chat_ok: chatCode >= 200 && chatCode < 300 && chatBody && chatBody.ok === true,
+      status_code: chatCode,
+      reason: chatCode >= 200 && chatCode < 300 && chatBody && chatBody.ok === true ? 'ready' : 'chat_probe_failed'
+    };
+  } catch (err) {
+    return { bot_ok: false, chat_ok: false, reason: String(err) };
+  }
 }
 
 function getOpenAiSettings_() {
@@ -2185,27 +2224,26 @@ function notifyTelegramMessage_(eventData, messageText) {
     appendTelegramLog_(eventData, skipped);
     return skipped;
   }
-  var response;
   try {
-    response = UrlFetchApp.fetch('https://api.telegram.org/bot' + settings.token + '/sendMessage', {
-      method: 'post',
-      payload: {
-        chat_id: settings.chat_id,
-        text: messageText,
-        parse_mode: 'HTML',
-        disable_web_page_preview: 'true'
-      },
-      muteHttpExceptions: true
-    });
-    var code = response.getResponseCode();
-    var raw = response.getContentText() || '';
-    var parsed = parseJsonSafe_(raw);
-    var ok = code >= 200 && code < 300 && parsed && parsed.ok === true;
+    var chunks = splitTelegramMessage_(messageText, 3500);
+    var sent = [];
+    var ok = true;
+    for (var i = 0; i < chunks.length; i++) {
+      var part = chunks.length > 1 ? chunks[i] + '\n\n<i>Parte ' + (i + 1) + ' de ' + chunks.length + '</i>' : chunks[i];
+      var partResult = sendTelegramChunk_(settings, part);
+      sent.push(partResult);
+      if (!partResult.ok) {
+        ok = false;
+        break;
+      }
+      if (i < chunks.length - 1) Utilities.sleep(120);
+    }
+    var last = sent.length ? sent[sent.length - 1] : { status_code: '', body: '' };
     var result = {
       ok: ok,
       skipped: false,
-      status_code: code,
-      body: raw.slice(0, 500)
+      status_code: last.status_code || '',
+      body: JSON.stringify({ chunks: chunks.length, sent: sent.length, last: String(last.body || '').slice(0, 300) }).slice(0, 500)
     };
     appendTelegramLog_(eventData, result);
     return result;
@@ -2214,6 +2252,79 @@ function notifyTelegramMessage_(eventData, messageText) {
     appendTelegramLog_(eventData, failed);
     return failed;
   }
+}
+
+function splitTelegramMessage_(messageText, maxLength) {
+  var lines = String(messageText || '').split('\n');
+  var chunks = [];
+  var current = '';
+  lines.forEach(function (line) {
+    var candidate = current ? current + '\n' + line : line;
+    if (candidate.length <= maxLength) {
+      current = candidate;
+      return;
+    }
+    if (current) chunks.push(current);
+    current = line.length <= maxLength ? line : line.slice(0, maxLength - 1) + '…';
+  });
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : ['Sin detalle'];
+}
+
+function sendTelegramChunk_(settings, text) {
+  var url = 'https://api.telegram.org/bot' + settings.token + '/sendMessage';
+  var response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    payload: {
+      chat_id: settings.chat_id,
+      text: text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: 'true'
+    },
+    muteHttpExceptions: true
+  });
+  var code = response.getResponseCode();
+  var raw = response.getContentText() || '';
+  var parsed = parseJsonSafe_(raw);
+  if (code >= 200 && code < 300 && parsed && parsed.ok === true) {
+    return { ok: true, status_code: code, body: raw };
+  }
+  if (code === 400) {
+    var fallback = UrlFetchApp.fetch(url, {
+      method: 'post',
+      payload: {
+        chat_id: settings.chat_id,
+        text: stripTelegramHtml_(text),
+        disable_web_page_preview: 'true'
+      },
+      muteHttpExceptions: true
+    });
+    var fallbackCode = fallback.getResponseCode();
+    var fallbackRaw = fallback.getContentText() || '';
+    var fallbackParsed = parseJsonSafe_(fallbackRaw);
+    return {
+      ok: fallbackCode >= 200 && fallbackCode < 300 && fallbackParsed && fallbackParsed.ok === true,
+      status_code: fallbackCode,
+      body: fallbackRaw
+    };
+  }
+  return { ok: false, status_code: code, body: raw };
+}
+
+function stripTelegramHtml_(value) {
+  return String(value || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+function testTelegramDelivery() {
+  return notifyTelegramMessage_({
+    id_pedido: 'TEST-' + Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyyMMdd-HHmmss'),
+    local: 'Sistema'
+  }, '✅ <b>Telegram operativo</b>\nPrueba automática de Pedidos Semanales.');
 }
 
 function buildTelegramPedidoMessage_(pedido) {

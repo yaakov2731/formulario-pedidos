@@ -42,6 +42,7 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
+  expect(bootstrap && bootstrap.version === "2.3.3", "bootstrap Telegram hardening version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.3.3`);
   expect(bootstrap && bootstrap.capabilities, "bootstrap capabilities present", "bootstrap capabilities missing");
 
   expect(!!bootstrap.catalog, "catalog present", "catalog missing");
@@ -94,6 +95,12 @@ async function main() {
   const operationStatus = await getJson(`${scriptUrl}?action=getOperationStatus&type=stock&id=VERIFY-NOT-FOUND`);
   expect(operationStatus && operationStatus.ok === true, "operation status responded", "operation status did not return ok:true");
   expect(operationStatus && operationStatus.found === false, "operation status handles missing ids", "operation status returned an unexpected match");
+
+  const telegramStatus = await getJson(`${scriptUrl}?action=getTelegramStatus&t=${Date.now()}`);
+  expect(telegramStatus && telegramStatus.ok === true, "Telegram status responded", "Telegram status did not return ok:true");
+  expect(telegramStatus && telegramStatus.enabled === true, "Telegram notifications enabled", `Telegram disabled: ${telegramStatus && telegramStatus.reason}`);
+  expect(telegramStatus && telegramStatus.bot_ok === true, "Telegram bot token verified", `Telegram bot probe failed: ${telegramStatus && telegramStatus.probe_reason}`);
+  expect(telegramStatus && telegramStatus.chat_ok === true, "Telegram destination verified", `Telegram chat probe failed: ${telegramStatus && telegramStatus.probe_reason}`);
 
   if (process.exitCode) {
     console.error("\nLive V2 verification failed. The published /exec is behind the local code.");
