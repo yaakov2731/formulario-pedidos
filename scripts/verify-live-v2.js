@@ -76,12 +76,18 @@ async function main() {
   expect(configKeys.includes("Puerto Gelato"), "Puerto Gelato present", "config missing Puerto Gelato");
   expect(configKeys.includes("Trento Café"), "Trento Café present", "config missing Trento Café");
   expect(configKeys.includes("Brooklyn"), "Brooklyn present", "config missing Brooklyn");
+  expect(configKeys.includes("Shopping"), "Shopping present", "config missing Shopping");
 
   const snapshotKeys = Object.keys((bootstrap.snapshot && bootstrap.snapshot.byLocal) || {});
   expect(snapshotKeys.includes("Umo Grill"), "snapshot Umo Grill present", "snapshot missing Umo Grill");
   expect(snapshotKeys.includes("Brooklyn"), "snapshot Brooklyn present", "snapshot missing Brooklyn");
+  expect(snapshotKeys.includes("Shopping"), "snapshot Shopping present", "snapshot missing Shopping");
   const openItemsKeys = Object.keys((bootstrap.snapshot && bootstrap.snapshot.openItemsByLocal) || {});
   expect(!openItemsKeys.includes("Pizzería"), "snapshot Pizzería removed/inactive", "snapshot still exposes legacy local Pizzería");
+  expect(openItemsKeys.includes("Shopping"), "Shopping open items present", "snapshot missing Shopping open items");
+
+  const shoppingCatalog = (bootstrap.catalog && bootstrap.catalog.Shopping) || [];
+  expect(shoppingCatalog.length > 0, "Shopping catalog available", "Shopping catalog is empty or unavailable");
 
   const report = await getJson(`${scriptUrl}?action=getElaboradosReport&local=${encodeURIComponent("Umo Grill")}`);
   expect(report && report.ok === true, "elaborados report responded", "elaborados report did not return ok:true");

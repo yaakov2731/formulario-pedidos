@@ -105,10 +105,10 @@ function main() {
   expectNotContains(html, 'id="reportPrint"', "app report print control removed");
   expectContains(html, 'data-shell-tab="reportes"', "executive report navigation");
   expectContains(html, "if(state.tab===\"reportes\") renderDashboard();", "executive report uses live dashboard data");
-  ["Umo Grill", "GreenFresh", "Puerto Gelato", "Trento Café", "Brooklyn"].forEach((local) => {
+  ["Umo Grill", "GreenFresh", "Puerto Gelato", "Trento Café", "Brooklyn", "Shopping"].forEach((local) => {
     expectContains(html, `{ id:\"${local}\"`, `real local ${local}`);
   });
-  ["Ciro", "Eventos", "Shopping"].forEach((local) => {
+  ["Ciro", "Eventos"].forEach((local) => {
     expectNotContains(html, `{ id:\"${local}\"`, `legacy local hidden ${local}`);
   });
 
