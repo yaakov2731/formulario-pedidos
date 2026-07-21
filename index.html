@@ -433,6 +433,9 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
 .home-jump{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:linear-gradient(180deg,oklch(1 0 0 / 0.98),var(--surface-2));color:var(--ink);font:inherit;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 8px 14px oklch(0.4 0.03 240 / 0.07),0 3px 0 var(--line-strong),inset 0 1px 0 oklch(1 0 0 / 0.94)}
 .home-jump:active{transform:translateY(2px);box-shadow:0 4px 8px oklch(0.4 0.03 240 / 0.08),0 1px 0 var(--line-strong),inset 0 2px 6px oklch(0.2 0.03 240 / 0.08)}
 .home-jump span{font-size:12px;line-height:1}
+.module-config-btn{border-color:color-mix(in oklch,var(--brand) 30%,var(--line));background:var(--brand-tint);color:var(--brand-strong);box-shadow:none}
+.module-config-btn:hover{border-color:var(--brand);background:color-mix(in oklch,var(--brand-tint) 75%,#fff)}
+.module-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .tab-panel[hidden]{display:none}
 .pedido-shell{padding:16px;background:
   radial-gradient(120% 180% at 100% 0%, oklch(0.96 0.03 220), transparent 55%),
@@ -1574,6 +1577,7 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
         <span class="pedido-local-pill" id="pedidoLocalPill">Local pendiente</span>
+        <button type="button" class="home-jump module-config-btn" data-module-config="pedido"><span>⚙</span>Configurar</button>
         <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
       </div>
     </div>
@@ -1631,8 +1635,11 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   <section class="tab-panel" data-tab="stock">
     <div class="shead">
       <div><p class="skicker">Stock real</p><h2>Contá lo que hay hoy</h2></div>
-      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
-      <span class="snum" id="stockSectionMeta">Sin conteo</span>
+      <div class="module-head-actions">
+        <span class="snum" id="stockSectionMeta">Sin conteo</span>
+        <button type="button" class="home-jump module-config-btn" data-module-config="stock"><span>⚙</span>Configurar</button>
+        <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      </div>
     </div>
     <div class="stock-actions">
       <button type="button" class="local stock-cta" id="stockInlineBtn" aria-label="Cargar stock real">
@@ -1672,8 +1679,11 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   <section class="tab-panel" data-tab="recepcion" hidden>
     <div class="shead">
       <div><p class="skicker">Ingreso de mercadería</p><h2>Registrá lo que llegó</h2></div>
-      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
-      <span class="snum" id="recepMeta">Sin movimientos</span>
+      <div class="module-head-actions">
+        <span class="snum" id="recepMeta">Sin movimientos</span>
+        <button type="button" class="home-jump module-config-btn" data-module-config="recepcion"><span>⚙</span>Configurar</button>
+        <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      </div>
     </div>
     <div class="module-grid" id="recepCards"></div>
     <div class="stock-panel" style="margin-top:12px">
@@ -1729,8 +1739,11 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   <section class="tab-panel" data-tab="produccion" hidden>
     <div class="shead">
       <div><p class="skicker">Parte productivo</p><h2>¿Qué se elaboró hoy?</h2></div>
-      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
-      <span class="snum" id="prodMeta">Sin partes</span>
+      <div class="module-head-actions">
+        <span class="snum" id="prodMeta">Sin partes</span>
+        <button type="button" class="home-jump module-config-btn" data-module-config="produccion"><span>⚙</span>Configurar</button>
+        <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      </div>
     </div>
     <div class="module-grid" id="prodCards"></div>
     <div class="stock-panel" style="margin-top:12px">
@@ -1770,8 +1783,11 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   <section class="tab-panel" data-tab="elaborados" hidden>
     <div class="shead">
       <div><p class="skicker">Sobrante no vendido</p><h2>Cerrá el día con claridad</h2></div>
-      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
-      <span class="snum" id="elabMeta">Sin conteos</span>
+      <div class="module-head-actions">
+        <span class="snum" id="elabMeta">Sin conteos</span>
+        <button type="button" class="home-jump module-config-btn" data-module-config="elaborados"><span>⚙</span>Configurar</button>
+        <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
+      </div>
     </div>
     <div class="module-grid" id="elabCards"></div>
     <div class="stock-panel" style="margin-top:12px">
@@ -3578,6 +3594,10 @@ async function refreshData(opts={}){
     renderElaboradosModule();
     renderDashboard();
     renderWorkspaceStats();
+    if(state.local){
+      fillEncargadoSelect("encargado", state.local, $("#encargado").value, { preferFirst:true, placeholder:"Elegí encargado" });
+      renderQuickCatalog();
+    }
     if(!cfg.hidden) renderCfg();
     return true;
   }catch{
@@ -4445,6 +4465,7 @@ function openAdminNavigation(){
 }
 $("#adminBtn").addEventListener("click",openAdminNavigation);
 document.querySelectorAll("[data-admin-nav]").forEach(btn=>btn.addEventListener("click",openAdminNavigation));
+document.querySelectorAll("[data-module-config]").forEach(btn=>btn.addEventListener("click",openAdminNavigation));
 $("#recepSave").addEventListener("click",saveReception);
 $("#prodSave").addEventListener("click",saveProduction);
 $("#elabSave").addEventListener("click",saveElaborados);
