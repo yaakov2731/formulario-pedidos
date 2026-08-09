@@ -2106,6 +2106,7 @@ let PRODUCCION = { latest:[], byLocal:{} };
 let ELABORADOS = { latest:[], byLocal:{} };
 let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
+let LIVE = false;   // true solo si el /exec de Apps Script respondió
 
 /* ---- State ---- */
 const state = { local:"Umo Grill", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"datos", admin:false };
@@ -2549,9 +2550,12 @@ function renderLocalActions(){
   });
 }
 function responsablesForLocal(local){
-  const configured = RESP[local] && RESP[local].length
-    ? RESP[local]
-    : ((CONFIG[local] && CONFIG[local].enc) ? [{ nombre:CONFIG[local].enc, email:CONFIG[local].email||"" }] : []);
+  // La planilla manda, pero el encargado del snapshot se suma igual: si el /exec
+  // no responde (o el local todavía no tiene filas) el select no puede quedar vacío.
+  const configured = (RESP[local] || []).slice();
+  if(CONFIG[local] && CONFIG[local].enc){
+    configured.push({ nombre:CONFIG[local].enc, email:CONFIG[local].email||"" });
+  }
   const seen=new Set();
   return configured.filter(item=>{
     const name=String(item && item.nombre || "").trim();
@@ -3458,11 +3462,14 @@ async function warmData(){
     renderElaboradosModule();
     renderDashboard();
     renderWorkspaceStats();
+    LIVE = true;
     if(!cfg.hidden) renderCfg();
   }catch{
+    LIVE = false;
     LIVE_META = { version:"", capabilities:{} };
     renderLiveWarning();
-    setConn(true,"Catálogo local");
+    setConn(false,"Sin conexión · datos locales");
+    if(!cfg.hidden) renderCfg();
   }
 }
 const LOCAL_ALIAS = {
@@ -3541,11 +3548,13 @@ function renderCfg(){
   $("#cfgCatList").innerHTML = cat.length
     ? cat.map(x=>`<div class="cfg-li"><span class="li-code">${esc(x.codigo||'—')}</span><span class="li-nm">${esc(x.nombre)}</span><span class="li-meta">${esc(x.categoria||'')} · ${esc(x.unidad)}</span><button class="cfg-mini-btn" type="button" data-edit-producto="${esc(x.codigo||'')}">Editar nombre</button></div>`).join("")
     : `<div class="cfg-empty">Sin productos en el catálogo. Agregá el primero.</div>`;
-  const resp=RESP[local]||(CONFIG[local]&&CONFIG[local].enc?[{nombre:CONFIG[local].enc,email:CONFIG[local].email}]:[]);
+  const resp=responsablesForLocal(local);
   $("#cfgRespCount").textContent=`${resp.length} responsable${resp.length===1?'':'s'}`;
   $("#cfgRespList").innerHTML = resp.length
     ? resp.map(x=>`<div class="cfg-li"><span class="li-nm">${esc(x.nombre||'—')}</span><span class="li-meta">${esc(x.email||'')}</span></div>`).join("")
-    : `<div class="cfg-empty">Sin responsables cargados.</div>`;
+    : `<div class="cfg-empty">${LIVE
+        ? `Sin responsables cargados para <b>${esc(local)}</b>. Agregá el primero acá abajo.`
+        : `No se pudieron leer los responsables: el /exec de Apps Script no responde.<br>Revisá que la implementación esté publicada con acceso <b>Cualquiera</b>.`}</div>`;
 }
 async function apiPost(payload){
   await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:OPAQUE_POST_HEADERS,body:JSON.stringify(payload)});
@@ -3599,11 +3608,15 @@ async function refreshData(opts={}){
       fillEncargadoSelect("encargado", state.local, $("#encargado").value, { preferFirst:true, placeholder:"Elegí encargado" });
       renderQuickCatalog();
     }
+    LIVE = true;
     if(!cfg.hidden) renderCfg();
     return true;
   }catch{
+    LIVE = false;
     LIVE_META = { version:"", capabilities:{} };
     renderLiveWarning();
+    setConn(false,"Sin conexión · datos locales");
+    if(!cfg.hidden) renderCfg();
     return false;
   }
 }
@@ -3667,9 +3680,17 @@ async function addResponsable(){
   const btn=$("#cfgAddResp"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
   (RESP[local]=RESP[local]||[]).push({nombre,email:payload.email});
   renderCfg();
-  try{ await apiPost(payload); await sleep(900); await refreshData({ scope:"full" }); toast("Responsable agregado","ok"); }
-  catch{ toast("Error al guardar","err"); }
-  finally{ renderCfg(); $("#cfgRNombre").value="";$("#cfgREmail").value=""; btn.disabled=false; btn.textContent=o; }
+  // apiPost va en modo no-cors: nunca rechaza, así que el éxito se confirma
+  // releyendo el bootstrap. Sin confirmación, se revierte el alta optimista.
+  let ok=false;
+  try{ await apiPost(payload); await sleep(900); ok=await refreshData({ scope:"full" }); }
+  catch{ ok=false; }
+  if(ok){ toast("Responsable agregado","ok"); $("#cfgRNombre").value=""; $("#cfgREmail").value=""; }
+  else{
+    RESP[local]=(RESP[local]||[]).filter(x=>!(x.nombre===nombre && x.email===payload.email));
+    toast("No se pudo guardar en la planilla","err");
+  }
+  renderCfg(); btn.disabled=false; btn.textContent=o;
 }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 $("#cfgBtn").addEventListener("click",openCfg);
