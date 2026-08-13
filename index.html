@@ -3586,6 +3586,23 @@ async function confirmCatalogProduct(local, expected, attempts=7, delayMs=700){
   }
   return null;
 }
+async function confirmResponsable(local, expected, attempts=7, delayMs=700){
+  for(let attempt=0;attempt<attempts;attempt++){
+    try{
+      const d=await backendGet("getBootstrap",{scope:"full",t:Date.now()});
+      const responsables=aliasKeys((d&&d.responsables)||{});
+      const found=(responsables[local]||[]).find(person=>{
+        const sameName=normalizeLooseText(person&&person.nombre)===normalizeLooseText(expected.nombre);
+        const expectedEmail=String(expected.email||"").trim().toLowerCase();
+        const sameEmail=!expectedEmail||String(person&&person.email||"").trim().toLowerCase()===expectedEmail;
+        return sameName&&sameEmail;
+      });
+      if(d&&d.ok!==false&&found) return {responsable:found,payload:d};
+    }catch{}
+    await sleep(delayMs);
+  }
+  return null;
+}
 function queueBootstrapRefresh(delay=900, scope="ops"){
   clearTimeout(bootstrapRefreshTimer);
   bootstrapRefreshTimer = setTimeout(()=>{
@@ -3678,19 +3695,18 @@ async function addResponsable(){
   if(!nombre){ toast("Escribí el nombre del responsable","err"); return; }
   const payload={action:"addResponsable",local,nombre,email:$("#cfgREmail").value.trim()};
   const btn=$("#cfgAddResp"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
-  (RESP[local]=RESP[local]||[]).push({nombre,email:payload.email});
-  renderCfg();
-  // apiPost va en modo no-cors: nunca rechaza, así que el éxito se confirma
-  // releyendo el bootstrap. Sin confirmación, se revierte el alta optimista.
-  let ok=false;
-  try{ await apiPost(payload); await sleep(900); ok=await refreshData({ scope:"full" }); }
-  catch{ ok=false; }
-  if(ok){ toast("Responsable agregado","ok"); $("#cfgRNombre").value=""; $("#cfgREmail").value=""; }
-  else{
-    RESP[local]=(RESP[local]||[]).filter(x=>!(x.nombre===nombre && x.email===payload.email));
-    toast("No se pudo guardar en la planilla","err");
+  try{
+    await apiPost(payload);
+    const saved=await confirmResponsable(local,{nombre,email:payload.email});
+    if(!saved) throw new Error("No se pudo confirmar en Google Sheets. Revisá la conexión de Apps Script.");
+    applyBootstrapPayload(saved.payload);
+    renderCfg();
+    $("#cfgRNombre").value="";
+    $("#cfgREmail").value="";
+    toast("Responsable agregado","ok");
   }
-  renderCfg(); btn.disabled=false; btn.textContent=o;
+  catch(err){ toast(err&&err.message?err.message:"Error al guardar el responsable","err"); }
+  finally{ renderCfg(); btn.disabled=false; btn.textContent=o; }
 }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 $("#cfgBtn").addEventListener("click",openCfg);

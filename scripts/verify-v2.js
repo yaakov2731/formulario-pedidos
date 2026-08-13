@@ -151,6 +151,10 @@ function main() {
     "function applyCatalogColumnUpdates_(",
   ].forEach((needle) => expectContains(code, needle, `backend logic ${needle}`));
 
+  expectContains(html, "async function confirmResponsable(local, expected", "responsable saves require backend confirmation");
+  expectContains(html, "No se pudo confirmar en Google Sheets. Revisá la conexión de Apps Script.", "responsable connection failure is explicit");
+  expectNotContains(html, '(RESP[local]=RESP[local]||[]).push({nombre,email:payload.email});', "unconfirmed responsable optimistic insert removed");
+
   [
     "{ from: 'Hamburguesería', to: 'Brooklyn' }",
     "{ from: 'Parrilla', to: 'Umo Grill' }",
