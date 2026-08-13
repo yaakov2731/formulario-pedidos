@@ -3605,9 +3605,7 @@ async function saveElaborados(){
 /* ---- Live data (best-effort; cae al snapshot si el script no responde) ---- */
 async function warmData(){
   try{
-    const r=await fetch(`${SCRIPT_URL}?action=getBootstrap`,{method:"GET"});
-    if(!r.ok)throw 0;
-    const d=await r.json();
+    const d=await backendGet("getBootstrap",{},{ retries:2, timeoutMs:15000 });
     applyBootstrapPayload(d);
     renderStockIntelligence();
     renderRecepcionModule();
@@ -3768,15 +3766,34 @@ async function apiPost(payload){
   if(!LIVE) throw new Error("Sin conexión con Apps Script");
   await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:OPAQUE_POST_HEADERS,body:JSON.stringify(payload)});
 }
-async function backendGet(action, params={}){
+async function fetchWithTimeout_(url, opts={}, timeoutMs=15000){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try{ return await fetch(url, {...opts, signal:ctrl.signal}); }
+  finally{ clearTimeout(t); }
+}
+// Apps Script a veces tarda (cold start / cuota) y una sola falla no debería
+// mostrar "Sin conexión": reintenta antes de declarar offline.
+async function backendGet(action, params={}, opts={}){
   const url = new URL(SCRIPT_URL);
   url.searchParams.set("action", action);
   Object.entries(params).forEach(([key,val])=>{
     if(val !== undefined && val !== null && val !== "") url.searchParams.set(key, String(val));
   });
-  const r = await fetch(url.toString(), { method:"GET" });
-  if(!r.ok) throw new Error(`GET ${action} failed`);
-  return r.json();
+  const retries = opts.retries ?? 1;
+  const timeoutMs = opts.timeoutMs || 15000;
+  let lastErr;
+  for(let attempt=0; attempt<=retries; attempt++){
+    try{
+      const r = await fetchWithTimeout_(url.toString(), { method:"GET" }, timeoutMs);
+      if(!r.ok) throw new Error(`GET ${action} failed (${r.status})`);
+      return await r.json();
+    }catch(err){
+      lastErr = err;
+      if(attempt<retries) await sleep(500 + attempt*500);
+    }
+  }
+  throw lastErr;
 }
 async function confirmCatalogProduct(local, expected, attempts=7, delayMs=700){
   for(let attempt=0;attempt<attempts;attempt++){
@@ -3822,7 +3839,7 @@ function queueBootstrapRefresh(delay=900, scope="ops"){
 async function refreshData(opts={}){
   try{
     const scope=opts.scope||"ops";
-    const d=await backendGet("getBootstrap",{ scope, t:Date.now() });
+    const d=await backendGet("getBootstrap",{ scope, t:Date.now() },{ retries:1, timeoutMs:12000 });
     applyBootstrapPayload(d);
     renderStockIntelligence();
     renderRecepcionModule();
