@@ -113,6 +113,13 @@ function main() {
     "applyProductionOptimistic(",
   ].forEach((needle) => expectContains(html, needle, `frontend logic ${needle}`));
 
+  expectContains(html, 'const DRAFT_STORAGE_KEY = "docks-pedidos-operational-drafts-v1"', "operational draft storage key");
+  expectContains(html, "function persistOperationalDrafts()", "operational drafts persist locally");
+  expectContains(html, "function restoreOperationalDrafts()", "operational drafts restore after reload");
+  expectContains(html, "function hasMeaningfulOperationalDraft(saved)", "empty defaults do not trigger recovered draft messaging");
+  expectContains(html, 'window.addEventListener("pagehide",persistOperationalDrafts)', "operational drafts flush on page exit");
+  expectContains(html, "clearStockDrafts(local);", "confirmed stock clears its local draft");
+
   expectNotContains(html, "renderReportesModule", "app report renderer removed");
   expectNotContains(html, 'id="reportPrint"', "app report print control removed");
   expectContains(html, 'data-shell-tab="reportes"', "executive report navigation");

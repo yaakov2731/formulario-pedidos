@@ -2123,11 +2123,100 @@ let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
 let LIVE = false;   // true solo si el /exec de Apps Script respondió
 let LAST_SYNC_AT = null;
+const DRAFT_STORAGE_KEY = "docks-pedidos-operational-drafts-v1";
+let draftSaveTimer = null;
+let restoredDraft = false;
 
 /* ---- State ---- */
 const state = { local:"Umo Grill", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"datos", admin:false };
 let uid = 0;
 let bootstrapRefreshTimer = null;
+
+function scheduleDraftSave(){
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer=setTimeout(persistOperationalDrafts,180);
+}
+function persistOperationalDrafts(){
+  clearTimeout(draftSaveTimer);
+  try{
+    const stockMeta={...(stockUi.metaByLocal||{})};
+    const stockLocal=$("#stockLocal")&&$("#stockLocal").value;
+    if(stockLocal){
+      stockMeta[stockLocal]={
+        tipo:$("#stockType").value,
+        encargado:$("#stockEncargado").value,
+        observaciones:$("#stockObs").value
+      };
+    }
+    localStorage.setItem(DRAFT_STORAGE_KEY,JSON.stringify({
+      savedAt:new Date().toISOString(),
+      pedido:{
+        local:state.local,
+        urgencia:state.urgencia,
+        items:state.items.map(({_id,...item})=>item),
+        encargado:$("#encargado").value,
+        email:$("#email").value,
+        semana:$("#semana").value,
+        fechaEntrega:$("#fecha_entrega").value,
+        observaciones:$("#observaciones").value,
+        pedidoStep:state.pedidoStep,
+        encTouched:state.encTouched,
+        emailTouched:state.emailTouched
+      },
+      stock:{drafts:stockUi.drafts,selectedByLocal:stockUi.selectedByLocal,metaByLocal:stockMeta},
+      recepcion:{drafts:recepUi.drafts},
+      produccion:{drafts:prodUi.drafts,selectedByLocal:prodUi.selectedByLocal},
+      elaborados:{drafts:elabUi.drafts,selectedByLocal:elabUi.selectedByLocal}
+    }));
+  }catch{}
+}
+function hasMeaningfulOperationalDraft(saved){
+  const pedido=(saved&&saved.pedido)||{};
+  const hasPedido=(Array.isArray(pedido.items)&&pedido.items.length>0) || [pedido.semana,pedido.fechaEntrega,pedido.observaciones].some(value=>String(value||"").trim()) || (pedido.encTouched&&String(pedido.encargado||"").trim()) || (pedido.emailTouched&&String(pedido.email||"").trim());
+  const hasItems=drafts=>Object.values(drafts||{}).some(draft=>Object.values((draft&&draft.items)||{}).some(value=>String(value??"").trim()!==""));
+  const hasStockSelection=Object.values((saved.stock&&saved.stock.selectedByLocal)||{}).some(items=>Array.isArray(items)&&items.length>0);
+  const hasRecepcion=Object.values((saved.recepcion&&saved.recepcion.drafts)||{}).some(draft=>
+    String((draft&&draft.proveedor)||"").trim() || String((draft&&draft.observaciones)||"").trim()
+  ) || hasItems(saved.recepcion&&saved.recepcion.drafts);
+  const hasProduccion=Object.values((saved.produccion&&saved.produccion.drafts)||{}).some(draft=>
+    [draft&&draft.producto_elaborado,draft&&draft.cantidad_producida,draft&&draft.lote,draft&&draft.observaciones].some(value=>String(value||"").trim())
+  ) || hasItems(saved.produccion&&saved.produccion.drafts);
+  const hasElaborados=Object.values((saved.elaborados&&saved.elaborados.drafts)||{}).some(draft=>
+    String((draft&&draft.estado)||"").trim() || String((draft&&draft.observaciones)||"").trim()
+  ) || hasItems(saved.elaborados&&saved.elaborados.drafts);
+  return !!(hasPedido||hasStockSelection||hasRecepcion||hasProduccion||hasElaborados);
+}
+function restoreOperationalDrafts(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY)||"null");
+    if(!saved||!saved.pedido) return false;
+    const pedido=saved.pedido;
+    if(LOCALES.some(local=>local.id===pedido.local)) state.local=pedido.local;
+    state.urgencia=["Normal","Alta","Urgente"].includes(pedido.urgencia)?pedido.urgencia:"Normal";
+    state.items=Array.isArray(pedido.items)?pedido.items.map(item=>({...item,_id:++uid})):[];
+    state.encTouched=pedido.encTouched===true;
+    state.emailTouched=pedido.emailTouched===true;
+    state.pedidoStep=PEDIDO_STEPS.some(step=>step.id===pedido.pedidoStep)?pedido.pedidoStep:"datos";
+    $("#encargado").value=pedido.encargado||"";
+    $("#email").value=pedido.email||"";
+    $("#semana").value=pedido.semana||"";
+    $("#fecha_entrega").value=pedido.fechaEntrega||"";
+    $("#observaciones").value=pedido.observaciones||"";
+    $("#urg").querySelectorAll(".urgb").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.u===state.urgencia)));
+    stockUi.drafts=(saved.stock&&saved.stock.drafts)||{};
+    stockUi.selectedByLocal=(saved.stock&&saved.stock.selectedByLocal)||{};
+    stockUi.metaByLocal=(saved.stock&&saved.stock.metaByLocal)||{};
+    recepUi.drafts=(saved.recepcion&&saved.recepcion.drafts)||{};
+    prodUi.drafts=(saved.produccion&&saved.produccion.drafts)||{};
+    prodUi.selectedByLocal=(saved.produccion&&saved.produccion.selectedByLocal)||{};
+    elabUi.drafts=(saved.elaborados&&saved.elaborados.drafts)||{};
+    elabUi.selectedByLocal=(saved.elaborados&&saved.elaborados.selectedByLocal)||{};
+    restoredDraft=hasMeaningfulOperationalDraft(saved);
+    return restoredDraft;
+  }catch{
+    return false;
+  }
+}
 
 /* ---- Helpers ---- */
 const $ = s => document.querySelector(s);
@@ -2609,6 +2698,7 @@ function selectedResponsable(local, nombre){
 }
 function selectLocal(id, opts={}){
   state.local=id;
+  scheduleDraftSave();
   recepUi.visibleLimit=40;
   prodUi.visibleLimit=40;
   if(!opts.silent) setTab("local");
@@ -2694,12 +2784,14 @@ function addFromCatalog(rec){
   else state.items.push({_id:++uid,codigo:rec.codigo,nombre:rec.nombre,unidad:rec.unidad,
     proveedor:rec.proveedor,categoria:rec.categoria||"",precio:rec.precio,qty:1,free:false});
   search.value=""; closeSuggest(); renderItems(); renderQuickCatalog(); search.focus();
+  scheduleDraftSave();
 }
 function addFree(){
   const name=search.value.trim();
   if(!name){ toast("Escribí el nombre del producto","err"); search.focus(); return; }
   state.items.push({_id:++uid,codigo:"",nombre:name,unidad:"unidad",proveedor:"",categoria:"",precio:0,qty:1,free:true});
   search.value=""; closeSuggest(); renderItems(); renderQuickCatalog(); search.focus();
+  scheduleDraftSave();
 }
 $("#freeBtn").addEventListener("click",addFree);
 
@@ -2757,9 +2849,9 @@ function renderItems(){
     </div>`).join("");
   box.querySelectorAll(".item").forEach(row=>{
     const id=+row.dataset.id, it=state.items.find(x=>x._id===id);
-    row.querySelector('[data-act="qty"]').addEventListener("input",e=>{it.qty=parseFloat(e.target.value)||0;updateSummary(); renderStockIntelligence();});
-    row.querySelector('[data-act="unit"]').addEventListener("change",e=>{it.unidad=e.target.value;updateSummary(); renderStockIntelligence();});
-    row.querySelector('[data-act="del"]').addEventListener("click",()=>{state.items=state.items.filter(x=>x._id!==id);renderItems(); renderQuickCatalog();});
+    row.querySelector('[data-act="qty"]').addEventListener("input",e=>{it.qty=parseFloat(e.target.value)||0;updateSummary(); renderStockIntelligence(); scheduleDraftSave();});
+    row.querySelector('[data-act="unit"]').addEventListener("change",e=>{it.unidad=e.target.value;updateSummary(); renderStockIntelligence(); scheduleDraftSave();});
+    row.querySelector('[data-act="del"]').addEventListener("click",()=>{state.items=state.items.filter(x=>x._id!==id);renderItems(); renderQuickCatalog(); scheduleDraftSave();});
   });
   updateSummary();
   renderStockIntelligence();
@@ -2789,6 +2881,7 @@ function updateSummary(){
 $("#urg").querySelectorAll(".urgb").forEach(b=>b.addEventListener("click",()=>{
   state.urgencia=b.dataset.u;
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  scheduleDraftSave();
 }));
 
 /* ---- Field tracking ---- */
@@ -2800,9 +2893,10 @@ $("#encargado").addEventListener("change",()=>{
     $("#email").value = person.email;
   }
   syncSend();
+  scheduleDraftSave();
 });
-$("#email").addEventListener("input",()=>{state.emailTouched=true;syncSend();});
-["semana","fecha_entrega"].forEach(id=>$("#"+id).addEventListener("input",syncSend));
+$("#email").addEventListener("input",()=>{state.emailTouched=true;syncSend();scheduleDraftSave();});
+["semana","fecha_entrega","observaciones"].forEach(id=>$("#"+id).addEventListener("input",()=>{syncSend();scheduleDraftSave();}));
 
 function valid(){
   return state.local && $("#encargado").value.trim() && /\S+@\S+\.\S+/.test($("#email").value)
@@ -2888,6 +2982,7 @@ function resetForm(){
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
   if(state.local) selectLocal(state.local);
   renderPedidoFlow();
+  scheduleDraftSave();
   window.scrollTo({top:0,behavior:"auto"});
 }
 
@@ -3805,7 +3900,7 @@ $("#cfgCatList").addEventListener("click",e=>{
 
 /* ---- Stock modal ---- */
 const stockModal=$("#stockModal");
-const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
+const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{}, metaByLocal:{} };
 const recepUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, photoByLocal:{}, ocrBusy:false };
 const prodUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
 const elabUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
@@ -3813,10 +3908,11 @@ function openStock(){
   const sel=$("#stockLocal");
   sel.innerHTML=LOCALES.map(l=>`<option value="${l.id}">${l.id}</option>`).join("");
   sel.value=state.local||LOCALES[0].id;
-  fillEncargadoSelect("stockEncargado", sel.value, $("#encargado").value.trim() || (CONFIG[sel.value]&&CONFIG[sel.value].enc) || "", { preferFirst:true });
-  $("#stockObs").value="";
+  const meta=stockUi.metaByLocal[sel.value]||{};
+  fillEncargadoSelect("stockEncargado", sel.value, meta.encargado || $("#encargado").value.trim() || (CONFIG[sel.value]&&CONFIG[sel.value].enc) || "", { preferFirst:true });
+  $("#stockObs").value=meta.observaciones||"";
   $("#stockSearch").value=stockUi.queryByLocal[sel.value] || "";
-  $("#stockType").value="Conteo parcial";
+  $("#stockType").value=meta.tipo||"Conteo parcial";
   ensureStockDrafts(sel.value);
   ensureStockSelection(sel.value);
   stockUi.visibleLimit=12;
@@ -3837,21 +3933,25 @@ function addProdSelection(local, key){
   const selected=ensureProdSelection(local);
   if(selected.includes(key)) return;
   selected.push(key);
+  scheduleDraftSave();
 }
 function removeProdSelection(local, key){
   prodUi.selectedByLocal[local]=ensureProdSelection(local).filter(itemKey=>itemKey!==key);
   const drafts=ensureProdDrafts(local);
   drafts.items[key]="";
+  scheduleDraftSave();
 }
 function addElabSelection(local, key){
   const selected=ensureElabSelection(local);
   if(selected.includes(key)) return;
   selected.push(key);
+  scheduleDraftSave();
 }
 function removeElabSelection(local, key){
   elabUi.selectedByLocal[local]=ensureElabSelection(local).filter(itemKey=>itemKey!==key);
   const drafts=ensureElabDrafts(local);
   drafts.items[key]="";
+  scheduleDraftSave();
 }
 function renderProdQuickPick(local){
   const box=$("#prodQuickPickList");
@@ -4215,16 +4315,19 @@ function clearRecepDrafts(local){
   delete recepUi.drafts[local];
   recepUi.queryByLocal[local]="";
   clearRecepPhotoState(local);
+  scheduleDraftSave();
 }
 function clearProdDrafts(local){
   delete prodUi.drafts[local];
   prodUi.queryByLocal[local]="";
   delete prodUi.selectedByLocal[local];
+  scheduleDraftSave();
 }
 function clearElabDrafts(local){
   delete elabUi.drafts[local];
   elabUi.queryByLocal[local]="";
   delete elabUi.selectedByLocal[local];
+  scheduleDraftSave();
 }
 function applyReceptionOptimistic(local, items){
   if(!items.length) return;
@@ -4376,11 +4479,23 @@ function addStockSelection(local, key){
   const selected=ensureStockSelection(local);
   if(selected.includes(key)) return;
   selected.push(key);
+  scheduleDraftSave();
 }
 function removeStockSelection(local, key){
   stockUi.selectedByLocal[local]=ensureStockSelection(local).filter(itemKey=>itemKey!==key);
   const drafts=ensureStockDrafts(local);
   if(drafts[key]) drafts[key].stock_actual="";
+  scheduleDraftSave();
+}
+function clearStockDrafts(local){
+  delete stockUi.drafts[local];
+  delete stockUi.selectedByLocal[local];
+  delete stockUi.metaByLocal[local];
+  if(stockLocalVal()===local){
+    $("#stockType").value="Conteo parcial";
+    $("#stockObs").value="";
+  }
+  scheduleDraftSave();
 }
 function renderStockQuickPick(local){
   const box=$("#stockQuickPickList");
@@ -4498,6 +4613,7 @@ async function saveStock(){
     const confirmed=await confirmOperationPersisted("stock",payload.id_stock);
     if(!confirmed) throw new Error("El stock no fue confirmado por Google Sheets");
     syncCatalogStockFromDrafts(local);
+    clearStockDrafts(local);
     if(state.local===local) renderStockIntelligence();
     if(state.local===local) renderWorkspaceStats();
     const telegram = confirmed.telegram || (backendResult && backendResult.telegram) || null;
@@ -4536,11 +4652,20 @@ document.addEventListener("keydown",e=>{
 });
 $("#stockLocal").addEventListener("change",()=>{
   const local=stockLocalVal();
+  const meta=stockUi.metaByLocal[local]||{};
   ensureStockDrafts(local);
   ensureStockSelection(local);
-  fillEncargadoSelect("stockEncargado", local, $("#stockEncargado").value || (CONFIG[local]&&CONFIG[local].enc) || "", { preferFirst:true });
+  fillEncargadoSelect("stockEncargado", local, meta.encargado || (CONFIG[local]&&CONFIG[local].enc) || "", { preferFirst:true });
+  $("#stockType").value=meta.tipo||"Conteo parcial";
+  $("#stockObs").value=meta.observaciones||"";
   renderStockModal();
 });
+[$("#stockType"),$("#stockEncargado"),$("#stockObs")].forEach(control=>control.addEventListener("input",()=>{
+  const local=stockLocalVal();
+  if(!local) return;
+  stockUi.metaByLocal[local]={tipo:$("#stockType").value,encargado:$("#stockEncargado").value,observaciones:$("#stockObs").value};
+  scheduleDraftSave();
+}));
 $("#stockSearch").addEventListener("input",()=>{
   const local=stockLocalVal();
   stockUi.queryByLocal[local]=$("#stockSearch").value;
@@ -4564,6 +4689,7 @@ $("#stockGrid").addEventListener("input",e=>{
   drafts[key] = drafts[key] || { codigo:row.dataset.code||"", producto:row.dataset.name||"", categoria:"", unidad:"unidad", stock_actual:"" };
   drafts[key].stock_actual=e.target.value;
   renderStockActionBar(local);
+  scheduleDraftSave();
 });
 $("#stockGrid").addEventListener("click",e=>{
   const btn=e.target.closest("[data-stock-remove]");
@@ -4605,9 +4731,9 @@ $("#recepPhotoInput").addEventListener("change",async e=>{
   await loadReceptionFromPhoto(file);
 });
 $("#recepPhotoReset").addEventListener("click",clearReceptionPhotoResult);
-$("#recepProveedor").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).proveedor=$("#recepProveedor").value; });
-$("#recepEncargado").addEventListener("change",()=>{ if(state.local) ensureRecepDrafts(state.local).encargado=$("#recepEncargado").value; });
-$("#recepObs").addEventListener("input",()=>{ if(state.local) ensureRecepDrafts(state.local).observaciones=$("#recepObs").value; });
+$("#recepProveedor").addEventListener("input",()=>{ if(state.local){ ensureRecepDrafts(state.local).proveedor=$("#recepProveedor").value; scheduleDraftSave(); } });
+$("#recepEncargado").addEventListener("change",()=>{ if(state.local){ ensureRecepDrafts(state.local).encargado=$("#recepEncargado").value; scheduleDraftSave(); } });
+$("#recepObs").addEventListener("input",()=>{ if(state.local){ ensureRecepDrafts(state.local).observaciones=$("#recepObs").value; scheduleDraftSave(); } });
 $("#recepSearch").addEventListener("input",()=>{
   if(!state.local) return;
   recepUi.queryByLocal[state.local]=$("#recepSearch").value;
@@ -4620,20 +4746,21 @@ $("#recepGrid").addEventListener("input",e=>{
   const row=e.target.closest(".op-row");
   if(!row || !state.local) return;
   ensureRecepDrafts(state.local).items[stockKey(row.dataset.code||"", row.dataset.name||"")] = e.target.value;
+  scheduleDraftSave();
   renderRecepCardsOnly(state.local);
   renderWorkspaceStats();
 });
 $("#recepMore").addEventListener("click",()=>{ recepUi.visibleLimit += 80; renderRecepcionModule(); });
-$("#prodNombre").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).producto_elaborado=$("#prodNombre").value; });
-$("#prodCantidad").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).cantidad_producida=$("#prodCantidad").value; });
-$("#prodLote").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).lote=$("#prodLote").value; });
-$("#prodEncargado").addEventListener("change",()=>{ if(state.local) ensureProdDrafts(state.local).encargado=$("#prodEncargado").value; });
-$("#prodObs").addEventListener("input",()=>{ if(state.local) ensureProdDrafts(state.local).observaciones=$("#prodObs").value; });
-$("#elabTurno").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).turno=$("#elabTurno").value; });
-$("#elabEncargado").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).encargado=$("#elabEncargado").value; });
-$("#elabEstado").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).estado=$("#elabEstado").value; });
-$("#elabDestino").addEventListener("change",()=>{ if(state.local) ensureElabDrafts(state.local).destino=$("#elabDestino").value; });
-$("#elabObs").addEventListener("input",()=>{ if(state.local) ensureElabDrafts(state.local).observaciones=$("#elabObs").value; });
+$("#prodNombre").addEventListener("input",()=>{ if(state.local){ ensureProdDrafts(state.local).producto_elaborado=$("#prodNombre").value; scheduleDraftSave(); } });
+$("#prodCantidad").addEventListener("input",()=>{ if(state.local){ ensureProdDrafts(state.local).cantidad_producida=$("#prodCantidad").value; scheduleDraftSave(); } });
+$("#prodLote").addEventListener("input",()=>{ if(state.local){ ensureProdDrafts(state.local).lote=$("#prodLote").value; scheduleDraftSave(); } });
+$("#prodEncargado").addEventListener("change",()=>{ if(state.local){ ensureProdDrafts(state.local).encargado=$("#prodEncargado").value; scheduleDraftSave(); } });
+$("#prodObs").addEventListener("input",()=>{ if(state.local){ ensureProdDrafts(state.local).observaciones=$("#prodObs").value; scheduleDraftSave(); } });
+$("#elabTurno").addEventListener("change",()=>{ if(state.local){ ensureElabDrafts(state.local).turno=$("#elabTurno").value; scheduleDraftSave(); } });
+$("#elabEncargado").addEventListener("change",()=>{ if(state.local){ ensureElabDrafts(state.local).encargado=$("#elabEncargado").value; scheduleDraftSave(); } });
+$("#elabEstado").addEventListener("change",()=>{ if(state.local){ ensureElabDrafts(state.local).estado=$("#elabEstado").value; scheduleDraftSave(); } });
+$("#elabDestino").addEventListener("change",()=>{ if(state.local){ ensureElabDrafts(state.local).destino=$("#elabDestino").value; scheduleDraftSave(); } });
+$("#elabObs").addEventListener("input",()=>{ if(state.local){ ensureElabDrafts(state.local).observaciones=$("#elabObs").value; scheduleDraftSave(); } });
 $("#prodInsumoSearch").addEventListener("input",()=>{
   if(!state.local) return;
   prodUi.queryByLocal[state.local]=$("#prodInsumoSearch").value;
@@ -4666,6 +4793,7 @@ $("#prodGrid").addEventListener("input",e=>{
   if(!row || !state.local) return;
   const key=row.dataset.key || stockKey(row.dataset.code||"", row.dataset.name||"");
   ensureProdDrafts(state.local).items[key] = e.target.value;
+  scheduleDraftSave();
   renderProdCardsOnly(state.local);
   renderWorkspaceStats();
 });
@@ -4682,6 +4810,7 @@ $("#elabGrid").addEventListener("input",e=>{
   if(!row || !state.local) return;
   const key=row.dataset.key || stockKey(row.dataset.code||"", row.dataset.name||"");
   ensureElabDrafts(state.local).items[key] = e.target.value;
+  scheduleDraftSave();
   renderElabCardsOnly(state.local);
   renderWorkspaceStats();
 });
@@ -4694,11 +4823,13 @@ $("#elabGrid").addEventListener("click",e=>{
 });
 window.addEventListener("resize", syncCompactMobileShell);
 window.addEventListener("orientationchange", syncCompactMobileShell);
+window.addEventListener("pagehide",persistOperationalDrafts);
 if(window.visualViewport){
   window.visualViewport.addEventListener("resize", syncCompactMobileShell);
 }
 
 /* ---- Init ---- */
+restoreOperationalDrafts();
 syncCompactMobileShell();
 renderLocales(); renderItems(); syncSend();
 selectLocal(state.local,{silent:true});
@@ -4714,6 +4845,7 @@ renderDashboard();
 renderWorkspaceStats();
 setTab("home");
 warmData();
+if(restoredDraft) setTimeout(()=>toast("Borrador recuperado en este dispositivo","ok"),250);
 </script>
 <style>.spin{animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
