@@ -54,6 +54,12 @@ var PRODUCCION_HEADERS = ['ID_Produccion','Fecha_Hora','Local','Encargado','Prod
   'Insumo','Categoría','Unidad','Cantidad_Usada','Cantidad_Producida','Estado','Observaciones'];
 var ELABORADOS_HEADERS = ['ID_Conteo','Fecha_Hora','Local','Encargado','Turno','Código','Producto_Elaborado','Categoría',
   'Unidad','Cantidad','Estado','Destino','Observaciones'];
+var PEDIDOS_HEADERS = ['ID_Pedido','Fecha_Hora','Local','Encargado','Semana_Pedido','Email_Encargado','Estado','Urgencia',
+  'Productos_Solicitados','Total_Productos','Total_Estimado','Fecha_Entrega','Observaciones','Proveedor_Asignado',
+  'Comprado','Entregado','Notas_Gerencia'];
+var CATALOGO_HEADERS = ['Código','Producto','Descripción','Local_Aplicable','Categoría','Unidad_Medida',
+  'Precio_Unitario','Proveedor','Stock_Actual','Stock_Mínimo','Estado','Fecha_Alta'];
+var CONFIG_HEADERS = ['Local','Encargado','Email','Telefono','Horario','Activo'];
 
 /* ============================== WEB API ============================== */
 
@@ -1298,6 +1304,48 @@ function clearSheetDataRows_(sheetName) {
   var lastColumn = sh.getLastColumn();
   if (lastRow < 2 || lastColumn < 1) return;
   sh.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
+}
+
+function createPedidosSheet_() {
+  var sh = ensureSheet_(SHEET_PEDIDOS);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, PEDIDOS_HEADERS.length).setValues([PEDIDOS_HEADERS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function createCatalogoSheet_() {
+  var sh = ensureSheet_(SHEET_CATALOGO);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, CATALOGO_HEADERS.length).setValues([CATALOGO_HEADERS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function createConfigSheet_() {
+  var sh = ensureSheet_(SHEET_CONFIG);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, CONFIG_HEADERS.length).setValues([CONFIG_HEADERS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+/**
+ * Crea desde cero las 3 hojas base (PEDIDOS RECIBIDOS, CATÁLOGO PRODUCTOS,
+ * CONFIGURACIÓN) con sus encabezados, y arma el resto de la plantilla v2
+ * (DETALLE, STOCK, RECEPCIÓN, PRODUCCIÓN, ELABORADOS, vistas y dashboards).
+ * Correr UNA VEZ desde el editor en un Google Sheet nuevo (vacío) para
+ * empezar de cero. Idempotente: si una hoja ya tiene datos no la toca.
+ */
+function setupFreshTemplate() {
+  createPedidosSheet_();
+  createCatalogoSheet_();
+  createConfigSheet_();
+  setupPlantillaPro();
+  SpreadsheetApp.getActive().toast('Plantilla nueva lista: todas las pestañas creadas', 'Setup OK', 6);
 }
 
 function ensureVersion2Sheets_() {

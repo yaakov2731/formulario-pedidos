@@ -56,10 +56,30 @@ compatibilidad). `PEDIDOS_DETALLE` lo **normaliza**: 1 fila por producto
 Esto permite sumar por proveedor, pivotear y armar órdenes de compra exactas sin
 re-parsear texto. El form escribe ambas en cada envío.
 
+## Empezar de cero (plantilla nueva)
+
+Si la planilla vieja quedó rota/vacía y conviene arrancar de cero:
+
+1. Crear un Google Sheet en blanco.
+2. Extensiones > Apps Script (queda ligado a esa planilla nueva; `ss_()` la detecta sola,
+   no hace falta tocar `SHEET_ID`).
+3. Pegar `Code.gs` completo, guardar.
+4. Correr `setupFreshTemplate()` una vez desde el editor (autorizar permisos la primera vez).
+   Crea `PEDIDOS RECIBIDOS`, `CATÁLOGO PRODUCTOS` y `CONFIGURACIÓN` con sus encabezados
+   (vacías, sin productos ni responsables) y arma el resto de la plantilla v2 (detalle,
+   stock, recepción, producción, elaborados, vistas y dashboards).
+5. Seguir con los pasos 3-8 de deploy más abajo (implementar como app web, copiar `/exec`,
+   actualizar `SCRIPT_URL` en `index.html`, Telegram/OpenAI opcional, push).
+6. Catálogo y responsables se cargan después desde el form (⚙ Configuración), no hace
+   falta precargarlos a mano en la planilla.
+
 ## Deploy / actualización
 
 1. **Apps Script:** Sheet maestro > Extensiones > Apps Script. Pegar `Code.gs`, guardar.
 2. **Setup (una vez):** ejecutar desde el editor:
+   - `setupFreshTemplate()` — **solo en planilla nueva/vacía**: crea las 3 hojas base con
+     encabezados y arma toda la plantilla v2 (ver sección de arriba). No usar sobre una
+     planilla que ya tiene datos.
    - `setupGreenFresh()` — agrega GreenFresh, renombra Hamburguesería→Brooklyn, desactiva Pizzería.
    - `setupPlantillaPro()` — crea/formatea `PEDIDOS_DETALLE` (1 fila por producto, validaciones,
      colores), migra los pedidos viejos parseando el texto, y crea `RESUMEN POR PROVEEDOR`
