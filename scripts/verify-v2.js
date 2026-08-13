@@ -4,6 +4,7 @@ const path = require("path");
 const root = process.cwd();
 const indexPath = path.join(root, "index.html");
 const codePath = path.join(root, "Code.gs");
+const faviconPath = path.join(root, "favicon.svg");
 
 function fail(message) {
   console.error(`FAIL: ${message}`);
@@ -42,6 +43,8 @@ function main() {
     fail("Code.gs not found");
     return;
   }
+  if (!fs.existsSync(faviconPath)) fail("favicon.svg not found");
+  else pass("favicon.svg present");
 
   const html = read(indexPath);
   const code = read(codePath);
@@ -81,6 +84,10 @@ function main() {
     "tesseract.min.js",
     "<option value=\"Marcado\">Marcado</option>",
     "<option value=\"Crudo\">Crudo</option>",
+    "id=\"homeSystemStatus\"",
+    "aria-live=\"polite\"",
+    "rel=\"icon\" href=\"favicon.svg\"",
+    "meta name=\"description\"",
   ].forEach((id) => expectContains(html, id, `frontend control ${id}`));
 
   [
@@ -96,6 +103,11 @@ function main() {
     "async function confirmPedidoPersisted(",
     "async function confirmOperationPersisted(",
     "async function backendGet(",
+    "function setConnectionState(status,txt)",
+    "function syncWriteAvailability()",
+    "function requireLiveWrite(label)",
+    "No se pueden confirmar riesgos sin conexión.",
+    "Sin conexión: el guardado no está disponible",
     "await apiPost(payload);",
     "applyReceptionOptimistic(",
     "applyProductionOptimistic(",

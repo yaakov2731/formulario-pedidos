@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#17596a">
+<meta name="description" content="Operación semanal de pedidos, stock, recepción, producción y elaborados de Docks del Puerto.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>Pedidos · Polo Gastronómico Docks del Puerto</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -261,6 +263,7 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   background:linear-gradient(180deg,oklch(0.996 0.002 230 / 0.98),oklch(0.985 0.006 235 / 0.98));border-top:1px solid var(--line);
   box-shadow:0 -6px 18px oklch(0.4 0.03 240 / 0.07)}
 .bar-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;min-width:0}
+.bar [hidden]{display:none!important}
 .send{flex:none;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;
   background:var(--brand);color:#fff;border:none;border-radius:11px;padding:10px 16px;
   font:inherit;font-size:13px;font-weight:700;letter-spacing:0.01em;cursor:pointer;
@@ -1320,6 +1323,10 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
 .home-modules-head h2{font-size:clamp(22px,3vw,28px);line-height:1.18;letter-spacing:-.018em;font-weight:600}
 .home-system-status{display:inline-flex;align-items:center;gap:7px;min-height:28px;padding:0 10px;border-radius:999px;background:var(--green-tint);color:var(--green);font-size:12px;font-weight:550}
 .home-system-status i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.home-system-status.offline{background:oklch(.95 .035 45);color:oklch(.42 .12 35)}
+.home-system-status.checking{background:var(--surface-2);color:var(--ink-soft)}
+body[data-connection="offline"] .topbar-context::before{background:oklch(.62 .16 35);box-shadow:0 0 0 4px oklch(.94 .045 45)}
+body[data-connection="checking"] .topbar-context::before{background:var(--ink-faint);box-shadow:0 0 0 4px var(--surface-2)}
 .home-local-block{padding:0;background:transparent}
 .local-actions-bar.show{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:0}
 .local-action{position:relative;overflow:hidden;min-height:184px;padding:22px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--ink);box-shadow:var(--depth-low);text-align:left;transition:transform .18s,border-color .18s}
@@ -1339,6 +1346,7 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
 .pedido-step-btn[data-state="active"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px oklch(24% .02 220 / .08)}
 .pedido-screen{padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--depth-low)}
 .pedido-screen .shead{margin-bottom:18px}.pedido-screen .shead h2{font-size:17px;line-height:1.3;letter-spacing:-.01em}
+@media(min-width:1100px){.pedido-screen[data-pedido-step="datos"] .grid2{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .field{gap:7px}.field label{color:var(--ink-soft);font-size:12px;font-weight:550;letter-spacing:.02em}
 .field input,.field select,.field textarea,input.stock-search{min-height:46px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:none}
 .field input:focus,.field select:focus,.field textarea:focus,input.stock-search:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint)}
@@ -1389,7 +1397,8 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   .wrap,body.compact-mobile-shell .wrap{padding:0 16px 96px}
   .hero{min-height:64px;margin:0 -16px 30px;padding:10px 16px}
   .topbar-context{padding-left:18px}
-  .hero .conn{display:none}
+  .hero .conn{display:flex;min-height:30px;max-width:104px;margin-left:auto;padding:0 2px;font-size:9.5px;overflow:hidden;text-overflow:ellipsis}
+  .hero .conn #connTxt{overflow:hidden;text-overflow:ellipsis}
   .tab-panel,body.compact-mobile-shell .tab-panel{margin:0 0 28px}
   .home-shell,body.compact-mobile-shell .home-shell{padding:0;margin:0 0 28px;border-radius:0}
   .local-actions-bar.show{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
@@ -1460,6 +1469,12 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   .op-row,body.compact-mobile-shell .op-row{grid-template-columns:minmax(0,1fr) 88px;padding:13px;gap:10px}
   .op-row input{font-size:16px}
   .bar{left:8px;right:8px;bottom:8px;z-index:94;border-radius:16px}
+  .bar-in{flex-direction:row;align-items:center}
+  .bar-meta{display:none}
+  .bar-actions{width:100%;margin-left:0;flex-direction:row;align-items:center}
+  .pedido-nav{display:flex;width:auto;flex:1}
+  .pedido-nav .nav-btn{flex:1}
+  .bar .send{min-height:42px}
   .mobile-tabbar{position:fixed;left:0;right:0;bottom:0;z-index:90;height:calc(68px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start;padding:6px 6px env(safe-area-inset-bottom);border-top:1px solid var(--line);background:#fff;box-shadow:0 -5px 18px oklch(24% .035 225 / .08)}
   .mobile-tabbar button{min-width:0;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:12px;background:transparent;color:var(--ink-soft);font:inherit;font-size:10px;font-weight:600}
   .mobile-tabbar button svg{width:21px;height:21px}.mobile-tabbar button[aria-current="page"]{background:var(--brand-tint);color:var(--brand-strong)}
@@ -1550,7 +1565,7 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
     </div>
     <div class="home-modules-head">
       <div><p class="skicker">Operación diaria</p><h2>¿Qué necesitás hacer?</h2></div>
-      <span class="home-system-status"><i></i>Sistema disponible</span>
+      <span class="home-system-status checking" id="homeSystemStatus"><i></i><span>Comprobando conexión</span></span>
     </div>
     <div class="home-local-block">
       <div class="local-actions-bar" id="localActionsBar"></div>
@@ -1589,19 +1604,19 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
     <div class="shead"><div><p class="skicker">Solicitante</p><h2>Datos del pedido</h2></div></div>
     <div class="grid2">
       <div class="field">
-        <label>Encargado <span class="req">*</span><span class="auto" id="encAuto" hidden>auto</span></label>
+        <label for="encargado">Encargado <span class="req">*</span><span class="auto" id="encAuto" hidden>auto</span></label>
         <select id="encargado"></select>
       </div>
       <div class="field">
-        <label>Email <span class="req">*</span></label>
+        <label for="email">Email <span class="req">*</span></label>
         <input type="email" id="email" placeholder="email@local.com" autocomplete="email">
       </div>
       <div class="field">
-        <label>Semana del pedido <span class="req">*</span></label>
+        <label for="semana">Semana del pedido <span class="req">*</span></label>
         <input type="week" id="semana">
       </div>
       <div class="field">
-        <label>Fecha de entrega deseada <span class="req">*</span></label>
+        <label for="fecha_entrega">Fecha de entrega deseada <span class="req">*</span></label>
         <input type="date" id="fecha_entrega">
       </div>
     </div>
@@ -1720,10 +1735,10 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
           </div>
         </div>
         <div class="grid2">
-          <div class="field"><label>Proveedor</label><input id="recepProveedor" type="text" placeholder="Proveedor o remito"></div>
-          <div class="field"><label>Encargado</label><select id="recepEncargado"></select></div>
+          <div class="field"><label for="recepProveedor">Proveedor</label><input id="recepProveedor" type="text" placeholder="Proveedor o remito"></div>
+          <div class="field"><label for="recepEncargado">Encargado</label><select id="recepEncargado"></select></div>
         </div>
-        <div class="field"><label>Observaciones</label><input id="recepObs" type="text" placeholder="Faltantes, cambio, devolución, diferencia..."></div>
+        <div class="field"><label for="recepObs">Observaciones</label><input id="recepObs" type="text" placeholder="Faltantes, cambio, devolución, diferencia..."></div>
         <input class="stock-search" id="recepSearch" type="text" placeholder="Filtrá productos para recibir más rápido...">
         <span class="snum" id="recepCatalogMeta"></span>
         <div class="op-grid" id="recepGrid"></div>
@@ -1755,12 +1770,12 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
       </div>
       <div class="op-form">
         <div class="grid2">
-          <div class="field"><label>Producto elaborado</label><input id="prodNombre" type="text" placeholder="Ej: prep pizza, salsa, base burger"></div>
-          <div class="field"><label>Cantidad producida</label><input id="prodCantidad" type="number" step="0.1" placeholder="0"></div>
-          <div class="field"><label>Lote</label><input id="prodLote" type="text" placeholder="Código interno o turno"></div>
-          <div class="field"><label>Encargado</label><select id="prodEncargado"></select></div>
+          <div class="field"><label for="prodNombre">Producto elaborado</label><input id="prodNombre" type="text" placeholder="Ej: prep pizza, salsa, base burger"></div>
+          <div class="field"><label for="prodCantidad">Cantidad producida</label><input id="prodCantidad" type="number" step="0.1" placeholder="0"></div>
+          <div class="field"><label for="prodLote">Lote</label><input id="prodLote" type="text" placeholder="Código interno o turno"></div>
+          <div class="field"><label for="prodEncargado">Encargado</label><select id="prodEncargado"></select></div>
         </div>
-        <div class="field"><label>Observaciones</label><input id="prodObs" type="text" placeholder="Merma, ajuste, desvío, cambio..."></div>
+        <div class="field"><label for="prodObs">Observaciones</label><input id="prodObs" type="text" placeholder="Merma, ajuste, desvío, cambio..."></div>
         <div class="quick-pick">
           <div class="quick-pick-head">
             <strong>Agregar insumo</strong>
@@ -1799,12 +1814,12 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
       </div>
       <div class="op-form">
         <div class="grid2">
-          <div class="field"><label>Turno</label><select id="elabTurno"><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Noche">Noche</option><option value="Cierre">Cierre</option></select></div>
-          <div class="field"><label>Encargado</label><select id="elabEncargado"></select></div>
-          <div class="field"><label>Condición del sobrante</label><select id="elabEstado"><option value="">Seleccionar</option><option value="Marcado">Marcado</option><option value="Crudo">Crudo</option></select></div>
-          <div class="field"><label>Destino</label><select id="elabDestino"><option value="Revisar">Revisar</option><option value="Reventa">Reventa</option><option value="Guardar">Guardar</option><option value="Uso interno">Uso interno</option><option value="Descarte">Descarte</option></select></div>
+          <div class="field"><label for="elabTurno">Turno</label><select id="elabTurno"><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Noche">Noche</option><option value="Cierre">Cierre</option></select></div>
+          <div class="field"><label for="elabEncargado">Encargado</label><select id="elabEncargado"></select></div>
+          <div class="field"><label for="elabEstado">Condición del sobrante</label><select id="elabEstado"><option value="">Seleccionar</option><option value="Marcado">Marcado</option><option value="Crudo">Crudo</option></select></div>
+          <div class="field"><label for="elabDestino">Destino</label><select id="elabDestino"><option value="Revisar">Revisar</option><option value="Reventa">Reventa</option><option value="Guardar">Guardar</option><option value="Uso interno">Uso interno</option><option value="Descarte">Descarte</option></select></div>
         </div>
-        <div class="field"><label>Observaciones</label><input id="elabObs" type="text" placeholder="Ej: 3 kg vacío, papas marcadas, quedó de cierre..."></div>
+        <div class="field"><label for="elabObs">Observaciones</label><input id="elabObs" type="text" placeholder="Ej: 3 kg vacío, papas marcadas, quedó de cierre..."></div>
         <div class="quick-pick">
           <div class="quick-pick-head">
             <strong>Agregar al conteo</strong>
@@ -1915,7 +1930,7 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
     </div>
     <div class="cfg-body">
       <div class="field">
-        <label>Local a configurar</label>
+        <label for="cfgLocal">Local a configurar</label>
         <select id="cfgLocal"></select>
       </div>
 
@@ -1926,12 +1941,12 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
         </div>
         <div class="cfg-list" id="cfgCatList"></div>
         <div class="cfg-add">
-          <input id="cfgPNombre" placeholder="Nombre del producto *">
+          <input id="cfgPNombre" placeholder="Nombre del producto *" aria-label="Nombre del producto">
           <div class="row2">
-            <input id="cfgPCat" placeholder="Categoría (ej: Carnes)">
-            <select id="cfgPUnidad"></select>
+            <input id="cfgPCat" placeholder="Categoría (ej: Carnes)" aria-label="Categoría del producto">
+            <select id="cfgPUnidad" aria-label="Unidad del producto"></select>
           </div>
-          <input id="cfgPProv" placeholder="Proveedor (opcional)">
+          <input id="cfgPProv" placeholder="Proveedor (opcional)" aria-label="Proveedor del producto">
           <button class="cfg-btn cfg-btn-ghost" id="cfgCancelEditProd" type="button" hidden>Cancelar edición</button>
           <button class="cfg-btn" id="cfgAddProd" type="button">+ Agregar al catálogo</button>
         </div>
@@ -1944,8 +1959,8 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
         </div>
         <div class="cfg-list" id="cfgRespList"></div>
         <div class="cfg-add">
-          <input id="cfgRNombre" placeholder="Nombre del responsable *">
-          <input id="cfgREmail" placeholder="Email (opcional)" type="email">
+          <input id="cfgRNombre" placeholder="Nombre del responsable *" aria-label="Nombre del responsable">
+          <input id="cfgREmail" placeholder="Email (opcional)" type="email" aria-label="Email del responsable">
           <button class="cfg-btn" id="cfgAddResp" type="button">+ Agregar responsable</button>
         </div>
       </div>
@@ -1955,7 +1970,7 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="cfg" id="stockModal" hidden>
   <div class="cfg-panel">
@@ -1966,11 +1981,11 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
     <div class="cfg-body">
       <div class="stock-toolbar">
         <div class="field">
-          <label>Local</label>
+          <label for="stockLocal">Local</label>
           <select id="stockLocal"></select>
         </div>
         <div class="field">
-          <label>Tipo de conteo</label>
+          <label for="stockType">Tipo de conteo</label>
           <select id="stockType">
             <option value="Conteo parcial">Conteo parcial</option>
             <option value="Cierre">Cierre</option>
@@ -1979,11 +1994,11 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
       </div>
       <div class="grid2">
         <div class="field">
-          <label>Encargado que registra</label>
+          <label for="stockEncargado">Encargado que registra</label>
           <select id="stockEncargado"></select>
         </div>
         <div class="field">
-          <label>Observación general</label>
+          <label for="stockObs">Observación general</label>
           <input type="text" id="stockObs" placeholder="Conteo parcial, cierre, faltantes...">
         </div>
       </div>
@@ -2107,6 +2122,7 @@ let ELABORADOS = { latest:[], byLocal:{} };
 let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
 let LIVE = false;   // true solo si el /exec de Apps Script respondió
+let LAST_SYNC_AT = null;
 
 /* ---- State ---- */
 const state = { local:"Umo Grill", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"datos", admin:false };
@@ -2117,6 +2133,7 @@ let bootstrapRefreshTimer = null;
 const $ = s => document.querySelector(s);
 const fmt = n => new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:0}).format(n);
 function toast(msg,type){const t=$("#toast");t.className="toast show "+(type||"");
+  t.setAttribute("role",type==="err"?"alert":"status");
   t.innerHTML=(type==="ok"?icoCheck:type==="err"?icoX:"")+`<span>${msg}</span>`;
   clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),3200);}
 const icoCheck='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
@@ -2621,7 +2638,7 @@ function selectLocal(id, opts={}){
   renderPedidoFlow();
   syncShellContext();
   syncSend();
-  if(navigator.vibrate) navigator.vibrate(8);
+  if(!opts.silent && navigator.vibrate) navigator.vibrate(8);
 }
 
 /* ---- Product search / suggest ---- */
@@ -2792,7 +2809,12 @@ function valid(){
     && $("#semana").value && $("#fecha_entrega").value && state.items.length>0
     && state.items.every(i=>i.qty>0);
 }
-function syncSend(){ $("#send").disabled=!valid(); }
+function syncSend(){
+  const btn=$("#send");
+  if(!btn) return;
+  btn.disabled=!LIVE||!valid();
+  btn.title=LIVE?"":"Sin conexión: el pedido no se puede enviar";
+}
 
 /* ---- Submit ---- */
 $("#send").addEventListener("click",submit);
@@ -2800,6 +2822,7 @@ $("#pedidoNext").addEventListener("click",nextPedidoStep);
 $("#pedidoBack").addEventListener("click",previousPedidoStep);
 const OPAQUE_POST_HEADERS = { "Content-Type":"text/plain;charset=utf-8" };
 async function submit(){
+  if(!requireLiveWrite("El pedido")) return;
   if(!valid()){ toast("Completá local, datos y al menos un producto","err"); return; }
   const items=state.items;
   const productosTexto=items.map(i=>`${i.nombre} - ${trim(i.qty)} ${i.unidad}`).join(", ");
@@ -3188,6 +3211,19 @@ function renderDashboard(){
     activityList.innerHTML=`<div class="stock-empty">Elegí un local para ver movimientos.</div>`;
     return;
   }
+  if(!LIVE){
+    const syncText=LAST_SYNC_AT ? `Última sincronización ${LAST_SYNC_AT.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}` : "Datos locales sin fecha de actualización";
+    $("#dashMeta").textContent=`${state.local} · Sin conexión`;
+    cards.innerHTML = [
+      metricCard("Riesgos activos", "—", "Sin datos actuales", "warn"),
+      metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", `${state.items.length} productos en este equipo`, state.items.length?"warn":""),
+      metricCard("Ingresos hoy", "—", "Sin datos actuales", "warn"),
+      metricCard("Producción hoy", "—", "Sin datos actuales", "warn")
+    ].join("");
+    riskList.innerHTML=`<div class="stock-empty"><b>No se pueden confirmar riesgos sin conexión.</b><br>${esc(syncText)}.</div>`;
+    activityList.innerHTML=`<div class="stock-empty"><b>Actividad actual no disponible.</b><br>Reconectá para consultar movimientos confirmados.</div>`;
+    return;
+  }
   const metrics=localOperationalMetrics();
   const localRisks=metrics.cat.filter(item=>{
     const stock=num(item.stock_actual);
@@ -3229,6 +3265,7 @@ function renderDashboard(){
 
 async function saveReception(){
   if(!state.local){ toast("Elegí un local primero","err"); return; }
+  if(!requireLiveWrite("La recepción")) return;
   if(!capabilityEnabled("recepcion")){
     toast("Recepción bloqueada: el Apps Script publicado todavía no tiene V2","err");
     return;
@@ -3341,6 +3378,7 @@ async function loadReceptionFromPhoto(file){
 
 async function saveProduction(){
   if(!state.local){ toast("Elegí un local primero","err"); return; }
+  if(!requireLiveWrite("La producción")) return;
   if(!capabilityEnabled("produccion")){
     toast("Producción bloqueada: el Apps Script publicado todavía no tiene V2","err");
     return;
@@ -3395,6 +3433,7 @@ async function saveProduction(){
 
 async function saveElaborados(){
   if(!state.local){ toast("Elegí un local primero","err"); return; }
+  if(!requireLiveWrite("El conteo de elaborados")) return;
   if(!capabilityEnabled("elaborados")){
     toast("Elaborados bloqueado: el Apps Script publicado todavía no tiene este módulo","err");
     return;
@@ -3487,7 +3526,46 @@ function normalizeCatalog(raw){
   const out={}; for(const k in raw){ out[k]=raw[k].map(x=>p(x.codigo||"",x.nombre||x.producto||"",x.unidad||"unidad",x.proveedor||"",+x.precio||0,x.categoria||"",x.stock_actual,x.stock_minimo)); }
   return out;
 }
-function setConn(ok,txt){ $("#connDot").classList.toggle("off",!ok); $("#connTxt").textContent=txt; }
+function syncWriteAvailability(){
+  const writeIds=["recepSave","prodSave","elabSave","stockSave","cfgAddProd","cfgAddResp"];
+  writeIds.forEach(id=>{
+    const btn=$("#"+id);
+    if(!btn) return;
+    const busy=/guardando|enviando/i.test(btn.textContent||"");
+    if(!LIVE){
+      btn.disabled=true;
+      btn.dataset.offlineBlocked="true";
+      btn.title="Sin conexión: el guardado no está disponible";
+    }else if(btn.dataset.offlineBlocked==="true"&&!busy){
+      btn.disabled=false;
+      delete btn.dataset.offlineBlocked;
+      btn.removeAttribute("title");
+    }
+  });
+  syncSend();
+}
+function setConnectionState(status,txt){
+  const online=status==="online";
+  LIVE=online;
+  if(online) LAST_SYNC_AT=new Date();
+  document.body.dataset.connection=status;
+  $("#connDot").classList.toggle("off",!online);
+  $("#connTxt").textContent=txt||(online?"En vivo":status==="checking"?"Comprobando conexión":"Sin conexión");
+  const home=$("#homeSystemStatus");
+  if(home){
+    home.className=`home-system-status ${online?"online":status}`;
+    const label=online?"Sistema conectado":status==="checking"?"Comprobando conexión":"Sistema sin conexión";
+    home.innerHTML=`<i></i><span>${label}</span>`;
+  }
+  syncWriteAvailability();
+  if(state.tab==="reportes") renderDashboard();
+}
+function setConn(ok,txt){ setConnectionState(ok?"online":"offline",txt); }
+function requireLiveWrite(label){
+  if(LIVE) return true;
+  toast(`${label} no se puede guardar sin conexión. Tu carga queda en pantalla para reintentar.`,"err");
+  return false;
+}
 function applyBootstrapPayload(d){
   if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); resetCatalogDerivedCaches(); }
   if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
@@ -3557,6 +3635,7 @@ function renderCfg(){
         : `No se pudieron leer los responsables: el /exec de Apps Script no responde.<br>Revisá que la implementación esté publicada con acceso <b>Cualquiera</b>.`}</div>`;
 }
 async function apiPost(payload){
+  if(!LIVE) throw new Error("Sin conexión con Apps Script");
   await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:OPAQUE_POST_HEADERS,body:JSON.stringify(payload)});
 }
 async function backendGet(action, params={}){
@@ -3668,6 +3747,7 @@ async function addProducto(){
   const local=cfgLocalVal();
   const nombre=$("#cfgPNombre").value.trim();
   if(!nombre){ toast("Escribí el nombre del producto","err"); return; }
+  if(!requireLiveWrite("El producto")) return;
   const payload={action:cfgProductEdit ? "updateProducto" : "addProducto",local,nombre,
     categoria:$("#cfgPCat").value.trim(),unidad:$("#cfgPUnidad").value,proveedor:$("#cfgPProv").value.trim()};
   if(cfgProductEdit){ payload.codigo = cfgProductEdit.codigo; }
@@ -3693,6 +3773,7 @@ async function addResponsable(){
   const local=cfgLocalVal();
   const nombre=$("#cfgRNombre").value.trim();
   if(!nombre){ toast("Escribí el nombre del responsable","err"); return; }
+  if(!requireLiveWrite("El responsable")) return;
   const payload={action:"addResponsable",local,nombre,email:$("#cfgREmail").value.trim()};
   const btn=$("#cfgAddResp"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
   try{
@@ -4386,6 +4467,7 @@ function renderStockModal(){
 }
 async function saveStock(){
   const local=stockLocalVal();
+  if(!requireLiveWrite("El stock")) return;
   const items=ensureStockSelection(local).map(key=>{
     const it=ensureStockDrafts(local)[key] || {};
     return {
@@ -4622,7 +4704,7 @@ renderLocales(); renderItems(); syncSend();
 selectLocal(state.local,{silent:true});
 renderLocalActions();
 setAdminMode(false);
-setConn(true,"Catálogo local");
+setConnectionState("checking","Comprobando conexión");
 renderHome();
 renderStockIntelligence();
 renderRecepcionModule();
