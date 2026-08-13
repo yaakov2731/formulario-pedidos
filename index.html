@@ -1300,6 +1300,13 @@ body{min-width:320px;background:var(--bg);font-size:15px;line-height:1.55}
 .topbar-context strong{font-size:14px;font-weight:600}
 .hero .conn{min-height:36px;margin-left:auto;padding:0 12px;border:0;background:transparent;color:var(--ink-soft);font-size:12px}
 .hero .conn .dot{display:none}
+.service-alert{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;margin:0 0 18px;padding:15px 16px;border:1px solid oklch(.82 .08 55);border-radius:16px;background:oklch(.97 .035 65);color:oklch(.30 .045 55);box-shadow:var(--depth-low)}
+.service-alert[hidden]{display:none}
+.service-alert-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:oklch(.90 .09 55);font-size:20px;font-weight:700}
+.service-alert-copy strong{display:block;margin-bottom:3px;font-size:14px;line-height:1.25}
+.service-alert-copy span{display:block;color:oklch(.42 .035 55);font-size:12px;line-height:1.45}
+.service-retry{min-height:38px;padding:0 14px;border:1px solid oklch(.68 .09 55);border-radius:11px;background:var(--surface);color:oklch(.32 .07 55);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.service-retry:disabled{opacity:.62;cursor:wait}
 .tab-panel{background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin-bottom:28px}
 .tab-panel[hidden]{display:none!important}
 .shead,.shell-report-head,.pedido-shell-head{align-items:flex-end;margin-bottom:30px}
@@ -1397,8 +1404,11 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
   .wrap,body.compact-mobile-shell .wrap{padding:0 16px 96px}
   .hero{min-height:64px;margin:0 -16px 30px;padding:10px 16px}
   .topbar-context{padding-left:18px}
-  .hero .conn{display:flex;min-height:30px;max-width:104px;margin-left:auto;padding:0 2px;font-size:9.5px;overflow:hidden;text-overflow:ellipsis}
-  .hero .conn #connTxt{overflow:hidden;text-overflow:ellipsis}
+  .hero .conn{display:flex;min-height:30px;max-width:92px;margin-left:auto;padding:0 2px;font-size:9.5px;overflow:hidden}
+  .hero .conn #connTxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .service-alert{grid-template-columns:auto minmax(0,1fr);gap:10px;margin:0 0 14px;padding:12px}
+  .service-alert-icon{width:34px;height:34px}
+  .service-retry{grid-column:1/-1;width:100%}
   .tab-panel,body.compact-mobile-shell .tab-panel{margin:0 0 28px}
   .home-shell,body.compact-mobile-shell .home-shell{padding:0;margin:0 0 28px;border-radius:0}
   .local-actions-bar.show{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
@@ -1555,6 +1565,15 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
       <span>Pedidos semanales de insumos</span>
     </div>
   </header>
+
+  <div class="service-alert" id="serviceAlert" role="alert" hidden>
+    <div class="service-alert-icon" aria-hidden="true">!</div>
+    <div class="service-alert-copy">
+      <strong id="serviceAlertTitle">La conexión con la planilla está interrumpida</strong>
+      <span id="serviceAlertText">Podés revisar y preparar cargas, pero no se guardarán hasta recuperar la conexión. Los borradores quedan protegidos en este dispositivo.</span>
+    </div>
+    <button class="service-retry" id="serviceRetry" type="button">Reintentar conexión</button>
+  </div>
 
   <section class="home-shell tab-panel" data-tab="home">
     <div class="home-hero-panel">
@@ -3645,17 +3664,33 @@ function setConnectionState(status,txt){
   if(online) LAST_SYNC_AT=new Date();
   document.body.dataset.connection=status;
   $("#connDot").classList.toggle("off",!online);
-  $("#connTxt").textContent=txt||(online?"En vivo":status==="checking"?"Comprobando conexión":"Sin conexión");
+  $("#connTxt").textContent=online?(txt||"En vivo"):status==="checking"?"Comprobando":"Sin conexión";
   const home=$("#homeSystemStatus");
   if(home){
     home.className=`home-system-status ${online?"online":status}`;
     const label=online?"Sistema conectado":status==="checking"?"Comprobando conexión":"Sistema sin conexión";
     home.innerHTML=`<i></i><span>${label}</span>`;
   }
+  const alert=$("#serviceAlert"), retry=$("#serviceRetry");
+  if(alert) alert.hidden=status!=="offline";
+  if(retry){
+    retry.disabled=status==="checking";
+    retry.textContent=status==="checking"?"Comprobando...":"Reintentar conexión";
+  }
   syncWriteAvailability();
   if(state.tab==="reportes") renderDashboard();
 }
 function setConn(ok,txt){ setConnectionState(ok?"online":"offline",txt); }
+async function retryConnection(){
+  setConnectionState("checking","Comprobando");
+  const ok=await refreshData({scope:"full"});
+  if(ok){
+    toast("Conexión restablecida. Ya podés guardar.","ok");
+  }else{
+    toast("La planilla sigue sin responder. Tu borrador permanece guardado.","err");
+  }
+  return ok;
+}
 function requireLiveWrite(label){
   if(LIVE) return true;
   toast(`${label} no se puede guardar sin conexión. Tu carga queda en pantalla para reintentar.`,"err");
@@ -4824,6 +4859,7 @@ $("#elabGrid").addEventListener("click",e=>{
 window.addEventListener("resize", syncCompactMobileShell);
 window.addEventListener("orientationchange", syncCompactMobileShell);
 window.addEventListener("pagehide",persistOperationalDrafts);
+$("#serviceRetry").addEventListener("click",retryConnection);
 if(window.visualViewport){
   window.visualViewport.addEventListener("resize", syncCompactMobileShell);
 }

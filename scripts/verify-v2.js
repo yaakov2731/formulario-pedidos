@@ -119,6 +119,10 @@ function main() {
   expectContains(html, "function hasMeaningfulOperationalDraft(saved)", "empty defaults do not trigger recovered draft messaging");
   expectContains(html, 'window.addEventListener("pagehide",persistOperationalDrafts)', "operational drafts flush on page exit");
   expectContains(html, "clearStockDrafts(local);", "confirmed stock clears its local draft");
+  expectContains(html, 'id="serviceAlert" role="alert"', "offline service alert is visible to assistive technology");
+  expectContains(html, 'id="serviceRetry"', "offline service retry control");
+  expectContains(html, "async function retryConnection()", "offline service can retry the live backend");
+  expectContains(html, "Los borradores quedan protegidos en este dispositivo.", "offline service explains draft safety");
 
   expectNotContains(html, "renderReportesModule", "app report renderer removed");
   expectNotContains(html, 'id="reportPrint"', "app report print control removed");
