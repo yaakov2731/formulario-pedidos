@@ -1,150 +1,32 @@
-# Sistema de Pedidos · Polo Gastronómico Docks del Puerto
+# React + TypeScript + Vite
 
-Formulario web de requisición semanal de insumos para los locales del Polo
-Gastronómico (Puerto de Frutos, Tigre). Cada encargado carga su pedido desde el
-celular; el pedido se registra en un Google Sheet maestro que gerencia consolida en
-órdenes de compra.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-## Componentes
+Currently, two official plugins are available:
 
-- **`index.html`** — formulario inteligente (single-file, sin build). Desplegado en
-  GitHub Pages. Conectado al catálogo: autocompleta encargado/email por local,
-  typeahead de productos con proveedor + precio + código, total estimado en vivo,
-  carga libre para productos fuera de catálogo, lectura operativa de stock del pedido
-  y carga manual de stock real por local. Responsive iPhone / iPad / PC.
-- **`Code.gs`** — Apps Script v2 (backend). Sirve el catálogo y la config al form,
-  recibe los pedidos, registra conteos de stock y escribe en `PEDIDOS RECIBIDOS`.
-  También puede usar OpenAI para interpretar mejor el OCR de recepciones por foto.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Configuración (⚙ en el header)
+## React Compiler
 
-Pantalla de administración dentro del form. Por local permite:
-- **Agregar productos al catálogo** (nombre, categoría, unidad, proveedor) → escribe en
-  `CATÁLOGO PRODUCTOS` con código autogenerado (PAR001, CAF005, ...).
-- **Agregar responsables** (nombre, email) → escribe en `CONFIGURACIÓN`.
-- **Cargar stock real** (conteo parcial o cierre, solo stock real por producto) →
-  actualiza el catálogo del local, deja trazabilidad en `CONTROL STOCK` y alimenta
-  `DASHBOARD STOCK`.
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-Los cambios van directo a la planilla (vía `Code.gs`: acciones `addProducto` /
-`addResponsable`). El form refresca el catálogo solo. Requiere `Code.gs` v2 desplegado.
+## Expanding the Oxlint configuration
 
-## Locales
+If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
 
-Umo Grill · GreenFresh (viandas saludables) · Puerto Gelato · Trento Café ·
-Brooklyn · Eventos · Shopping.
-
-## Google Sheet (backend)
-
-Hojas relevantes: `CATÁLOGO PRODUCTOS`, `CONFIGURACIÓN`, `PEDIDOS RECIBIDOS`,
-`PEDIDOS_DETALLE` (nueva, normalizada), `RESUMEN POR PROVEEDOR` (nueva),
-`ÓRDENES DE COMPRA`, `DASHBOARD GERENCIAL`, `CONTROL STOCK` (conteos manuales por local).
-
-Además, la V2 puede reconstruir vistas derivadas automáticas por local:
-- `LOCAL PEDIDO · <Local>` — pedido abierto del local con KPIs y detalle operativo.
-- `LOCAL STOCK · <Local>` — stock real, cobertura, últimas recepciones y producción.
-
-Estas pestañas se generan desde la base técnica; no son hojas para editar manualmente.
-El `getBootstrap` V2 también expone un `snapshot` operativo para el frontend, con
-totales, resumen por local y líneas abiertas recientes por local.
-
-### Modelo de datos (clave)
-
-`PEDIDOS RECIBIDOS` guarda el pedido con los productos como **texto** (1 fila por pedido,
-compatibilidad). `PEDIDOS_DETALLE` lo **normaliza**: 1 fila por producto
-(id, semana, local, código, producto, categoría, cantidad, unidad, proveedor, estado).
-Esto permite sumar por proveedor, pivotear y armar órdenes de compra exactas sin
-re-parsear texto. El form escribe ambas en cada envío.
-
-## Empezar de cero (plantilla nueva)
-
-Si la planilla vieja quedó rota/vacía y conviene arrancar de cero:
-
-1. Crear un Google Sheet en blanco.
-2. Extensiones > Apps Script (queda ligado a esa planilla nueva; `ss_()` la detecta sola,
-   no hace falta tocar `SHEET_ID`).
-3. Pegar `Code.gs` completo, guardar.
-4. Correr `setupFreshTemplate()` una vez desde el editor (autorizar permisos la primera vez).
-   Crea `PEDIDOS RECIBIDOS`, `CATÁLOGO PRODUCTOS` y `CONFIGURACIÓN` con sus encabezados
-   (vacías, sin productos ni responsables) y arma el resto de la plantilla v2 (detalle,
-   stock, recepción, producción, elaborados, vistas y dashboards).
-5. Seguir con los pasos 3-8 de deploy más abajo (implementar como app web, copiar `/exec`,
-   actualizar `SCRIPT_URL` en `index.html`, Telegram/OpenAI opcional, push).
-6. Catálogo y responsables se cargan después desde el form (⚙ Configuración), no hace
-   falta precargarlos a mano en la planilla.
-
-## Deploy / actualización
-
-1. **Apps Script:** Sheet maestro > Extensiones > Apps Script. Pegar `Code.gs`, guardar.
-2. **Setup (una vez):** ejecutar desde el editor:
-   - `setupFreshTemplate()` — **solo en planilla nueva/vacía**: crea las 3 hojas base con
-     encabezados y arma toda la plantilla v2 (ver sección de arriba). No usar sobre una
-     planilla que ya tiene datos.
-   - `setupGreenFresh()` — agrega GreenFresh, renombra Hamburguesería→Brooklyn, desactiva Pizzería.
-   - `setupPlantillaPro()` — crea/formatea `PEDIDOS_DETALLE` (1 fila por producto, validaciones,
-     colores), migra los pedidos viejos parseando el texto, y crea `RESUMEN POR PROVEEDOR`
-     (consolidado por proveedor para la semana elegida en B1).
-3. **Implementar:** Implementar > Nueva implementación > Aplicación web >
-   Ejecutar como *yo*, Acceso *Cualquiera*. Copiar la URL `/exec`.
-4. Si la URL cambió, actualizar `SCRIPT_URL` en `index.html`.
-5. **Telegram (opcional pero recomendado):** en Apps Script > Configuración del proyecto >
-   Propiedades del script, definir:
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
-   - `TELEGRAM_ENABLED=true`
-   También podés correr manualmente `setTelegramConfig(botToken, chatId)` desde el editor.
-   Con la versión actual, Telegram se dispara para `Pedido`, `Stock` y `Elaborados`.
-6. **OpenAI para recepciones por foto (opcional):** en Apps Script > Configuración del proyecto >
-   Propiedades del script, definir:
-   - `OPENAI_API_KEY`
-   - `OPENAI_MODEL=gpt-5.4-mini` (o el modelo que quieras usar)
-   - `OPENAI_RECEIPT_AI_ENABLED=true`
-   También podés correr manualmente `setOpenAiConfig(apiKey, model)` desde el editor.
-7. El backend ahora expone `GET ?action=getPedidoStatus&id_pedido=...` para que el frontend
-   confirme que el pedido quedó grabado antes de mostrar éxito.
-8. **Frontend:** push a `main` → GitHub Pages publica automáticamente.
-
-## Verificación local V2
-
-Antes de desplegar, podés correr una comprobación estructural rápida:
-
-```powershell
-node .\scripts\verify-v2.js
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
 ```
 
-La verificación confirma que sigan presentes:
-- los módulos `Pedido`, `Stock`, `Recepción`, `Producción` y `Dashboard`,
-- los endpoints nuevos de Apps Script,
-- las hojas y vistas V2,
-- las pestañas automáticas por local para pedido y stock,
-- el snapshot operativo con líneas abiertas por local,
-- la normalización de aliases viejos de locales,
-- y las rutas críticas del guardado y dashboard operativo.
-
-## Verificación live del deploy
-
-Para comparar el `/exec` publicado contra la estructura V2 local:
-
-```powershell
-node .\scripts\verify-live-v2.js
-```
-
-Ese chequeo usa el `SCRIPT_URL` actual de `index.html` y valida:
-- `ping` y `getBootstrap`,
-- presencia de `recepciones` y `produccion`,
-- presencia de `snapshot` operativo y capacidades V2 activas,
-- y normalización de locales viejos (`Parrilla`, `Heladería`, `Cafetería`, `Pizzería`).
-
-## Cierre operativo
-
-El procedimiento completo de publicación y validación final quedó resumido en
-[DEPLOY-V2.md](C:\Users\jcbru\OneDrive\Documents\pedidos%20Semanales\DEPLOY-V2.md).
-
-## Notas técnicas
-
-- El form trae un snapshot del catálogo embebido; al abrir intenta refrescarlo en vivo
-  desde `?action=getBootstrap`. Si el script no responde, usa el snapshot.
-- El envío usa `mode: no-cors`: el form no puede leer la respuesta, asume éxito si no
-  hay error de red. Para confirmación real habría que servir CORS desde el Apps Script.
-- Contrato de escritura: 17 columnas de `PEDIDOS RECIBIDOS` sin cambios (compatible con
-  el sistema existente). Se agrega `total_estimado` calculado y `proveedor_asignado`.
+See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.

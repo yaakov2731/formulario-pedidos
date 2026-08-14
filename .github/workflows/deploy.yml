@@ -1,0 +1,59 @@
+name: Deploy to Google Apps Script and GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-gas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Clasp
+        run: npm install -g @google/clasp
+
+      - name: Write Clasp Credentials
+        run: |
+          echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
+      
+      - name: Push to Apps Script
+        run: |
+          # Solo pusheamos la carpeta gas/
+          cd gas
+          clasp push -f
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-gas
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GAS_URL: ${{ secrets.VITE_GAS_URL }}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
