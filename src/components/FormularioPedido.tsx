@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Store, User, ShoppingCart, Send } from 'lucide-react';
-import { apiPost } from '../lib/api';
 
 const LOCALES = ['Umo Grill', 'Puerto Gelato', 'Trento Café', 'Brooklyn', 'GreenFresh', 'Administración'];
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import FormularioPedido from './components/FormularioPedido';
 
 function App() {
