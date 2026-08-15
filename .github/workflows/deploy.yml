@@ -23,7 +23,11 @@ jobs:
       - name: Write Clasp Credentials
         run: |
           echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
-      
+
+      - name: Write Clasp Project Config
+        run: |
+          echo '{"scriptId":"${{ secrets.GAS_SCRIPT_ID }}","rootDir":"."}' > gas/.clasp.json
+
       - name: Push to Apps Script
         run: |
           # Solo pusheamos la carpeta gas/
