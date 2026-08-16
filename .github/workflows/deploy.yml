@@ -20,6 +20,9 @@ jobs:
       - name: Install Clasp
         run: npm install -g @google/clasp
 
+      - name: Apply admin backend routes
+        run: python3 scripts/patch_admin_backend.py
+
       - name: Write Clasp Credentials
         run: |
           echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
@@ -30,7 +33,6 @@ jobs:
 
       - name: Push to Apps Script
         run: |
-          # Solo pusheamos la carpeta gas/
           cd gas
           clasp push -f
 
@@ -46,7 +48,20 @@ jobs:
         run: |
           mkdir -p site
           cp index.html site/
+          cp admin.js site/
           cp favicon.svg site/ 2>/dev/null || true
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('site/index.html')
+          s=p.read_text(encoding='utf-8')
+          tag='<script src="admin.js?v=20260816"></script>'
+          if tag not in s:
+              if '</body>' in s:
+                  s=s.replace('</body>', tag+'\n</body>')
+              else:
+                  s += '\n'+tag+'\n'
+          p.write_text(s,encoding='utf-8')
+          PY
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
