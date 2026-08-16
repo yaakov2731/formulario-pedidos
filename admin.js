@@ -8,23 +8,47 @@
 
   function css(){
     const s=document.createElement('style'); s.id='adminFinanceStyles'; s.textContent=`
-      .adm-nav-wrap{width:100%;max-width:1380px;margin:12px auto 0;padding:0 18px;box-sizing:border-box}.adm-nav-btn{position:static;display:inline-flex;align-items:center;justify-content:center;border:1px solid #c9d5d9;border-radius:10px;padding:10px 16px;background:#173f4c;color:#fff;font:700 13px Inter,system-ui;box-shadow:none;cursor:pointer}
       .adm-overlay{position:fixed;inset:0;z-index:1400;background:#eef2f3;overflow:auto;color:#20343b;font-family:Inter,system-ui,sans-serif}
       .adm-wrap{max-width:1380px;margin:auto;padding:22px 22px 70px}.adm-head{display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}.adm-head h1{font-size:26px;margin:0}.adm-close{border:1px solid #ccd8dc;background:#fff;border-radius:10px;padding:9px 12px;cursor:pointer}
       .adm-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px}.adm-tab{border:1px solid #c8d4d8;background:#fff;border-radius:10px;padding:9px 13px;font-weight:700;cursor:pointer}.adm-tab.on{background:#173f4c;color:#fff;border-color:#173f4c}
       .adm-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.adm-card{background:#fff;border:1px solid #d7e0e3;border-radius:14px;padding:16px;box-shadow:0 2px 8px #0000000d}.adm-card small{display:block;color:#6b7d83;font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.04em}.adm-card strong{display:block;font-size:22px;margin-top:8px}
       .adm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.adm-panel{background:#fff;border:1px solid #d7e0e3;border-radius:14px;padding:16px}.adm-panel h2{margin:0 0 12px;font-size:17px}.adm-table-wrap{overflow:auto;max-height:58vh}.adm-table{width:100%;border-collapse:collapse;font-size:12px}.adm-table th,.adm-table td{padding:9px 8px;border-bottom:1px solid #e6ecee;text-align:left;white-space:nowrap}.adm-table th{position:sticky;top:0;background:#f7f9fa;z-index:1}.adm-right{text-align:right!important}
       .adm-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.adm-form .wide{grid-column:1/-1}.adm-form label{font-size:12px;font-weight:700;color:#52666d}.adm-form input,.adm-form select{width:100%;min-height:42px;margin-top:5px;border:1px solid #c9d5d9;border-radius:9px;padding:8px 10px;background:#fff}.adm-btn{border:0;border-radius:9px;padding:11px 14px;background:#17596a;color:#fff;font-weight:800;cursor:pointer}.adm-muted{color:#6d8087;font-size:12px}.adm-msg{margin-top:10px;font-size:12px;font-weight:700}.adm-search{width:100%;min-height:40px;border:1px solid #c9d5d9;border-radius:9px;padding:8px 10px;margin:0 0 10px}
-      @media(max-width:900px){.adm-kpis{grid-template-columns:repeat(2,1fr)}.adm-grid{grid-template-columns:1fr}.adm-form{grid-template-columns:1fr}.adm-wrap{padding:14px 12px 90px}.adm-nav-wrap{padding:0 12px}.adm-nav-btn{width:100%}}
+      @media(max-width:900px){.adm-kpis{grid-template-columns:repeat(2,1fr)}.adm-grid{grid-template-columns:1fr}.adm-form{grid-template-columns:1fr}.adm-wrap{padding:14px 12px 90px}}
     `; document.head.appendChild(s);
   }
 
+  function isAdminLabel(el){
+    const txt=String(el.textContent||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return txt==='administracion' || txt.endsWith(' administracion') || txt.includes('administracion');
+  }
+
+  function bindSidebar(){
+    const old=document.getElementById('adminFinanceNav'); if(old) old.remove();
+    const oldBtn=document.getElementById('adminFinanceFab'); if(oldBtn) oldBtn.remove();
+    const candidates=[...document.querySelectorAll('aside a, aside button, nav a, nav button, [class*="sidebar"] a, [class*="sidebar"] button, [class*="nav"] a, [class*="nav"] button')];
+    let target=candidates.find(isAdminLabel);
+    if(!target){
+      target=[...document.querySelectorAll('a,button')].find(el=>isAdminLabel(el) && el.getBoundingClientRect().left<300);
+    }
+    if(!target) return false;
+    if(target.dataset.adminFinanceBound==='1') return true;
+    target.dataset.adminFinanceBound='1';
+    target.addEventListener('click',function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      open();
+    },true);
+    return true;
+  }
+
   function shell(){
-    if(document.getElementById('adminFinanceFab')) return;
-    const wrap=document.createElement('div'); wrap.id='adminFinanceNav'; wrap.className='adm-nav-wrap';
-    const b=document.createElement('button'); b.id='adminFinanceFab'; b.className='adm-nav-btn'; b.textContent='Administración'; b.onclick=open; wrap.appendChild(b);
-    const main=document.querySelector('main') || document.querySelector('.container') || document.querySelector('#app');
-    if(main && main.parentNode) main.parentNode.insertBefore(wrap, main); else document.body.insertBefore(wrap, document.body.firstChild);
+    if(bindSidebar()) return;
+    let tries=0;
+    const timer=setInterval(()=>{tries++; if(bindSidebar()||tries>30) clearInterval(timer);},250);
+    const observer=new MutationObserver(()=>bindSidebar());
+    observer.observe(document.documentElement,{childList:true,subtree:true});
+    setTimeout(()=>observer.disconnect(),12000);
   }
 
   async function get(action,params={}){
