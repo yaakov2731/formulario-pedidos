@@ -1671,6 +1671,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .bar .send,.bar .nav-btn{background:var(--brand);border-color:var(--brand);color:#fff}
 .bar .nav-btn.alt{background:var(--surface);border-color:var(--line);color:var(--ink)}
 .send:disabled{box-shadow:none}.topbar-context::before{box-shadow:none}
+.unit-totals{display:grid;gap:6px;margin:10px 0;font-size:14px}
+.unit-totals>div{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding:5px 0}
+.unit-totals dt{color:var(--ink-soft)}.unit-totals dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+.bar-meta .meta-soft{white-space:normal;overflow-wrap:anywhere}
 button:active:not(:disabled){transform:translateY(1px)}
 @media(max-width:1020px){
   .shell-sidebar{width:84px;padding:24px 14px}.app-main{margin-left:84px}
@@ -2700,7 +2704,7 @@ function renderOperationalPulse(){
     detail:"La planilla registra demanda todavía sin cerrar",action:"Revisar pendientes"
   });
   if(lowStock) priorities.push({tab:"stock",tone:"bad",title:`${lowStock} producto${lowStock===1?"":"s"} bajo mínimo`,detail:"El stock real requiere conteo o reposición",action:"Abrir stock"});
-  if(recepDraft.items) priorities.push({tab:"recepcion",tone:"warn",title:`Recepción sin confirmar · ${recepDraft.items} línea${recepDraft.items===1?"":"s"}`,detail:`${recepDraft.total} unidades protegidas en este dispositivo`,action:"Completar recepción"});
+  if(recepDraft.items) priorities.push({tab:"recepcion",tone:"warn",title:`Recepción sin confirmar · ${recepDraft.items} línea${recepDraft.items===1?"":"s"}`,detail:"Cantidades del borrador conservadas con su unidad",action:"Completar recepción"});
   if(prodDraft.items) priorities.push({tab:"produccion",tone:"warn",title:`Parte productivo en curso`,detail:`${prodDraft.items} insumo${prodDraft.items===1?"":"s"} cargado${prodDraft.items===1?"":"s"}`,action:"Completar parte"});
   if(elabDraft.items) priorities.push({tab:"elaborados",tone:"warn",title:`Cierre diario pendiente`,detail:`${elabDraft.items} elaborado${elabDraft.items===1?"":"s"} listo${elabDraft.items===1?"":"s"} para confirmar`,action:"Completar cierre"});
   if(!priorities.length) priorities.push({tab:"pedido",tone:"ok",title:"Sin pendientes detectados",detail:"No hay borradores, faltantes ni stock crítico visible",action:"Crear pedido"});
@@ -2885,8 +2889,8 @@ function renderRecepCardsOnly(local){
   $("#recepMeta").textContent=`${localSummary.movimientos||0} movimientos`;
   cards.innerHTML = [
     metricCard("Recepciones", localSummary.movimientos||0, "movimientos del local", ""),
-    metricCard("Cantidad recibida", trim(localSummary.cantidad||0), "unidades acumuladas", "good"),
-    metricCard("Borrador", draftSummary.items, `${draftSummary.total} unidades listas`, draftSummary.items?"warn":"")
+    metricCard("Cantidades recibidas", "Por producto", "consultar unidad en cada movimiento", "good"),
+    metricCard("Borrador", draftSummary.items, quantitiesByUnitText(draftQuantityRows(local,ensureRecepDrafts(local).items),"qty","unidad"), draftSummary.items?"warn":"")
   ].join("");
 }
 function renderRecepPhotoPanel(local){
@@ -2966,9 +2970,9 @@ function renderProdCardsOnly(local){
   $("#prodMeta").textContent=`${localSummary.movimientos||0} partes`;
   cards.innerHTML = [
     metricCard("Partes", localSummary.movimientos||0, "eventos de producción", ""),
-    metricCard("Insumos usados", trim(localSummary.cantidad_usada||0), "cantidad consumida", "warn"),
-    metricCard("Producción", trim(localSummary.cantidad_producida||0), "salida informada", "good"),
-    metricCard("Borrador", draftSummary.items, `${draftSummary.totalUsada} usadas · ${trim(draftSummary.totalProducida)} prod`, draftSummary.items?"warn":"")
+    metricCard("Insumos usados", "Por insumo", "cantidades y unidades en cada parte", "warn"),
+    metricCard("Salida informada", "Por parte", "sin sumar elaborados de distinta medida", "good"),
+    metricCard("Borrador", draftSummary.items, quantitiesByUnitText(draftQuantityRows(local,ensureProdDrafts(local).items),"qty","unidad"), draftSummary.items?"warn":"")
   ].join("");
 }
 function renderElabCardsOnly(local){
@@ -2979,8 +2983,8 @@ function renderElabCardsOnly(local){
   $("#elabMeta").textContent=`${localSummary.movimientos||0} conteos`;
   cards.innerHTML = [
     metricCard("Conteos", localSummary.movimientos||0, "cierres o turnos registrados", ""),
-    metricCard("Sobrante", trim(localSummary.cantidad||0), "cantidad marcada", "warn"),
-    metricCard("Borrador", draftSummary.items, `${draftSummary.total} unidades listas`, draftSummary.items?"warn":"")
+    metricCard("Sobrantes", "Por producto", "cantidades y unidades en cada conteo", "warn"),
+    metricCard("Borrador", draftSummary.items, quantitiesByUnitText(draftQuantityRows(local,ensureElabDrafts(local).items),"qty","unidad"), draftSummary.items?"warn":"")
   ].join("");
 }
 
@@ -3399,7 +3403,6 @@ function renderItems(){
 function updateSummary(){
   const n=state.items.length;
   const provs=new Set(state.items.map(i=>i.proveedor).filter(Boolean)).size;
-  const totalUnits=trim(state.items.reduce((sum,i)=>sum+(num(i.qty)||0),0));
   const metrics=state.local ? localOperationalMetrics() : null;
   $("#sumCount").textContent=`${n} producto${n===1?'':'s'}`;
   $("#itemCount").textContent=`${n} ítem${n===1?'':'s'}`;
@@ -3409,7 +3412,7 @@ function updateSummary(){
     : `Cargá los productos que necesitás`;
   const barMeta = $("#barMetaText");
   if(barMeta){
-    barMeta.textContent = n ? `${totalUnits} unidades visibles${metrics&&metrics.pressure?` · ${metrics.pressure}`:""}` : "Sin productos cargados";
+    barMeta.textContent = n ? `${n} producto${n===1?"":"s"}${metrics&&metrics.pressure?` · ${metrics.pressure}`:""}` : "Sin productos cargados";
   }
   renderWorkspaceStats();
   renderHome();
@@ -3593,10 +3596,11 @@ function stockMetaForItem(it, catalogMap){
   const stock=num(rec.stock_actual);
   const pedido=num(it.qty);
   if(stock===null) return {status:"soft",label:"Sin conteo",message:"Falta cargar stock real",side:""};
-  if(rec.unidad && it.unidad && rec.unidad !== it.unidad){
+  if(unitKey(rec.unidad)!==unitKey(it.unidad)||!unitKey(rec.unidad)){
     return {status:"soft",label:"Unidad distinta",message:`Stock cargado en ${rec.unidad}`,side:`Pedido en ${it.unidad}`};
   }
   const saldo=trim(stock-pedido);
+  if(stock<0) return {status:"soft",label:"Saldo negativo",message:`Stock ${qtyText(stock,rec.unidad)}: confirmar conteo y revisar movimientos`,side:"Sin compra sugerida hasta revisar"};
   if(stock <= 0) return {status:"bad",label:"Sin stock",message:`Stock ${qtyText(stock,rec.unidad)} · pedido ${qtyText(pedido,it.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
   if(stock - pedido < 0) return {status:"bad",label:"Faltante",message:`Stock ${qtyText(stock,rec.unidad)} · pedido ${qtyText(pedido,it.unidad)}`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
   if(stock - pedido === 0) return {status:"warn",label:"Justo",message:`El pedido consume todo el stock disponible`,side:`Saldo ${qtyText(saldo,rec.unidad)}`};
@@ -3617,15 +3621,7 @@ function localOperationalMetrics(){
   const softRows=itemSummaries.filter(row=>row.meta.status==="soft");
   const okRows=itemSummaries.filter(row=>row.meta.status==="ok");
   const warnRows=itemSummaries.filter(row=>row.meta.status==="warn");
-  const pedidoUnits=trim(state.items.reduce((sum,it)=>sum+(num(it.qty)||0),0));
   const coveragePct=state.items.length ? Math.round(((okRows.length + warnRows.length) / state.items.length) * 100) : 0;
-  const visibleBalance=trim(itemSummaries.reduce((sum,row)=>{
-    if(row.meta.status==="soft") return sum;
-    const side=row.meta.side||"";
-    const match=side.match(/-?[\d.,]+/);
-    if(!match) return sum;
-    return sum + (parseFloat(match[0].replace(",", ".")) || 0);
-  },0));
   const pressure = riskRows.length ? "Comprar" : (softRows.length ? "Contar" : (warnRows.length ? "Ajustado" : "Operativo"));
   return {
     cat,
@@ -3641,9 +3637,7 @@ function localOperationalMetrics(){
     softRows,
     okRows,
     warnRows,
-    pedidoUnits,
     coveragePct,
-    visibleBalance,
     pressure
   };
 }
@@ -3707,28 +3701,60 @@ function metricCard(label,value,meta,cls){
   return `<article class="stock-card card metric ${cls||""}"><div class="k metric-label">${esc(label)}</div><div class="v metric-value">${esc(value)}</div><div class="m metric-foot">${esc(meta)}</div></article>`;
 }
 function dashboardCardsForLocal(cat){
-  const totalStock=cat.reduce((sum,x)=>sum+(num(x.stock_actual)||0),0);
   const withZero=cat.filter(x=>num(x.stock_actual)===0).length;
+  const negative=cat.filter(x=>num(x.stock_actual)!==null&&num(x.stock_actual)<0).length;
+  const unknown=groupQuantitiesByUnit(cat,"stock_actual","unidad");
   return [
-    dashCard("Stock total visible", trim(totalStock), "suma de cantidades cargadas"),
+    unitQuantityCard("Stock por unidad",cat,"stock_actual","unidad"),
     dashCard("Productos sin conteo", cat.length - cat.filter(x=>num(x.stock_actual)!==null).length, "todavía no relevados"),
     dashCard("Agotados", withZero, "stock real en cero"),
-    dashCard("Lectura recomendada", withZero ? "Reponer" : "Operativo", withZero ? "hay productos sin stock" : "sin faltantes en catálogo")
+    dashCard("Lectura recomendada", negative?"Revisar conteo":unknown.unknown||unknown.missingUnit?"Completar datos":withZero ? "Reponer" : "Operativo", negative?`${negative} saldos negativos sin corregir`:unknown.unknown||unknown.missingUnit?"hay cantidades o unidades sin confirmar":withZero ? "hay productos sin stock" : "sin faltantes en catálogo")
   ].join("");
 }
 function dashboardCardsForPedido(metrics, cat){
-  const requestedQty=state.items.reduce((sum,it)=>sum+(num(it.qty)||0),0);
   const catalogMap=getCatalogMap(state.local);
-  const visibleStock=state.items.reduce((sum,it)=>{
-    const rec=(catalogMap.get(`code:${it.codigo}`)||catalogMap.get(`name:${String(it.nombre||"").toLowerCase()}`));
-    return sum + (rec ? (num(rec.stock_actual)||0) : 0);
-  },0);
+  const seen=new Set();
+  const visibleStock=state.items.filter(it=>!it.free).map(it=>catalogMap.get(`code:${it.codigo}`)||catalogMap.get(`name:${String(it.nombre||"").toLowerCase()}`)).filter(rec=>{
+    if(!rec) return false;
+    const key=rec.codigo||rec.nombre;
+    if(seen.has(key)) return false;
+    seen.add(key);return true;
+  });
   return [
-    dashCard("Pedido cargado", trim(requestedQty), "cantidad total solicitada"),
-    dashCard("Stock leído", trim(visibleStock), "solo productos del pedido"),
+    unitQuantityCard("Pedido por unidad",state.items,"qty","unidad"),
+    unitQuantityCard("Stock de esos productos",visibleStock,"stock_actual","unidad"),
     dashCard("Productos cubiertos", metrics.ok, "sin tensión operativa"),
     dashCard("Acción inmediata", metrics.bad ? "Comprar" : (metrics.soft ? "Contar" : "OK"), metrics.bad ? "hay faltantes reales" : (metrics.soft ? "faltan conteos" : "pedido cubierto"))
   ].join("");
+}
+function unitKey(value){return String(value||"").normalize("NFKC").trim().toLocaleLowerCase("es").replace(/\s+/g," ");}
+function draftQuantityRows(local,items){
+  const map=new Map((CATALOG[local]||[]).map(item=>[stockKey(item.codigo,item.nombre),item]));
+  return Object.entries(items||{}).filter(([key,quantity])=>String(quantity===null||quantity===undefined?"":quantity).trim()!==""&&num(quantity)!==0).map(([key,quantity])=>({qty:quantity,unidad:(map.get(key)||{}).unidad||""}));
+}
+function groupQuantitiesByUnit(rows,quantityField,unitField){
+  const groups=new Map();let unknown=0,negative=0,missingUnit=0;
+  (rows||[]).forEach(row=>{
+    const raw=row[quantityField];
+    const text=String(raw===null||raw===undefined?"":raw).trim();
+    if(!/^[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?:e[+-]?\d+)?$/i.test(text)){unknown++;return;}
+    const value=Number(text.replace(",","."));
+    if(!Number.isFinite(value)){unknown++;return;}
+    const unit=unitKey(row[unitField]);
+    if(value<0) negative++;
+    if(!unit){missingUnit++;return;}
+    if(!groups.has(unit)) groups.set(unit,{unit,quantity:0,items:0});
+    const group=groups.get(unit);group.quantity+=value;group.items++;
+  });
+  return {groups:[...groups.values()].map(row=>({...row,quantity:Number(row.quantity.toFixed(6))})).sort((a,b)=>a.unit.localeCompare(b.unit,"es")),unknown,negative,missingUnit};
+}
+function quantitiesByUnitText(rows,quantityField,unitField){
+  const summary=groupQuantitiesByUnit(rows,quantityField,unitField);
+  return [...summary.groups.map(row=>`${row.quantity} ${row.unit}`),...(summary.unknown?[`${summary.unknown} sin cantidad confirmada`]:[]),...(summary.missingUnit?[`${summary.missingUnit} sin unidad definida`]:[])].join(" · ")||"Sin cantidades cargadas";
+}
+function unitQuantityCard(label,rows,quantityField,unitField){
+  const summary=groupQuantitiesByUnit(rows,quantityField,unitField);
+  return `<div class="stock-dash-card"><div class="label">${esc(label)}</div>${summary.groups.length?`<dl class="unit-totals">${summary.groups.map(row=>`<div><dt>${esc(row.unit)}</dt><dd>${esc(row.quantity)}</dd></div>`).join("")}</dl>`:'<div class="meta">Sin cantidades confirmadas</div>'}<div class="meta">Sin conversiones entre unidades.${summary.unknown?` ${summary.unknown} sin cantidad confirmada.`:""}${summary.missingUnit?` ${summary.missingUnit} sin unidad definida: revisar registro.`:""}${summary.negative?` ${summary.negative} saldos negativos: revisar conteo.`:""}</div></div>`;
 }
 function dashCard(label,value,meta){
   return `<div class="stock-dash-card"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="meta">${esc(meta)}</div></div>`;
@@ -3932,16 +3958,16 @@ function renderDashboard(){
   $("#dashMeta").textContent = snapshotStampText() ? `${state.local} · ${snapshotStampText()}` : state.local;
   cards.innerHTML = [
     metricCard("Riesgos activos", riskTotal, `${decisionSummary.comprar||0} compras · ${decisionSummary.contar||0} conteos`, riskTotal?"bad":"good"),
-    metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", `${trim(metrics.pedidoUnits)} unidades seleccionadas`, state.items.length?"warn":""),
-    metricCard("Recepciones", metrics.recepSummary.movimientos||0, `${trim(metrics.recepSummary.cantidad||0)} unidades confirmadas`, "good"),
-    metricCard("Producción", trim(metrics.prodSummary.cantidad_producida||0), `${metrics.prodSummary.movimientos||0} partes históricos`, "warn")
+    metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", quantitiesByUnitText(state.items,"qty","unidad"), state.items.length?"warn":""),
+    metricCard("Recepciones", metrics.recepSummary.movimientos||0, "registros confirmados; cantidades en cada movimiento", "good"),
+    metricCard("Producción", metrics.prodSummary.movimientos||0, "partes históricos; cantidades en cada registro", "warn")
   ].join("");
   renderDecisionCenter();
   const risks=[
     ...metrics.reviewRows.map(row=>({title:row.it.nombre, meta:`${row.meta.label} · ${row.meta.message}${row.meta.side?` · ${row.meta.side}`:""}`})),
     ...localRisks.map(item=>{
       const stock=num(item.stock_actual);
-      return {title:item.nombre, meta:stock===null ? `${item.categoria||"Sin categoría"} · falta relevar stock real` : `${item.categoria||"Sin categoría"} · stock agotado`};
+      return {title:item.nombre, meta:stock===null ? `${item.categoria||"Sin categoría"} · falta relevar stock real` : stock<0?`${item.categoria||"Sin categoría"} · saldo negativo: revisar conteo`:`${item.categoria||"Sin categoría"} · stock agotado`};
     })
   ].slice(0,5);
   riskList.innerHTML = risks.length ? risks.map((row,index)=>`
@@ -3951,9 +3977,9 @@ function renderDashboard(){
       <span class="event-copy"><strong>${esc(row.title)}</strong><small>${esc(row.meta)}</small></span>
     </div>`).join("") : `<div class="stock-empty">El local no tiene riesgos activos.</div>`;
   const activity=[
-    ...(RECEPCIONES.latest||[]).filter(x=>x.local===state.local).slice(0,3).map(row=>({time:row.fecha_hora,title:`Recepción · ${row.producto}`,meta:`${trim(num(row.cantidad_recibida)||0)} ${row.unidad||""} · ${row.proveedor||"Sin proveedor"}`})),
-    ...(PRODUCCION.latest||[]).filter(x=>x.local===state.local).slice(0,3).map(row=>({time:row.fecha_hora,title:`Producción · ${row.producto_elaborado||row.insumo}`,meta:`${trim(num(row.cantidad_producida)||num(row.cantidad_usada)||0)} ${row.unidad||""} · lote ${row.lote||"—"}`})),
-    ...(ELABORADOS.latest||[]).filter(x=>x.local===state.local).slice(0,3).map(row=>({time:row.fecha_hora,title:`Elaborados · ${row.producto_elaborado}`,meta:`${trim(num(row.cantidad)||0)} ${row.unidad||""} · ${row.destino||"Revisar"}`}))
+    ...(RECEPCIONES.latest||[]).filter(x=>x.local===state.local).slice(0,3).map(row=>({time:row.fecha_hora,title:`Recepción · ${row.producto}`,meta:`${row.items>1?`${row.items} productos; cantidades por unidad en el registro`:`${trim(num(row.cantidad_recibida)||0)} ${row.unidad||"sin unidad"}`} · ${row.proveedor||"Sin proveedor"}`})),
+    ...(PRODUCCION.latest||[]).filter(x=>x.local===state.local).slice(0,3).map(row=>({time:row.fecha_hora,title:`Producción · ${row.producto_elaborado||row.insumo}`,meta:`${row.items||1} insumos registrados · lote ${row.lote||"—"}`})),
+    ...(ELABORADOS.latest||[]).filter(x=>x.local===state.local).slice(0,3).map(row=>({time:row.fecha_hora,title:`Elaborados · ${row.producto_elaborado}`,meta:`${row.items>1?`${row.items} productos; cantidades por unidad en el registro`:`${trim(num(row.cantidad)||0)} ${row.unidad||"sin unidad"}`} · ${row.destino||"Revisar"}`}))
   ].slice(0,6);
   activityList.innerHTML = activity.length ? activity.map(row=>`
     <div class="event-item timeline-event">
