@@ -158,6 +158,8 @@ function main() {
   expectContains(html, "SNAPSHOT.decisionCenterByLocal", "decision center reads live operational decisions");
   expectContains(html, "data-decision-add", "decision center can stage a suggested purchase");
   expectContains(html, "data-decision-stock", "decision center can open stock counting");
+  expectContains(html, "function jsonpGet_(url", "browser reads Apps Script through JSONP");
+  expectContains(code, "function webResponse_(obj, e)", "backend exposes safe JSONP responses");
   expectContains(html, "partes históricos", "dashboard labels accumulated production honestly");
   ["encargado", "recepEncargado", "prodEncargado", "elabEncargado", "stockEncargado"].forEach((id) => {
     expectRegex(html, new RegExp(`id="${id}"[^>]+list="${id}Options"`), `editable responsable combobox ${id}`);

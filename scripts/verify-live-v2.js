@@ -15,6 +15,12 @@ async function getJson(url) {
   return res.json();
 }
 
+async function getText(url) {
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.text();
+}
+
 function logOk(msg) {
   console.log(`OK: ${msg}`);
 }
@@ -39,10 +45,13 @@ async function main() {
   const ping = await getJson(`${scriptUrl}?action=ping`);
   expect(ping && ping.ok === true, "ping responded", "ping did not return ok:true");
 
+  const jsonp = await getText(`${scriptUrl}?action=ping&callback=__docksProbe`);
+  expect(/^__docksProbe\(\{/.test(jsonp), "browser-safe JSONP responded", "JSONP callback was not returned");
+
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.5.0", "bootstrap decision center version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.5.0`);
+  expect(bootstrap && bootstrap.version === "2.5.1", "bootstrap browser-safe version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.5.1`);
   expect(bootstrap && bootstrap.capabilities, "bootstrap capabilities present", "bootstrap capabilities missing");
 
   expect(!!bootstrap.catalog, "catalog present", "catalog missing");

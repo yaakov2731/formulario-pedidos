@@ -4,46 +4,46 @@ function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'ping';
   try {
     if (action === 'getBootstrap') {
-      return json(getBootstrapPayload_((e && e.parameter && e.parameter.scope) || 'full'));
+      return webResponse_(getBootstrapPayload_((e && e.parameter && e.parameter.scope) || 'full'), e);
     }
     if (action === 'parseReceiptTextAi') {
-      return json(parseReceiptTextAi_(
+      return webResponse_(parseReceiptTextAi_(
         (e && e.parameter && e.parameter.local) || '',
         (e && e.parameter && e.parameter.text) || ''
-      ));
+      ), e);
     }
     if (action === 'getPedidoStatus') {
-      return json(getPedidoStatus_((e && e.parameter && e.parameter.id_pedido) || ''));
+      return webResponse_(getPedidoStatus_((e && e.parameter && e.parameter.id_pedido) || ''), e);
     }
     if (action === 'getOperationStatus') {
-      return json(getOperationStatus_(
+      return webResponse_(getOperationStatus_(
         (e && e.parameter && e.parameter.type) || '',
         (e && e.parameter && e.parameter.id) || ''
-      ));
+      ), e);
     }
     if (action === 'getTelegramStatus') {
-      return json(getTelegramStatus_());
+      return webResponse_(getTelegramStatus_(), e);
     }
     if (action === 'getElaboradosReport') {
-      return json(getElaboradosReport_(
+      return webResponse_(getElaboradosReport_(
         (e && e.parameter && e.parameter.local) || '',
         (e && e.parameter && e.parameter.desde) || '',
         (e && e.parameter && e.parameter.hasta) || ''
-      ));
+      ), e);
     }
     if (action === 'getCatalogProductStatus') {
-      return json(getCatalogProductStatus_(
+      return webResponse_(getCatalogProductStatus_(
         (e && e.parameter && e.parameter.local) || '',
         (e && e.parameter && e.parameter.codigo) || '',
         (e && e.parameter && e.parameter.nombre) || ''
-      ));
+      ), e);
     }
     if (action === 'refreshElaboradosReportSheet') {
-      return json(refreshElaboradosReportSheet());
+      return webResponse_(refreshElaboradosReportSheet(), e);
     }
-    return json({ ok: true, status: 'online', version: APP_VERSION, capabilities: appCapabilities_() });
+    return webResponse_({ ok: true, status: 'online', version: APP_VERSION, capabilities: appCapabilities_() }, e);
   } catch (err) {
-    return json({ ok: false, error: String(err) });
+    return webResponse_({ ok: false, error: String(err) }, e);
   }
 }
 
@@ -278,6 +278,19 @@ function json(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Los Web Apps de Apps Script redirigen a googleusercontent.com y no exponen
+// CORS de forma confiable. JSONP mantiene las lecturas públicas compatibles.
+function webResponse_(obj, e) {
+  var callback = String((e && e.parameter && e.parameter.callback) || '').trim();
+  if (!callback) return json(obj);
+  if (!/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callback)) {
+    return json({ ok: false, error: 'Callback inválido' });
+  }
+  return ContentService
+    .createTextOutput(callback + '(' + JSON.stringify(obj) + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
 function getBootstrapPayload_(scope) {
