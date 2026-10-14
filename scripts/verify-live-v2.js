@@ -51,7 +51,7 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.8.0", "bootstrap local integrity version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.8.0`);
+  expect(bootstrap && bootstrap.version === "2.8.1", "bootstrap operational stock version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.8.1`);
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.reception_guide), "reception guide enabled", "reception guide capability missing");
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.receptionGuideByLocal), "complete reception reference present", "reception reference missing");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.catalog_par), "editable stock objective enabled", "catalog_par capability missing");
@@ -115,6 +115,21 @@ async function main() {
     return sum + (rec.suggestions || []).length + (rec.needs_count || []).length;
   }, 0);
   expect(decisionRows > 0, "decision center has actionable rows", "decision center returned no actionable rows");
+  let checkedBalances = 0;
+  const balanceMismatches = [];
+  decisionLocals.forEach(local => {
+    const catalog = (bootstrap.catalog && bootstrap.catalog[local]) || [];
+    const suggestions = bootstrap.snapshot.decisionCenterByLocal[local].suggestions || [];
+    suggestions.forEach(row => {
+      const item = catalog.find(item => row.codigo ? item.codigo === row.codigo : item.nombre === row.producto);
+      if (!item || item.stock_actual === '' || item.stock_actual === null || item.stock_actual === undefined) return;
+      const current = Number(String(item.stock_actual).replace(',', '.'));
+      if (!Number.isFinite(current)) return;
+      checkedBalances++;
+      if (Math.abs(Number(row.stock) - current) > 0.011) balanceMismatches.push(`${local}/${row.codigo}`);
+    });
+  });
+  expect(checkedBalances > 0 && balanceMismatches.length === 0, "live decisions match current catalog stock", `Stock comparison checked ${checkedBalances} rows; mismatches: ${balanceMismatches.join(', ')}`);
 
   const report = await getJson(`${scriptUrl}?action=getElaboradosReport&local=${encodeURIComponent("Umo Grill")}`);
   expect(report && report.ok === true, "elaborados report responded", "elaborados report did not return ok:true");

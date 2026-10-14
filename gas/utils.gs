@@ -957,6 +957,14 @@ function pendingDemandMap_() {
   return pendingDemandSummary_().demandMap;
 }
 
+// El catálogo acumula conteos, recepciones y consumos. CONTROL STOCK conserva
+// el conteo histórico y sólo respalda productos sin saldo en el catálogo.
+function operationalStockValue_(item, stockRecord) {
+  var current = numberOrNull_(item && item.stock_actual);
+  if (current !== null) return current;
+  return stockRecord ? numberOrNull_(stockRecord.stock_real) : null;
+}
+
 function pendingDemandSummary_() {
   var sh = ss_().getSheetByName(SHEET_DETALLE);
   if (!sh || sh.getLastRow() < 2) return { demandMap: {}, activeRows: [] };
@@ -999,7 +1007,7 @@ function computeOperationalSnapshot_() {
       var key = keyFor_(local, item.codigo, item.nombre);
       var stockRec = stockMap[key] || {};
       var demandRec = demandMap[key] || { cantidad: 0, pedidos: 0 };
-      var stockReal = numberOrZero_(stockRec.stock_real, item.stock_actual);
+      var stockReal = numberOrZero_(operationalStockValue_(item, stockMap[key]), 0);
       var pedidosPend = numberOrZero_(demandRec.cantidad, 0);
       var saldo = round2_(stockReal - pedidosPend);
       var status = saldo < 0 ? 'Faltante' : (stockReal <= 0 ? 'Sin stock' : (pedidosPend > 0 ? 'Cubierto' : 'Disponible'));
@@ -1100,9 +1108,8 @@ function buildDecisionCenterByLocal_(snap, pedidoIntelligence) {
     (snap.catalog[local] || []).forEach(function (item) {
       var key = keyFor_(local, item.codigo, item.nombre);
       var stockRec = (snap.stockMap || {})[key];
-      var catalogStock = numberOrNull_(item.stock_actual);
-      var stockKnown = !!stockRec || catalogStock !== null;
-      var stock = stockRec ? numberOrZero_(stockRec.stock_real, 0) : catalogStock;
+      var stock = operationalStockValue_(item, stockRec);
+      var stockKnown = stock !== null;
       var demand = (snap.demandMap || {})[key] || { cantidad: 0, pedidos: 0 };
       var pending = round2_(numberOrZero_(demand.cantidad, 0));
       var insightKey = String(item.codigo || '').trim() || ('name:' + normalizeLooseText_(item.nombre));

@@ -51,4 +51,15 @@ assert.equal(decision(15, 12, 0, 10).summary.cubiertos, 1);
 assert.equal(decision('', 12, 0, 0).summary.contar, 1);
 assert.equal(decision('', 12, 0, 0).suggestions.length, 0);
 assert.equal(decision(0, 0, 0, 0).suggestions.length, 0);
+assert.equal(run("operationalStockValue_({stock_actual:15},{stock_real:10})"),15,'Reception balance supersedes historical count');
+assert.equal(run("operationalStockValue_({stock_actual:7},{stock_real:10})"),7,'Production balance supersedes historical count');
+assert.equal(run("operationalStockValue_({stock_actual:0},{stock_real:10})"),0,'Zero balance is not replaced by an old positive count');
+assert.equal(run("operationalStockValue_({stock_actual:-2},{stock_real:10})"),-2,'Negative balance remains visible');
+assert.equal(run("operationalStockValue_({stock_actual:''},{stock_real:10})"),10,'Historical count remains a fallback');
+assert.equal(run("operationalStockValue_({stock_actual:''},null)"),null,'Unknown balance remains unknown');
+assert.equal(run(`(function(){
+  var key=keyFor_('Umo Grill','PAR001','Aceite');
+  var stockMap={};stockMap[key]={stock_real:10};
+  return buildDecisionCenterByLocal_({catalog:{'Umo Grill':[{codigo:'PAR001',nombre:'Aceite',stock_actual:15,stock_minimo:20}]},stockMap:stockMap,demandMap:{}},{byLocal:{}})['Umo Grill'].suggestions[0].cantidad_sugerida;
+})()`),5,'Decision center uses the updated balance, not historical count');
 console.log('Stock objective verification passed: validation, local scope, partial edits, stock preservation, purchase math and unknown counts.');

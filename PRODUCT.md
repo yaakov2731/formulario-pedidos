@@ -34,6 +34,11 @@ viven en el mismo Google Sheet.
 
 ## Stock objetivo y decisiones de compra
 
+`Stock_Actual` del catálogo es el saldo operativo: los conteos lo fijan, las
+recepciones lo aumentan y la producción lo reduce. Los reportes y decisiones usan
+ese saldo; recurren al último conteo histórico sólo cuando el catálogo no tiene
+un valor numérico. Cero y negativos no se sustituyen por conteos anteriores.
+
 El catálogo permite editar nombre, categoría, unidad, proveedor y stock objetivo
 (par) desde la configuración existente. El objetivo usa la columna `Stock_Mínimo`
 por producto y local; vacío significa sin definir y cero sigue siendo un valor válido.
