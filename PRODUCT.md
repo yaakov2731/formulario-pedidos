@@ -75,6 +75,16 @@ Validación de esta regla: `node scripts/verify-par.js`, con planilla en memoria
 
 ## Guía de recepción
 
+Pedido, Recepción y el formulario existente de Stock comparten las secciones
+operativas del catálogo. Trento mantiene sus familias de cafetería también al
+recibir y contar mercadería. Los filtros son independientes por módulo y local;
+no vacían los borradores ni modifican cantidades fuera de la sección visible.
+En Recepción, sección y estado de pedido abierto se combinan. Stock permite
+recorrer el catálogo completo con Mostrar más, además de buscar sin acentos.
+Las secciones de Stock filtran sólo la lista para agregar: lo ya seleccionado
+permanece visible en el conteo. No se infiere una cantidad recibida o contada.
+Pruebas de los renderizadores reales en `scripts/verify-local-catalog.js`.
+
 Recepción permite filtrar todo el catálogo, productos con pedidos abiertos o líneas
 con cantidad recibida en la carga actual. La búsqueda incluye producto, código,
 categoría y proveedor y tolera acentos.

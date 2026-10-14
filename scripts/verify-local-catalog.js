@@ -116,3 +116,58 @@ const negativeBadge=ui("pedidoInsightButton({nombre:'Mascarpone',unidad:'kg',sto
 assert.match(negativeBadge,/Revisar stock negativo/);
 assert.doesNotMatch(negativeBadge,/data-use-suggested|Pedir 700/,'Negative stock offers no purchase action');
 console.log('Local catalog checks passed: local history, foreign-code exclusion, original units, canonical aliases, recommendations, search and stale-handler guard.');
+
+// Exercise the actual stock/receipt renderers: the section is local UI state,
+// never a replacement for the draft or an excuse to mix master product codes.
+frontend.stockKey=(code,name)=>`${code}|${name}`;
+frontend.stockUi={queryByLocal:{},sectionByLocal:{'Trento Café':'Café y barra'},visibleLimit:12};
+frontend.stockDraft={};
+frontend.ensureStockSelection=()=>['CAF001|Café 1'];
+frontend.ensureStockDrafts=()=>frontend.stockDraft;
+frontend.CATALOG={
+  'Trento Café':Array.from({length:20},(_,i)=>({codigo:`CAF${String(i+1).padStart(3,'0')}`,nombre:`Café ${i+1}`,unidad:'kg',categoria:'Café'})).concat([
+    {codigo:'CAF021',nombre:'Medialunas',unidad:'docena',categoria:'Panadería'},
+    {codigo:'CAF022',nombre:'Pre mezcla brawnie',unidad:'paquete',categoria:'Almacen'}]),
+  'Umo Grill':[{codigo:'PAR001',nombre:'Asado',unidad:'kg',categoria:'Carnes'}]
+};
+frontend.state.local='Umo Grill';
+assert.equal(ui("filterOperationalCatalog('Trento Café','CAF001','Todos')[0].nombre"),'Café 1','Explicit stock local is independent of the main selected local');
+assert.equal(ui("filterOperationalCatalog('Trento Café','cafe','Café y barra').length"),20,'Accent-tolerant operational search');
+assert.equal(ui("filterOperationalCatalog('Trento Café','asado','Todos').length"),0);
+load('renderStockQuickPick','renderStockActionBar');
+frontend.stockDraft['CAF001|Café 1']={stock_actual:'2.5'};
+ui("renderStockQuickPick('Trento Café')");
+assert.equal(field('#stockCatalogMore').hidden,false,'More than twelve products remain reachable');
+assert.match(field('#stockQuickPickMeta').textContent,/12 de 20/);
+ui("stockUi.visibleLimit=24;renderStockQuickPick('Trento Café')");
+assert.match(field('#stockQuickPickList').innerHTML,/Café 20/);
+assert.equal(field('#stockCatalogMore').hidden,true);
+ui("stockUi.sectionByLocal['Trento Café']='Pastelería';renderStockQuickPick('Trento Café')");
+assert.match(field('#stockQuickPickList').innerHTML,/Medialunas/);
+assert.doesNotMatch(field('#stockQuickPickList').innerHTML,/Pre mezcla|Asado/);
+assert.equal(frontend.stockDraft['CAF001|Café 1'].stock_actual,'2.5','Changing section preserves counted quantities');
+
+frontend.state.local='Trento Café';
+frontend.recepUi={queryByLocal:{},scopeByLocal:{},sectionByLocal:{'Trento Café':'Pastelería'},visibleLimit:40};
+frontend.receiptDraft={items:{'CAF001|Café 1':'3'},proveedor:'Proveedor manual',observaciones:'Observación manual'};
+frontend.CONFIG={};
+frontend.ensureRecepDrafts=()=>frontend.receiptDraft;
+frontend.renderRecepCardsOnly=()=>{};
+frontend.renderRecepPhotoPanel=()=>{};
+frontend.fillEncargadoSelect=()=>{};
+frontend.capabilityEnabled=()=>true;
+frontend.receptionReference=item=>item.codigo==='CAF001'?[{cantidad:3,unidad:'kg'}]:[];
+frontend.receptionReferenceText=()=>'';
+frontend.recepDraftStats=()=>({items:1});
+load('renderRecepcionModule','receptionReference');
+ui('renderRecepcionModule()');
+assert.match(field('#recepGrid').innerHTML,/Medialunas/);
+assert.doesNotMatch(field('#recepGrid').innerHTML,/Asado|Café 1/);
+assert.equal(frontend.receiptDraft.items['CAF001|Café 1'],'3','Filtered-out receipt input is retained');
+ui("recepUi.sectionByLocal['Trento Café']='Todos';recepUi.scopeByLocal['Trento Café']='open';renderRecepcionModule()");
+assert.match(field('#recepGrid').innerHTML,/Café 1/);
+assert.doesNotMatch(field('#recepGrid').innerHTML,/Medialunas/,'Open-order scope still intersects the section filter');
+assert.equal(field('#recepProveedor').value,'Proveedor manual');
+assert.equal(field('#recepObs').value,'Observación manual');
+assert.equal(frontend.stockUi.sectionByLocal['Trento Café'],'Pastelería','Receipt filters do not overwrite stock filters');
+console.log('Operational sections passed: local scope, accent search, complete stock browsing, receipt scope and preservation of drafts.');
