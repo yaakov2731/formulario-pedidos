@@ -1781,6 +1781,11 @@ html,body,.app-main{background:var(--bg)}
   .home-hero-panel h2{font-size:20px}.home-hero-lede{display:none}.home-hero-panel .locales{grid-template-columns:repeat(2,minmax(0,1fr))}
   .home-modules-head{flex-direction:row;margin:14px 0 8px;gap:8px}.home-modules-head .skicker{font-size:9px}.home-system-status{font-size:9px}
   .home-pulse{grid-template-columns:1fr;gap:2px;margin-bottom:12px;padding-bottom:10px}.home-pulse-label{padding:0 0 4px}
+  body.compact-mobile-shell .home-pulse,body.compact-mobile-shell .local-action,body.compact-mobile-shell .module-card,body.compact-mobile-shell .stock-panel,body.compact-mobile-shell .event-item{border-radius:0;background:transparent;box-shadow:none}
+  body.compact-mobile-shell .home-pulse{border:0;border-bottom:1px solid var(--line)}
+  body.compact-mobile-shell .local-action{border:0;border-bottom:1px solid var(--line)}
+  body.compact-mobile-shell .local-action:hover,body.compact-mobile-shell .local-action:active{box-shadow:none;transform:none}
+  body.compact-mobile-shell .local-action::before,body.compact-mobile-shell .local-action::after{display:none;content:none}
   .pulse-item{min-height:44px;gap:7px}.pulse-item strong{font-size:12px}.pulse-item b{font-size:10px}
   .local-action,.local-action[data-go="pedido"],body.compact-mobile-shell .local-action{min-height:54px;padding:8px 0;grid-template-columns:22px minmax(0,1fr) auto}
   .module-copy small,.local-action[data-go="pedido"] .module-copy small{font-size:10px}
