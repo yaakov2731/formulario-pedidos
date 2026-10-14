@@ -156,6 +156,8 @@ function main() {
   expectContains(html, "target-stock", "stock-aware objective order suggestion");
   expectContains(html, "Cubierto · ${context}", "covered objective demand state");
   expectContains(html, 'id="cfgPMin"', "editable catalog stock objective");
+  expectContains(html, 'id="recepScope"', "reception catalog scopes");
+  expectContains(code, "buildReceptionGuideByLocal_(snap.activeRows || [])", "complete reception guide uses all active rows");
   expectContains(code, "catalog_par: true", "stock objective backend capability");
   expectContains(html, "SNAPSHOT.decisionCenterByLocal", "decision center reads live operational decisions");
   expectContains(html, "data-decision-add", "decision center can stage a suggested purchase");

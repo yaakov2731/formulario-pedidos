@@ -1084,6 +1084,7 @@ function buildFrontendOperationalSnapshot_(pedidoIntelligence) {
     },
     byLocal: snap.localSummary,
     openItemsByLocal: buildOpenItemsByLocalFromRows_(snap.activeRows || []),
+    receptionGuideByLocal: buildReceptionGuideByLocal_(snap.activeRows || []),
     decisionCenterByLocal: buildDecisionCenterByLocal_(snap, pedidoIntelligence || buildPedidoIntelligence_())
   };
 }
@@ -1239,6 +1240,33 @@ function formatPedidoIntelligenceDate_(value) {
 
 function buildOpenItemsByLocal_() {
   return buildOpenItemsByLocalFromRows_(activePedidoRows_());
+}
+
+// Todas las líneas abiertas, agrupadas sin mezclar unidades ni locales.
+// Es referencia de pedidos: las recepciones históricas no tienen vínculo por ID.
+function buildReceptionGuideByLocal_(rows) {
+  var out = {};
+  rows.forEach(function (row) {
+    var local = normalizeLocalName_(row[3]);
+    var status = String(row[12] || '').trim().toLowerCase();
+    var quantity = numberOrNull_(row[9]);
+    if (!local || local === 'Pizzería' || status === 'entregado' || status === 'cancelado' || !(quantity > 0)) return;
+    var code = String(row[6] || '').trim();
+    var name = String(row[7] || '').trim();
+    if (!code && !name) return;
+    var unit = String(row[10] || '').trim();
+    var key = (code || ('name:' + normalizeLooseText_(name))) + '||' + unit;
+    if (!out[local]) out[local] = {};
+    if (!out[local][key]) out[local][key] = { codigo: code, producto: name, unidad: unit, cantidad: 0, pedidos: [] };
+    var item = out[local][key];
+    item.cantidad = round2_(item.cantidad + quantity);
+    var id = String(row[0] || '').trim();
+    if (id && item.pedidos.indexOf(id) === -1) item.pedidos.push(id);
+  });
+  Object.keys(out).forEach(function (local) {
+    out[local] = Object.keys(out[local]).map(function (key) { return out[local][key]; });
+  });
+  return out;
 }
 
 function buildOpenItemsByLocalFromRows_(rows) {

@@ -386,6 +386,7 @@ function appCapabilities_() {
     pedido_intelligence: true,
     decision_center: true,
     catalog_par: true,
+    reception_guide: true,
     telegram_notify: telegram.enabled,
     receipt_ai_parse: openai.enabled
   };

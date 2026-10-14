@@ -47,6 +47,21 @@ se incorporan al borrador y requieren la confirmación del encargado para enviar
 
 Validación de esta regla: `node scripts/verify-par.js`, con planilla en memoria.
 
+## Guía de recepción
+
+Recepción permite filtrar todo el catálogo, productos con pedidos abiertos o líneas
+con cantidad recibida en la carga actual. La búsqueda incluye producto, código,
+categoría y proveedor y tolera acentos.
+
+La referencia agrupa todas las líneas abiertas por local, código y unidad. No usa
+la lista resumida de ocho movimientos del inicio. Al ingresar una cantidad, muestra
+su diferencia frente a esa referencia; si hay unidades distintas evita compararlas.
+Las recepciones históricas no tienen vínculo por pedido, por lo que esta guía no
+afirma cuánto falta entregar ni cambia estados de pedidos. El encargado registra
+la cantidad realmente recibida, que sigue alimentando el stock mediante el flujo existente.
+
+Validación: `node scripts/verify-reception-guide.js`, sin escrituras en producción.
+
 ## Brand
 
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).
