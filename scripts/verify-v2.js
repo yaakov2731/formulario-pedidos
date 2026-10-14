@@ -4,6 +4,7 @@ const path = require("path");
 const root = process.cwd();
 const indexPath = path.join(root, "index.html");
 const codePath = path.join(root, "Code.gs");
+const gasDir = path.join(root, "gas");
 const faviconPath = path.join(root, "favicon.svg");
 
 function fail(message) {
@@ -39,15 +40,21 @@ function main() {
     fail("index.html not found");
     return;
   }
-  if (!fs.existsSync(codePath)) {
-    fail("Code.gs not found");
+  if (!fs.existsSync(codePath) && !fs.existsSync(gasDir)) {
+    fail("Apps Script backend not found (Code.gs or gas/*.gs)");
     return;
   }
   if (!fs.existsSync(faviconPath)) fail("favicon.svg not found");
   else pass("favicon.svg present");
 
   const html = read(indexPath);
-  const code = read(codePath);
+  const code = fs.existsSync(codePath)
+    ? read(codePath)
+    : fs.readdirSync(gasDir)
+      .filter((file) => file.endsWith(".gs"))
+      .sort()
+      .map((file) => read(path.join(gasDir, file)))
+      .join("\n");
 
   expectRegex(html, /const SCRIPT_URL = "https:\/\/script\.google\.com\/macros\/s\/.+\/exec";/, "SCRIPT_URL configured");
 
@@ -123,6 +130,12 @@ function main() {
   expectContains(html, 'id="serviceRetry"', "offline service retry control");
   expectContains(html, "async function retryConnection()", "offline service can retry the live backend");
   expectContains(html, "Los borradores quedan protegidos en este dispositivo.", "offline service explains draft safety");
+  expectContains(html, 'id="orderCategories"', "pedido category filters");
+  expectContains(html, "function setCatalogItemQuantity(", "pedido inline quantity controls");
+  expectContains(html, 'id="pedidoReviewStatus" role="status"', "pedido review status");
+  expectContains(html, "Confirmar y enviar", "pedido explicit confirmation action");
+  expectNotContains(html, 'data-pedido-step="datos"', "legacy pedido data step removed");
+  expectNotContains(html, 'data-pedido-step="cierre"', "legacy pedido closing step removed");
 
   expectNotContains(html, "renderReportesModule", "app report renderer removed");
   expectNotContains(html, 'id="reportPrint"', "app report print control removed");

@@ -639,11 +639,8 @@ textarea{resize:vertical;min-height:84px;max-width:70ch}
   .summary{
     margin-bottom:96px;
   }
-  .pedido-screen[data-pedido-step="productos"] .items,
   .pedido-screen[data-pedido-step="productos"] .quick-pick,
-  .pedido-screen[data-pedido-step="productos"] .hint,
-  .pedido-screen[data-pedido-step="datos"],
-  .pedido-screen[data-pedido-step="cierre"]{
+  .pedido-screen[data-pedido-step="productos"] .hint{
     scroll-margin-bottom:96px;
   }
   .workspace{
@@ -1353,7 +1350,6 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
 .pedido-step-btn[data-state="active"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px oklch(24% .02 220 / .08)}
 .pedido-screen{padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--depth-low)}
 .pedido-screen .shead{margin-bottom:18px}.pedido-screen .shead h2{font-size:17px;line-height:1.3;letter-spacing:-.01em}
-@media(min-width:1100px){.pedido-screen[data-pedido-step="datos"] .grid2{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .field{gap:7px}.field label{color:var(--ink-soft);font-size:12px;font-weight:550;letter-spacing:.02em}
 .field input,.field select,.field textarea,input.stock-search{min-height:46px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:none}
 .field input:focus,.field select:focus,.field textarea:focus,input.stock-search:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint)}
@@ -1504,6 +1500,71 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
 @media(prefers-reduced-motion:reduce){
   .shell-sidebar,.shell-scrim,.shell-nav-btn,.local,.tab-panel:not([hidden]){transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }
+
+/* ===== Pedido profesional: una carga, una revisión ===== */
+.local-action[data-go="pedido"]{grid-column:span 2;min-height:184px;background:var(--ink);color:#fff;border-color:var(--ink)}
+.local-action[data-go="pedido"] .module-icon{background:oklch(100% 0 0 / .12);color:#fff}
+.local-action[data-go="pedido"] .module-copy small,.local-action[data-go="pedido"] .module-link em{color:oklch(82% .015 220)}
+.local-action[data-go="pedido"] .module-link b{color:#fff}
+.order-categories{display:flex;gap:8px;margin:14px 0 10px;padding-bottom:2px;overflow-x:auto;scrollbar-width:none}
+.order-categories::-webkit-scrollbar{display:none}
+.order-category{flex:none;min-height:38px;padding:0 13px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-soft);font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.order-category[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+.order-catalog{margin-top:0;padding:0;border-color:var(--line-strong);overflow:hidden}
+.order-catalog .quick-pick-head{padding:14px 16px;margin:0;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.order-catalog .quick-pick-list{gap:0;max-height:none;overflow:visible}
+.order-catalog .quick-pick-item{min-height:68px;padding:10px 14px;border:0;border-bottom:1px solid var(--line);border-radius:0}
+.order-catalog .quick-pick-item:last-child{border-bottom:0}
+.order-catalog .quick-pick-item.in-order{background:color-mix(in oklch,var(--brand-tint) 42%,#fff)}
+.order-product-stepper{display:grid;grid-template-columns:42px 58px 42px;align-items:center;border:1px solid var(--line-strong);border-radius:10px;background:#fff;overflow:hidden}
+.order-product-stepper button{width:42px;height:42px;border:0;background:#fff;color:var(--ink);font:inherit;font-size:21px;cursor:pointer}
+.order-product-stepper button:hover{background:var(--surface-2)}
+.order-product-stepper input{width:58px;height:42px;padding:0 4px;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);border-radius:0;background:#fff;text-align:center;font:inherit;font-size:15px;font-weight:700;box-shadow:none}
+.order-product-stepper input:focus{transform:none;box-shadow:inset 0 0 0 2px var(--brand)}
+.order-review{color:var(--ink);background:transparent!important;border:0;box-shadow:none;padding:0!important}
+.review-status{min-height:48px;display:flex;align-items:center;margin-bottom:14px;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);color:var(--ink-soft);font-size:13px}
+.review-status.ready{border-color:color-mix(in oklch,var(--green) 35%,var(--line));background:var(--green-tint);color:oklch(.38 .10 150)}
+.review-status.needs-attention{border-color:color-mix(in oklch,var(--amber) 35%,var(--line));background:var(--amber-tint);color:oklch(.42 .10 60)}
+.review-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(320px,.92fr);gap:16px;align-items:start}
+.review-panel{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--depth-low)}
+.review-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.review-panel-head>div{display:flex;flex-direction:column;gap:3px}
+.review-panel-head strong{font-size:16px;font-weight:650}
+.review-panel-head span{color:var(--ink-soft);font-size:12px}
+.review-panel>.items{margin-top:0}
+.review-details{display:grid;gap:18px}
+.review-subsection{display:grid;gap:8px;margin-top:2px}
+.review-subsection>label{color:var(--ink-soft);font-size:12px;font-weight:600}
+.optional{font-weight:400;color:var(--ink-faint)}
+.field [aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 3px var(--red-tint)}
+.items-empty{background:var(--surface-2)}
+.item .qty{min-height:42px}
+
+@media(max-width:900px){
+  .review-layout{grid-template-columns:1fr}
+  .local-action[data-go="pedido"]{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .pedido-shell-head{margin-bottom:12px}
+  .pedido-shell-head>div:last-child .module-config-btn,.pedido-shell-head>div:last-child [data-go-home]{display:none}
+  .pedido-progress{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+  .pedido-step-btn{min-width:0;min-height:40px}
+  .pedido-screen{padding:14px}
+  .order-catalog .quick-pick-item{grid-template-columns:minmax(0,1fr) auto;padding:10px 10px}
+  .order-product-stepper{grid-template-columns:40px 50px 40px}
+  .order-product-stepper button{width:40px;height:44px}
+  .order-product-stepper input{width:50px;height:44px;font-size:16px}
+  .review-panel{padding:14px;border-radius:13px;box-shadow:none}
+  .review-layout{gap:10px}
+  .urg{gap:7px}.urgb{min-height:62px;padding:8px 5px;box-shadow:none}
+  .local-action[data-go="pedido"]{min-height:128px}
+  .local-action[data-go="pedido"] .module-copy small{display:block;margin-bottom:10px}
+}
+@media(max-width:420px){
+  .order-catalog .quick-pick-item{grid-template-columns:1fr;gap:8px}
+  .order-product-stepper{width:max-content}
+  .review-panel-head{flex-direction:column;gap:4px}
+}
 </style>
 </head>
 <body data-design-version="reference-handoff-v3-mobile-app">
@@ -1577,9 +1638,9 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
 
   <section class="home-shell tab-panel" data-tab="home">
     <div class="home-hero-panel">
-      <p class="skicker">Pedidos semanales</p>
-      <h2>Todo el local, en orden.</h2>
-      <p class="home-hero-lede">Seleccioná tu local para trabajar con pedidos, stock y movimientos del día.</p>
+      <p class="skicker">Docks · Operación gastronómica</p>
+      <h2>¿Qué necesita tu local?</h2>
+      <p class="home-hero-lede">Elegí el local una vez. Después entrás directo al pedido, con el catálogo y las cantidades en una sola pantalla.</p>
       <div class="locales" id="locales"></div>
     </div>
     <div class="home-modules-head">
@@ -1606,8 +1667,8 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
     <div class="pedido-shell-head">
       <div>
         <p class="skicker">Pedido semanal</p>
-        <h2 id="pedidoFlowTitle">Armá el próximo pedido</h2>
-        <p id="pedidoFlowMeta">Completá solo lo necesario. Las cantidades se revisan contra el stock informado.</p>
+        <h2 id="pedidoFlowTitle">Armá el pedido</h2>
+        <p id="pedidoFlowMeta">Buscá un producto, ajustá la cantidad y seguí. Nada más.</p>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
         <span class="pedido-local-pill" id="pedidoLocalPill">Local pendiente</span>
@@ -1618,51 +1679,28 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
     <div class="pedido-progress" id="pedidoProgress"></div>
   </section>
 
-  <!-- 2. Datos -->
-  <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="datos">
-    <div class="shead"><div><p class="skicker">Solicitante</p><h2>Datos del pedido</h2></div></div>
-    <div class="grid2">
-      <div class="field">
-        <label for="encargado">Encargado <span class="req">*</span><span class="auto" id="encAuto" hidden>auto</span></label>
-        <select id="encargado"></select>
-      </div>
-      <div class="field">
-        <label for="email">Email <span class="req">*</span></label>
-        <input type="email" id="email" placeholder="email@local.com" autocomplete="email">
-      </div>
-      <div class="field">
-        <label for="semana">Semana del pedido <span class="req">*</span></label>
-        <input type="week" id="semana">
-      </div>
-      <div class="field">
-        <label for="fecha_entrega">Fecha de entrega deseada <span class="req">*</span></label>
-        <input type="date" id="fecha_entrega">
-      </div>
-    </div>
-  </section>
-
-  <!-- 3. Productos -->
+  <!-- Pedido: catálogo único -->
   <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="productos">
     <div class="shead">
-      <div><p class="skicker">Mercadería</p><h2>Productos a pedir</h2></div>
+      <div><p class="skicker">Paso 1 de 2</p><h2>¿Qué hace falta?</h2></div>
       <span class="snum" id="itemCount">0 ítems</span>
     </div>
     <div class="search-wrap">
       <div class="search-row">
-        <input type="text" id="prodSearch" placeholder="Buscá un producto del catálogo..." autocomplete="off">
-        <button type="button" class="free" id="freeBtn">+ Libre</button>
+        <input type="text" id="prodSearch" placeholder="Buscar producto, categoría o proveedor" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" aria-expanded="false">
+        <button type="button" class="free" id="freeBtn">Fuera de catálogo</button>
       </div>
-      <div class="suggest" id="suggest"></div>
+      <div class="suggest" id="suggest" role="listbox"></div>
     </div>
-    <div class="quick-pick">
+    <div class="order-categories" id="orderCategories" aria-label="Filtrar por categoría"></div>
+    <div class="quick-pick order-catalog">
       <div class="quick-pick-head">
-        <strong>Selector rápido</strong>
+        <strong>Catálogo del local</strong>
         <span id="quickPickMeta">Elegí un local</span>
       </div>
       <div class="quick-pick-list" id="quickPickList"></div>
     </div>
-    <p class="hint" id="catHint">Elegí primero un local para cargar su catálogo. Si un producto no está, usá <b>+ Libre</b>.</p>
-    <div class="items" id="items"></div>
+    <p class="hint" id="catHint">Elegí un local y sumá cantidades con los controles del catálogo.</p>
   </section>
 
   <!-- 4. Stock -->
@@ -1695,18 +1733,6 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
       <div class="stock-dash" id="stockDash"></div>
     </div>
     <p class="hint" id="stockHint">Elegí un local y cargá productos para ver la cobertura real del pedido.</p>
-  </section>
-
-  <!-- 5. Urgencia -->
-  <section class="tab-panel pedido-screen" data-tab="pedido" data-pedido-step="cierre">
-    <div class="shead"><div><p class="skicker">Prioridad</p><h2>Nivel de urgencia</h2></div></div>
-    <div class="urg" id="urg">
-      <button type="button" class="urgb" data-u="Baja"><span class="pip"></span>Baja<small>Puede esperar</small></button>
-      <button type="button" class="urgb" data-u="Normal" aria-pressed="true"><span class="pip"></span>Normal<small>Esta semana</small></button>
-      <button type="button" class="urgb" data-u="Urgente"><span class="pip"></span>Urgente<small>Prioritario</small></button>
-    </div>
-    <div class="shead" style="margin-top:14px"><div><p class="skicker">Notas</p><h2>Observaciones</h2><span class="snum">opcional</span></div></div>
-    <textarea id="observaciones" placeholder="Aclaraciones para gerencia o el proveedor..."></textarea>
   </section>
 
   <!-- Summary -->
@@ -1895,19 +1921,53 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
     </div>
   </section>
 
-  <div class="summary tab-panel pedido-screen" data-tab="pedido" data-pedido-step="resumen">
-    <div>
-      <div class="s-l">Resumen del pedido</div>
-      <div class="s-big" id="sumCount">0 productos</div>
-      <div class="s-est" id="sumEst">Total estimado: <b>—</b></div>
+  <section class="tab-panel pedido-screen order-review" data-tab="pedido" data-pedido-step="resumen">
+    <div class="shead">
+      <div><p class="skicker">Paso 2 de 2</p><h2>Revisá antes de enviar</h2></div>
+      <span class="pedido-local-pill" id="pedidoReviewLocal">Local pendiente</span>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-      <button type="button" class="home-jump" data-go-home><span>⌂</span>Inicio</button>
-      <div class="s-badge" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/><path d="M9 12l2 2 4-4"/></svg>
+    <div class="review-status" id="pedidoReviewStatus" role="status" aria-live="polite"></div>
+    <div class="review-layout">
+      <div class="review-panel">
+        <div class="review-panel-head"><div><strong>Productos</strong><span id="sumCount">0 productos</span></div><span id="sumEst">Cargá los productos que necesitás</span></div>
+        <div class="items" id="items"></div>
+      </div>
+      <div class="review-panel review-details">
+        <div class="review-panel-head"><div><strong>Datos y entrega</strong><span>Podés corregirlos acá</span></div></div>
+        <div class="grid2">
+          <div class="field">
+            <label for="encargado">Encargado <span class="req">*</span><span class="auto" id="encAuto" hidden>auto</span></label>
+            <input id="encargado" type="text" list="encargadoOptions" placeholder="Escribí tu nombre" autocomplete="name" required aria-required="true">
+            <datalist id="encargadoOptions"></datalist>
+          </div>
+          <div class="field">
+            <label for="email">Email <span class="req">*</span></label>
+            <input type="email" id="email" placeholder="email@local.com" autocomplete="email" required aria-required="true">
+          </div>
+          <div class="field">
+            <label for="semana">Semana del pedido <span class="req">*</span></label>
+            <input type="week" id="semana" required aria-required="true">
+          </div>
+          <div class="field">
+            <label for="fecha_entrega">Entrega deseada <span class="req">*</span></label>
+            <input type="date" id="fecha_entrega" required aria-required="true">
+          </div>
+        </div>
+        <div class="review-subsection">
+          <label>Prioridad</label>
+          <div class="urg" id="urg">
+            <button type="button" class="urgb" data-u="Baja"><span class="pip"></span>Baja<small>Puede esperar</small></button>
+            <button type="button" class="urgb" data-u="Normal" aria-pressed="true"><span class="pip"></span>Normal<small>Esta semana</small></button>
+            <button type="button" class="urgb" data-u="Urgente"><span class="pip"></span>Urgente<small>Prioritario</small></button>
+          </div>
+        </div>
+        <div class="field review-subsection">
+          <label for="observaciones">Observaciones <span class="optional">opcional</span></label>
+          <textarea id="observaciones" placeholder="Aclaraciones para gerencia o el proveedor..."></textarea>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
   <p class="foot"><b>Docks del Puerto</b> · Polo Gastronómico<br>Puerto de Frutos, Tigre · Buenos Aires</p>
 
@@ -1929,12 +1989,12 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
     <div class="bar-meta"><b><span id="barCount">0</span> productos</b><span class="meta-soft" id="barMetaText">Empezá cargando el pedido</span></div>
     <div class="bar-actions">
       <div class="pedido-nav">
-        <button type="button" class="nav-btn alt" id="pedidoBack" hidden>Atrás</button>
-        <button type="button" class="nav-btn" id="pedidoNext">Seguir</button>
+        <button type="button" class="nav-btn alt" id="pedidoBack" hidden>Editar productos</button>
+        <button type="button" class="nav-btn" id="pedidoNext">Revisar pedido</button>
       </div>
       <button type="button" class="send" id="send" disabled hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-        Enviar
+        Confirmar y enviar
       </button>
     </div>
   </div>
@@ -2145,11 +2205,13 @@ let LAST_SYNC_AT = null;
 const DRAFT_STORAGE_KEY = "docks-pedidos-operational-drafts-v1";
 let draftSaveTimer = null;
 let restoredDraft = false;
+let restoredDraftSavedAt = "";
 
 /* ---- State ---- */
-const state = { local:"Umo Grill", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"datos", admin:false };
+const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"productos", admin:false };
 let uid = 0;
 let bootstrapRefreshTimer = null;
+let orderCategory = "Todos";
 
 function scheduleDraftSave(){
   clearTimeout(draftSaveTimer);
@@ -2211,11 +2273,11 @@ function restoreOperationalDrafts(){
     if(!saved||!saved.pedido) return false;
     const pedido=saved.pedido;
     if(LOCALES.some(local=>local.id===pedido.local)) state.local=pedido.local;
-    state.urgencia=["Normal","Alta","Urgente"].includes(pedido.urgencia)?pedido.urgencia:"Normal";
+    state.urgencia=["Baja","Normal","Urgente"].includes(pedido.urgencia)?pedido.urgencia:"Normal";
     state.items=Array.isArray(pedido.items)?pedido.items.map(item=>({...item,_id:++uid})):[];
     state.encTouched=pedido.encTouched===true;
     state.emailTouched=pedido.emailTouched===true;
-    state.pedidoStep=PEDIDO_STEPS.some(step=>step.id===pedido.pedidoStep)?pedido.pedidoStep:"datos";
+    state.pedidoStep=PEDIDO_STEPS.some(step=>step.id===pedido.pedidoStep)?pedido.pedidoStep:"productos";
     $("#encargado").value=pedido.encargado||"";
     $("#email").value=pedido.email||"";
     $("#semana").value=pedido.semana||"";
@@ -2231,6 +2293,7 @@ function restoreOperationalDrafts(){
     elabUi.drafts=(saved.elaborados&&saved.elaborados.drafts)||{};
     elabUi.selectedByLocal=(saved.elaborados&&saved.elaborados.selectedByLocal)||{};
     restoredDraft=hasMeaningfulOperationalDraft(saved);
+    restoredDraftSavedAt=restoredDraft&&saved.savedAt ? saved.savedAt : "";
     return restoredDraft;
   }catch{
     return false;
@@ -2261,10 +2324,8 @@ const TAB_META = {
   reportes:{ badge:"Modo reportes", title:"Lectura ejecutiva del local", desc:"Leé riesgos, pedidos y movimientos recientes sin recorrer la plantilla." }
 };
 const PEDIDO_STEPS = [
-  { id:"datos", title:"Datos", meta:"Local, encargado y entrega" },
-  { id:"productos", title:"Productos", meta:"Selección rápida del pedido" },
-  { id:"cierre", title:"Cierre", meta:"Urgencia y observaciones" },
-  { id:"resumen", title:"Resumen", meta:"Control final y envío" }
+  { id:"productos", title:"1 · Armar pedido", meta:"Productos y cantidades" },
+  { id:"resumen", title:"2 · Revisar y enviar", meta:"Datos, entrega y prioridad" }
 ];
 
 function snapshotStampText(){
@@ -2370,19 +2431,26 @@ function renderPedidoFlow(){
   const current = PEDIDO_STEPS[pedidoStepIndex(step)] || PEDIDO_STEPS[0];
   const progress=$("#pedidoProgress");
   const localPill=$("#pedidoLocalPill");
-  $("#pedidoFlowTitle").textContent = "Armá el próximo pedido";
-  $("#pedidoFlowMeta").textContent = "Completá solo lo necesario. Las cantidades se revisan contra el stock informado.";
+  $("#pedidoFlowTitle").textContent = step === "resumen" ? "Último control" : "Armá el pedido";
+  $("#pedidoFlowMeta").textContent = step === "resumen"
+    ? "Todo lo que se enviará está visible y se puede corregir."
+    : "Buscá un producto, ajustá la cantidad y seguí. Nada más.";
   localPill.textContent = state.local ? `${state.local} activo` : "Local pendiente";
+  const reviewLocal=$("#pedidoReviewLocal");
+  if(reviewLocal) reviewLocal.textContent=state.local||"Local pendiente";
   progress.innerHTML = PEDIDO_STEPS.map((item, index)=>{
     const currentIndex = pedidoStepIndex(step);
     const stateName = index < currentIndex ? "done" : index === currentIndex ? "active" : "todo";
     return `<button type="button" class="pedido-step-btn" data-step="${item.id}" data-state="${stateName}" aria-pressed="${index===currentIndex ? "true" : "false"}"><strong>${esc(item.title)}</strong><span>${esc(item.meta)}</span></button>`;
   }).join("");
   progress.querySelectorAll(".pedido-step-btn").forEach(btn=>{
-    btn.addEventListener("click",()=>setPedidoStep(btn.dataset.step));
+    btn.addEventListener("click",()=>{
+      if(pedidoStepIndex(btn.dataset.step)>pedidoStepIndex(state.pedidoStep) && !canAdvancePedidoStep()) return;
+      setPedidoStep(btn.dataset.step);
+    });
   });
   document.querySelectorAll('[data-pedido-step]').forEach(panel=>{
-    panel.hidden = panel.dataset.pedidoStep !== step;
+    panel.hidden = state.tab !== "pedido" || panel.dataset.pedidoStep !== step;
   });
   const isSummary = step === "resumen";
   $("#pedidoBack").hidden = pedidoStepIndex(step) === 0;
@@ -2402,21 +2470,15 @@ function scrollPedidoIntoView(){
 }
 
 function setPedidoStep(step, opts={}){
-  if(!PEDIDO_STEPS.some(x=>x.id===step)) step = "datos";
+  if(!PEDIDO_STEPS.some(x=>x.id===step)) step = "productos";
   state.pedidoStep = step;
   renderPedidoFlow();
   if(opts.scroll !== false) scrollPedidoIntoView();
 }
 
 function canAdvancePedidoStep(){
-  if(state.pedidoStep === "datos"){
-    if(!state.local){ toast("Elegí un local para seguir","err"); return false; }
-    if(!$("#encargado").value.trim()){ toast("Completá el encargado","err"); $("#encargado").focus(); return false; }
-    if(!/\S+@\S+\.\S+/.test($("#email").value)){ toast("Completá un email válido","err"); $("#email").focus(); return false; }
-    if(!$("#semana").value){ toast("Elegí la semana del pedido","err"); $("#semana").focus(); return false; }
-    if(!$("#fecha_entrega").value){ toast("Elegí la fecha de entrega","err"); $("#fecha_entrega").focus(); return false; }
-  }
   if(state.pedidoStep === "productos"){
+    if(!state.local){ toast("Elegí el local antes de armar el pedido","err"); setTab("home"); return false; }
     if(!state.items.length){ toast("Agregá al menos un producto","err"); $("#prodSearch").focus(); return false; }
     if(state.items.some(i=>!(i.qty>0))){ toast("Revisá las cantidades del pedido","err"); return false; }
   }
@@ -2646,7 +2708,7 @@ function renderLocalActions(){
     return;
   }
   const modules = [
-    ['pedido','Pedido','Armá el pedido semanal con cantidades y prioridad.',`${state.items.length} productos`,'<path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>'],
+    ['pedido',state.items.length?'Continuar pedido':'Nuevo pedido',state.items.length?'Retomá el borrador guardado y revisalo antes de enviar.':'Cargá productos y cantidades en una sola pantalla.',state.items.length?`${state.items.length} producto${state.items.length===1?'':'s'} en borrador`:'Empezar ahora','<path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>'],
     ['stock','Stock real','Contá existencias y revisá diferencias operativas.','Último conteo','<path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="m3 8 9 5 9-5v9l-9 5-9-5V8Z"/>'],
     ['recepcion','Recepción','Registrá mercadería manualmente o desde una foto.','Ingreso de mercadería','<path d="M12 3v12m0 0 5-5m-5 5-5-5"/><path d="M5 21h14"/>'],
     ['produccion','Producción','Informá elaborados e insumos consumidos por lote.','Parte productivo','<path d="M14.7 6.3a4 4 0 0 0-5-5L7.5 3.5l3 3L8 9a4 4 0 0 0-5.7 5.1l7.7 7.7a4 4 0 0 0 5.1-5.7l2.5-2.5 3 3 2.2-2.2a4 4 0 0 0-5-5l-3.1 3.1"/>'],
@@ -2697,6 +2759,15 @@ function fillEncargadoSelect(selectId, local, currentValue="", opts={}){
   const people=responsablesForLocal(local);
   const current=String(currentValue||"").trim();
   const placeholder=opts.placeholder || "Elegí encargado";
+  if(sel.tagName==="INPUT"){
+    const listId=sel.getAttribute("list");
+    const list=listId?document.getElementById(listId):null;
+    if(list) list.innerHTML=people.map(person=>`<option value="${esc(String(person.nombre||"").trim())}"></option>`).join("");
+    sel.placeholder=people.length?"Escribí o elegí tu nombre":"Escribí tu nombre";
+    if(current) sel.value=current;
+    else if(opts.preferFirst&&people[0]) sel.value=String(people[0].nombre||"").trim();
+    return;
+  }
   let options = people.map(person=>({ value:String(person.nombre||"").trim(), label:String(person.nombre||"").trim() }));
   if(current && !options.some(option=>option.value===current)){
     options = [{ value:current, label:current }].concat(options);
@@ -2720,7 +2791,7 @@ function selectLocal(id, opts={}){
   scheduleDraftSave();
   recepUi.visibleLimit=40;
   prodUi.visibleLimit=40;
-  if(!opts.silent) setTab("local");
+  if(!opts.silent) setTab("home");
   renderLocales();
   renderLocalActions();
   const localPick=$("#localPick");
@@ -2733,8 +2804,8 @@ function selectLocal(id, opts={}){
   $("#encAuto").hidden = !(c.enc && !state.encTouched);
   const cat=CATALOG[id]||[];
   $("#catHint").innerHTML = cat.length
-    ? `Catálogo de <b>${id}</b>: ${cat.length} productos. Escribí para buscar, o <b>+ Libre</b> para otro.`
-    : `<b>${id}</b> no tiene catálogo cargado todavía. Cargá los productos con <b>+ Libre</b>.`;
+    ? `Catálogo de <b>${id}</b>: ${cat.length} productos. Buscá, filtrá por categoría o usá <b>Fuera de catálogo</b>.`
+    : `<b>${id}</b> no tiene catálogo cargado todavía. Usá <b>Fuera de catálogo</b> para cargar productos.`;
   $("#prodSearch").value=""; closeSuggest();
   renderQuickCatalog();
   renderStockIntelligence();
@@ -2772,7 +2843,7 @@ document.addEventListener("click",e=>{
 
 function renderSuggest(q){
   q=q.trim().toLowerCase();
-  if(!state.local){ suggest.innerHTML=`<div class="sg empty">Elegí un local primero</div>`; suggest.classList.add("open"); sgData=[]; return; }
+  if(!state.local){ suggest.innerHTML=`<div class="sg empty">Elegí un local primero</div>`; suggest.classList.add("open"); search.setAttribute("aria-expanded","true"); sgData=[]; return; }
   if(!q){ closeSuggest(); return; }
   const cat=CATALOG[state.local]||[];
   sgData=cat.filter(x=>x.nombre.toLowerCase().includes(q)||(x.categoria||"").toLowerCase().includes(q)).slice(0,8);
@@ -2781,7 +2852,7 @@ function renderSuggest(q){
     suggest.innerHTML=`<div class="sg empty">Sin coincidencias · usá "+ Libre" para "${esc(search.value.trim())}"</div>`;
   }else{
     suggest.innerHTML=sgData.map((x,i)=>`
-      <div class="sg ${i===0?'active':''}" data-i="${i}">
+      <div class="sg ${i===0?'active':''}" data-i="${i}" role="option" aria-selected="${i===0?'true':'false'}">
         <div class="sg-main">
           <div class="sg-nm">${esc(x.nombre)}</div>
           <div class="sg-meta">${esc(x.categoria||'')}${x.proveedor?' · '+esc(x.proveedor):''}</div>
@@ -2791,10 +2862,11 @@ function renderSuggest(q){
     suggest.querySelectorAll(".sg[data-i]").forEach(el=>el.addEventListener("click",()=>addFromCatalog(sgData[+el.dataset.i])));
   }
   suggest.classList.add("open");
+  search.setAttribute("aria-expanded","true");
 }
-function paintActive(){suggest.querySelectorAll(".sg[data-i]").forEach(el=>el.classList.toggle("active",+el.dataset.i===sgIndex));
+function paintActive(){suggest.querySelectorAll(".sg[data-i]").forEach(el=>{const active=+el.dataset.i===sgIndex;el.classList.toggle("active",active);el.setAttribute("aria-selected",String(active));});
   const a=suggest.querySelector(".sg.active");if(a)a.scrollIntoView({block:"nearest"});}
-function closeSuggest(){suggest.classList.remove("open");sgIndex=-1;}
+function closeSuggest(){suggest.classList.remove("open");search.setAttribute("aria-expanded","false");sgIndex=-1;}
 
 function addFromCatalog(rec){
   if(!rec)return;
@@ -2817,39 +2889,76 @@ $("#freeBtn").addEventListener("click",addFree);
 function renderQuickCatalog(){
   const box=$("#quickPickList");
   const meta=$("#quickPickMeta");
+  const categories=$("#orderCategories");
   if(!state.local){
     meta.textContent="Elegí un local";
+    if(categories) categories.innerHTML="";
     box.innerHTML=`<div class="quick-pick-empty">Seleccioná un local para sumar varios productos rápido.</div>`;
     return;
   }
   const cat=CATALOG[state.local]||[];
   const q=search.value.trim().toLowerCase();
-  const filtered=(q
-    ? cat.filter(x=>x.nombre.toLowerCase().includes(q) || String(x.categoria||"").toLowerCase().includes(q) || String(x.proveedor||"").toLowerCase().includes(q))
-    : cat
-  ).slice(0, 12);
-  meta.textContent = q ? `${filtered.length} resultados rápidos` : `${Math.min(cat.length,12)} visibles de ${cat.length}`;
+  const categoryMap=new Map();
+  cat.map(x=>String(x.categoria||"").trim()).filter(Boolean).forEach(name=>{
+    const key=normalizeLooseText(name);
+    if(!categoryMap.has(key)) categoryMap.set(key,name.charAt(0).toUpperCase()+name.slice(1).toLowerCase());
+  });
+  const categoryNames=[...categoryMap.values()].sort((a,b)=>a.localeCompare(b,"es"));
+  const categoryOptions=["Todos",...(state.items.length?["En pedido"]:[]),...categoryNames];
+  if(!categoryOptions.includes(orderCategory)) orderCategory="Todos";
+  if(categories){
+    categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${esc(name)}</button>`).join("");
+    categories.querySelectorAll(".order-category").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; renderQuickCatalog(); }));
+  }
+  const allFiltered=cat.filter(x=>{
+    const matchesQuery=!q || x.nombre.toLowerCase().includes(q) || String(x.categoria||"").toLowerCase().includes(q) || String(x.proveedor||"").toLowerCase().includes(q);
+    const matchesCategory=orderCategory==="Todos" || (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
+    return matchesQuery&&matchesCategory;
+  });
+  const filtered=allFiltered.slice(0,30);
+  meta.textContent = `${filtered.length}${allFiltered.length>filtered.length?` de ${allFiltered.length}`:""} producto${allFiltered.length===1?'':'s'} · ${state.items.length} en el pedido`;
   if(!filtered.length){
-    box.innerHTML=`<div class="quick-pick-empty">No hay coincidencias. Usá <b>+ Libre</b> si el producto no está cargado.</div>`;
+    box.innerHTML=`<div class="quick-pick-empty">No hay coincidencias. Usá <b>Fuera de catálogo</b> si necesitás cargar otro producto.</div>`;
     return;
   }
   box.innerHTML = filtered.map(item=>{
     const current = state.items.find(x=>!x.free && x.codigo===item.codigo);
     return `
-      <div class="quick-pick-item">
+      <div class="quick-pick-item ${current?'in-order':''}" data-code="${esc(item.codigo||"")}">
         <div class="quick-pick-main">
           <div class="quick-pick-name">${esc(item.nombre)}</div>
-          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${current?` · en pedido ${esc(trim(current.qty))} ${esc(current.unidad)}`:""}</div>
+          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${item.stock_actual!==undefined&&item.stock_actual!==null?` · Stock ${esc(trim(num(item.stock_actual)||0))}`:""}</div>
         </div>
-        <button type="button" class="quick-pick-btn" data-code="${esc(item.codigo||"")}">${current?"+1 más":"Agregar"}</button>
+        <div class="order-product-stepper" aria-label="Cantidad de ${esc(item.nombre)}">
+          <button type="button" data-qty-step="-1" aria-label="Restar ${esc(item.nombre)}">−</button>
+          <input type="number" min="0" step="0.1" inputmode="decimal" value="${current?esc(current.qty):0}" data-qty-value aria-label="Cantidad de ${esc(item.nombre)}">
+          <button type="button" data-qty-step="1" aria-label="Sumar ${esc(item.nombre)}">+</button>
+        </div>
       </div>`;
   }).join("");
-  box.querySelectorAll(".quick-pick-btn").forEach(btn=>{
-    btn.addEventListener("click",()=>{
-      const item=filtered.find(x=>String(x.codigo||"")===btn.dataset.code);
-      addFromCatalog(item);
-    });
+  box.querySelectorAll(".quick-pick-item").forEach(row=>{
+    const item=filtered.find(x=>String(x.codigo||"")===row.dataset.code);
+    row.querySelectorAll("[data-qty-step]").forEach(btn=>btn.addEventListener("click",()=>{
+      const current=state.items.find(x=>!x.free&&x.codigo===item.codigo);
+      setCatalogItemQuantity(item,Math.max(0,(current?num(current.qty)||0:0)+Number(btn.dataset.qtyStep||0)));
+    }));
+    row.querySelector("[data-qty-value]").addEventListener("change",e=>setCatalogItemQuantity(item,Math.max(0,num(e.target.value)||0)));
   });
+}
+
+function setCatalogItemQuantity(rec, quantity){
+  if(!rec) return;
+  const existing=state.items.find(item=>!item.free&&item.codigo===rec.codigo);
+  if(quantity<=0){
+    state.items=state.items.filter(item=>item!==existing);
+  }else if(existing){
+    existing.qty=quantity;
+  }else{
+    state.items.push({_id:++uid,codigo:rec.codigo,nombre:rec.nombre,unidad:rec.unidad,proveedor:rec.proveedor,categoria:rec.categoria||"",precio:rec.precio,qty:quantity,free:false});
+  }
+  renderItems();
+  renderQuickCatalog();
+  scheduleDraftSave();
 }
 
 /* ---- Items render ---- */
@@ -2862,9 +2971,9 @@ function renderItems(){
         <div class="it-nm">${esc(it.nombre)} ${it.free?'<span class="tag free">libre</span>':`<span class="tag">${esc(it.codigo)}</span>`}</div>
         <div class="it-sub">${it.free?'Producto libre':esc(it.proveedor||'Sin proveedor')}</div>
       </div>
-      <input class="qty" type="number" min="0.1" step="0.1" value="${it.qty}" data-act="qty" inputmode="decimal" aria-label="Cantidad">
-      <select class="unit" data-act="unit" aria-label="Unidad">${unitOptions(it.unidad)}</select>
-      <button type="button" class="del" data-act="del" aria-label="Eliminar">${icoTrash}</button>
+      <input class="qty" type="number" min="0.1" step="0.1" value="${it.qty}" data-act="qty" inputmode="decimal" aria-label="Cantidad de ${esc(it.nombre)}">
+      <select class="unit" data-act="unit" aria-label="Unidad de ${esc(it.nombre)}">${unitOptions(it.unidad)}</select>
+      <button type="button" class="del" data-act="del" aria-label="Eliminar ${esc(it.nombre)}">${icoTrash}</button>
     </div>`).join("");
   box.querySelectorAll(".item").forEach(row=>{
     const id=+row.dataset.id, it=state.items.find(x=>x._id===id);
@@ -2925,8 +3034,32 @@ function valid(){
 function syncSend(){
   const btn=$("#send");
   if(!btn) return;
-  btn.disabled=!LIVE||!valid();
-  btn.title=LIVE?"":"Sin conexión: el pedido no se puede enviar";
+  const missing=[];
+  if(!state.local) missing.push("local");
+  if(!$("#encargado").value.trim()) missing.push("encargado");
+  if(!/\S+@\S+\.\S+/.test($("#email").value)) missing.push("email válido");
+  if(!$("#semana").value) missing.push("semana");
+  if(!$("#fecha_entrega").value) missing.push("fecha de entrega");
+  if(!state.items.length) missing.push("productos");
+  if(state.items.some(item=>!(item.qty>0))) missing.push("cantidades");
+  const ready=LIVE&&!missing.length;
+  btn.disabled=!ready;
+  btn.title=!LIVE?"Sin conexión: el pedido no se puede enviar":missing.length?`Falta: ${missing.join(", ")}`:"Pedido listo para confirmar";
+  ["encargado","email","semana","fecha_entrega"].forEach(id=>{
+    const field=$("#"+id);
+    if(!field) return;
+    const invalid=id==="email"?!/\S+@\S+\.\S+/.test(field.value):!field.value.trim();
+    field.setAttribute("aria-invalid",String(state.pedidoStep==="resumen"&&invalid));
+  });
+  const status=$("#pedidoReviewStatus");
+  if(status){
+    status.className=`review-status ${ready?"ready":"needs-attention"}`;
+    status.textContent=!LIVE
+      ? "Sin conexión con la planilla. El borrador queda guardado en este dispositivo."
+      : missing.length
+        ? `Antes de enviar falta completar: ${missing.join(", ")}.`
+        : `Pedido listo: ${state.items.length} producto${state.items.length===1?'':'s'} para ${state.local}.`;
+  }
 }
 
 /* ---- Submit ---- */
@@ -2996,7 +3129,7 @@ async function submit(){
   }
 }
 function resetForm(){
-  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="datos";
+  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="productos"; orderCategory="Todos";
   $("#observaciones").value=""; renderItems();
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
   if(state.local) selectLocal(state.local);
@@ -4898,7 +5031,10 @@ renderDashboard();
 renderWorkspaceStats();
 setTab("home");
 warmData();
-if(restoredDraft) setTimeout(()=>toast("Borrador recuperado en este dispositivo","ok"),250);
+if(restoredDraft) setTimeout(()=>{
+  const savedTime=restoredDraftSavedAt ? new Date(restoredDraftSavedAt).toLocaleString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+  toast(`Borrador recuperado${savedTime?` · ${savedTime}`:""}`,"ok");
+},250);
 </script>
 <style>.spin{animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
