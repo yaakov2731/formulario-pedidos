@@ -1372,6 +1372,12 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
 .recep-intake{gap:18px}.recep-intake-btn{min-height:150px;padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:none;text-align:left}.recep-intake-btn strong{font-size:17px;font-weight:600}.recep-intake-btn span{margin-top:8px;color:var(--ink-soft);font-size:13px}
 .report-reference-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .report-reference-card{padding:22px}
+.decision-center{margin-top:24px;border:1px solid var(--ink);background:var(--surface);box-shadow:8px 10px 0 rgb(199 102 60 / .12)}
+.decision-head{display:grid;grid-template-columns:minmax(230px,.75fr) minmax(0,1.25fr);background:#2a2025;color:#fff}
+.decision-title{padding:22px 24px;border-right:1px solid rgb(255 255 255 / .14)}.decision-title .skicker{color:#e9a483}.decision-title h3{margin-top:7px;font-family:'Fraunces',Georgia,serif;font-size:28px;font-weight:600;line-height:1}.decision-title p{margin-top:8px;color:#d6c7cd;font-size:11px}
+.decision-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.decision-kpi{padding:18px;border-right:1px solid rgb(255 255 255 / .12)}.decision-kpi:last-child{border-right:0}.decision-kpi span{display:block;color:#bdaeb4;font-size:9px;font-weight:750;letter-spacing:.11em;text-transform:uppercase}.decision-kpi strong{display:block;margin-top:7px;font-family:'Fraunces',Georgia,serif;font-size:27px;font-weight:600}.decision-kpi small{display:block;margin-top:3px;color:#d8cbd0;font-size:9.5px}
+.decision-list{padding:0 22px}.decision-row{display:grid;grid-template-columns:74px minmax(170px,1fr) minmax(260px,1.4fr) auto;align-items:center;gap:16px;min-height:86px;border-bottom:1px solid var(--line)}.decision-row:last-child{border-bottom:0}.decision-priority{font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:var(--copper)}.decision-priority.high{color:var(--red)}.decision-product strong{display:block;font-size:14px}.decision-product small,.decision-evidence small{display:block;margin-top:4px;color:var(--muted);font-size:10.5px}.decision-evidence b{font-size:12px}.decision-action{min-height:38px;padding:0 13px;border:1px solid var(--brand);border-radius:0;background:transparent;color:var(--brand-strong);font:inherit;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}.decision-action:hover{background:var(--brand);color:#fff}.decision-action:disabled{border-color:var(--line);color:var(--muted);cursor:default}
+.decision-empty{padding:28px;color:var(--muted);font-size:12px;text-align:center}
 .timeline-event{display:grid;grid-template-columns:58px 12px minmax(0,1fr);gap:16px;min-height:74px;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible}
 .event-level{padding-top:2px;color:var(--ink-soft);font:12px/1.5 ui-monospace,monospace}.event-dot{position:relative}.event-dot::after{content:"";position:absolute;top:5px;left:2px;width:7px;height:7px;border-radius:50%;background:var(--ink)}.event-dot::before{content:"";position:absolute;top:8px;bottom:-6px;left:5px;width:1px;background:var(--line)}.timeline-event:last-child .event-dot::before{display:none}
 .event-copy strong{display:block;font-weight:550}.event-copy small{display:block;margin-top:3px;color:var(--ink-soft);font-size:13px}
@@ -1413,6 +1419,7 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
   .module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stock-actions{grid-template-columns:1fr}
   .report-reference-grid{grid-template-columns:1fr}
+  .decision-head{grid-template-columns:1fr}.decision-title{border-right:0;border-bottom:1px solid rgb(255 255 255 / .14)}.decision-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.decision-row{grid-template-columns:58px minmax(0,1fr) auto}.decision-evidence{grid-column:2/4}.decision-list{padding:0 14px}
   .bar{left:10px;right:10px;bottom:10px}
   .op-row{grid-template-columns:minmax(0,1fr) 120px;padding:16px}
   .op-row .icon-btn{grid-column:2}
@@ -2083,6 +2090,13 @@ body,.app-main{
       <span class="snum" id="dashMeta">Sin local</span>
     </div>
     <div class="dash-grid" id="dashCards"></div>
+    <section class="decision-center" id="dashDecisionCenter" aria-labelledby="dashDecisionTitle">
+      <div class="decision-head">
+        <div class="decision-title"><p class="skicker">Próxima mejor acción</p><h3 id="dashDecisionTitle">Centro de decisiones</h3><p>Stock, demanda abierta e historial cruzados sin modificar la planilla.</p></div>
+        <div class="decision-summary" id="dashDecisionSummary"></div>
+      </div>
+      <div class="decision-list" id="dashDecisionList"></div>
+    </section>
     <div class="module-stack report-reference-grid" style="margin-top:28px">
       <div class="stock-panel report-reference-card">
         <div class="stock-panel-head">
@@ -2381,7 +2395,7 @@ let RESP = {};
 let RECEPCIONES = { latest:[], byLocal:{} };
 let PRODUCCION = { latest:[], byLocal:{} };
 let ELABORADOS = { latest:[], byLocal:{} };
-let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
+let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{}, decisionCenterByLocal:{} };
 let PEDIDO_INTELLIGENCE = { generated_at:"", byLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
 let LIVE = false;   // true solo si el /exec de Apps Script respondió
@@ -3838,6 +3852,7 @@ function renderDashboard(){
     cards.innerHTML="";
     riskList.innerHTML=`<div class="stock-empty">Elegí un local para ver alertas.</div>`;
     activityList.innerHTML=`<div class="stock-empty">Elegí un local para ver movimientos.</div>`;
+    renderDecisionCenter();
     return;
   }
   if(!LIVE){
@@ -3851,6 +3866,7 @@ function renderDashboard(){
     ].join("");
     riskList.innerHTML=`<div class="stock-empty"><b>No se pueden confirmar riesgos sin conexión.</b><br>${esc(syncText)}.</div>`;
     activityList.innerHTML=`<div class="stock-empty"><b>Actividad actual no disponible.</b><br>Reconectá para consultar movimientos confirmados.</div>`;
+    renderDecisionCenter();
     return;
   }
   const metrics=localOperationalMetrics();
@@ -3866,6 +3882,7 @@ function renderDashboard(){
     metricCard("Ingresos hoy", metrics.recepSummary.movimientos||0, `${trim(metrics.recepSummary.cantidad||0)} unidades recibidas`, "good"),
     metricCard("Producción hoy", trim(metrics.prodSummary.cantidad_producida||0), `${metrics.prodSummary.movimientos||0} partes registrados`, "warn")
   ].join("");
+  renderDecisionCenter();
   const risks=[
     ...metrics.reviewRows.map(row=>({title:row.it.nombre, meta:`${row.meta.label} · ${row.meta.message}${row.meta.side?` · ${row.meta.side}`:""}`})),
     ...localRisks.map(item=>{
@@ -3890,6 +3907,56 @@ function renderDashboard(){
       <span class="event-dot"></span>
       <span class="event-copy"><strong>${esc(row.title)}</strong><small>${esc(row.meta)}</small></span>
     </div>`).join("") : `<div class="stock-empty">Todavía no hay movimientos confirmados para este local.</div>`;
+}
+
+function renderDecisionCenter(){
+  const summary=$("#dashDecisionSummary"), list=$("#dashDecisionList");
+  if(!summary||!list) return;
+  if(!state.local){
+    summary.innerHTML="";
+    list.innerHTML=`<div class="decision-empty">Elegí un local para generar decisiones operativas.</div>`;
+    return;
+  }
+  if(!LIVE){
+    summary.innerHTML=[
+      ["Comprar","—","Sin datos actuales"],["Urgente","—","Sin datos actuales"],["Contar","—","Sin datos actuales"],["Cubierto","—","Sin datos actuales"]
+    ].map(item=>`<div class="decision-kpi"><span>${item[0]}</span><strong>${item[1]}</strong><small>${item[2]}</small></div>`).join("");
+    list.innerHTML=`<div class="decision-empty">Reconectá para cruzar stock, demanda e historial.</div>`;
+    return;
+  }
+  const data=(SNAPSHOT.decisionCenterByLocal&&SNAPSHOT.decisionCenterByLocal[state.local])||{summary:{},suggestions:[],needs_count:[]};
+  const stats=data.summary||{};
+  summary.innerHTML=[
+    ["Comprar",stats.comprar||0,"líneas sugeridas"],["Urgente",stats.urgentes||0,"faltantes abiertos"],["Contar",stats.contar||0,"sin stock confiable"],["Cubierto",stats.cubiertos||0,"sin compra sugerida"]
+  ].map(item=>`<div class="decision-kpi"><span>${item[0]}</span><strong>${item[1]}</strong><small>${item[2]}</small></div>`).join("");
+  const buyRows=(data.suggestions||[]).slice(0,8).map(item=>({type:"buy",...item}));
+  const countRows=(data.needs_count||[]).slice(0,Math.max(0,8-buyRows.length)).map(item=>({type:"count",...item}));
+  const rows=[...buyRows,...countRows];
+  if(!rows.length){
+    list.innerHTML=`<div class="decision-empty"><b>Operación cubierta.</b><br>No hay compras ni conteos prioritarios para este local.</div>`;
+    return;
+  }
+  list.innerHTML=rows.map(item=>{
+    const catalogItem=(CATALOG[state.local]||[]).find(rec=>(item.codigo&&rec.codigo===item.codigo)||normalizeLooseText(rec.nombre)===normalizeLooseText(item.producto));
+    const inOrder=catalogItem&&state.items.find(rec=>!rec.free&&rec.codigo===catalogItem.codigo);
+    const priority=item.type==="count"?"contar":item.prioridad||"media";
+    const evidence=item.type==="count"
+      ? `<b>Falta conteo real</b><small>${esc(item.razon||"")}${item.pendiente?` · ${esc(trim(item.pendiente))} ${esc(item.unidad||"")} pendiente`:""}</small>`
+      : `<b>Pedir ${esc(trim(item.cantidad_sugerida))} ${esc(item.unidad||"")}</b><small>Stock ${esc(trim(item.stock))} · abierto ${esc(trim(item.pendiente))} · habitual ${esc(trim(item.habitual))}</small>`;
+    const action=item.type==="count"
+      ? `<button type="button" class="decision-action" data-decision-stock>Contar stock</button>`
+      : `<button type="button" class="decision-action" data-decision-add="${esc(item.codigo||"")}" data-decision-name="${esc(item.producto||"")}" data-decision-qty="${esc(item.cantidad_sugerida)}" ${inOrder?"disabled":""}>${inOrder?"En pedido":"Sumar al pedido"}</button>`;
+    return `<div class="decision-row"><span class="decision-priority ${priority==="alta"?"high":""}">${esc(priority)}</span><span class="decision-product"><strong>${esc(item.producto||"Producto")}</strong><small>${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}</small></span><span class="decision-evidence">${evidence}</span>${action}</div>`;
+  }).join("");
+  list.querySelectorAll("[data-decision-stock]").forEach(btn=>btn.addEventListener("click",()=>setTab("stock")));
+  list.querySelectorAll("[data-decision-add]").forEach(btn=>btn.addEventListener("click",()=>{
+    const item=(CATALOG[state.local]||[]).find(rec=>(btn.dataset.decisionAdd&&rec.codigo===btn.dataset.decisionAdd)||normalizeLooseText(rec.nombre)===normalizeLooseText(btn.dataset.decisionName));
+    const qty=num(btn.dataset.decisionQty)||0;
+    if(!item||!(qty>0)) return;
+    setCatalogItemQuantity(item,qty);
+    renderDashboard();
+    toast(`${item.nombre}: ${trim(qty)} ${item.unidad||""} agregado al borrador`,"ok");
+  }));
 }
 
 async function saveReception(){
