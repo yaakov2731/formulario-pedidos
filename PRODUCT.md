@@ -99,8 +99,6 @@ local se unifican sin sobrescribir sus productos.
 
 Validación: `node scripts/verify-local-catalog.js`, sin escrituras de datos operativos.
 
-## Brand
-
 ## Lectura de cantidades por unidad
 
 Stock y pedido muestran subtotales separados por unidad de medida. Sólo se unifican
@@ -116,6 +114,8 @@ permiten reconstruir medidas se presentan por registro/producto, no como un tota
 ficticio de unidades. Esta lectura no cambia datos de la planilla.
 
 Validación: `node scripts/verify-unit-quantities.js`, con datos en memoria.
+
+## Brand
 
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).
 - **Tono:** claro, directo, operativo. Español rioplatense.
