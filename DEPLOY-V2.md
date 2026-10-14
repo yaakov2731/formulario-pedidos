@@ -15,8 +15,15 @@ El workflow `.github/workflows/deploy.yml` se ejecuta al actualizar `main`:
 2. Aplica las rutas administrativas mediante `scripts/patch_admin_backend.py`.
 3. Publica `gas/` con clasp y actualiza el deployment identificado por `SCRIPT_URL`.
    Usa secretos configurados en GitHub; no copiarlos en archivos versionados ni logs.
-4. Publica `index.html`, `admin.js` y `favicon.svg` en `gh-pages`.
-5. GitHub Pages construye el sitio desde esa rama. Esperar también ese workflow.
+4. Empaqueta sólo `index.html`, `admin.js` y `favicon.svg` como artefacto de Pages.
+5. Publica directamente mediante `actions/deploy-pages`; esperar el job
+   `deploy-frontend`, que ahora incluye la publicación real, no sólo una copia a rama.
+
+La fuente de Pages debe ser GitHub Actions (`build_type: workflow`). El entorno
+`github-pages` permite la rama `main`. El job sólo solicita lectura de código y
+los permisos de Pages/OIDC necesarios para publicar; no escribe en `gh-pages`.
+Ante un fallo, la versión pública anterior sigue disponible. Para volver atrás,
+revertir el commit autorizado en `main` y desplegar por el mismo workflow.
 
 Una actualización habitual no requiere ejecutar `setupPlantillaPro()` ni
 `setupVersion2UI()`: esas funciones migran o reconstruyen planillas. No ejecutar
