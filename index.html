@@ -2914,6 +2914,7 @@ function renderRecepPhotoPanel(local){
   }
   const photo=getRecepPhotoState(local);
   const unknownItems = photo && Array.isArray(photo.unknownItems) ? photo.unknownItems : [];
+  const reviewItems = photo && Array.isArray(photo.reviewItems) ? photo.reviewItems : [];
   if(recepUi.ocrBusy){
     chip.textContent="Leyendo";
     sub.textContent="Procesando la foto de la boleta...";
@@ -2934,8 +2935,8 @@ function renderRecepPhotoPanel(local){
   sub.textContent = photo.fileName
     ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} detectada${photo.matches.length===1?"":"s"}${unknownItems.length ? ` · ${unknownItems.length} para revisar` : ""}. La carga manual previa se conserva.`
     : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`;
-  meta.textContent = photo.matches.length || unknownItems.length
-    ? `${photo.engineMeta || "Podés corregir cantidades en la grilla manual antes de guardar la recepción."}`
+  meta.textContent = photo.matches.length || unknownItems.length || reviewItems.length
+    ? `${photo.engineMeta || "Podés corregir cantidades en la grilla manual antes de guardar la recepción."}${reviewItems.length?` ${reviewItems.length} líneas requieren confirmar presentación y cantidad; no se precargaron.`:""}`
     : "No encontré coincidencias claras en el archivo. Revisá las columnas o completá a mano.";
   const matchedHtml = photo.matches.length
     ? photo.matches.slice(0,6).map(match=>`
@@ -2960,7 +2961,13 @@ function renderRecepPhotoPanel(local){
         </div>
       </div>`).join("")
     : "";
-  list.innerHTML = `${matchedHtml}${unknownHtml}`;
+  const reviewHtml=reviewItems.length?`<details open><summary>${reviewItems.length} productos por revisar</summary>${reviewItems.map(item=>`<div class="recep-photo-item"><div><strong>${esc(item.producto)}</strong><span>${esc(item.sourceLine)}</span><span>Confirmá cuánto recibiste en ${esc(item.unidad||"la unidad del catálogo")}; no se convierten cajas, envases o pesos automáticamente.</span></div><button class="cfg-btn alt" type="button" data-photo-review="${esc(item.producto)}">Ver producto</button></div>`).join("")}</details>`:"";
+  list.innerHTML = `${matchedHtml}${reviewHtml}${unknownHtml}`;
+  list.querySelectorAll("[data-photo-review]").forEach(btn=>btn.addEventListener("click",()=>{
+    recepUi.queryByLocal[local]=btn.dataset.photoReview;
+    recepUi.scopeByLocal[local]="all";
+    renderRecepcionModule();
+  }));
   list.querySelectorAll("[data-photo-add]").forEach(btn=>{
     btn.addEventListener("click",()=>addPhotoSuggestionToCatalog(local, Number(btn.dataset.photoAdd)));
   });
@@ -4126,6 +4133,7 @@ async function loadReceptionFromPhoto(file){
     const text=filteredText||rawText;
     let parsed=parseReceiptPhotoText(text,state.local);
     const localUnknownItems=Array.isArray(parsed.unknown_items)?parsed.unknown_items:[];
+    const localReviewItems=Array.isArray(parsed.review_items)?parsed.review_items:[];
     let engineLabel="OCR";
     let engineMeta="Filtré la foto para leer solo líneas de artículo, precio, cantidad e importe. Podés corregir cantidades antes de guardar.";
     if(capabilityEnabled("receipt_ai_parse")){
@@ -4134,7 +4142,7 @@ async function loadReceptionFromPhoto(file){
         if(aiParsed&&aiParsed.ok&&Array.isArray(aiParsed.matches)){
           parsed={
             rawText,
-            matches:aiParsed.matches,
+            matches:aiParsed.matches.filter(match=>!localReviewItems.some(row=>row.codigo&&row.codigo===match.codigo)),
             proveedor:aiParsed.proveedor||parsed.proveedor||"",
             unknown_items:mergeUnknownPhotoItems(aiParsed.unknown_items||[],localUnknownItems)
           };
@@ -4150,6 +4158,7 @@ async function loadReceptionFromPhoto(file){
       rawText,
       matches:parsed.matches,
       unknownItems,
+      reviewItems:localReviewItems,
       engineLabel,
       engineMeta
     };
@@ -4159,7 +4168,7 @@ async function loadReceptionFromPhoto(file){
     }
     renderRecepcionModule();
     renderWorkspaceStats();
-    if(parsed.matches.length || unknownItems.length){
+    if(parsed.matches.length || unknownItems.length || localReviewItems.length){
       toast(`${engineLabel}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${unknownItems.length?` · ${unknownItems.length} fuera del catálogo`:""}`,"ok");
     }else{
       toast("Leí la foto, pero no encontré coincidencias claras. Podés completar a mano.","err");
@@ -4840,7 +4849,8 @@ function isReceiptNoiseLine(line){
   const lower=normalizeLooseText(line);
   if(!lower) return true;
   if(lower.length < 4) return true;
-  if(/\b(total|subtotal|iva|descuento|recargo|cambio|efectivo|tarjeta|debito|credito|transferencia|pago|abonado|saldo|vuelto|cajero|cliente|mesa|pedido|comprobante|factura|ticket|remito|fecha|hora|cuit|cuil|direccion|domicilio|telefono|tel|gracias|pagina)\b/.test(lower)) return true;
+  if(/\b(total|subtotal|iva|descuento|recargo|cambio|efectivo|tarjeta|debito|credito|transferencia|pago|abonado|saldo|vuelto|cajero|cliente|mesa|pedido|comprobante|factura|ticket|remito|fecha|hora|cuit|cuil|direccion|domicilio|telefono|tel|gracias|pagina|vto|vencimiento|provincia|localidad|local|zona|responsable|inscripto)\b/.test(lower)) return true;
+  if(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/.test(lower)) return true;
   if(/^\d{1,2}[\/-]\d{1,2}([\/-]\d{2,4})?$/.test(lower)) return true;
   return false;
 }
@@ -4892,7 +4902,8 @@ function extractReceiptTableLines(text){
 function filterReceiptRelevantText(text){
   const tableLines=extractReceiptTableLines(text);
   const fallback=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(line=>looksLikeReceiptHeaderLine(line) || looksLikeReceiptItemLine(line));
-  const filtered=tableLines.length ? tableLines : fallback;
+  const tableItemCount=tableLines.filter(looksLikeReceiptItemLine).length;
+  const filtered=tableItemCount>0&&tableItemCount>=fallback.filter(looksLikeReceiptItemLine).length ? tableLines : fallback;
   return filtered.join("\n");
 }
 function mergeReceiptContinuationLines(lines){
@@ -4955,14 +4966,16 @@ function guessProveedorFromOcr(text, local){
 }
 function parseReceiptPhotoText(text, local){
   const baseLines=extractReceiptTableLines(text);
-  const lines=mergeReceiptContinuationLines(baseLines.length ? baseLines : String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean));
+  const allLines=String(text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  const baseCount=baseLines.filter(looksLikeReceiptItemLine).length;
+  const lines=mergeReceiptContinuationLines(baseCount>0&&baseCount>=allLines.filter(looksLikeReceiptItemLine).length ? baseLines : allLines);
   const catalog=CATALOG[local]||[];
   const matches=[];
   const unknownItems=[];
+  const reviewItems=[];
   const seen=new Set();
   lines.forEach(line=>{
     const qty=extractReceiptQty(line);
-    if(qty===null) return;
     let best=null;
     let bestScore=0;
     catalog.forEach(item=>{
@@ -4973,6 +4986,7 @@ function parseReceiptPhotoText(text, local){
       }
     });
     if(!best || bestScore < 6){
+      if(qty===null) return;
       const draftName=line.replace(/\b\d+(?:[.,]\d+)?\b/g," ").replace(/\s+/g," ").trim();
       if(draftName){
         unknownItems.push({
@@ -4985,6 +4999,10 @@ function parseReceiptPhotoText(text, local){
           sourceLine:line
         });
       }
+      return;
+    }
+    if(qty===null || /\bx\s*\d|\d\s*x\s*\d/.test(normalizeLooseText(line))){
+      reviewItems.push({codigo:best.codigo||"",producto:best.nombre,unidad:best.unidad||"",sourceLine:line});
       return;
     }
     const key=stockKey(best.codigo,best.nombre);
@@ -5029,6 +5047,7 @@ function parseReceiptPhotoText(text, local){
     rawText:text,
     matches:[...grouped.values()].sort((a,b)=>b.score-a.score),
     unknown_items:[...groupedUnknown.values()],
+    review_items:reviewItems,
     proveedor:guessProveedorFromOcr(text, local)
   };
 }
@@ -5092,6 +5111,7 @@ function closeRecepcionModuleHelpers(){
 function applyPhotoMatchesToReceptionDraft(local, parsed){
   const drafts=ensureRecepDrafts(local);
   parsed.matches.forEach(match=>{
+    if(!(num(match.cantidad_recibida)>0)) return;
     if(String(drafts.items[match.key]??"").trim()!=="") return;
     drafts.items[match.key] = String(match.cantidad_recibida);
   });
