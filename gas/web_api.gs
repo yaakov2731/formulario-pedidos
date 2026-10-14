@@ -388,6 +388,7 @@ function appCapabilities_() {
     catalog_par: true,
     reception_guide: true,
     local_order_catalog: true,
+    demand_unit_review: true,
     telegram_notify: telegram.enabled,
     receipt_ai_parse: openai.enabled
   };

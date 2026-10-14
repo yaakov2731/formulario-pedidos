@@ -115,6 +115,12 @@ ficticio de unidades. Esta lectura no cambia datos de la planilla.
 
 Validación: `node scripts/verify-unit-quantities.js`, con datos en memoria.
 
+Los pedidos abiertos se agrupan por su medida original. Si difiere del catálogo,
+falta la unidad o la cantidad no es válida, la app muestra «Medidas por revisar»
+y no propone una compra automática, ni desde el historial ni desde el objetivo.
+«Ver referencia» abre las líneas del local en Recepción, sin registrar movimientos.
+El consolidado conserva cajas y litros como renglones distintos; no convierte medidas.
+
 ## Brand
 
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).

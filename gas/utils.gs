@@ -981,11 +981,49 @@ function pendingDemandSummary_() {
     if (estado === 'entregado' || estado === 'cancelado') continue;
     activeRows.push(row.slice(0, DETALLE_HEADERS.length));
     var key = keyFor_(row[3], row[6], row[7]);
-    if (!out[key]) out[key] = { cantidad: 0, pedidos: 0 };
-    out[key].cantidad += numberOrZero_(row[9], 0);
+    if (!out[key]) out[key] = { cantidad: null, pedidos: 0, por_unidad: [], cantidades_invalidas: 0 };
+    var quantity = numberOrNull_(row[9]);
+    var unit = demandUnitKey_(row[10]);
+    if (quantity === null || quantity < 0) out[key].cantidades_invalidas++;
+    else {
+      var group = out[key].por_unidad.filter(function (item) { return item.unidad === unit; })[0];
+      if (!group) { group = { unidad: unit, cantidad: 0 }; out[key].por_unidad.push(group); }
+      group.cantidad = round2_(group.cantidad + quantity);
+    }
+    out[key].cantidad = out[key].por_unidad.length === 1 && !out[key].cantidades_invalidas ? out[key].por_unidad[0].cantidad : null;
     out[key].pedidos += 1;
   }
   return { demandMap: out, activeRows: activeRows };
+}
+
+function demandUnitKey_(value) { return String(value || '').normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' '); }
+function demandForCatalogUnit_(demand, unit) {
+  if (!demand || (!demand.pedidos && !demand.cantidad && !(demand.por_unidad || []).length)) return { cantidad: 0, needs_review: false, referencias: [] };
+  var references = demand.por_unidad || [{ unidad: demand.unidad || '', cantidad: demand.cantidad }];
+  var wanted = demandUnitKey_(unit);
+  var review = !wanted || (demand.cantidades_invalidas || 0) > 0;
+  var quantity = 0;
+  references.forEach(function (row) {
+    var value = numberOrNull_(row.cantidad);
+    if (!demandUnitKey_(row.unidad) || demandUnitKey_(row.unidad) !== wanted || value === null || value < 0) review = true;
+    else quantity += value;
+  });
+  return { cantidad: review ? null : round2_(quantity), needs_review: review, referencias: references };
+}
+function demandUnitReviewText_(demand, unit) {
+  var references = demand.referencias.map(function (row) { return row.cantidad + ' ' + (row.unidad || '(sin unidad)'); }).join(' + ');
+  return 'Pedido abierto: ' + (references || 'cantidades sin confirmar') + '. Catálogo: ' + (unit || 'sin unidad') + '. Revisar medidas y definir equivalencias antes de calcular una compra.';
+}
+function buildDemandReviewsByLocal_(snap) {
+  var out = {};
+  Object.keys(snap.catalog || {}).forEach(function (local) {
+    out[local] = [];
+    (snap.catalog[local] || []).forEach(function (item) {
+      var demand = demandForCatalogUnit_((snap.demandMap || {})[keyFor_(local, item.codigo, item.nombre)], item.unidad);
+      if (demand.needs_review) out[local].push({ codigo: item.codigo || '', producto: item.nombre, unidad: item.unidad || '', referencias: demand.referencias, razon: demandUnitReviewText_(demand, item.unidad) });
+    });
+  });
+  return out;
 }
 
 function computeOperationalSnapshot_() {
@@ -1003,6 +1041,8 @@ function computeOperationalSnapshot_() {
   var totalSinStock = 0;
   var totalFaltantes = 0;
   var totalPedidoCantidad = 0;
+  var pedidoUnits = {};
+  var pedidoUnitsReview = false;
   var localesConRiesgo = 0;
 
   Object.keys(catalog).forEach(function (local) {
@@ -1012,9 +1052,10 @@ function computeOperationalSnapshot_() {
       var stockRec = stockMap[key] || {};
       var demandRec = demandMap[key] || { cantidad: 0, pedidos: 0 };
       var stockReal = numberOrZero_(operationalStockValue_(item, stockMap[key]), 0);
-      var pedidosPend = numberOrZero_(demandRec.cantidad, 0);
-      var saldo = round2_(stockReal - pedidosPend);
-      var status = saldo < 0 ? 'Faltante' : (stockReal <= 0 ? 'Sin stock' : (pedidosPend > 0 ? 'Cubierto' : 'Disponible'));
+      var unitDemand = demandForCatalogUnit_(demandRec, item.unidad);
+      var pedidosPend = unitDemand.cantidad;
+      var saldo = unitDemand.needs_review ? '' : round2_(stockReal - pedidosPend);
+      var status = unitDemand.needs_review ? 'Revisar unidades' : (saldo < 0 ? 'Faltante' : (stockReal <= 0 ? 'Sin stock' : (pedidosPend > 0 ? 'Cubierto' : 'Disponible')));
       records.push([
         local,
         item.codigo || '',
@@ -1031,7 +1072,10 @@ function computeOperationalSnapshot_() {
       ]);
 
       totalProductos += 1;
-      totalPedidoCantidad += pedidosPend;
+      totalPedidoCantidad += numberOrZero_(pedidosPend, 0);
+      if (pedidosPend > 0) pedidoUnits[demandUnitKey_(item.unidad)] = true;
+      if (unitDemand.needs_review) pedidoUnitsReview = true;
+      if (unitDemand.needs_review) localRisk = true;
       if (stockReal > 0) totalConConteo += 1;
       if (stockReal <= 0) totalSinStock += 1;
       if (saldo < 0) {
@@ -1058,7 +1102,7 @@ function computeOperationalSnapshot_() {
     totalConConteo: totalConConteo,
     totalSinStock: totalSinStock,
     totalFaltantes: totalFaltantes,
-    totalPedidoCantidad: round2_(totalPedidoCantidad),
+    totalPedidoCantidad: pedidoUnitsReview || Object.keys(pedidoUnits).length > 1 ? null : round2_(totalPedidoCantidad),
     totalPedidosAbiertos: demandSummary.activeRows.length,
     activeRows: demandSummary.activeRows,
     localesConRiesgo: localesConRiesgo
@@ -1097,6 +1141,7 @@ function buildFrontendOperationalSnapshot_(pedidoIntelligence) {
     byLocal: snap.localSummary,
     openItemsByLocal: buildOpenItemsByLocalFromRows_(snap.activeRows || []),
     receptionGuideByLocal: buildReceptionGuideByLocal_(snap.activeRows || []),
+    demandReviewsByLocal: buildDemandReviewsByLocal_(snap),
     decisionCenterByLocal: buildDecisionCenterByLocal_(snap, pedidoIntelligence || buildPedidoIntelligence_())
   };
 }
@@ -1115,11 +1160,16 @@ function buildDecisionCenterByLocal_(snap, pedidoIntelligence) {
       var stock = operationalStockValue_(item, stockRec);
       var stockKnown = stock !== null;
       var demand = (snap.demandMap || {})[key] || { cantidad: 0, pedidos: 0 };
-      var pending = round2_(numberOrZero_(demand.cantidad, 0));
+      var unitDemand = demandForCatalogUnit_(demand, item.unidad);
+      var pending = unitDemand.cantidad;
       var insightKey = String(item.codigo || '').trim() || ('name:' + normalizeLooseText_(item.nombre));
       var insight = localIntel[insightKey] || {};
       var habitual = round2_(numberOrZero_(insight.cantidad_sugerida, 0));
       var minimum = numberOrNull_(item.stock_minimo);
+      if (unitDemand.needs_review) {
+        needsCount.push({ codigo: item.codigo || '', producto: item.nombre || '', categoria: item.categoria || '', unidad: item.unidad || '', proveedor: item.proveedor || '', pendiente: null, stock: stock, review_type: 'unidades', referencias: unitDemand.referencias, razon: demandUnitReviewText_(unitDemand, item.unidad) });
+        return;
+      }
       if (!stockKnown || stock < 0) {
         if (stock < 0 || pending > 0 || habitual > 0 || minimum > 0) {
           needsCount.push({
@@ -1151,7 +1201,7 @@ function buildDecisionCenterByLocal_(snap, pedidoIntelligence) {
       if (a.prioridad !== b.prioridad) return a.prioridad === 'alta' ? -1 : 1;
       return b.cantidad_sugerida - a.cantidad_sugerida;
     });
-    needsCount.sort(function (a, b) { return b.pendiente - a.pendiente || b.habitual - a.habitual; });
+    needsCount.sort(function (a, b) { return (b.review_type === 'unidades' ? 1 : 0) - (a.review_type === 'unidades' ? 1 : 0) || b.pendiente - a.pendiente || b.habitual - a.habitual; });
     out[local] = {
       summary: {
         comprar: suggestions.length,
@@ -1355,20 +1405,24 @@ function comprasRows_() {
   Object.keys(catalog).forEach(function (local) {
     (catalog[local] || []).forEach(function (item) {
       var demand = demandMap[keyFor_(local, item.codigo, item.nombre)];
-      if (!demand || !demand.cantidad) return;
-      var key = [item.proveedor || 'Sin proveedor', item.categoria || '', item.nombre || '', item.unidad || ''].join('||');
+      if (!demand) return;
+      (demand.por_unidad || []).forEach(function (reference) {
+      var quantity = numberOrNull_(reference.cantidad);
+      if (!reference.unidad || quantity === null || quantity <= 0) return;
+      var key = [item.proveedor || 'Sin proveedor', item.categoria || '', item.nombre || '', reference.unidad].join('||');
       if (!bucket[key]) {
         bucket[key] = {
           proveedor: item.proveedor || 'Sin proveedor',
           categoria: item.categoria || '',
           producto: item.nombre || '',
-          unidad: item.unidad || '',
+          unidad: reference.unidad,
           cantidad: 0,
           locales: {}
         };
       }
-      bucket[key].cantidad += numberOrZero_(demand.cantidad, 0);
+      bucket[key].cantidad += quantity;
       bucket[key].locales[local] = true;
+      });
     });
   });
   return Object.keys(bucket).sort().map(function (key) {

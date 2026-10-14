@@ -40,8 +40,8 @@ function decision(stock, par, pending, habitual) {
   context.testHabitual = habitual;
   return run(`(function(){
     var key = keyFor_('Umo Grill','PAR001','Aceite');
-    var demand = {}; demand[key] = {cantidad:testPending,pedidos:1};
-    return buildDecisionCenterByLocal_({catalog:{'Umo Grill':[{codigo:'PAR001',nombre:'Aceite',stock_actual:testStock,stock_minimo:testPar}]},demandMap:demand,stockMap:{}},
+    var demand = {}; demand[key] = {cantidad:testPending,pedidos:1,unidad:'litro'};
+    return buildDecisionCenterByLocal_({catalog:{'Umo Grill':[{codigo:'PAR001',nombre:'Aceite',unidad:'litro',stock_actual:testStock,stock_minimo:testPar}]},demandMap:demand,stockMap:{}},
       {byLocal:{'Umo Grill':{PAR001:{cantidad_sugerida:testHabitual}}}})['Umo Grill'];
   })()`);
 }

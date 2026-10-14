@@ -51,7 +51,13 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.9.1", "bootstrap stock review version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.1`);
+  expect(bootstrap && bootstrap.version === "2.9.2", "bootstrap unit review version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.2`);
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.demand_unit_review), "demand unit review enabled", "demand unit review missing");
+  const reviews = (bootstrap.snapshot && bootstrap.snapshot.demandReviewsByLocal) || {};
+  Object.entries(reviews).forEach(([local, rows]) => {
+    const suggestions = ((bootstrap.snapshot.decisionCenterByLocal || {})[local] || {}).suggestions || [];
+    expect(!rows.some(row => suggestions.some(item => item.codigo === row.codigo)), `${local}: incompatible measures never suggest a purchase`, `${local}: unit review bypassed`);
+  });
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.local_order_catalog), "local order catalog enabled", "local order catalog capability missing");
   const catalogOwners = {};
   Object.entries(bootstrap.catalog || {}).forEach(([local,items]) => items.forEach(item => {

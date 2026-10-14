@@ -2432,6 +2432,8 @@ function renderLocalHistoryExtras(){
   }));
 }
 function pedidoInsightButton(item){
+  const reviews=typeof SNAPSHOT!=="undefined"&&SNAPSHOT&&SNAPSHOT.demandReviewsByLocal;
+  if(reviews&&(reviews[state.local]||[]).some(row=>row.codigo===item.codigo)) return `<span class="history-suggestion">Revisar medidas del pedido abierto</span>`;
   const insight=pedidoInsightForItem(item), habitual=num(insight&&insight.cantidad_sugerida);
   const par=num(item&&item.stock_minimo);
   const target=Math.max(habitual||0,par||0);
@@ -4018,7 +4020,7 @@ function renderDecisionCenter(){
   const data=(SNAPSHOT.decisionCenterByLocal&&SNAPSHOT.decisionCenterByLocal[state.local])||{summary:{},suggestions:[],needs_count:[]};
   const stats=data.summary||{};
   summary.innerHTML=[
-    ["Comprar",stats.comprar||0,"líneas sugeridas"],["Urgente",stats.urgentes||0,"faltantes abiertos"],["Contar",stats.contar||0,"sin stock confiable"],["Cubierto",stats.cubiertos||0,"sin compra sugerida"]
+    ["Comprar",stats.comprar||0,"líneas sugeridas"],["Urgente",stats.urgentes||0,"faltantes abiertos"],["Revisar",stats.contar||0,"stock o medidas"],["Cubierto",stats.cubiertos||0,"sin compra sugerida"]
   ].map(item=>`<div class="decision-kpi"><span>${item[0]}</span><strong>${item[1]}</strong><small>${item[2]}</small></div>`).join("");
   const countRows=(data.needs_count||[]).slice(0,4).map(item=>({type:"count",...item}));
   const buyRows=(data.suggestions||[]).slice(0,8-countRows.length).map(item=>({type:"buy",...item}));
@@ -4032,14 +4034,19 @@ function renderDecisionCenter(){
     const inOrder=catalogItem&&state.items.find(rec=>!rec.free&&rec.codigo===catalogItem.codigo);
     const priority=item.type==="count"?"contar":item.prioridad||"media";
     const evidence=item.type==="count"
-      ? `<b>Falta conteo real</b><small>${esc(item.razon||"")}${item.pendiente?` · ${esc(trim(item.pendiente))} ${esc(item.unidad||"")} pendiente`:""}</small>`
+      ? `<b>${item.review_type==="unidades"?"Medidas por revisar":"Falta conteo real"}</b><small>${esc(item.razon||"")}${item.pendiente?` · ${esc(trim(item.pendiente))} ${esc(item.unidad||"")} pendiente`:""}</small>`
       : `<b>Pedir ${esc(trim(item.cantidad_sugerida))} ${esc(item.unidad||"")}</b><small>Stock ${esc(trim(item.stock))} · abierto ${esc(trim(item.pendiente))} · habitual ${esc(trim(item.habitual))}${num(item.stock_objetivo)!==null?` · par ${esc(trim(num(item.stock_objetivo)))}`:""}</small><small>${esc(item.razon||"")}</small>`;
     const action=item.type==="count"
-      ? `<button type="button" class="decision-action" data-decision-stock>Contar stock</button>`
+      ? item.review_type==="unidades"?`<button type="button" class="decision-action" data-decision-units="${esc(item.producto||"")}">Ver referencia</button>`:`<button type="button" class="decision-action" data-decision-stock>Contar stock</button>`
       : `<button type="button" class="decision-action" data-decision-add="${esc(item.codigo||"")}" data-decision-name="${esc(item.producto||"")}" data-decision-qty="${esc(item.cantidad_sugerida)}" ${inOrder?"disabled":""}>${inOrder?"En pedido":"Sumar al pedido"}</button>`;
     return `<div class="decision-row"><span class="decision-priority ${priority==="alta"?"high":""}">${esc(priority)}</span><span class="decision-product"><strong>${esc(item.producto||"Producto")}</strong><small>${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}</small></span><span class="decision-evidence">${evidence}</span>${action}</div>`;
   }).join("");
   list.querySelectorAll("[data-decision-stock]").forEach(btn=>btn.addEventListener("click",()=>setTab("stock")));
+  list.querySelectorAll("[data-decision-units]").forEach(btn=>btn.addEventListener("click",()=>{
+    recepUi.scopeByLocal[state.local]="open";
+    recepUi.queryByLocal[state.local]=btn.dataset.decisionUnits;
+    setTab("recepcion");
+  }));
   list.querySelectorAll("[data-decision-add]").forEach(btn=>btn.addEventListener("click",()=>{
     const item=(CATALOG[state.local]||[]).find(rec=>(btn.dataset.decisionAdd&&rec.codigo===btn.dataset.decisionAdd)||normalizeLooseText(rec.nombre)===normalizeLooseText(btn.dataset.decisionName));
     const qty=num(btn.dataset.decisionQty)||0;
