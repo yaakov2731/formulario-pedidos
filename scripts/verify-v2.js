@@ -48,6 +48,12 @@ function main() {
   else pass("favicon.svg present");
 
   const html = read(indexPath);
+  expectContains(html, 'Docks: interfaz operativa, grafito y verde oscuro', 'professional operational palette');
+  expectContains(html, '<h2>Pedidos y abastecimiento</h2>', 'operational home title');
+  expectNotContains(html, 'Todo listo para el servicio.', 'promotional home copy');
+  expectNotContains(html, 'Lo importante, sin buscarlo', 'generic report copy');
+  expectNotContains(html, 'Fraunces', 'display serif in operational interface');
+  expectNotContains(html, 'SERVICE / BOARD', 'decorative service board label');
   const code = fs.existsSync(codePath)
     ? read(codePath)
     : fs.readdirSync(gasDir)

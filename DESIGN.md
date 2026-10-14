@@ -1,71 +1,58 @@
-# DESIGN.md — Sistema de Pedidos Docks del Puerto
+# Diseño operativo · Docks del Puerto
 
-## Theme
+## Dirección
 
-Light. Escena: encargado en el local, de día, con el celular, apurado entre tareas.
-Fondo claro, alto contraste, lectura rápida bajo luz ambiente fuerte. Nada de dark
-"porque queda pro", nada de violeta decorativo.
+Interfaz de abastecimiento, no página promocional. Lectura rápida para encargados
+que trabajan con productos, cantidades, responsables y fechas. Sin títulos de
+campaña, promesas de inteligencia, paneles decorativos ni estética de restaurante.
 
-## Color (OKLCH)
+La skill design-taste-frontend orientó la calibración de color, tipografía,
+jerarquía y reducción de elementos genéricos. Se mantiene HTML/CSS/JavaScript
+sin framework adicional. Movimiento mínimo: sólo respuesta a interacción.
 
-Neutros tintados hacia el azul portuario. Nunca `#000` / `#fff`.
+## Paleta
 
 | Rol | Valor | Uso |
-|---|---|---|
-| `--bg` | `oklch(0.975 0.009 86)` | fondo marfil |
-| `--surface` | `oklch(0.993 0.005 86)` | tarjetas y paneles |
-| `--ink` | `oklch(0.245 0.026 230)` | grafito azulado principal |
-| `--ink-soft` | `oklch(0.47 0.025 225)` | texto secundario |
-| `--line` | `oklch(0.865 0.016 220)` | bordes acero |
-| `--brand` | `oklch(0.405 0.082 215)` | azul petróleo primario |
-| `--brand-strong` | `oklch(0.31 0.068 220)` | azul petróleo profundo |
-| `--steel` | `oklch(0.58 0.038 220)` | acento secundario acero |
-| `--copper` | `oklch(0.61 0.105 55)` | detalle cobre restringido |
-| `--green` | `oklch(0.62 0.13 150)` | GreenFresh + urgencia baja |
-| `--amber` | `oklch(0.74 0.14 75)` | urgencia normal |
-| `--red` | `oklch(0.58 0.18 25)` | urgencia urgente, eliminar |
+| --- | --- | --- |
+| Fondo | #f4f5f6 | Superficie neutra de trabajo |
+| Panel | #ffffff | Formularios y lectura de datos |
+| Grafito | #22282b | Texto principal |
+| Navegación | #242b2e | Barra lateral |
+| Secundario | #596267 | Descripciones |
+| Borde | #dce1e3 | Separación funcional |
+| Acento | #28564b | Acciones y selección |
+| Acento profundo | #1c4037 | Texto sobre selección tenue |
 
-Estrategia de color: **restrained**. Marfil, petróleo y acero forman la identidad.
-El cobre aparece únicamente en líneas de profundidad, foco o marca. GreenFresh y
-los estados de urgencia conservan sus colores semánticos.
+Un solo acento de identidad. Rojo y ámbar se reservan para errores y advertencias,
+no para decorar locales. Sin vino, terracota, gradientes, papel cuadriculado,
+cortes diagonales ni sombras de colores.
 
-## Typography
+## Tipografía
 
-- `Inter` (ya en uso), fallback system-ui.
-- Escala con contraste (ratio ≥1.25): 13 / 15 / 18 / 22 / 28.
-- Jerarquía por tamaño + peso (500/600/700), no por bordes gruesos de colores.
-- Line-length de observaciones ≤ 70ch.
+Geist con fallback system-ui / Segoe UI. Todos los módulos usan sans serif;
+los números usan cifras tabulares. Encabezados de 23–28 px, cuerpo de 12–14 px.
+Los estados se distinguen por texto además del color. Foco visible y controles
+táctiles de al menos 44 px.
 
-## Profundidad 3D
+## Inicio y navegación
 
-- Tres niveles compartidos: `--depth-low`, `--depth-mid` y `--depth-high`.
-- La profundidad se construye con borde iluminado, sombra azulada y base inferior
-  corta. No se usan perspectiva, WebGL, tilt ni recursos gráficos pesados.
-- En mouse el hover puede elevar como máximo 1px. En táctil cambia la sombra sin
-  desplazar el control. `prefers-reduced-motion` elimina todo desplazamiento.
-- En pantallas de hasta 560px las sombras pierden alcance y no usan blur decorativo.
+Encabezado compacto con “Pedidos y abastecimiento” y selector de locales.
+“Pendientes del local” usa datos confirmados y avisa si falta conexión.
+Los seis módulos aparecen como filas, con nombre y descripción concreta.
+Pedido no ocupa una tarjeta promocional sobredimensionada.
 
-## Buttons & controls
+En móvil el selector pasa a dos columnas, las alertas a una columna y los módulos
+conservan su orden. Menú y barra de acciones mantienen los flujos existentes.
 
-- **Normales.** Radio 10px. Sin `scale`, glow, shimmer ni movimientos mayores a 1px.
-- Estado hover: oscurecer fondo levemente + sombra sutil. Transición 150ms ease-out.
-- Tap target ≥ 44px alto, pero proporción sana (no botones gigantes).
-- Selección de local/urgencia: borde + relleno tenue del color del rol + check discreto.
+## Texto y estados
 
-## Layout
+Usar nombres concretos: Nuevo pedido, Productos y cantidades, Revisión del pedido,
+Recepción de mercadería, Registro de producción, Registro de sobrantes y Resumen
+del local. Lectura de remitos sin exponer proveedores de IA ni nombres de modelos.
+Los estados de carga, error, conexión y guardado siguen explícitos.
 
-- Form centrado, `max-width: 720px` en desktop. Cómodo, no estirado.
-- Grilla de locales: `repeat(auto-fill, minmax(108px, 1fr))`.
-- Ritmo de spacing variado por sección (no el mismo padding en todo).
-- Una sola tarjeta de superficie por sección. Sin tarjetas anidadas.
+## Verificación
 
-## Motion
-
-- Solo `opacity` y `transform` puntuales (entrada de filas, check y hover de 1px). Ease-out.
-- Nada de gradientes animados de fondo.
-- Todos los efectos deben tener alternativa bajo `prefers-reduced-motion`.
-
-## Bans (heredados de impeccable)
-
-Sin side-stripe borders, sin gradient text, sin glassmorphism decorativo, sin
-hero-metric template, sin grilla de tarjetas idénticas infinitas, sin em dashes en copy.
+Conservar IDs, contratos y confirmaciones existentes. Ejecutar las verificaciones
+del repositorio y revisar la versión publicada en escritorio y móvil. No enviar
+registros ficticios para obtener evidencia visual.
