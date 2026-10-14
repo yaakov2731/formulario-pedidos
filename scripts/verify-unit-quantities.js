@@ -91,3 +91,19 @@ assert.match(run("pedidoInsightButton(CATALOG['Trento Café'][1])"),/abierto 140
 ctx.SNAPSHOT.demandReviewsByLocal={'Trento Café':[{codigo:'CAF002'}]};
 assert.doesNotMatch(run("pedidoInsightButton(CATALOG['Trento Café'][1])"),/data-use-suggested/,'Unit review still blocks open-demand suggestions');
 console.log('Unit quantities passed: separate measures, no conversion, unit review blocks purchases, original references and no live writes.');
+
+// Manually transcribed source lines from the supplied receipts, not an OCR benchmark.
+load('normalizeLooseText','isReceiptNoiseLine');
+load('extractReceiptQty','scoreCatalogMatch');
+assert.equal(run("extractReceiptQty('0001 ASADO COMPLETO AVM 14,00 KG 16.055,00 224.770,00')"),14,'Supplier code is not quantity');
+assert.equal(run("extractReceiptQty('0437 CARNE CON HUESO CORTADO 3,00 KG 7.505,00 22.515,00')"),3);
+assert.equal(run("extractReceiptQty('0071 NALGA DE NOVILLO FETEADA 10,00 KG 18.145,00 181.450,00')"),10);
+assert.equal(run("extractReceiptQty('1 CAJA PRODUCTO 2 KG 100,00')"),null,'Multiple measured amounts need manual review');
+ctx.receiptDraft={items:{existing:'7',zero:'0',empty:''},proveedor:'Proveedor manual'};
+ctx.ensureRecepDrafts=()=>ctx.receiptDraft;
+load('applyPhotoMatchesToReceptionDraft','ensureRecepDrafts');
+ctx.photoParsed={proveedor:'Proveedor foto',matches:[{key:'existing',cantidad_recibida:14},{key:'zero',cantidad_recibida:3},{key:'empty',cantidad_recibida:2},{key:'new',cantidad_recibida:4}]};
+run("applyPhotoMatchesToReceptionDraft('Trento Café',photoParsed)");
+assert.deepEqual(ctx.receiptDraft.items,{existing:'7',zero:'0',empty:'2',new:'4'},'Photo does not overwrite manual input, including zero');
+assert.equal(ctx.receiptDraft.proveedor,'Proveedor manual');
+console.log('Receipt draft checks passed: measured quantity over article code and manual values preserved. OCR quality is not asserted.');

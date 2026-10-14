@@ -72,6 +72,13 @@ la cantidad realmente recibida, que sigue alimentando el stock mediante el flujo
 
 Validación: `node scripts/verify-reception-guide.js`, sin escrituras en producción.
 
+Al cargar una foto se conservan las cantidades manuales ya escritas, incluido cero,
+y el proveedor manual. El lector prioriza una cantidad explícita con medida sobre
+el código numérico del artículo; si hay varias cantidades medidas, no precarga esa
+línea y el operador debe completarla manualmente. Las
+pruebas de texto transcrito están en `verify-unit-quantities.js`: no prueban la
+calidad de reconocimiento de la foto completa ni la extracción externa.
+
 ## Borradores por local
 
 Cada local conserva su propio pedido en el dispositivo: productos, cantidades,

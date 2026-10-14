@@ -2932,7 +2932,7 @@ function renderRecepPhotoPanel(local){
   }
   chip.textContent=photo.matches.length ? (photo.engineLabel || "Foto lista") : (unknownItems.length ? "Catálogo" : "Revisar");
   sub.textContent = photo.fileName
-    ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`
+    ? `${photo.fileName} · ${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} detectada${photo.matches.length===1?"":"s"}${unknownItems.length ? ` · ${unknownItems.length} para revisar` : ""}. La carga manual previa se conserva.`
     : `${photo.matches.length} coincidencia${photo.matches.length===1?"":"s"} aplicada${photo.matches.length===1?"":"s"} al borrador${unknownItems.length ? ` · ${unknownItems.length} para alta` : ""}`;
   meta.textContent = photo.matches.length || unknownItems.length
     ? `${photo.engineMeta || "Podés corregir cantidades en la grilla manual antes de guardar la recepción."}`
@@ -4910,6 +4910,14 @@ function mergeReceiptContinuationLines(lines){
 }
 function extractReceiptQty(line){
   const lower=normalizeLooseText(line);
+  // A trailing measured quantity takes precedence over supplier article codes.
+  // Avoid treating pack sizes ("x 100 unidades") as delivered quantities.
+  const measured=[...lower.matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|kilo|kilos|gr|g|lt|lts|l|un|u|unidad|unidades|doc|pack|paq|bolsa|caja)\b/g)]
+    .filter(match=>!/[a-z0-9.,]$/.test(lower.slice(0,match.index))&&!/\bx\s*$/.test(lower.slice(0,match.index)))
+    .map(match=>parseFloat(match[1].replace(",",".")))
+    .filter(value=>Number.isFinite(value)&&value>0);
+  if(measured.length===1) return measured[0];
+  if(measured.length>1) return null;
   const unitHint=/\b(kg|kilo|kilos|gr|g|lt|lts|l|un|u|unidad|unidades|doc|pack|paq|bolsa|caja)\b/.test(lower);
   const nums=(lower.match(/\d+(?:[.,]\d+)?/g)||[])
     .map(raw=>parseFloat(raw.replace(",",".")))
@@ -5084,6 +5092,7 @@ function closeRecepcionModuleHelpers(){
 function applyPhotoMatchesToReceptionDraft(local, parsed){
   const drafts=ensureRecepDrafts(local);
   parsed.matches.forEach(match=>{
+    if(String(drafts.items[match.key]??"").trim()!=="") return;
     drafts.items[match.key] = String(match.cantidad_recibida);
   });
   if(parsed.proveedor && !drafts.proveedor) drafts.proveedor = parsed.proveedor;
