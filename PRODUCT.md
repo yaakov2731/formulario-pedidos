@@ -34,6 +34,11 @@ viven en el mismo Google Sheet.
 
 ## Stock objetivo y decisiones de compra
 
+Reportes cuenta acciones de abastecimiento como compras sugeridas más revisiones,
+dos grupos excluyentes del cálculo por producto. No mezcla ese total con cantidad
+de líneas del borrador o faltantes de otras vistas. Las alertas indican su origen
+(pedido, saldo, conteo o stock); su posición en la lista no implica gravedad.
+
 `Stock_Actual` del catálogo es el saldo operativo: los conteos lo fijan, las
 recepciones lo aumentan y la producción lo reduce. Los reportes y decisiones usan
 ese saldo; recurren al último conteo histórico sólo cuando el catálogo no tiene
