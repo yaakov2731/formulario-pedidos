@@ -51,7 +51,7 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.7.0", "bootstrap reception guide version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.7.0`);
+  expect(bootstrap && bootstrap.version === "2.8.0", "bootstrap local integrity version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.8.0`);
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.reception_guide), "reception guide enabled", "reception guide capability missing");
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.receptionGuideByLocal), "complete reception reference present", "reception reference missing");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.catalog_par), "editable stock objective enabled", "catalog_par capability missing");

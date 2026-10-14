@@ -394,15 +394,20 @@ function appCapabilities_() {
 
 function savePedido_(data) {
   if (!data.local) return { ok: false, error: 'Falta local' };
+  data.local = normalizeLocalName_(data.local);
   if (!data.encargado) return { ok: false, error: 'Falta encargado' };
   if (!data.email_encargado || !/^\S+@\S+\.\S+$/.test(data.email_encargado)) return { ok: false, error: 'Email inválido' };
   if (!data.semana_pedido) return { ok: false, error: 'Falta semana del pedido' };
   if (!data.fecha_entrega) return { ok: false, error: 'Falta fecha de entrega' };
   if (!data.items || !data.items.length) return { ok: false, error: 'El pedido no tiene productos' };
+  var catalog = readCatalog_()[data.local] || [];
   for (var i = 0; i < data.items.length; i++) {
     var it = data.items[i];
     if (!it.producto) return { ok: false, error: 'Producto sin nombre en el pedido' };
     if (!(Number(it.cantidad) > 0)) return { ok: false, error: 'Cantidad inválida en "' + it.producto + '"' };
+    if (it.codigo && !it.libre && !catalog.some(function (item) { return String(item.codigo || '') === String(it.codigo); })) {
+      return { ok: false, error: 'El producto ' + it.producto + ' no pertenece al catálogo de ' + data.local };
+    }
   }
   appendPedido_(data);
   appendDetalle_(data, { skipRefresh: true });   // capa normalizada: 1 fila por producto

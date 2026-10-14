@@ -62,6 +62,20 @@ la cantidad realmente recibida, que sigue alimentando el stock mediante el flujo
 
 Validación: `node scripts/verify-reception-guide.js`, sin escrituras en producción.
 
+## Borradores por local
+
+Cada local conserva su propio pedido en el dispositivo: productos, cantidades,
+responsable, email, semana, entrega, prioridad y notas. Cambiar de local recupera
+su borrador sin trasladar datos del anterior. La migración conserva el borrador
+antiguo bajo el local con el que fue guardado, sin atribuirlo a otro automáticamente.
+
+Si un código no pertenece al catálogo del local, el pedido requiere revisión antes
+de enviar y el backend rechaza la línea. Los productos libres siguen disponibles.
+El éxito requiere confirmación del pedido por ID; un refresco del catálogo no prueba
+que el pedido se haya guardado. Si la confirmación falla, se conserva la carga.
+
+Validación: `node scripts/verify-local-drafts.js`, con almacenamiento y backend en memoria.
+
 ## Brand
 
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).
