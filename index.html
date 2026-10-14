@@ -1821,7 +1821,7 @@ html,body,.app-main{background:var(--bg)}
 .pedido-progress .pedido-step-btn{background:transparent;border:0;border-radius:0;box-shadow:none;min-height:44px}
 .pedido-progress .pedido-step-btn[aria-pressed="true"]{border-bottom:2px solid var(--brand);background:transparent}
 @media(max-width:760px){
-  body.compact-mobile-shell .pedido-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:100%}
+  body.compact-mobile-shell .pedido-progress,body.compact-mobile-shell.compact-mobile-shell-xs .pedido-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:100%}
   body.compact-mobile-shell .pedido-progress .pedido-step-btn{border-radius:0;box-shadow:none;margin:0;font-size:11px;padding:10px 5px}
   body.compact-mobile-shell .pedido-shell-head{margin-bottom:8px}
   body.compact-mobile-shell .pedido-local-pill{display:none}
@@ -1979,7 +1979,7 @@ html,body,.app-main{background:var(--bg)}
     <div class="catalog-tools">
       <label class="sr-only" for="orderSort">Ordenar catálogo</label>
       <select class="catalog-sort" id="orderSort" aria-label="Ordenar catálogo">
-        <option value="recommended">Orden: recomendados</option>
+        <option value="recommended">Orden del local</option>
         <option value="az">Orden: A–Z</option>
         <option value="stock">Orden: stock bajo</option>
       </select>
@@ -3439,6 +3439,14 @@ function renderQuickCatalog(){
     return;
   }
   const cat=CATALOG[state.local]||[];
+  if(!cat.length&&!LIVE){
+    meta.textContent="Esperando lectura del catálogo";
+    categories.innerHTML="";
+    more.hidden=true;
+    box.innerHTML='<div class="quick-pick-empty">El catálogo se mostrará cuando responda la planilla.</div>';
+    $("#catHint").textContent="No se cargan productos de otro local mientras se comprueba la conexión.";
+    return;
+  }
   $("#catHint").innerHTML=cat.length
     ? `${cat.length} productos de ${esc(state.local)} · cantidades en la unidad indicada.`
     : `<b>${esc(state.local)}</b> todavía no tiene productos configurados.`;
