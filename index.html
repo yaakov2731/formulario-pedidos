@@ -4283,7 +4283,7 @@ async function saveElaborados(){
 /* ---- Live data (best-effort; cae al snapshot si el script no responde) ---- */
 async function warmData(){
   try{
-    const d=await backendGet("getBootstrap",{},{ retries:2, timeoutMs:15000 });
+    const d=await backendGet("getBootstrap",{},{ retries:1, timeoutMs:45000 });
     if(!d||d.ok!==true) throw new Error("La planilla no devolvió datos válidos");
     applyBootstrapPayload(d);
     renderStockIntelligence();
@@ -4468,14 +4468,21 @@ function jsonpGet_(url, timeoutMs=15000){
     const callback=`__docksJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const script=document.createElement("script");
     let settled=false;
-    const cleanup=()=>{
+    const cleanup=(lateResponse=false)=>{
       if(script.parentNode) script.parentNode.removeChild(script);
-      try{ delete window[callback]; }catch(_err){ window[callback]=undefined; }
+      if(lateResponse){
+        // Una respuesta en vuelo puede ejecutarse incluso después de quitar
+        // el script. Conservar un callback neutro evita un ReferenceError.
+        window[callback]=()=>{};
+        setTimeout(()=>{ try{delete window[callback];}catch(_err){} },60000);
+      }else{
+        try{ delete window[callback]; }catch(_err){ window[callback]=undefined; }
+      }
     };
     const timer=setTimeout(()=>{
       if(settled) return;
       settled=true;
-      cleanup();
+      cleanup(true);
       reject(new Error("La planilla tardó demasiado en responder"));
     },timeoutMs);
     window[callback]=(data)=>{
@@ -4569,7 +4576,7 @@ function queueBootstrapRefresh(delay=900, scope="ops"){
 async function refreshData(opts={}){
   try{
     const scope=opts.scope||"ops";
-    const d=await backendGet("getBootstrap",{ scope, t:Date.now() },{ retries:1, timeoutMs:12000 });
+    const d=await backendGet("getBootstrap",{ scope, t:Date.now() },{ retries:1, timeoutMs:45000 });
     if(!d||d.ok!==true) throw new Error("La planilla no devolvió datos válidos");
     applyBootstrapPayload(d);
     renderStockIntelligence();
