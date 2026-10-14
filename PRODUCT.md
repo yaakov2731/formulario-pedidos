@@ -219,6 +219,13 @@ El consolidado conserva cajas y litros como renglones distintos; no convierte me
 
 ## Brand
 
+Configuración abre un diálogo HTML nativo, no `prompt()`. El campo de código
+está rotulado, oculto visualmente como contraseña y se vacía al cerrar o fallar.
+El error aparece junto al campo; Escape y Cancelar cierran sin habilitar edición.
+Se conserva la comprobación de administración existente. Esto corrige compatibilidad
+y accesibilidad; no convierte el código del cliente en autenticación de servidor.
+Las pruebas con códigos sintéticos están en `verify-local-drafts.js`.
+
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).
 - **Tono:** claro, directo, operativo. Español rioplatense.
 - **GreenFresh:** nuevo local de viandas saludables. Sub-identidad verde/fresca dentro

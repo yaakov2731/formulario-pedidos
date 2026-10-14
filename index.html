@@ -1818,6 +1818,14 @@ html,body,.app-main{background:var(--bg)}
 #recepExternalConsent{width:18px;height:18px;min-height:18px;flex-shrink:0}
 #prodSaveError{color:var(--red);white-space:normal}
 #pedidoSendStatus{overflow-wrap:anywhere;white-space:normal}
+.admin-access{position:fixed;inset:0;margin:auto;width:min(400px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:24px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.admin-access::backdrop{background:oklch(25% .027 265 / .5)}
+.admin-access h2{font-size:22px;text-wrap:balance;margin-bottom:8px}
+.admin-access p{font-size:13px;color:var(--ink-soft);text-wrap:pretty;margin-bottom:18px}
+.admin-access label{display:block;font-size:13px;margin-bottom:6px}
+.admin-access input{width:100%;min-height:44px;border:1px solid var(--line);padding:10px;font:inherit}
+.admin-access .access-error{color:var(--red);margin:8px 0;min-height:20px}
+.admin-access-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .bar.tab-panel[data-tab="pedido"]{background:var(--surface);border:1px solid var(--line);padding:10px 16px;box-shadow:none}
 .order-workspace .catalog-tools{margin:0 0 10px;display:flex;justify-content:flex-end}
 .order-workspace .quick-pick{margin:0;border:0;background:transparent;box-shadow:none}
@@ -2438,6 +2446,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 </div>
 
 <!-- Configuración -->
+<dialog class="admin-access" id="adminAccess" aria-labelledby="adminAccessTitle" aria-describedby="adminAccessHelp">
+  <form id="adminAccessForm">
+    <h2 id="adminAccessTitle">Acceso a configuración</h2>
+    <p id="adminAccessHelp">Ingresá el código de administración para editar el catálogo y los responsables.</p>
+    <label for="adminAccessCode">Código de administración</label>
+    <input id="adminAccessCode" name="adminCode" type="password" autocomplete="current-password" required autofocus aria-describedby="adminAccessError">
+    <p id="adminAccessError" class="access-error" role="alert"></p>
+    <div class="admin-access-actions">
+      <button class="home-jump" id="adminAccessCancel" type="button">Cancelar</button>
+      <button class="cfg-btn" type="submit">Ingresar</button>
+    </div>
+  </form>
+</dialog>
 <div class="cfg" id="cfg" hidden>
   <div class="cfg-panel">
     <div class="cfg-head">
@@ -6004,15 +6025,40 @@ $("#stockGrid").addEventListener("click",e=>{
 $("#stockSave").addEventListener("click",saveStock);
 function openAdminNavigation(){
   if(!state.admin){
-    const pin=window.prompt("Código admin");
-    if(pin===null) return;
-    if(pin.trim()!==ADMIN_PIN){ toast("Código admin inválido","err"); return; }
-    setAdminMode(true);
-    toast("Modo admin habilitado","ok");
+    const dialog=$("#adminAccess");
+    $("#adminAccessCode").value="";
+    $("#adminAccessCode").removeAttribute("aria-invalid");
+    $("#adminAccessError").textContent="";
+    closeShellMenu();
+    if(!dialog.open) dialog.showModal();
+    return;
   }
   closeShellMenu();
   openCfg();
 }
+function closeAdminAccess(){
+  $("#adminAccess").close();
+  $("#adminAccessCode").value="";
+  $("#adminAccessError").textContent="";
+}
+function submitAdminAccess(event){
+  event.preventDefault();
+  const field=$("#adminAccessCode");
+  if(field.value.trim()!==ADMIN_PIN){
+    field.setAttribute("aria-invalid","true");
+    field.value="";
+    $("#adminAccessError").textContent="El código no es válido. Revisalo con administración.";
+    field.focus();
+    return;
+  }
+  closeAdminAccess();
+  setAdminMode(true);
+  closeShellMenu();
+  openCfg();
+}
+$("#adminAccessForm").addEventListener("submit",submitAdminAccess);
+$("#adminAccessCancel").addEventListener("click",closeAdminAccess);
+$("#adminAccess").addEventListener("close",()=>{ $("#adminAccessCode").value=""; });
 $("#adminBtn").addEventListener("click",openAdminNavigation);
 document.querySelectorAll("[data-admin-nav]").forEach(btn=>btn.addEventListener("click",openAdminNavigation));
 document.querySelectorAll("[data-module-config]").forEach(btn=>btn.addEventListener("click",openAdminNavigation));

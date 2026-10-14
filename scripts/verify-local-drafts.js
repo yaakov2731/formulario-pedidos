@@ -62,3 +62,37 @@ assert.equal(vm.runInContext('writes',backend),0);
 vm.runInContext("payload.items[0].codigo='CAF001'",backend);
 assert.equal(vm.runInContext('savePedido_(payload).ok',backend),true);
 console.log('Local draft checks passed: isolated quantities, people, notes, urgency, reload, legacy retention and backend local validation.');
+
+// Native dialog replaces prompt without changing the existing authorization rule.
+const accessFields={};
+const accessField=id=>accessFields[id]||(accessFields[id]={value:'',textContent:'',open:false,attributes:{},listeners:{},
+  addEventListener(name,fn){this.listeners[name]=fn;},
+  setAttribute(name,value){this.attributes[name]=value;},removeAttribute(name){delete this.attributes[name];},
+  showModal(){this.open=true;},close(){this.open=false;},focus(){this.focused=true;}});
+let configOpens=0;
+const access=vm.createContext({state:{admin:false},ADMIN_PIN:'fixture-only-code',$:accessField,
+  closeShellMenu:()=>{},openCfg:()=>configOpens++,setAdminMode:value=>{access.state.admin=value;}});
+const accessStart=html.indexOf('function openAdminNavigation(){');
+const accessEnd=html.indexOf('$("#adminBtn").addEventListener',accessStart);
+vm.runInContext(html.slice(accessStart,accessEnd),access);
+assert.ok(!html.includes('window.prompt("Código admin")'));
+assert.ok(html.includes('type="password" autocomplete="current-password" required autofocus'));
+vm.runInContext('openAdminNavigation()',access);
+assert.equal(accessField('#adminAccess').open,true);
+assert.equal(configOpens,0,'Opening access never grants administration');
+accessField('#adminAccessCode').value='wrong-fixture';
+access.event={preventDefault:()=>{}};
+vm.runInContext('submitAdminAccess(event)',access);
+assert.equal(access.state.admin,false);
+assert.equal(configOpens,0);
+assert.equal(accessField('#adminAccessCode').value,'');
+assert.equal(accessField('#adminAccessCode').attributes['aria-invalid'],'true');
+assert.ok(accessField('#adminAccessError').textContent);
+vm.runInContext('closeAdminAccess()',access);
+assert.equal(accessField('#adminAccess').open,false);
+accessField('#adminAccessCode').value='fixture-only-code';
+vm.runInContext('submitAdminAccess(event)',access);
+assert.equal(access.state.admin,true);
+assert.equal(configOpens,1);
+assert.equal(accessField('#adminAccessCode').value,'','Codes are cleared after successful fixture verification');
+console.log('Admin access fixture checks passed: native dialog, unchanged code requirement, inline failure, cancellation and code clearing. No real credentials used.');
