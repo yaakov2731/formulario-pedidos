@@ -52,6 +52,25 @@ elevadas, controles de recepción compactos, títulos y cifras proporcionados.
 Lectura de remitos sin exponer proveedores de IA ni nombres de modelos.
 Los estados de carga, error, conexión y guardado siguen explícitos.
 
+## Catálogo por actividad
+
+Trento Café abre en Café y barra, no en un ranking de compras mezcladas. Sus
+productos existentes se organizan por uso: Pastelería, Insumos de pastelería,
+Sándwiches y cocina, Frutas y licuados, Descartables y Limpieza. La agrupación
+es una vista; conserva códigos, nombres, unidades y registros de la planilla.
+Las categorías de origen pueden ser incorrectas (por ejemplo mayonesa en
+Lácteos); la vista prioriza el producto. Los nuevos productos no reconocidos
+quedan en Otros insumos, sin inventar pertenencia.
+
+Menú lateral de secciones en escritorio y desplazamiento horizontal en móvil.
+Cada producto muestra su unidad junto al nombre. Buscar recorre todo el catálogo
+del local, independientemente de la sección activa. Todos y Frecuentes permiten
+explorar el catálogo completo o los productos con pedidos anteriores reales.
+Historial sin catalogar es una sección explícita, no una recomendación. Las
+referencias de cortes de parrilla sin código que coincidan con el catálogo de
+otro local no se ofrecen a Trento. Bebidas e insumos compartidos siguen en su
+historial. No se borran registros ni se fusionan stocks duplicados.
+
 ## Verificación
 
 Conservar IDs, contratos y confirmaciones existentes. Ejecutar las verificaciones

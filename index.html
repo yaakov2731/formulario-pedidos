@@ -1799,6 +1799,43 @@ html,body,.app-main{background:var(--bg)}
   .mobile-tabbar{box-shadow:none;background:var(--bg)}.mobile-tabbar button{border-radius:3px}
   #cfg{left:0}
 }
+/* Catálogo: secciones de trabajo y cantidades, sin tarjetas promocionales. */
+.order-workspace{display:grid;grid-template-columns:180px minmax(0,1fr);gap:24px;margin-top:16px;align-items:start}
+.order-workspace .order-categories{display:flex;flex-direction:column;gap:2px;overflow:visible;margin:0;padding:0;border-right:1px solid var(--line);padding-right:14px}
+.order-workspace .order-category{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;white-space:normal;border:0;border-radius:3px;background:transparent;padding:10px 9px;min-height:44px;font-size:12px}
+.order-workspace .order-category[aria-pressed="true"]{background:var(--brand-tint);color:var(--brand-dark);font-weight:650}
+.order-workspace .order-category small{font-variant-numeric:tabular-nums;font-size:10px;opacity:.65}
+.order-workspace-products{min-width:0}
+.order-workspace .catalog-tools{margin:0 0 10px;display:flex;justify-content:flex-end}
+.order-workspace .quick-pick{margin:0;border:0;background:transparent;box-shadow:none}
+.order-workspace .quick-pick-head{padding:8px 0 14px;border-bottom:1px solid var(--ink);background:transparent}
+.order-workspace .quick-pick-head strong{font-size:17px;font-weight:600;letter-spacing:-.3px}
+.order-workspace .quick-pick-list{gap:0}
+.order-workspace .quick-pick-item{border-radius:0;box-shadow:none;padding:12px 0;min-height:70px;grid-template-columns:minmax(0,1fr) auto}
+.order-workspace .quick-pick-name{font-size:14px;line-height:1.4;font-weight:550}
+.catalog-unit{display:inline-block;margin-left:7px;font-size:11px;font-weight:500;color:var(--muted);border-left:1px solid var(--line);padding-left:8px}
+.order-workspace .quick-pick-meta{font-size:11px;margin-top:3px}
+.order-workspace .history-suggestion{font-size:11px}
+.pedido-shell-head #pedidoFlowMeta{display:none}
+.pedido-progress{background:transparent;box-shadow:none;border-radius:0;padding:0;border-bottom:1px solid var(--line)}
+.pedido-progress .pedido-step-btn{background:transparent;border:0;border-radius:0;box-shadow:none;min-height:44px}
+.pedido-progress .pedido-step-btn[aria-pressed="true"]{border-bottom:2px solid var(--brand);background:transparent}
+@media(max-width:760px){
+  body.compact-mobile-shell .pedido-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:100%}
+  body.compact-mobile-shell .pedido-progress .pedido-step-btn{border-radius:0;box-shadow:none;margin:0;font-size:11px;padding:10px 5px}
+  body.compact-mobile-shell .pedido-shell-head{margin-bottom:8px}
+  body.compact-mobile-shell .pedido-local-pill{display:none}
+  body.compact-mobile-shell .pedido-screen[data-pedido-step="productos"]>.shead{display:none}
+  body.compact-mobile-shell .search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+  body.compact-mobile-shell .search-row .free{width:auto;min-height:44px;padding:8px;font-size:10px}
+  body.compact-mobile-shell .search-row input{min-width:0;font-size:12px}
+  .order-workspace{grid-template-columns:minmax(0,1fr);gap:14px}
+  .order-workspace .order-categories{flex-direction:row;overflow-x:auto;border:0;padding:0 0 5px;gap:5px}
+  .order-workspace .order-category{width:auto;flex-shrink:0;white-space:nowrap;gap:8px;padding:10px 12px;border:1px solid var(--line)}
+  body.compact-mobile-shell .order-workspace .quick-pick-item{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px 0}
+  .order-workspace .order-product-stepper{max-width:126px}
+  .order-workspace .quick-pick-head{align-items:start;gap:8px}
+}
 </style>
 </head>
 <body data-design-version="reference-handoff-v3-mobile-app">
@@ -1936,7 +1973,9 @@ html,body,.app-main{background:var(--bg)}
       </div>
       <div class="suggest" id="suggest" role="listbox"></div>
     </div>
-    <div class="order-categories" id="orderCategories" aria-label="Filtrar por categoría"></div>
+    <div class="order-workspace">
+    <nav class="order-categories" id="orderCategories" aria-label="Secciones del catálogo"></nav>
+    <div class="order-workspace-products">
     <div class="catalog-tools">
       <label class="sr-only" for="orderSort">Ordenar catálogo</label>
       <select class="catalog-sort" id="orderSort" aria-label="Ordenar catálogo">
@@ -1947,7 +1986,7 @@ html,body,.app-main{background:var(--bg)}
     </div>
     <div class="quick-pick order-catalog">
       <div class="quick-pick-head">
-        <strong>Catálogo del local</strong>
+        <strong id="orderSectionTitle">Catálogo del local</strong>
         <span id="quickPickMeta">Elegí un local</span>
       </div>
       <div class="quick-pick-list" id="quickPickList"></div>
@@ -1955,6 +1994,8 @@ html,body,.app-main{background:var(--bg)}
     <button class="catalog-more" id="orderMore" type="button" hidden>Mostrar más productos</button>
     <div id="pedidoHistoryExtras"></div>
     <p class="hint" id="catHint">Elegí un local y sumá cantidades con los controles del catálogo.</p>
+    </div>
+    </div>
   </section>
 
   <!-- 4. Stock -->
@@ -2488,11 +2529,47 @@ function pedidoInsightForItem(item){
   return candidates.sort((a,b)=>(Number(b.pedidos)||0)-(Number(a.pedidos)||0))[0]||null;
 }
 
+function cafeCatalogSection(item){
+  const name=normalizeLooseText(item.nombre||item.producto||"");
+  const category=normalizeLooseText(item.categoria||"");
+  if(/limpieza/.test(category)||/\b(detergente|lavandina|desodorante|guantes|trapo|rejilla|escoba|alcohol|blem|blen|esponja)\b/.test(name)) return "Limpieza";
+  if(/papelera/.test(category)||/\b(vasos?|servilletas?|sorbetes?|bolsas?|bandeja|banbeja|sobre|folex|film|papel|rollo|comandera|remito|manga|tuper|ensaladera)\b/.test(name)) return "Descartables";
+  if(/\b(crema|dulce de leche)\b/.test(name)) return "Insumos de pastelería";
+  if(/\b(leche|cafe|te|mate|azucar ind|edulcorante|sub marino|submarino|agua|aquarius|cocacola|sprite)\b/.test(name)||name==="azucar"||/\b(salsa caramelo|salsa chocolate|salsa de frutilla)\b/.test(name)) return "Café y barra";
+  if(/\b(jamon|tybo|mayonesa|pan|palta|paltas|pollo|provoleta|aceite|vinagre|morron|moron)\b/.test(name)) return "Sándwiches y cocina";
+  if(/verduleria/.test(category)||/\b(frutilla|frutillas|mango|banana|maracuya|frutos rojos|naranja|manzana verde|pera|limon|menta|durazno)\b/.test(name)) return "Frutas y licuados";
+  if(/tortas|pasteleria|panaderia/.test(category)||/\b(torta|medialunas|cheese|mouse|mousse|galletitas|galletilas|brownie|brawnie)\b/.test(name)) return "Pastelería";
+  if(/\b(chocolate|cacao|crema|mascarpone|manteca|harina|mezcla|premezcla|semilla|semillas|maicena|gelatina|vainilla|mermelada|nutella|huevos|azucar|dulce)\b/.test(name)) return "Insumos de pastelería";
+  return "Otros insumos";
+}
+function orderCatalogSection(item){
+  return state.local==="Trento Café"?cafeCatalogSection(item):String(item.categoria||"Sin categoría").trim();
+}
+function defaultOrderCategory(local){
+  return local==="Trento Café"?"Café y barra":"Recomendados";
+}
+function cafeBarPriority(item){
+  const name=normalizeLooseText(item.nombre);
+  if(/\bcafe\b/.test(name)) return 0;
+  if(name==="leche") return 1;
+  if(/^leche\b/.test(name)) return 2;
+  if(/^(te|mate)\b/.test(name)) return 3;
+  if(/^(azucar|edulcorante)\b/.test(name)) return 4;
+  return 5;
+}
+function catalogDisplayName(item){
+  const name=String(item.nombre||"");
+  return name===name.toUpperCase()?name.charAt(0)+name.slice(1).toLowerCase():name;
+}
+
 function localHistoryExtras(local){
   const catalog=CATALOG[local]||[];
   const history=(PEDIDO_INTELLIGENCE.byLocal&&PEDIDO_INTELLIGENCE.byLocal[local])||{};
   return Object.values(history).filter(row=>{
     if(!row.producto||!(Number(row.pedidos)>0)) return false;
+    // Un código vacío no autoriza recomendar un producto exclusivo de otro local.
+    if(local==="Trento Café"&&!row.codigo&&/\b(asado|entrana|chinchulin|molleja|vacio|costillar|matambre|bife de chorizo)\b/.test(normalizeLooseText(row.producto))&&!catalog.some(item=>normalizeLooseText(item.nombre)===normalizeLooseText(row.producto))&&
+      Object.entries(CATALOG).some(([owner,items])=>owner!==local&&items.some(item=>normalizeLooseText(item.nombre)===normalizeLooseText(row.producto)))) return false;
     if(row.codigo&&Object.entries(CATALOG).some(([owner,items])=>owner!==local&&items.some(item=>item.codigo===row.codigo))&&
       !catalog.some(item=>item.codigo===row.codigo)) return false;
     return !catalog.some(item=>normalizeLooseText(item.unidad)===normalizeLooseText(row.unidad)&&
@@ -2504,12 +2581,12 @@ function renderLocalHistoryExtras(){
   const box=$("#pedidoHistoryExtras");
   if(!box) return;
   box.innerHTML="";
-  if(!state.local||orderCategory!=="Recomendados") return;
+  if(!state.local||orderCategory!=="Historial sin catalogar") return;
   const q=normalizeLooseText(search.value);
   const allRows=localHistoryExtras(state.local).filter(row=>!q||normalizeLooseText(row.producto).includes(q));
   const rows=allRows.slice(0,orderVisibleLimit);
   if(!rows.length) return;
-  box.innerHTML=`<details ${q?"open":""}><summary class="hint">También pedidos por ${esc(state.local)} · fuera de catálogo (${allRows.length})</summary><p class="hint">Conservan su unidad original. Revisá la cantidad; no se carga automáticamente lo pedido anteriormente.</p><div class="quick-pick-list">${rows.map((row,i)=>`<div class="quick-pick-item"><div class="quick-pick-main"><div class="quick-pick-name">${esc(row.producto)}</div><div class="quick-pick-meta">${esc(row.unidad||"sin unidad")} · ${row.pedidos} pedido${row.pedidos===1?"":"s"} · último ${esc(row.ultima_fecha||"")} · fuera de catálogo</div></div><button type="button" class="home-jump" data-history-add="${i}">Agregar</button></div>`).join("")}</div>${rows.length<allRows.length?'<button type="button" class="catalog-more" data-history-more>Mostrar más del historial</button>':""}</details>`;
+  box.innerHTML=`<details open><summary class="hint">Historial sin catalogar · ${allRows.length} referencias</summary><p class="hint">No son recomendaciones ni productos validados del catálogo. Verificá el producto y su unidad antes de agregarlo.</p><div class="quick-pick-list">${rows.map((row,i)=>`<div class="quick-pick-item"><div class="quick-pick-main"><div class="quick-pick-name">${esc(row.producto)}</div><div class="quick-pick-meta">${esc(row.unidad||"sin unidad")} · ${row.pedidos} pedido${row.pedidos===1?"":"s"} · último ${esc(row.ultima_fecha||"")}</div></div><button type="button" class="home-jump" data-history-add="${i}">Agregar</button></div>`).join("")}</div>${rows.length<allRows.length?'<button type="button" class="catalog-more" data-history-more>Mostrar más del historial</button>':""}</details>`;
   const more=box.querySelector("[data-history-more]");
   if(more) more.addEventListener("click",()=>{ orderVisibleLimit+=24; renderLocalHistoryExtras(); box.querySelector("details").open=true; });
   box.querySelectorAll("[data-history-add]").forEach(btn=>btn.addEventListener("click",()=>{
@@ -2826,7 +2903,7 @@ function renderPedidoFlow(){
   const current = PEDIDO_STEPS[pedidoStepIndex(step)] || PEDIDO_STEPS[0];
   const progress=$("#pedidoProgress");
   const localPill=$("#pedidoLocalPill");
-  $("#pedidoFlowTitle").textContent = step === "resumen" ? "Revisión del pedido" : "Nuevo pedido";
+  $("#pedidoFlowTitle").textContent = step === "resumen" ? "Revisión del pedido" : state.local?`Pedido de ${state.local}`:"Nuevo pedido";
   $("#pedidoFlowMeta").textContent = step === "resumen"
     ? "Revisá productos, cantidades y fecha de entrega."
     : "Agregá productos y cantidades del local seleccionado.";
@@ -3240,7 +3317,7 @@ document.querySelectorAll("[data-responsable-add]").forEach(btn=>{
 });
 function selectLocal(id, opts={}){
   switchPedidoLocal(id);
-  orderCategory="Recomendados";
+  orderCategory=defaultOrderCategory(id);
   orderShowAllCategories=false;
   orderVisibleLimit=24;
   scheduleDraftSave();
@@ -3302,7 +3379,8 @@ function renderSuggest(q){
   if(!state.local){ suggest.innerHTML=`<div class="sg empty">Elegí un local primero</div>`; suggest.classList.add("open"); search.setAttribute("aria-expanded","true"); sgData=[]; return; }
   if(!q){ closeSuggest(); return; }
   const cat=CATALOG[state.local]||[];
-  sgData=cat.filter(x=>x.nombre.toLowerCase().includes(q)||(x.categoria||"").toLowerCase().includes(q)).slice(0,8);
+  q=normalizeLooseText(q);
+  sgData=cat.filter(x=>normalizeLooseText(x.nombre).includes(q)||normalizeLooseText(orderCatalogSection(x)).includes(q)).slice(0,8);
   sgIndex = sgData.length?0:-1;
   if(!sgData.length){
     suggest.innerHTML=`<div class="sg empty">Sin coincidencias · usá "+ Libre" para "${esc(search.value.trim())}"</div>`;
@@ -3362,33 +3440,34 @@ function renderQuickCatalog(){
   }
   const cat=CATALOG[state.local]||[];
   $("#catHint").innerHTML=cat.length
-    ? `Sólo <b>${esc(state.local)}</b> · ${cat.length} productos propios. Primero los pedidos por este local; el resto está en Otros del local.`
+    ? `${cat.length} productos de ${esc(state.local)} · cantidades en la unidad indicada.`
     : `<b>${esc(state.local)}</b> todavía no tiene productos configurados.`;
   const q=normalizeLooseText(search.value.trim());
   const usage=catalogUsageForLocal(state.local);
   const categoryMap=new Map();
-  cat.map(x=>String(x.categoria||"").trim()).filter(Boolean).forEach(name=>{
+  cat.map(orderCatalogSection).filter(Boolean).forEach(name=>{
     const key=normalizeLooseText(name);
     if(!categoryMap.has(key)) categoryMap.set(key,name.charAt(0).toUpperCase()+name.slice(1).toLowerCase());
   });
-  const categoryCount=name=>cat.filter(item=>normalizeLooseText(item.categoria||"")===normalizeLooseText(name)).length;
-  const categoryNames=[...categoryMap.values()].sort((a,b)=>categoryCount(b)-categoryCount(a)||a.localeCompare(b,"es"));
-  let visibleCategoryNames=orderShowAllCategories?categoryNames:categoryNames.slice(0,6);
+  const categoryCount=name=>cat.filter(item=>normalizeLooseText(orderCatalogSection(item))===normalizeLooseText(name)).length;
+  const cafeSections=["Café y barra","Pastelería","Insumos de pastelería","Sándwiches y cocina","Frutas y licuados","Descartables","Limpieza","Otros insumos"];
+  const categoryNames=state.local==="Trento Café"?cafeSections.filter(name=>categoryCount(name)>0):[...categoryMap.values()].sort((a,b)=>categoryCount(b)-categoryCount(a)||a.localeCompare(b,"es"));
+  let visibleCategoryNames=categoryNames;
   if(!["Recomendados","En pedido","Stock bajo"].includes(orderCategory)&&categoryNames.includes(orderCategory)&&!visibleCategoryNames.includes(orderCategory)) visibleCategoryNames=visibleCategoryNames.concat(orderCategory);
   const isSmartRecommendation=item=>!!pedidoInsightForItem(item);
   const smartRecommendationCount=cat.filter(isSmartRecommendation).length;
-  const categoryOptions=["Recomendados","Otros del local",...(state.items.length?["En pedido"]:[]),...(cat.some(isLowStock)?["Stock bajo"]:[]),...visibleCategoryNames];
-  if(!["Recomendados","Otros del local","En pedido","Stock bajo",...categoryNames].includes(orderCategory)) orderCategory="Recomendados";
+  const categoryOptions=[...visibleCategoryNames,"Todos","Recomendados",...(state.local!=="Trento Café"?["Otros del local"]:[]),...(state.items.length?["En pedido"]:[]),...(cat.some(isLowStock)?["Stock bajo"]:[]),"Historial sin catalogar"];
+  if(!categoryOptions.includes(orderCategory)) orderCategory=defaultOrderCategory(state.local);
   if(categories){
-    const countFor=name=>name==="Recomendados"?smartRecommendationCount:name==="Otros del local"?cat.filter(item=>!isSmartRecommendation(item)).length:name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
-    categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${name==="Recomendados"?"Ya pedidos":esc(name)} <small>${countFor(name)}</small></button>`).join("")+(categoryNames.length>6?`<button type="button" class="order-category" data-category-more aria-expanded="${String(orderShowAllCategories)}">${orderShowAllCategories?"Menos categorías":`Más categorías +${categoryNames.length-6}`}</button>`:"");
+    const countFor=name=>name==="Todos"?cat.length:name==="Historial sin catalogar"?localHistoryExtras(state.local).length:name==="Recomendados"?smartRecommendationCount:name==="Otros del local"?cat.filter(item=>!isSmartRecommendation(item)).length:name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
+    categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${name==="Recomendados"?"Frecuentes":esc(name)} <small>${countFor(name)}</small></button>`).join("");
     categories.querySelectorAll("[data-category]").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; orderVisibleLimit=24; renderQuickCatalog(); }));
     const moreCategories=categories.querySelector("[data-category-more]");
     if(moreCategories) moreCategories.addEventListener("click",()=>{ orderShowAllCategories=!orderShowAllCategories; renderQuickCatalog(); });
   }
   const queryScore=item=>{
     if(!q) return 0;
-    const name=normalizeLooseText(item.nombre||""), category=normalizeLooseText(item.categoria||""), provider=normalizeLooseText(item.proveedor||"");
+    const name=normalizeLooseText(item.nombre||""), category=normalizeLooseText(orderCatalogSection(item)), provider=normalizeLooseText(item.proveedor||"");
     if(name===q) return 100;
     if(name.startsWith(q)) return 70;
     if(name.includes(q)) return 50;
@@ -3398,7 +3477,7 @@ function renderQuickCatalog(){
   };
   let allFiltered=cat.filter(x=>{
     const matchesQuery=!q || queryScore(x)>0;
-    const matchesCategory=orderCategory==="Recomendados" ? (q||isSmartRecommendation(x)) : orderCategory==="Otros del local" ? !isSmartRecommendation(x) : (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : orderCategory==="Stock bajo" ? isLowStock(x) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
+    const matchesCategory=q?orderCategory!=="Historial sin catalogar":orderCategory==="Todos"?true:orderCategory==="Recomendados"?isSmartRecommendation(x):orderCategory==="Otros del local"?!isSmartRecommendation(x):orderCategory==="En pedido"?state.items.some(item=>!item.free&&item.codigo===x.codigo):orderCategory==="Stock bajo"?isLowStock(x):normalizeLooseText(orderCatalogSection(x))===normalizeLooseText(orderCategory);
     return matchesQuery&&matchesCategory;
   });
   const recommendedScore=item=>{
@@ -3417,10 +3496,13 @@ function renderQuickCatalog(){
       const av=num(a.stock_actual),bv=num(b.stock_actual);
       if(av!==null&&bv!==null&&av!==bv) return av-bv;
     }
+    if(state.local==="Trento Café"&&orderCategory==="Café y barra"&&cafeBarPriority(a)!==cafeBarPriority(b)) return cafeBarPriority(a)-cafeBarPriority(b);
     const scoreDiff=recommendedScore(b)-recommendedScore(a);
     return scoreDiff||String(a.nombre||"").localeCompare(String(b.nombre||""),"es");
   });
   const filtered=allFiltered.slice(0,orderVisibleLimit);
+  const title=$("#orderSectionTitle");
+  if(title) title.textContent=q?`Resultados en ${state.local}`:orderCategory==="Recomendados"?"Frecuentes":orderCategory;
   meta.textContent = `${filtered.length}${allFiltered.length>filtered.length?` de ${allFiltered.length}`:""} producto${allFiltered.length===1?'':'s'} · ${state.items.length} en el pedido`;
   if(more){
     more.hidden=filtered.length>=allFiltered.length;
@@ -3428,18 +3510,20 @@ function renderQuickCatalog(){
   }
   if(!filtered.length){
     const typed=search.value.trim();
-    box.innerHTML=`<div class="quick-pick-empty">${typed?`No encontramos <b>${esc(typed)}</b> en ${esc(state.local)}. Podés agregarlo fuera de catálogo.`:orderCategory==="Recomendados"?`Sin productos de catálogo con pedidos previos en ${esc(state.local)}. Consultá Otros del local o cargá uno fuera de catálogo. No copiamos productos de otros locales.`:"No hay productos en este filtro."}</div>`;
+    box.innerHTML=orderCategory==="Historial sin catalogar"?"":`<div class="quick-pick-empty">${typed?`Sin coincidencias para <b>${esc(typed)}</b> en ${esc(state.local)}.`:orderCategory==="Recomendados"?"Sin pedidos anteriores para estos productos. Consultá Todos.":"No hay productos en esta sección."}</div>`;
     $("#freeBtn").textContent=typed?`Agregar “${typed}”`:"Fuera de catálogo";
     return;
   }
   $("#freeBtn").textContent="Fuera de catálogo";
   box.innerHTML = filtered.map(item=>{
     const current = state.items.find(x=>!x.free && x.codigo===item.codigo);
+    const duplicated=cat.filter(other=>normalizeLooseText(other.nombre)===normalizeLooseText(item.nombre)&&normalizeLooseText(other.unidad)===normalizeLooseText(item.unidad)).length>1;
     return `
       <div class="quick-pick-item ${current?'in-order':''}" data-code="${esc(item.codigo||"")}">
         <div class="quick-pick-main">
-          <div class="quick-pick-name">${esc(item.nombre)}</div>
-          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${catalogStockBadge(item)}</div>
+          <div class="quick-pick-name">${esc(catalogDisplayName(item))} <span class="catalog-unit">${esc(item.unidad)}</span></div>
+          <div class="quick-pick-meta">${esc(orderCatalogSection(item))}${item.proveedor?` · ${esc(item.proveedor)}`:""}${catalogStockBadge(item)}</div>
+          ${duplicated?`<div class="quick-pick-meta">${esc(item.codigo)} · nombre duplicado en la planilla</div>`:""}
           ${pedidoInsightButton(item)}
         </div>
         <div class="order-product-stepper" aria-label="Cantidad de ${esc(item.nombre)}">
