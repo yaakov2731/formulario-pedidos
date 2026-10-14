@@ -1,66 +1,76 @@
-# Deploy V2
+# Publicación y aceptación operativa
 
-## 1. Verificar local
+## 1. Verificar localmente
 
-```powershell
-node .\scripts\verify-v2.js
-```
+Ejecutar las siete verificaciones locales documentadas en `README.md`. Todas deben
+terminar correctamente. Comprobar el diff y preservar cambios ajenos a la tarea.
 
-Resultado esperado:
-- `V2 verification passed.`
+No existe un `Code.gs` único: el backend publicado vive en `gas/*.gs`.
 
-## 2. Publicar Apps Script
+## 2. Publicar la implementación existente
 
-1. Abrir el Google Sheet maestro.
-2. Ir a `Extensiones > Apps Script`.
-3. Reemplazar el contenido por [Code.gs](C:\Users\jcbru\OneDrive\Documents\pedidos%20Semanales\Code.gs).
-4. Guardar.
-5. Ejecutar una vez:
-   - `setupPlantillaPro()`
-6. Implementar:
-   - `Implementar > Nueva implementación > Aplicación web`
-   - `Ejecutar como: yo`
-   - `Acceso: Cualquiera`
-7. Si cambió la URL `/exec`, actualizar `SCRIPT_URL` en [index.html](C:\Users\jcbru\OneDrive\Documents\pedidos%20Semanales\index.html).
+El workflow `.github/workflows/deploy.yml` se ejecuta al actualizar `main`:
 
-## 3. Verificar deploy live
+1. Ejecuta los tests locales antes de permitir ambos despliegues.
+2. Aplica las rutas administrativas mediante `scripts/patch_admin_backend.py`.
+3. Publica `gas/` con clasp y actualiza el deployment identificado por `SCRIPT_URL`.
+   Usa secretos configurados en GitHub; no copiarlos en archivos versionados ni logs.
+4. Publica `index.html`, `admin.js` y `favicon.svg` en `gh-pages`.
+5. GitHub Pages construye el sitio desde esa rama. Esperar también ese workflow.
+
+Una actualización habitual no requiere ejecutar `setupPlantillaPro()` ni
+`setupVersion2UI()`: esas funciones migran o reconstruyen planillas. No ejecutar
+`resetOperationalData()`. Una inicialización o migración necesita respaldo y revisión
+explícita de los datos afectados, fuera del despliegue habitual.
+
+Si falla la publicación automática, inspeccionar el job antes de cambiar la URL
+o crear otro deployment. Si se autoriza cambiar `/exec`, actualizar `SCRIPT_URL`,
+publicar el frontend y verificar ambos destinos nuevamente.
+
+## 3. Verificar producción
 
 ```powershell
 node .\scripts\verify-live-v2.js
 ```
 
-Resultado esperado:
-- `Live V2 verification passed.`
+Debe terminar con `Live V2 verification passed.`. Comprueba versión, capacidades,
+datos por local, stock operativo y ausencia de recomendaciones con códigos ajenos.
+Un timeout o error de red no prueba que el backend esté atrasado: distinguirlo de
+una respuesta con versión o capacidades incorrectas.
 
-Si falla hoy con mensajes como:
-- `recepciones missing in live deployment`
-- `produccion missing in live deployment`
-- `snapshot missing in live deployment`
-- `bootstrap missing dashboard_v2 capability`
-- `config still exposes legacy local Parrilla`
+Confirmar también que el HTML servido por Pages corresponde al commit previsto.
+Un workflow exitoso no prueba por sí solo que el operador vea la versión correcta.
 
-entonces el `/exec` publicado sigue atrasado respecto del código local.
+## 4. Aceptación visual y funcional
 
-## 4. Prueba funcional mínima
+Primero recorrer sin guardar en escritorio y móvil: Inicio, Pedido, Stock, Recepción,
+Producción, Elaborados y Reportes. Cambiar entre Umo y Trento: catálogo, historial y
+borrador deben pertenecer al local elegido. Buscar productos propios sin historial
+debe funcionar en `Otros del local` y en la búsqueda.
 
-Con la app publicada:
+Para escrituras, usar datos operativos reales aprobados por el operador.
+No inventar pedidos, responsables, stock o remitos para obtener un test verde:
 
-1. Elegir un local.
-2. Cargar un pedido simple y enviarlo.
-3. Abrir `Stock` y guardar un conteo real.
-   - Confirmar que el guardado cierre rápido y que la lectura del local cambie sin esperar recarga completa.
-4. Abrir `Recepción` y registrar al menos un producto.
-5. Abrir `Producción` y registrar un parte simple.
-6. Abrir `Dashboard` y confirmar:
-   - métricas visibles,
-   - pedidos abiertos del local,
-   - movimientos recientes,
-   - riesgos del local,
-   - revisión del pedido actual.
+1. Registrar local, responsable, semana y entrega del pedido autorizado.
+2. Revisar y enviar. Confirmar el mismo ID con `getPedidoStatus`, comparando local,
+   responsable y productos. Una recarga exitosa no prueba el guardado.
+3. Guardar el conteo real y confirmar su ID con `getOperationStatus&type=stock`.
+4. Registrar la recepción real y confirmar su ID con `type=recepcion`.
+5. Registrar el parte real de producción y confirmar su ID con `type=produccion`.
+6. Para elaborados, confirmar el ID con `type=elaborados`.
+7. Comparar el saldo por producto y unidad: conteo + recepción − consumo.
+   Revisar actividad y decisiones de Reportes. No sumar kg y unidades.
+8. Comprobar edición autorizada de responsable y catálogo con confirmación persistida;
+   el operador debe introducir personalmente cualquier código de autenticación.
+
+Los envíos pueden notificar a Telegram y modificar la planilla: ejecutar sólo las
+operaciones aprobadas. Si falta aprobación o acceso, documentar la prueba pendiente;
+no declarar aceptación integral ni eliminar registros para ocultarla.
 
 ## 5. Evidencia de cierre
 
-Para considerar la V2 cerrada, tiene que haber evidencia de:
-- `verify-v2.js` pasando en local.
-- `verify-live-v2.js` pasando contra el `/exec` activo.
-- flujo manual completo `pedido + stock + recepción + producción + dashboard` funcionando.
+Conservar versión, commit, resultados completos de verificaciones, workflows de
+ambos despliegues y evidencia visual de la misma revisión. Para escrituras, conservar
+IDs confirmados y comparación de saldos. Las capturas con datos operativos quedan
+fuera del repositorio público. Los tests en memoria y las consultas de estado
+no sustituyen ese recorrido de guardado real.

@@ -6,7 +6,27 @@ on:
       - main
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+      - name: Verify operational contracts and behavior
+        run: |
+          node scripts/verify-v2.js
+          node scripts/verify-par.js
+          node scripts/verify-reception-guide.js
+          node scripts/verify-local-drafts.js
+          node scripts/verify-local-catalog.js
+          node scripts/verify-jsonp.js
+          node scripts/verify-dashboard-render.js
+
   deploy-gas:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -43,6 +63,7 @@ jobs:
           clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA::7}"
 
   deploy-frontend:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -1,32 +1,51 @@
-# React + TypeScript + Vite
+# Pedidos Semanales · Docks del Puerto
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicación operativa para pedidos, stock, recepción, producción, elaborados y
+reportes. Borradores por local y catálogos guiados por sus propios pedidos.
 
-Currently, two official plugins are available:
+[Abrir la app](https://yaakov2731.github.io/formulario-pedidos/).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Arquitectura real
 
-## React Compiler
+- `index.html`: frontend sin bundler, publicado en GitHub Pages.
+- `admin.js`: superficie administrativa existente.
+- `gas/*.gs`: backend modular de Apps Script, conectado a Google Sheets.
+- `scripts/`: verificaciones estructurales y de comportamiento. Los tests locales
+  usan funciones reales con almacenamiento y planillas en memoria, sin escrituras
+  operativas. La verificación live consulta el backend y el estado de Telegram;
+  no envía notificaciones.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Este repositorio no usa React, Vite ni TypeScript. Tampoco sincroniza directamente
+el Excel de OneDrive: la fuente actual es Google Sheets.
 
-## Expanding the Oxlint configuration
+## Verificar antes de publicar
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Desde esta carpeta, con Node.js instalado:
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```powershell
+node .\scripts\verify-v2.js
+node .\scripts\verify-par.js
+node .\scripts\verify-reception-guide.js
+node .\scripts\verify-local-drafts.js
+node .\scripts\verify-local-catalog.js
+node .\scripts\verify-jsonp.js
+node .\scripts\verify-dashboard-render.js
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Después de publicar:
+
+```powershell
+node .\scripts\verify-live-v2.js
+```
+
+Los tests no sustituyen la prueba visual ni un guardado operativo confirmado por ID.
+
+## Publicación y operación
+
+El workflow de GitHub verifica primero el código y publica por separado Apps Script
+y GitHub Pages al actualizar `main`. No ejecutar setup, migraciones ni reset como
+parte de una actualización habitual.
+
+Consultar [DEPLOY-V2.md](DEPLOY-V2.md) para las comprobaciones de cierre,
+[PRODUCT.md](PRODUCT.md) para los flujos y [DESIGN.md](DESIGN.md) para el diseño.
+No incluir planillas privadas, capturas operativas ni credenciales en Git.
