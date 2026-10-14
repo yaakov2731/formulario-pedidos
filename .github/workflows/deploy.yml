@@ -25,6 +25,7 @@ jobs:
           node scripts/verify-jsonp.js
           node scripts/verify-dashboard-render.js
           node scripts/verify-unit-quantities.js
+          node scripts/verify-order-send.js
 
   deploy-gas:
     needs: verify

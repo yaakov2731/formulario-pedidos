@@ -1817,6 +1817,7 @@ html,body,.app-main{background:var(--bg)}
 .receipt-external-choice{display:flex;align-items:flex-start;gap:10px;min-height:44px;font-size:12px;line-height:1.5}
 #recepExternalConsent{width:18px;height:18px;min-height:18px;flex-shrink:0}
 #prodSaveError{color:var(--red);white-space:normal}
+#pedidoSendStatus{overflow-wrap:anywhere;white-space:normal}
 .bar.tab-panel[data-tab="pedido"]{background:var(--surface);border:1px solid var(--line);padding:10px 16px;box-shadow:none}
 .order-workspace .catalog-tools{margin:0 0 10px;display:flex;justify-content:flex-end}
 .order-workspace .quick-pick{margin:0;border:0;background:transparent;box-shadow:none}
@@ -2363,6 +2364,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       <span class="pedido-local-pill" id="pedidoReviewLocal">Local pendiente</span>
     </div>
     <div class="review-status" id="pedidoReviewStatus" role="status" aria-live="polite"></div>
+    <p id="pedidoSendStatus" class="review-status" role="status" aria-live="polite" hidden></p>
     <div class="review-layout">
       <div class="review-panel">
         <div class="review-panel-head"><div><strong>Productos</strong><span id="sumCount">0 productos</span></div><span id="sumEst">Cargá los productos que necesitás</span></div>
@@ -3818,7 +3820,7 @@ $("#email").addEventListener("input",()=>{state.emailTouched=true;syncSend();sch
 function valid(){
   return state.local && $("#encargado").value.trim() && /\S+@\S+\.\S+/.test($("#email").value)
     && $("#semana").value && $("#fecha_entrega").value && state.items.length>0
-    && state.items.every(i=>i.qty>0) && !pedidoCatalogMismatches().length;
+    && state.items.every(i=>Number.isFinite(Number(i.qty))&&Number(i.qty)>0) && !pedidoCatalogMismatches().length;
 }
 function pedidoCatalogMismatches(){
   if(!LIVE||!state.local) return [];
@@ -3837,10 +3839,10 @@ function syncSend(){
   if(!$("#semana").value) missing.push("semana");
   if(!$("#fecha_entrega").value) missing.push("fecha de entrega");
   if(!state.items.length) missing.push("productos");
-  if(state.items.some(item=>!(item.qty>0))) missing.push("cantidades");
+  if(state.items.some(item=>!Number.isFinite(Number(item.qty))||!(Number(item.qty)>0))) missing.push("cantidades");
   if(pedidoCatalogMismatches().length) missing.push("revisar productos que no pertenecen al catálogo de este local");
   const ready=LIVE&&!missing.length;
-  btn.disabled=!ready;
+  btn.disabled=pedidoSendBusy||!ready;
   btn.title=!LIVE?"Sin conexión: el pedido no se puede enviar":missing.length?`Falta: ${missing.join(", ")}`:"Pedido listo para confirmar";
   ["encargado","email","semana","fecha_entrega"].forEach(id=>{
     const field=$("#"+id);
@@ -3864,15 +3866,35 @@ $("#send").addEventListener("click",submit);
 $("#pedidoNext").addEventListener("click",nextPedidoStep);
 $("#pedidoBack").addEventListener("click",previousPedidoStep);
 const OPAQUE_POST_HEADERS = { "Content-Type":"text/plain;charset=utf-8" };
+let pedidoSendBusy=false;
+function pedidoDraftFingerprint(draft){
+  if(!draft) return "";
+  const {pedidoStep,encTouched,emailTouched,...content}=draft;
+  return JSON.stringify(content);
+}
+function setPedidoSendStatus(message){
+  const status=$("#pedidoSendStatus");
+  if(status){ status.textContent=message; status.hidden=!message; }
+}
+function pedidoStatusMatches(status,payload){
+  if(!status||!status.ok||!status.found||!status.pedido||!Array.isArray(status.items)) return false;
+  const pedido=status.pedido;
+  const tuples=items=>items.map(item=>JSON.stringify([String(item.codigo||""),String(item.producto||""),Number(item.cantidad),String(item.unidad||"")])).sort();
+  return status.id_pedido===payload.id_pedido&&pedido.local===payload.local
+    &&pedido.encargado===payload.encargado&&pedido.semana===payload.semana_pedido
+    &&JSON.stringify(tuples(status.items))===JSON.stringify(tuples(payload.items));
+}
 async function submit(){
+  if(pedidoSendBusy) return;
   if(!requireLiveWrite("El pedido")) return;
   if(!valid()){ toast("Completá local, datos y al menos un producto","err"); return; }
-  const items=state.items;
+  const draftFingerprint=pedidoDraftFingerprint(capturePedidoDraft());
+  const items=state.items.map(item=>({...item}));
   const productosTexto=items.map(i=>`${i.nombre} - ${trim(i.qty)} ${i.unidad}`).join(", ");
   const proveedores=[...new Set(items.map(i=>i.proveedor).filter(Boolean))].join(", ");
   const ahora=new Date();
   const payload={
-    id_pedido:"PED"+ahora.getTime().toString().slice(-6),
+    id_pedido:"PED-"+ahora.getTime()+"-"+(typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)),
     fecha_hora:ahora.toLocaleString("es-AR"),
     local:state.local,
     encargado:$("#encargado").value.trim(),
@@ -3896,29 +3918,33 @@ async function submit(){
     }))
   };
   const btn=$("#send"); const orig=btn.innerHTML;
+  pedidoSendBusy=true;
+  setPedidoSendStatus(`Enviando pedido de ${payload.local}.`);
   btn.disabled=true; btn.innerHTML=`<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Enviando...`;
   try{
     const backendResult = await apiPost(payload);
-    const confirmed = await confirmPedidoPersisted(payload.id_pedido);
+    const confirmed = await confirmPedidoPersisted(payload.id_pedido,8,900,payload);
     const telegramOk = !!(
       (backendResult && backendResult.telegram && backendResult.telegram.ok === true) ||
       (confirmed && confirmed.telegramOk === true)
     );
     if(!confirmed.ok){
+      setPedidoSendStatus(`No se confirmó ${payload.id_pedido} de ${payload.local}. Conservé el borrador. Revisá la planilla antes de reenviar.`);
       toast("No pude confirmar el pedido. Conservé el borrador; revisá la planilla antes de reenviar.","err");
-    }else if(!telegramOk){
-      toast("Pedido guardado, pero Telegram no confirmó la notificación","err");
-      recordCatalogUsage(payload.local,items);
-      resetForm(payload.local);
     }else{
-      toast("Pedido enviado","ok");
+      const currentDraft=state.local===payload.local?capturePedidoDraft():pedidoDraftsByLocal[payload.local];
+      const unchanged=pedidoDraftFingerprint(currentDraft)===draftFingerprint;
       recordCatalogUsage(payload.local,items);
-      resetForm(payload.local);
+      if(unchanged) resetForm(payload.local);
+      const message=`Pedido ${payload.id_pedido} de ${payload.local} guardado.${unchanged?"":" Conservé los cambios que hiciste durante el envío."}${telegramOk?"":" Telegram no confirmó la notificación."}`;
+      setPedidoSendStatus(message);
+      toast(message,telegramOk?"ok":"err");
     }
   }catch{
-    toast("Error de red, reintentá","err");
+    setPedidoSendStatus(`No se pudo confirmar ${payload.id_pedido} de ${payload.local}. Conservé el borrador. Revisá la planilla antes de reenviar.`);
+    toast("Pedido sin confirmar. Revisá la planilla antes de reenviar.","err");
   }finally{
-    btn.innerHTML=orig; syncSend();
+    pedidoSendBusy=false; btn.innerHTML=orig; syncSend();
   }
 }
 function resetForm(local=state.local){
@@ -5054,11 +5080,11 @@ async function refreshData(opts={}){
     return false;
   }
 }
-async function confirmPedidoPersisted(idPedido, attempts=8, delayMs=900){
+async function confirmPedidoPersisted(idPedido, attempts=8, delayMs=900, payload=null){
   for(let attempt=0; attempt<attempts; attempt++){
     try{
       const status = await backendGet("getPedidoStatus", { id_pedido:idPedido, t:Date.now() });
-      if(status && status.ok && status.found){
+      if(status && status.ok && status.found && (!payload||pedidoStatusMatches(status,payload))){
         queueBootstrapRefresh(120, "ops");
         return {
           ok:true,

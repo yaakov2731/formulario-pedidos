@@ -51,7 +51,8 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.9.4", "bootstrap receipt consent version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.4`);
+  expect(bootstrap && bootstrap.version === "2.9.5", "bootstrap guarded order version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.5`);
+  expect(bootstrap.capabilities && bootstrap.capabilities.pedido_confirmation_details === true, "detailed order confirmation enabled", "detailed order confirmation missing");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.receipt_external_opt_in),"receipt external processing requires explicit opt-in","receipt external opt-in missing");
   if(bootstrap.capabilities&&bootstrap.capabilities.receipt_external_opt_in){
     const noConsent=await getJson(`${scriptUrl}?action=parseReceiptTextAi&local=Trento%20Caf%C3%A9&text=Verificacion%20sin%20envio`);

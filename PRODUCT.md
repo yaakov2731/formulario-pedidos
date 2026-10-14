@@ -155,6 +155,16 @@ a la unidad del catálogo. La extracción externa no omite esa revisión local.
 
 ## Borradores por local
 
+El envío toma una copia de productos y cantidades y utiliza un ID con timestamp
+completo y sufijo aleatorio. Un bloqueo en el cliente evita clics simultáneos;
+no sustituye idempotencia de servidor ni deduplicación entre dispositivos.
+La confirmación compara ID, local, responsable, semana y todos los productos,
+códigos, unidades y cantidades del detalle persistido. Si el borrador cambia
+durante la espera, se conserva; si se cambia de local, sólo se puede limpiar el
+borrador original sin cambios. Los errores indican revisar la planilla antes de
+reenviar y aparecen en la revisión además del aviso temporal. Cantidades infinitas
+se rechazan en cliente y servidor. Pruebas con fixtures en `verify-order-send.js`.
+
 Cada local conserva su propio pedido en el dispositivo: productos, cantidades,
 responsable, email, semana, entrega, prioridad y notas. Cambiar de local recupera
 su borrador sin trasladar datos del anterior. La migración conserva el borrador

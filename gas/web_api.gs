@@ -391,6 +391,7 @@ function appCapabilities_() {
     pedido_status: true,
     operation_status: true,
     pedido_intelligence: true,
+    pedido_confirmation_details: true,
     decision_center: true,
     catalog_par: true,
     reception_guide: true,
@@ -414,7 +415,7 @@ function savePedido_(data) {
   for (var i = 0; i < data.items.length; i++) {
     var it = data.items[i];
     if (!it.producto) return { ok: false, error: 'Producto sin nombre en el pedido' };
-    if (!(Number(it.cantidad) > 0)) return { ok: false, error: 'Cantidad inválida en "' + it.producto + '"' };
+    if (!isFinite(Number(it.cantidad)) || !(Number(it.cantidad) > 0)) return { ok: false, error: 'Cantidad inválida en "' + it.producto + '"' };
     if (it.codigo && !catalog.some(function (item) { return String(item.codigo || '') === String(it.codigo); })) {
       return { ok: false, error: 'El producto ' + it.producto + ' no pertenece al catálogo de ' + data.local };
     }
@@ -449,6 +450,9 @@ function getPedidoStatus_(pedidoId) {
       estado: pedido[6] || ''
     } : null,
     detalle_count: detalle.length,
+    items: detalle.map(function (row) {
+      return { codigo: String(row[6] || ''), producto: String(row[7] || ''), cantidad: Number(row[9]), unidad: String(row[10] || '') };
+    }),
     telegram: telegram
   };
 }

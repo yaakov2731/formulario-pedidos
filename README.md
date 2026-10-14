@@ -31,6 +31,7 @@ node .\scripts\verify-local-catalog.js
 node .\scripts\verify-jsonp.js
 node .\scripts\verify-dashboard-render.js
 node .\scripts\verify-unit-quantities.js
+node .\scripts\verify-order-send.js
 ```
 
 Después de publicar:
