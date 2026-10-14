@@ -67,6 +67,9 @@ function main() {
     "id=\"prodGrid\"",
     "id=\"dashRiskList\"",
     "id=\"dashActivityList\"",
+    "id=\"dashDecisionCenter\"",
+    "id=\"dashDecisionSummary\"",
+    "id=\"dashDecisionList\"",
     "id=\"recepSearch\"",
     "id=\"prodInsumoSearch\"",
     "id=\"recepMore\"",
@@ -103,6 +106,7 @@ function main() {
     "function saveReception()",
     "function saveProduction()",
     "function renderDashboard()",
+    "function renderDecisionCenter()",
     "function renderRecepcionModule()",
     "function renderProduccionModule()",
     "function renderElaboradosModule()",
@@ -150,6 +154,9 @@ function main() {
   expectContains(html, "Number(insight.pedidos)", "shared order history recommendation score");
   expectContains(html, "habitual-stock", "stock-aware habitual order suggestion");
   expectContains(html, "Cubierto · habitual", "covered habitual demand state");
+  expectContains(html, "SNAPSHOT.decisionCenterByLocal", "decision center reads live operational decisions");
+  expectContains(html, "data-decision-add", "decision center can stage a suggested purchase");
+  expectContains(html, "data-decision-stock", "decision center can open stock counting");
   ["encargado", "recepEncargado", "prodEncargado", "elabEncargado", "stockEncargado"].forEach((id) => {
     expectRegex(html, new RegExp(`id="${id}"[^>]+list="${id}Options"`), `editable responsable combobox ${id}`);
     expectContains(html, `data-responsable-add="${id}"`, `inline responsable add ${id}`);
@@ -195,10 +202,12 @@ function main() {
     "function operationalLocals_() {",
     "created: false, responsable:",
     "if (!responsable.nombre) continue;",
-    "function buildFrontendOperationalSnapshot_() {",
+    "function buildFrontendOperationalSnapshot_(pedidoIntelligence) {",
     "function buildPedidoIntelligence_() {",
-    "pedido_intelligence: buildPedidoIntelligence_()",
+    "function buildDecisionCenterByLocal_(snap, pedidoIntelligence) {",
+    "pedido_intelligence: pedidoIntelligence",
     "pedido_intelligence: true",
+    "decision_center: true",
     "if (action === 'getPedidoStatus') {",
     "if (action === 'getOperationStatus') {",
     "function getPedidoStatus_(pedidoId) {",

@@ -41,7 +41,7 @@ var SHEET_REPORT_ELAB = 'REPORTE SOBRANTES';
 var SHEET_LOCAL_PED_PREFIX = 'LOCAL PEDIDO · ';
 var SHEET_LOCAL_STK_PREFIX = 'LOCAL STOCK · ';
 var SHEET_TELEGRAM_LOG = 'LOG TELEGRAM';
-var APP_VERSION = '2.4.0';
+var APP_VERSION = '2.5.0';
 var PRINT_FONT_SIZE = 14;
 
 var DETALLE_HEADERS = ['ID_Pedido','Fecha_Hora','Semana','Local','Encargado','Urgencia',

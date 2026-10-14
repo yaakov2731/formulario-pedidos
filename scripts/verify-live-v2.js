@@ -42,7 +42,7 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.4.0", "bootstrap shared intelligence version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.4.0`);
+  expect(bootstrap && bootstrap.version === "2.5.0", "bootstrap decision center version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.5.0`);
   expect(bootstrap && bootstrap.capabilities, "bootstrap capabilities present", "bootstrap capabilities missing");
 
   expect(!!bootstrap.catalog, "catalog present", "catalog missing");
@@ -64,10 +64,12 @@ async function main() {
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.dashboard_v2), "bootstrap dashboard_v2 enabled", "bootstrap missing dashboard_v2 capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.operation_status), "operation confirmation enabled", "bootstrap missing operation_status capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.pedido_intelligence), "pedido intelligence enabled", "bootstrap missing pedido_intelligence capability");
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.decision_center), "decision center enabled", "bootstrap missing decision_center capability");
 
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.totals), "snapshot totals present", "snapshot totals missing");
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.byLocal), "snapshot byLocal present", "snapshot byLocal missing");
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.openItemsByLocal), "snapshot openItemsByLocal present", "snapshot openItemsByLocal missing");
+  expect(!!(bootstrap.snapshot && bootstrap.snapshot.decisionCenterByLocal), "snapshot decision center present", "snapshot decision center missing");
 
   const configKeys = Object.keys(bootstrap.config || {});
   expect(!configKeys.includes("Parrilla"), "Parrilla normalized", "config still exposes legacy local Parrilla");
@@ -94,6 +96,13 @@ async function main() {
   expect(intelligenceLocals.length > 0, "pedido intelligence has real history", "pedido intelligence returned no local history");
   const intelligenceRows = intelligenceLocals.reduce((sum, local) => sum + Object.keys(bootstrap.pedido_intelligence.byLocal[local] || {}).length, 0);
   expect(intelligenceRows > 0, "pedido intelligence has product recommendations", "pedido intelligence returned no product recommendations");
+  const decisionLocals = Object.keys((bootstrap.snapshot && bootstrap.snapshot.decisionCenterByLocal) || {});
+  expect(decisionLocals.length > 0, "decision center has real local data", "decision center returned no local data");
+  const decisionRows = decisionLocals.reduce((sum, local) => {
+    const rec = bootstrap.snapshot.decisionCenterByLocal[local] || {};
+    return sum + (rec.suggestions || []).length + (rec.needs_count || []).length;
+  }, 0);
+  expect(decisionRows > 0, "decision center has actionable rows", "decision center returned no actionable rows");
 
   const report = await getJson(`${scriptUrl}?action=getElaboradosReport&local=${encodeURIComponent("Umo Grill")}`);
   expect(report && report.ok === true, "elaborados report responded", "elaborados report did not return ok:true");

@@ -1038,6 +1038,8 @@ function computeOperationalSnapshot_() {
 
   return {
     catalog: catalog,
+    stockMap: stockMap,
+    demandMap: demandMap,
     records: records,
     localSummary: localSummary,
     totalProductos: totalProductos,
@@ -1064,7 +1066,7 @@ function computeOperationalSnapshot_() {
   };
 }
 
-function buildFrontendOperationalSnapshot_() {
+function buildFrontendOperationalSnapshot_(pedidoIntelligence) {
   var snap = computeOperationalSnapshot_();
   return {
     generated_at: Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd HH:mm:ss'),
@@ -1081,8 +1083,74 @@ function buildFrontendOperationalSnapshot_() {
       elaborados: snap.totalElaboradosMovimientos
     },
     byLocal: snap.localSummary,
-    openItemsByLocal: buildOpenItemsByLocalFromRows_(snap.activeRows || [])
+    openItemsByLocal: buildOpenItemsByLocalFromRows_(snap.activeRows || []),
+    decisionCenterByLocal: buildDecisionCenterByLocal_(snap, pedidoIntelligence || buildPedidoIntelligence_())
   };
+}
+
+function buildDecisionCenterByLocal_(snap, pedidoIntelligence) {
+  var out = {};
+  var intelligenceByLocal = (pedidoIntelligence && pedidoIntelligence.byLocal) || {};
+  Object.keys(snap.catalog || {}).forEach(function (local) {
+    var localIntel = intelligenceByLocal[local] || {};
+    var suggestions = [];
+    var needsCount = [];
+    var covered = 0;
+    (snap.catalog[local] || []).forEach(function (item) {
+      var key = keyFor_(local, item.codigo, item.nombre);
+      var stockRec = (snap.stockMap || {})[key];
+      var catalogStock = numberOrNull_(item.stock_actual);
+      var stockKnown = !!stockRec || catalogStock !== null;
+      var stock = stockRec ? numberOrZero_(stockRec.stock_real, 0) : catalogStock;
+      var demand = (snap.demandMap || {})[key] || { cantidad: 0, pedidos: 0 };
+      var pending = round2_(numberOrZero_(demand.cantidad, 0));
+      var insightKey = String(item.codigo || '').trim() || ('name:' + normalizeLooseText_(item.nombre));
+      var insight = localIntel[insightKey] || {};
+      var habitual = round2_(numberOrZero_(insight.cantidad_sugerida, 0));
+      var minimum = numberOrNull_(item.stock_minimo);
+      if (!stockKnown) {
+        if (pending > 0 || habitual > 0) {
+          needsCount.push({
+            codigo: item.codigo || '', producto: item.nombre || '', categoria: item.categoria || '', unidad: item.unidad || '',
+            proveedor: item.proveedor || '', pendiente: pending, habitual: habitual,
+            razon: pending > 0 ? 'Hay demanda abierta pero falta un conteo confiable' : 'Tiene historial de consumo pero falta stock real'
+          });
+        }
+        return;
+      }
+      stock = round2_(numberOrZero_(stock, 0));
+      var target = Math.max(pending, habitual);
+      var suggested = round2_(Math.max(0, target - stock));
+      if (suggested > 0) {
+        var openShortage = pending > stock;
+        suggestions.push({
+          codigo: item.codigo || '', producto: item.nombre || '', categoria: item.categoria || '', unidad: item.unidad || '',
+          proveedor: item.proveedor || '', stock: stock, pendiente: pending, habitual: habitual,
+          cantidad_sugerida: suggested, prioridad: openShortage ? 'alta' : 'media',
+          tendencia: insight.tendencia || 'estable', confianza: insight.confianza || '',
+          razon: openShortage ? 'El stock no cubre los pedidos abiertos' : (minimum !== null && stock <= minimum ? 'Stock bajo y consumo habitual sin cubrir' : 'El stock no cubre el consumo habitual')
+        });
+      } else if (habitual > 0 || pending > 0) {
+        covered += 1;
+      }
+    });
+    suggestions.sort(function (a, b) {
+      if (a.prioridad !== b.prioridad) return a.prioridad === 'alta' ? -1 : 1;
+      return b.cantidad_sugerida - a.cantidad_sugerida;
+    });
+    needsCount.sort(function (a, b) { return b.pendiente - a.pendiente || b.habitual - a.habitual; });
+    out[local] = {
+      summary: {
+        comprar: suggestions.length,
+        urgentes: suggestions.filter(function (item) { return item.prioridad === 'alta'; }).length,
+        contar: needsCount.length,
+        cubiertos: covered
+      },
+      suggestions: suggestions.slice(0, 20),
+      needs_count: needsCount.slice(0, 20)
+    };
+  });
+  return out;
 }
 
 function buildPedidoIntelligence_() {

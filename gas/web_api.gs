@@ -289,6 +289,7 @@ function getBootstrapPayload_(scope) {
     if (cached) return JSON.parse(cached);
   } catch (err) {}
 
+  var pedidoIntelligence = buildPedidoIntelligence_();
   var payload = {
     ok: true,
     version: APP_VERSION,
@@ -296,8 +297,8 @@ function getBootstrapPayload_(scope) {
     recepciones: readRecepcionResumen_(),
     produccion: readProduccionResumen_(),
     elaborados: readElaboradosResumen_(),
-    pedido_intelligence: buildPedidoIntelligence_(),
-    snapshot: buildFrontendOperationalSnapshot_()
+    pedido_intelligence: pedidoIntelligence,
+    snapshot: buildFrontendOperationalSnapshot_(pedidoIntelligence)
   };
 
   if (scope !== 'ops') {
@@ -338,6 +339,7 @@ function appCapabilities_() {
     pedido_status: true,
     operation_status: true,
     pedido_intelligence: true,
+    decision_center: true,
     telegram_notify: telegram.enabled,
     receipt_ai_parse: openai.enabled
   };
