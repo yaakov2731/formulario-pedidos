@@ -48,8 +48,10 @@ function main() {
   else pass("favicon.svg present");
 
   const html = read(indexPath);
-  expectContains(html, 'Docks: interfaz operativa, grafito y verde oscuro', 'professional operational palette');
-  expectContains(html, '<h2>Pedidos y abastecimiento</h2>', 'operational home title');
+  expectContains(html, 'Docks: mesa de trabajo, marfil y oliva', 'professional operational palette');
+  expectContains(html, '<h2>Pedidos semanales</h2>', 'operational home title');
+  expectContains(html, '.stock-card.metric,.stock-dash-card{padding:12px 0;border:0;', 'unboxed compact metrics');
+  expectNotContains(html, '<h2>Resumen del local</h2>', 'generic report heading');
   expectNotContains(html, 'Todo listo para el servicio.', 'promotional home copy');
   expectNotContains(html, 'Lo importante, sin buscarlo', 'generic report copy');
   expectNotContains(html, 'Fraunces', 'display serif in operational interface');

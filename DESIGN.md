@@ -14,14 +14,14 @@ sin framework adicional. Movimiento mínimo: sólo respuesta a interacción.
 
 | Rol | Valor | Uso |
 | --- | --- | --- |
-| Fondo | #f4f5f6 | Superficie neutra de trabajo |
+| Fondo | #f8f7f3 | Marfil, superficie de trabajo |
 | Panel | #ffffff | Formularios y lectura de datos |
-| Grafito | #22282b | Texto principal |
-| Navegación | #242b2e | Barra lateral |
-| Secundario | #596267 | Descripciones |
-| Borde | #dce1e3 | Separación funcional |
-| Acento | #28564b | Acciones y selección |
-| Acento profundo | #1c4037 | Texto sobre selección tenue |
+| Tinta | #282b25 | Texto principal |
+| Navegación | #f0efe9 | Barra lateral clara |
+| Secundario | #606258 | Descripciones |
+| Borde | #ddded4 | Separación funcional |
+| Acento | #576044 | Oliva apagado, acciones y selección |
+| Acento profundo | #3e472f | Texto sobre selección tenue |
 
 Un solo acento de identidad. Rojo y ámbar se reservan para errores y advertencias,
 no para decorar locales. Sin vino, terracota, gradientes, papel cuadriculado,
@@ -30,25 +30,26 @@ cortes diagonales ni sombras de colores.
 ## Tipografía
 
 Geist con fallback system-ui / Segoe UI. Todos los módulos usan sans serif;
-los números usan cifras tabulares. Encabezados de 23–28 px, cuerpo de 12–14 px.
+las métricas usan monospace. Encabezados de 20–22 px, cuerpo de 12–14 px.
 Los estados se distinguen por texto además del color. Foco visible y controles
 táctiles de al menos 44 px.
 
 ## Inicio y navegación
 
-Encabezado compacto con “Pedidos y abastecimiento” y selector de locales.
-“Pendientes del local” usa datos confirmados y avisa si falta conexión.
+Encabezado sin tarjeta ni banner: “Pedidos semanales” y selector de locales.
+“Por revisar” muestra alertas en filas, con datos confirmados y aviso de conexión.
 Los seis módulos aparecen como filas, con nombre y descripción concreta.
 Pedido no ocupa una tarjeta promocional sobredimensionada.
 
-En móvil el selector pasa a dos columnas, las alertas a una columna y los módulos
+En móvil el selector y las métricas pasan a dos columnas, las alertas a filas y los módulos
 conservan su orden. Menú y barra de acciones mantienen los flujos existentes.
 
 ## Texto y estados
 
-Usar nombres concretos: Nuevo pedido, Productos y cantidades, Revisión del pedido,
-Recepción de mercadería, Registro de producción, Registro de sobrantes y Resumen
-del local. Lectura de remitos sin exponer proveedores de IA ni nombres de modelos.
+Usar nombres concretos: Nuevo pedido, Stock, Recepción, Producción, Sobrantes y
+Reportes. Evitar encabezados de campaña y subtítulos repetidos. Métricas sin cajas
+elevadas, controles de recepción compactos, títulos y cifras proporcionados.
+Lectura de remitos sin exponer proveedores de IA ni nombres de modelos.
 Los estados de carga, error, conexión y guardado siguen explícitos.
 
 ## Verificación
