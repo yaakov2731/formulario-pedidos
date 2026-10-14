@@ -70,6 +70,9 @@ ui('renderQuickCatalog()');
 assert.match(field('#quickPickList').innerHTML,/Café/);
 assert.doesNotMatch(field('#quickPickList').innerHTML,/Asado|Torta/);
 assert.match(field('#orderCategories').innerHTML,/Café y barra|Pastelería|Frecuentes/);
+assert.match(field('#orderMobileSection').innerHTML,/Café y barra|Pastelería|Historial sin catalogar/);
+ui("fieldMobile= $('#orderMobileSection');fieldMobile.value='Pastelería';fieldMobile.onchange()");
+assert.match(field('#quickPickList').innerHTML,/Torta/,'Native mobile selector drives the same catalog filter');
 ui("orderCategory='Pastelería';renderQuickCatalog()");
 assert.match(field('#quickPickList').innerHTML,/Torta/);
 assert.doesNotMatch(field('#quickPickList').innerHTML,/Asado|Café/);
@@ -90,6 +93,10 @@ assert.equal(ui("cafeCatalogSection({nombre:'DULCE DE LECHE REPOSTERO',categoria
 assert.equal(ui("cafeCatalogSection({nombre:'CREMA DE LECHE',categoria:'Lacteos'})"),'Insumos de pastelería');
 assert.equal(ui("cafeCatalogSection({nombre:'Medialunas',categoria:'Panadería'})"),'Pastelería');
 assert.equal(ui("cafeCatalogSection({nombre:'FRUTOS ROJOS',categoria:'Almacen'})"),'Frutas y licuados');
+ui("PEDIDO_INTELLIGENCE.byLocal['Trento Café']={a:{producto:'Nutella',unidad:'kg',pedidos:4,codigo:''},b:{producto:'NUTELLA',unidad:'kg',pedidos:2,codigo:''},c:{producto:'Nutella',unidad:'unidad',pedidos:1,codigo:''}}");
+assert.equal(ui("localHistoryExtras('Trento Café').length"),2,'Repeated names collapse only within the same original unit');
+assert.equal(ui("localHistoryExtras('Trento Café')[0].pedidos"),4,'Frequency is not inflated by summing possibly overlapping history');
+assert.equal(ui("localHistoryExtras('Trento Café')[0].historyVariants"),2);
 ui("PEDIDO_INTELLIGENCE.byLocal['Trento Café']={foreign:{producto:'Asado',unidad:'kg',pedidos:8,codigo:''}};");
 assert.equal(ui("localHistoryExtras('Trento Café').length"),0,'Uncoded foreign master products are not local suggestions');
 assert.equal(field('#pedidoHistoryExtras').innerHTML,'','Unregistered history is absent from cafe sections');
@@ -97,6 +104,7 @@ ui("CATALOG['Umo Grill'].push({codigo:'PAR002',nombre:'Agua',unidad:'litro'});PE
 assert.equal(ui("localHistoryExtras('Trento Café').length"),1,'Shared drinks are not falsely classified as exclusive grill products');
 ui("LIVE=false;const savedCatalog=CATALOG;CATALOG={};renderQuickCatalog();CATALOG=savedCatalog;LIVE=true;");
 assert.match(field('#quickPickMeta').textContent,/Esperando lectura/,'Loading is not presented as an empty master catalog');
+assert.equal(field('#orderMobileSection').disabled,true,'Category selection is unavailable until the catalog is read');
 ui("addFromCatalog(CATALOG['Umo Grill'][0])");
 assert.equal(frontend.state.items.length,0,'Stale handlers cannot add a foreign product');
 assert.equal(ui("aliasKeys({'Umo Grill':[{codigo:'PAR001'}],'Umo grill':[{codigo:'PAR002'}]})['Umo Grill'].length"),2);

@@ -32,6 +32,22 @@ viven en el mismo Google Sheet.
 3. **Mobile real, no "mobile responsive de adorno".** El uso primario es teléfono en mano.
 4. **Profesional, no decorativo.** Es una herramienta de trabajo, no una landing.
 
+## Referencias de operación consultadas · 14 de octubre de 2026
+
+[Restaurant365](https://docs.restaurant365.com/docs/r365-app-creating-an-order)
+separa listas por local, muestra unidad, proveedor, existencias y par, y exige
+revisión antes de enviar. [MarketMan](https://www.marketman.com/platform/restaurant-purchasing-software-and-order-management)
+vincula compra y recepción desde el móvil. Se adoptan como criterios de flujo,
+no como integraciones contratadas ni como prueba de que Docks ya tenga todo eso.
+
+Aplicación a Docks: catálogo local primero, navegación móvil explícita, medidas
+visibles y confirmación separada de la carga. El menú de secciones móvil muestra
+todas las categorías sin descubrir un carrusel oculto. El historial libre agrupa
+variaciones de nombre sólo con la misma unidad; no suma frecuencias posiblemente
+solapadas ni cantidades, no inventa conversiones y no modifica la planilla.
+El vínculo de recepción por pedido y el envío directo a proveedores no están
+implementados y requieren contratos operativos específicos antes de agregarse.
+
 ## Stock objetivo y decisiones de compra
 
 Reportes cuenta acciones de abastecimiento como compras sugeridas más revisiones,

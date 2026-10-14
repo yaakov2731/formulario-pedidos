@@ -62,7 +62,8 @@ Las categorías de origen pueden ser incorrectas (por ejemplo mayonesa en
 Lácteos); la vista prioriza el producto. Los nuevos productos no reconocidos
 quedan en Otros insumos, sin inventar pertenencia.
 
-Menú lateral de secciones en escritorio y desplazamiento horizontal en móvil.
+Menú lateral de secciones en escritorio y selector nativo rotulado en móvil,
+con todas las secciones y sus cantidades visibles al desplegarlo.
 Cada producto muestra su unidad junto al nombre. Buscar recorre todo el catálogo
 del local, independientemente de la sección activa. Todos y Frecuentes permiten
 explorar el catálogo completo o los productos con pedidos anteriores reales.
