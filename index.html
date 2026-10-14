@@ -2676,6 +2676,8 @@ function renderOperationalPulse(){
   if(!wrap || !list) return;
   if(!state.local){ wrap.hidden=true; list.innerHTML=""; return; }
   const metrics=localOperationalMetrics();
+  const decisionData=(SNAPSHOT.decisionCenterByLocal&&SNAPSHOT.decisionCenterByLocal[state.local])||{summary:{}};
+  const decisionSummary=decisionData.summary||{};
   const openItems=(SNAPSHOT.openItemsByLocal&&SNAPSHOT.openItemsByLocal[state.local])||[];
   const lowStock=metrics.cat.filter(isLowStock).length;
   const recepDraft=recepDraftStats(state.local);
@@ -3861,8 +3863,8 @@ function renderDashboard(){
     cards.innerHTML = [
       metricCard("Riesgos activos", "—", "Sin datos actuales", "warn"),
       metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", `${state.items.length} productos en este equipo`, state.items.length?"warn":""),
-      metricCard("Ingresos hoy", "—", "Sin datos actuales", "warn"),
-      metricCard("Producción hoy", "—", "Sin datos actuales", "warn")
+      metricCard("Recepciones", "—", "Sin datos actuales", "warn"),
+      metricCard("Producción", "—", "Sin datos actuales", "warn")
     ].join("");
     riskList.innerHTML=`<div class="stock-empty"><b>No se pueden confirmar riesgos sin conexión.</b><br>${esc(syncText)}.</div>`;
     activityList.innerHTML=`<div class="stock-empty"><b>Actividad actual no disponible.</b><br>Reconectá para consultar movimientos confirmados.</div>`;
@@ -3877,10 +3879,10 @@ function renderDashboard(){
   const riskTotal=Math.max(localRisks.length, metrics.reviewRows.length, metrics.snapshotLocal.faltantes||0);
   $("#dashMeta").textContent = snapshotStampText() ? `${state.local} · ${snapshotStampText()}` : state.local;
   cards.innerHTML = [
-    metricCard("Riesgos activos", riskTotal, `${metrics.riskRows.length} de stock · ${metrics.softRows.length} por contar`, riskTotal?"bad":"good"),
+    metricCard("Riesgos activos", riskTotal, `${decisionSummary.comprar||0} compras · ${decisionSummary.contar||0} conteos`, riskTotal?"bad":"good"),
     metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", `${trim(metrics.pedidoUnits)} unidades seleccionadas`, state.items.length?"warn":""),
-    metricCard("Ingresos hoy", metrics.recepSummary.movimientos||0, `${trim(metrics.recepSummary.cantidad||0)} unidades recibidas`, "good"),
-    metricCard("Producción hoy", trim(metrics.prodSummary.cantidad_producida||0), `${metrics.prodSummary.movimientos||0} partes registrados`, "warn")
+    metricCard("Recepciones", metrics.recepSummary.movimientos||0, `${trim(metrics.recepSummary.cantidad||0)} unidades confirmadas`, "good"),
+    metricCard("Producción", trim(metrics.prodSummary.cantidad_producida||0), `${metrics.prodSummary.movimientos||0} partes históricos`, "warn")
   ].join("");
   renderDecisionCenter();
   const risks=[
@@ -3903,10 +3905,21 @@ function renderDashboard(){
   ].slice(0,6);
   activityList.innerHTML = activity.length ? activity.map(row=>`
     <div class="event-item timeline-event">
-      <span class="event-level">${esc(String(row.time||"").slice(-8,-3)||"HOY")}</span>
+      <span class="event-level">${esc(activityTimeLabel(row.time))}</span>
       <span class="event-dot"></span>
       <span class="event-copy"><strong>${esc(row.title)}</strong><small>${esc(row.meta)}</small></span>
     </div>`).join("") : `<div class="stock-empty">Todavía no hay movimientos confirmados para este local.</div>`;
+}
+
+function activityTimeLabel(value){
+  const text=String(value||"");
+  const matches=[...text.matchAll(/(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d(?:\.\d+)?)?/g)];
+  if(matches.length){
+    const match=matches[matches.length-1];
+    return `${String(match[1]).padStart(2,"0")}:${match[2]}`;
+  }
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?"HOY":date.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
 }
 
 function renderDecisionCenter(){
