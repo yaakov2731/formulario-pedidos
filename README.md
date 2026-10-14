@@ -30,6 +30,7 @@ node .\scripts\verify-local-drafts.js
 node .\scripts\verify-local-catalog.js
 node .\scripts\verify-jsonp.js
 node .\scripts\verify-dashboard-render.js
+node .\scripts\verify-unit-quantities.js
 ```
 
 Después de publicar:

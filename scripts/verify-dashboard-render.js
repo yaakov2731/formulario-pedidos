@@ -16,6 +16,7 @@ const ctx=vm.createContext({console,Date,
   esc:v=>String(v),metricCard:(label,value,meta)=>`${label}:${value}:${meta}`
 });
 vm.runInContext(html.slice(start,end),ctx);
+vm.runInContext(html.slice(html.indexOf('function unitKey('),html.indexOf('function dashCard(')),ctx);
 assert.doesNotThrow(()=>vm.runInContext('renderDashboard()',ctx));
 assert.match(element('#dashCards').innerHTML,/2 compras/);
 ctx.SNAPSHOT={decisionCenterByLocal:{}};

@@ -2,7 +2,7 @@
 
 ## 1. Verificar localmente
 
-Ejecutar las siete verificaciones locales documentadas en `README.md`. Todas deben
+Ejecutar las ocho verificaciones locales documentadas en `README.md`. Todas deben
 terminar correctamente. Comprobar el diff y preservar cambios ajenos a la tarea.
 
 No existe un `Code.gs` único: el backend publicado vive en `gas/*.gs`.

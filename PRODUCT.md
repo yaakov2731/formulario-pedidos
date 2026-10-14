@@ -101,6 +101,22 @@ Validación: `node scripts/verify-local-catalog.js`, sin escrituras de datos ope
 
 ## Brand
 
+## Lectura de cantidades por unidad
+
+Stock y pedido muestran subtotales separados por unidad de medida. Sólo se unifican
+mayúsculas/minúsculas y espacios; no se convierten gramos, kg, cajas ni litros.
+Una cantidad vacía o inválida no equivale a cero. Una cantidad sin unidad se marca
+para revisión sin sumarla a otras cantidades indefinidas. Los saldos negativos
+siguen visibles y exigen revisar el conteo, no una sugerencia de compra.
+
+El stock de los productos del pedido se cuenta una vez por producto del catálogo;
+las líneas libres no crean un saldo de inventario por coincidencia de nombre.
+Los borradores conservan unidades originales. Los acumulados históricos que no
+permiten reconstruir medidas se presentan por registro/producto, no como un total
+ficticio de unidades. Esta lectura no cambia datos de la planilla.
+
+Validación: `node scripts/verify-unit-quantities.js`, con datos en memoria.
+
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).
 - **Tono:** claro, directo, operativo. Español rioplatense.
 - **GreenFresh:** nuevo local de viandas saludables. Sub-identidad verde/fresca dentro
