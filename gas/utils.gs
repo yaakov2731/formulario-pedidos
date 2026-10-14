@@ -1085,6 +1085,90 @@ function buildFrontendOperationalSnapshot_() {
   };
 }
 
+function buildPedidoIntelligence_() {
+  var sh = ss_().getSheetByName(SHEET_DETALLE);
+  var output = {
+    generated_at: Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd HH:mm:ss'),
+    byLocal: {}
+  };
+  if (!sh || sh.getLastRow() < 2) return output;
+  var values = sh.getDataRange().getValues();
+  var buckets = {};
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    var status = String(row[12] || '').trim().toLowerCase();
+    if (status === 'cancelado') continue;
+    var local = normalizeLocalName_(row[3]);
+    var code = String(row[6] || '').trim();
+    var name = String(row[7] || '').trim();
+    var qty = numberOrNull_(row[9]);
+    if (!local || (!code && !name) || qty === null || qty <= 0) continue;
+    var itemKey = code || ('name:' + normalizeLooseText_(name));
+    var bucketKey = local + '||' + itemKey;
+    var orderId = String(row[0] || ('row-' + r)).trim();
+    if (!buckets[bucketKey]) {
+      buckets[bucketKey] = {
+        local: local,
+        key: itemKey,
+        codigo: code,
+        producto: name,
+        unidad: String(row[10] || '').trim(),
+        orderIds: [],
+        quantities: {},
+        lastDate: ''
+      };
+    }
+    var bucket = buckets[bucketKey];
+    if (!Object.prototype.hasOwnProperty.call(bucket.quantities, orderId)) {
+      bucket.orderIds.push(orderId);
+      bucket.quantities[orderId] = 0;
+    }
+    bucket.quantities[orderId] += qty;
+    bucket.lastDate = formatPedidoIntelligenceDate_(row[1]);
+  }
+  Object.keys(buckets).forEach(function (bucketKey) {
+    var bucket = buckets[bucketKey];
+    var quantities = bucket.orderIds.map(function (id) { return round2_(bucket.quantities[id]); }).filter(function (qty) { return qty > 0; });
+    if (!quantities.length) return;
+    var recent = quantities.slice(-6);
+    var sorted = recent.slice().sort(function (a, b) { return a - b; });
+    var middle = Math.floor(sorted.length / 2);
+    var median = sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    var latest = quantities[quantities.length - 1];
+    var recent3 = averagePedidoQuantities_(quantities.slice(-3));
+    var previous3 = averagePedidoQuantities_(quantities.slice(-6, -3));
+    var trend = 'estable';
+    if (previous3 > 0 && recent3 > previous3 * 1.15) trend = 'subiendo';
+    if (previous3 > 0 && recent3 < previous3 * 0.85) trend = 'bajando';
+    if (!output.byLocal[bucket.local]) output.byLocal[bucket.local] = {};
+    output.byLocal[bucket.local][bucket.key] = {
+      codigo: bucket.codigo,
+      producto: bucket.producto,
+      unidad: bucket.unidad,
+      pedidos: quantities.length,
+      cantidad_promedio: round2_(averagePedidoQuantities_(recent)),
+      cantidad_ultima: round2_(latest),
+      cantidad_sugerida: round2_(median),
+      tendencia: trend,
+      confianza: quantities.length >= 5 ? 'alta' : (quantities.length >= 3 ? 'media' : 'inicial'),
+      ultima_fecha: bucket.lastDate
+    };
+  });
+  return output;
+}
+
+function averagePedidoQuantities_(values) {
+  if (!values || !values.length) return 0;
+  return values.reduce(function (sum, value) { return sum + numberOrZero_(value, 0); }, 0) / values.length;
+}
+
+function formatPedidoIntelligenceDate_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd HH:mm:ss');
+  }
+  return String(value || '').trim();
+}
+
 function buildOpenItemsByLocal_() {
   return buildOpenItemsByLocalFromRows_(activePedidoRows_());
 }

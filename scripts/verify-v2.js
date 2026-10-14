@@ -110,6 +110,8 @@ function main() {
     "async function confirmCatalogProduct(",
     "function localOperationalMetrics()",
     "function renderOperationalPulse()",
+    "function pedidoInsightForItem(item)",
+    "function pedidoInsightButton(item)",
     "async function confirmPedidoPersisted(",
     "async function confirmOperationPersisted(",
     "async function backendGet(",
@@ -143,6 +145,9 @@ function main() {
   expectContains(html, "SNAPSHOT.openItemsByLocal", "home pulse reads live open items");
   expectContains(html, "metrics.cat.filter(isLowStock)", "home pulse reads catalog stock risk");
   expectContains(html, "recepDraftStats(state.local)", "home pulse reads local operational drafts");
+  expectContains(html, "d.pedido_intelligence", "shared order intelligence bootstrap");
+  expectContains(html, "data-use-suggested", "shared habitual quantity action");
+  expectContains(html, "Number(insight.pedidos)", "shared order history recommendation score");
   ["encargado", "recepEncargado", "prodEncargado", "elabEncargado", "stockEncargado"].forEach((id) => {
     expectRegex(html, new RegExp(`id="${id}"[^>]+list="${id}Options"`), `editable responsable combobox ${id}`);
     expectContains(html, `data-responsable-add="${id}"`, `inline responsable add ${id}`);
@@ -189,6 +194,9 @@ function main() {
     "created: false, responsable:",
     "if (!responsable.nombre) continue;",
     "function buildFrontendOperationalSnapshot_() {",
+    "function buildPedidoIntelligence_() {",
+    "pedido_intelligence: buildPedidoIntelligence_()",
+    "pedido_intelligence: true",
     "if (action === 'getPedidoStatus') {",
     "if (action === 'getOperationStatus') {",
     "function getPedidoStatus_(pedidoId) {",

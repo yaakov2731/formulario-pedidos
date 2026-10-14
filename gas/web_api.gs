@@ -296,6 +296,7 @@ function getBootstrapPayload_(scope) {
     recepciones: readRecepcionResumen_(),
     produccion: readProduccionResumen_(),
     elaborados: readElaboradosResumen_(),
+    pedido_intelligence: buildPedidoIntelligence_(),
     snapshot: buildFrontendOperationalSnapshot_()
   };
 
@@ -336,6 +337,7 @@ function appCapabilities_() {
     bootstrap_v2: true,
     pedido_status: true,
     operation_status: true,
+    pedido_intelligence: true,
     telegram_notify: telegram.enabled,
     receipt_ai_parse: openai.enabled
   };

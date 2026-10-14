@@ -42,7 +42,7 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.3.3", "bootstrap Telegram hardening version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.3.3`);
+  expect(bootstrap && bootstrap.version === "2.4.0", "bootstrap shared intelligence version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.4.0`);
   expect(bootstrap && bootstrap.capabilities, "bootstrap capabilities present", "bootstrap capabilities missing");
 
   expect(!!bootstrap.catalog, "catalog present", "catalog missing");
@@ -53,6 +53,7 @@ async function main() {
   expect(!!bootstrap.produccion, "produccion present", "produccion missing in live deployment");
   expect(!!bootstrap.elaborados, "elaborados present", "elaborados missing in live deployment");
   expect(!!bootstrap.snapshot, "snapshot present", "snapshot missing in live deployment");
+  expect(!!bootstrap.pedido_intelligence, "pedido intelligence present", "pedido intelligence missing in live deployment");
 
   expect(!!(ping.capabilities && ping.capabilities.bootstrap_v2), "ping bootstrap_v2 enabled", "ping missing bootstrap_v2 capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.recepcion), "bootstrap recepcion enabled", "bootstrap missing recepcion capability");
@@ -62,6 +63,7 @@ async function main() {
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.sheet_report_elaborados), "Google Sheets elaborados report enabled", "bootstrap missing sheet_report_elaborados capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.dashboard_v2), "bootstrap dashboard_v2 enabled", "bootstrap missing dashboard_v2 capability");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.operation_status), "operation confirmation enabled", "bootstrap missing operation_status capability");
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.pedido_intelligence), "pedido intelligence enabled", "bootstrap missing pedido_intelligence capability");
 
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.totals), "snapshot totals present", "snapshot totals missing");
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.byLocal), "snapshot byLocal present", "snapshot byLocal missing");
@@ -88,6 +90,10 @@ async function main() {
 
   const shoppingCatalog = (bootstrap.catalog && bootstrap.catalog.Shopping) || [];
   expect(shoppingCatalog.length > 0, "Shopping catalog available", "Shopping catalog is empty or unavailable");
+  const intelligenceLocals = Object.keys((bootstrap.pedido_intelligence && bootstrap.pedido_intelligence.byLocal) || {});
+  expect(intelligenceLocals.length > 0, "pedido intelligence has real history", "pedido intelligence returned no local history");
+  const intelligenceRows = intelligenceLocals.reduce((sum, local) => sum + Object.keys(bootstrap.pedido_intelligence.byLocal[local] || {}).length, 0);
+  expect(intelligenceRows > 0, "pedido intelligence has product recommendations", "pedido intelligence returned no product recommendations");
 
   const report = await getJson(`${scriptUrl}?action=getElaboradosReport&local=${encodeURIComponent("Umo Grill")}`);
   expect(report && report.ok === true, "elaborados report responded", "elaborados report did not return ok:true");
