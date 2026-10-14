@@ -1709,7 +1709,7 @@ button:active:not(:disabled){transform:translateY(1px)}
   body.compact-mobile-shell .free,body.compact-mobile-shell .home-jump,body.compact-mobile-shell .ghost{border:1px solid var(--line);border-radius:6px;background:var(--surface);box-shadow:none}
   body.compact-mobile-shell .send,body.compact-mobile-shell .nav-btn,body.compact-mobile-shell .cfg-btn{border-radius:6px;box-shadow:none}
 }
-/* ===== Docks: mesa de trabajo, marfil y oliva ===== */
+/* ===== Docks: base operativa compacta ===== */
 :root{
   --bg:#f8f7f3;--surface:#fff;--surface-2:#f0efe9;
   --ink:#282b25;--ink-soft:#606258;--ink-faint:#727469;--muted:#606258;
@@ -1851,9 +1851,107 @@ html,body,.app-main{background:var(--bg)}
   .order-workspace .order-product-stepper{max-width:126px}
   .order-workspace .quick-pick-head{align-items:start;gap:8px}
 }
+/* ===== Docks / Cobalto: sistema visual operativo ===== */
+:root{
+  --bg:oklch(97% .008 265);--surface:oklch(99.5% .003 265);--surface-2:oklch(94.5% .014 265);
+  --ink:oklch(25% .027 265);--ink-soft:oklch(47% .028 265);--ink-faint:oklch(52% .025 265);--muted:var(--ink-soft);
+  --line:oklch(87% .017 265);--line-strong:oklch(71% .035 265);
+  --brand:oklch(48% .22 265);--brand-strong:oklch(39% .18 265);--brand-dark:var(--brand-strong);--brand-tint:oklch(94% .033 265);
+  --green:oklch(43% .095 165);--green-tint:oklch(95% .023 165);
+  --amber:oklch(47% .095 65);--amber-tint:oklch(96% .034 85);--red:oklch(47% .18 25);--red-tint:oklch(96% .018 25);
+  --steel:var(--ink-soft);--steel-tint:var(--surface-2);--copper:var(--brand);--copper-tint:var(--brand-tint);
+  --shell-nav:oklch(24% .033 265);--shell-nav-soft:oklch(32% .045 265);--shell-nav-text:oklch(96% .01 265);--shell-nav-muted:oklch(76% .026 265);
+  --radius:10px;--radius-sm:7px;--shadow-sm:none;--shadow-md:none;
+}
+body{font-size:14px}
+.shell-sidebar{width:224px;padding:28px 16px;background:var(--shell-nav);border:0;color:var(--shell-nav-text)}
+.app-main{margin-left:224px}.wrap{max-width:1260px;padding:0 36px 104px}
+.shell-brand{padding:0 4px 28px;border-color:oklch(40% .028 265)}
+.shell-brand-mark{width:38px;height:38px;border-radius:9px;background:var(--brand);color:var(--surface);font-size:14px}
+.shell-brand-copy strong{font-size:13px;color:var(--shell-nav-text)}.shell-brand-copy span{color:var(--shell-nav-muted)}
+.shell-nav-label{color:var(--shell-nav-muted);margin-top:24px;font-size:10px;letter-spacing:.12em}
+.shell-nav-btn{border-radius:7px;color:var(--shell-nav-text);min-height:46px;transition:background 180ms var(--ease)}
+.shell-nav-btn:hover{background:var(--shell-nav-soft)}
+.shell-nav-btn[aria-current="page"]{border:0;background:var(--brand);color:var(--surface)}
+.shell-sidebar-foot{border-color:oklch(40% .028 265);padding:16px 4px}.shell-sidebar-foot strong{color:var(--shell-nav-text)}
+.hero{background:var(--bg);min-height:64px;margin-bottom:28px;border-bottom:1px solid var(--line)}
+.topbar-context strong{font-size:15px}.topbar-context small{font-size:10px;letter-spacing:.06em}
+.home-hero-panel{grid-template-columns:220px minmax(0,1fr);gap:32px;padding:0 0 26px;border-bottom:1px solid var(--line)}
+.home-hero-panel .skicker{display:block;font-size:10px;color:var(--brand);letter-spacing:.12em;margin-bottom:8px}
+.home-hero-panel h2{font-size:28px;line-height:1.15;letter-spacing:-.045em;font-weight:700}
+.home-hero-lede{font-size:13px;line-height:1.5;margin-top:8px}
+.home-hero-panel .locales{gap:8px}
+.local.local-choice{min-height:54px;padding:10px 12px;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:none}
+.local-no{display:block;font-size:10px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.local.local-choice .nm{font-size:12px;font-weight:600}
+.local.local-choice:hover{border-color:var(--brand);background:var(--brand-tint)}
+.local.local-choice[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--surface)}
+.local.local-choice[aria-pressed="true"] .local-no,.local.local-choice[aria-pressed="true"] .nm::after{color:var(--surface)}
+.home-modules-head{margin:22px 0 14px}.home-modules-head .skicker{font-size:11px;letter-spacing:.06em}
+.home-pulse{grid-template-columns:1fr;gap:10px;padding:0;margin:0 0 28px;border:0}
+.home-pulse-label{padding:0}.home-pulse-label strong{font-size:12px;color:var(--ink-soft)}
+.home-pulse-list{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.pulse-item{padding:12px 16px;min-height:48px}.pulse-item:hover{background:var(--surface-2)}
+.pulse-item strong{font-size:12px}.pulse-item b{color:var(--brand);font-size:11px}
+.home-local-block{padding:0;border:0;background:transparent;box-shadow:none}
+.local-actions-bar.show{border:0;gap:0}
+.local-action,.local-action[data-go="pedido"]{grid-template-columns:40px minmax(0,1fr) auto;min-height:74px;padding:14px 16px;gap:14px}
+.local-action .module-icon,.local-action[data-go="pedido"] .module-icon{width:36px;height:36px;border-radius:8px;background:var(--surface-2);color:var(--brand)}
+.module-copy strong,.local-action[data-go="pedido"] .module-copy strong{font-size:14px;font-weight:650}
+.module-copy small,.local-action[data-go="pedido"] .module-copy small{font-size:12px}
+.local-action[data-go="pedido"]{border:0;border-radius:10px;background:var(--brand);color:var(--surface);margin-bottom:8px;min-height:88px}
+.local-action[data-go="pedido"]:hover{background:var(--brand-strong);color:var(--surface)}
+.local-action[data-go="pedido"] .module-copy strong{font-size:19px;letter-spacing:-.025em}
+.local-action[data-go="pedido"] .module-copy small,.local-action[data-go="pedido"] .module-link b,.local-action[data-go="pedido"] .module-link em{color:var(--surface)}
+.local-action[data-go="pedido"] .module-icon{background:oklch(99% .003 265 / .14);color:var(--surface)}
+.shead h2,.shell-report-head h2,.pedido-shell-head h2{font-size:26px;letter-spacing:-.035em;font-weight:700}
+.send,.cfg-btn,.nav-btn,.module-config-btn,.home-jump,.free,.ghost,.catalog-more,.responsable-add{border-radius:7px;box-shadow:none;min-height:44px}
+input,select,textarea,.field input,.field select,.field textarea{border-radius:7px;background:var(--surface);box-shadow:none;min-height:44px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--brand);outline-offset:3px}
+.order-workspace{grid-template-columns:190px minmax(0,1fr);gap:28px}
+.order-workspace .order-category{border-radius:6px;font-size:12px}
+.order-workspace .quick-pick{background:var(--surface);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.order-workspace .quick-pick-head{padding:16px 18px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.order-workspace .quick-pick-item{padding:14px 18px;min-height:78px;background:var(--surface);border-bottom:1px solid var(--line)}
+.order-workspace .quick-pick-item:last-child{border-bottom:0}
+.order-workspace .quick-pick-name{font-weight:600}.order-product-stepper{border-radius:7px}
+.pedido-progress .pedido-step-btn[aria-pressed="true"]{color:var(--brand);border-bottom-color:var(--brand)}
+.stock-card.metric,.stock-dash-card{padding:14px 0;border-bottom:1px solid var(--line)}
+.stock-card .v,.stock-dash-card .value{font:650 24px/1.3 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--brand)}
+.op-row{border-radius:0;box-shadow:none;background:var(--surface);padding:12px}
+.recep-intake-btn{border-radius:7px}.recep-photo-panel{border-radius:7px}
+.bar.tab-panel[data-tab="pedido"]{border-radius:9px;background:var(--surface);box-shadow:0 4px 20px oklch(25% .03 265 / .09)}
+#cfg{left:224px}
+@media(min-width:761px) and (max-width:1020px){
+  .shell-sidebar{width:80px;padding:24px 12px}.app-main{margin-left:80px}#cfg{left:80px}
+  .wrap{padding-right:24px;padding-left:24px}.home-hero-panel{grid-template-columns:1fr;gap:18px}
+}
+@media(max-width:760px){
+  .shell-sidebar{width:248px}.app-main{margin-left:0}#cfg{left:0}
+  .wrap,body.compact-mobile-shell .wrap{padding:0 18px 110px}
+  .hero,body.compact-mobile-shell .hero{margin:0 -18px 22px;padding:8px 18px;min-height:58px;background:var(--bg)}
+  .home-hero-panel{grid-template-columns:1fr;gap:18px;padding-bottom:22px}
+  .home-hero-panel h2{font-size:26px}.home-hero-panel .skicker{display:block}.home-hero-lede{display:block;margin-top:6px;font-size:12px}
+  .home-hero-panel .locales,body.compact-mobile-shell .home-hero-panel .locales{gap:7px}
+  body.compact-mobile-shell .home-hero-panel .local.local-choice{min-height:48px;border-radius:7px;padding:10px;gap:8px}
+  .local.local-choice .nm{font-size:12px}.local-no{display:block}
+  .home-pulse,body.compact-mobile-shell .home-pulse{border:0;margin-bottom:20px;gap:8px}
+  .pulse-item{padding:11px 12px;grid-template-columns:8px minmax(0,1fr);gap:8px}
+  .pulse-item b{grid-column:2;text-align:left;font-size:11px;margin-top:3px}.pulse-item strong{font-size:12px}
+  .local-action,body.compact-mobile-shell .local-action{padding:12px 4px;min-height:70px;grid-template-columns:36px minmax(0,1fr) auto}
+  body.compact-mobile-shell .local-action[data-go="pedido"]{padding:16px 14px;min-height:82px;border:0;border-radius:9px;background:var(--brand);color:var(--surface)}
+  .module-copy small,.local-action[data-go="pedido"] .module-copy small{font-size:11px}
+  .shead h2,.shell-report-head h2,.pedido-shell-head h2{font-size:23px}
+  .order-workspace{grid-template-columns:minmax(0,1fr);gap:14px}
+  body.compact-mobile-shell .order-workspace .quick-pick-item{padding:14px 12px;background:var(--surface)}
+  .order-workspace .quick-pick-head{padding:14px 12px}.order-workspace .quick-pick-name{font-size:13px}
+  body.compact-mobile-shell input,body.compact-mobile-shell select,body.compact-mobile-shell textarea,body.compact-mobile-shell .home-jump,body.compact-mobile-shell .free,body.compact-mobile-shell .send{border-radius:7px}
+  .mobile-tabbar{background:var(--surface);border-top:1px solid var(--line)}
+  .mobile-tabbar button[aria-current="page"]{color:var(--brand);background:var(--brand-tint);border-radius:7px}
+}
 </style>
 </head>
-<body data-design-version="reference-handoff-v3-mobile-app">
+<body data-design-version="docks-cobalto-v4">
 <div class="app-shell">
   <aside class="shell-sidebar" id="shellSidebar" aria-label="Navegación principal">
     <button class="shell-brand" type="button" data-shell-tab="home" aria-label="Ir al inicio">
@@ -1927,7 +2025,7 @@ html,body,.app-main{background:var(--bg)}
       <div class="home-hero-copy">
         <p class="skicker">Docks del Puerto</p>
         <h2>Pedidos semanales</h2>
-        <p class="home-hero-lede">Elegí el local.</p>
+        <p class="home-hero-lede">Abastecimiento por local.</p>
       </div>
       <div class="locales" id="locales"></div>
     </div>
@@ -2806,7 +2904,7 @@ const icoStock='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const ADMIN_PIN = "2731";
 
 const TAB_META = {
-  home:{ badge:"Modo inicio", title:"Cabina operativa del local", desc:"Entrá directo a pedido, stock, recepción o producción desde una home compacta." },
+  home:{ badge:"Inicio", title:"Pedidos semanales", desc:"Abastecimiento por local." },
   local:{ badge:"Modo local", title:"Acciones del local", desc:"Abrí pedido, stock, recepción o producción desde la ficha del local." },
   pedido:{ badge:"Modo pedido", title:"Pedido semanal por local", desc:"Prepará el pedido semanal con cobertura de stock integrada antes de enviar." },
   stock:{ badge:"Modo stock", title:"Conteo real y lectura operativa", desc:"Actualizá stock real del local para medir cobertura del pedido y faltantes." },
@@ -4355,7 +4453,7 @@ function renderDecisionCenter(){
   const buyRows=(data.suggestions||[]).slice(0,8-countRows.length).map(item=>({type:"buy",...item}));
   const rows=[...countRows,...buyRows];
   if(!rows.length){
-    list.innerHTML=`<div class="decision-empty"><b>Operación cubierta.</b><br>No hay compras ni conteos prioritarios para este local.</div>`;
+    list.innerHTML=`<div class="decision-empty"><b>Sin compras ni conteos pendientes.</b><br>Según los registros disponibles de este local.</div>`;
     return;
   }
   list.innerHTML=rows.map(item=>{
