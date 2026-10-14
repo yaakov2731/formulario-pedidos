@@ -79,6 +79,12 @@ línea y el operador debe completarla manualmente. Las
 pruebas de texto transcrito están en `verify-unit-quantities.js`: no prueban la
 calidad de reconocimiento de la foto completa ni la extracción externa.
 
+El filtro exige encontrar líneas de artículos antes de dar por válida una tabla:
+un pie de factura mal leído como encabezado no reemplaza el detalle. Productos
+reconocidos con presentaciones multiplicadas se muestran en «Productos por revisar»
+con su línea original y acceso a la grilla. No precargan una cantidad ni se convierten
+a la unidad del catálogo. La extracción externa no omite esa revisión local.
+
 ## Borradores por local
 
 Cada local conserva su propio pedido en el dispositivo: productos, cantidades,
