@@ -1618,6 +1618,8 @@ body,.app-main{background:var(--bg)}
 .stock-badge{display:inline-flex;align-items:center;margin-left:6px;padding:2px 7px;border-radius:999px;background:var(--surface-2);color:var(--ink-soft);font-size:10px;font-weight:750;white-space:nowrap}
 .stock-badge.low{background:var(--amber-tint);color:#74450c}
 .stock-badge.none{background:var(--surface-2);color:var(--ink-faint)}
+.history-suggestion{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:5px 8px;border:1px solid color-mix(in srgb,var(--copper) 45%,var(--line));border-radius:999px;background:#fffaf6;color:var(--brand-strong);font:inherit;font-size:10px;font-weight:750;cursor:pointer}
+.history-suggestion:hover{border-color:var(--copper);background:#fff}.history-suggestion i{font-style:normal;color:var(--copper)}
 .responsable-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}
 .responsable-control datalist{display:none}
 .responsable-add{min-height:44px;padding:0 12px;border:1px solid var(--brand);border-radius:10px;background:var(--brand-tint);color:var(--brand-strong);font:inherit;font-size:11px;font-weight:750;cursor:pointer}
@@ -2379,6 +2381,7 @@ let RECEPCIONES = { latest:[], byLocal:{} };
 let PRODUCCION = { latest:[], byLocal:{} };
 let ELABORADOS = { latest:[], byLocal:{} };
 let SNAPSHOT = { byLocal:{}, totals:{}, openItemsByLocal:{} };
+let PEDIDO_INTELLIGENCE = { generated_at:"", byLocal:{} };
 let LIVE_META = { version:"", capabilities:{} };
 let LIVE = false;   // true solo si el /exec de Apps Script respondió
 let LAST_SYNC_AT = null;
@@ -2426,6 +2429,17 @@ function catalogStockBadge(item){
   if(actual===null) return `<span class="stock-badge none">Sin conteo</span>`;
   if(minimum!==null&&actual<=minimum) return `<span class="stock-badge low">Bajo mínimo · ${esc(trim(actual))}</span>`;
   return `<span class="stock-badge">Stock ${esc(trim(actual))}</span>`;
+}
+function pedidoInsightForItem(item){
+  if(!state.local||!item) return null;
+  const localMap=(PEDIDO_INTELLIGENCE.byLocal&&PEDIDO_INTELLIGENCE.byLocal[state.local])||{};
+  return localMap[String(item.codigo||"").trim()]||localMap[`name:${normalizeLooseText(item.nombre||"")}`]||null;
+}
+function pedidoInsightButton(item){
+  const insight=pedidoInsightForItem(item), suggested=num(insight&&insight.cantidad_sugerida);
+  if(!(suggested>0)) return "";
+  const direction=insight.tendencia==="subiendo"?"↑":insight.tendencia==="bajando"?"↓":"→";
+  return `<button type="button" class="history-suggestion" data-use-suggested="${esc(suggested)}" title="Mediana de los últimos pedidos compartidos"><i>${direction}</i> Habitual ${esc(trim(suggested))} ${esc(insight.unidad||item.unidad||"")} · ${esc(insight.pedidos)} pedido${Number(insight.pedidos)===1?"":"s"}</button>`;
 }
 
 function scheduleDraftSave(){
@@ -3219,10 +3233,12 @@ function renderQuickCatalog(){
   const categoryNames=[...categoryMap.values()].sort((a,b)=>categoryCount(b)-categoryCount(a)||a.localeCompare(b,"es"));
   let visibleCategoryNames=orderShowAllCategories?categoryNames:categoryNames.slice(0,6);
   if(!["Recomendados","En pedido","Stock bajo"].includes(orderCategory)&&categoryNames.includes(orderCategory)&&!visibleCategoryNames.includes(orderCategory)) visibleCategoryNames=visibleCategoryNames.concat(orderCategory);
+  const isSmartRecommendation=item=>!!(pedidoInsightForItem(item)||usage[item.codigo]||state.items.some(current=>!current.free&&current.codigo===item.codigo));
+  const smartRecommendationCount=cat.filter(isSmartRecommendation).length;
   const categoryOptions=["Recomendados",...(state.items.length?["En pedido"]:[]),...(cat.some(isLowStock)?["Stock bajo"]:[]),...visibleCategoryNames];
   if(!["Recomendados","En pedido","Stock bajo",...categoryNames].includes(orderCategory)) orderCategory="Recomendados";
   if(categories){
-    const countFor=name=>name==="Recomendados"?cat.length:name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
+    const countFor=name=>name==="Recomendados"?(smartRecommendationCount||cat.length):name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
     categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${esc(name)} <small>${countFor(name)}</small></button>`).join("")+(categoryNames.length>6?`<button type="button" class="order-category" data-category-more aria-expanded="${String(orderShowAllCategories)}">${orderShowAllCategories?"Menos categorías":`Más categorías +${categoryNames.length-6}`}</button>`:"");
     categories.querySelectorAll("[data-category]").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; orderVisibleLimit=24; renderQuickCatalog(); }));
     const moreCategories=categories.querySelector("[data-category-more]");
@@ -3240,14 +3256,16 @@ function renderQuickCatalog(){
   };
   let allFiltered=cat.filter(x=>{
     const matchesQuery=!q || queryScore(x)>0;
-    const matchesCategory=orderCategory==="Recomendados" || (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : orderCategory==="Stock bajo" ? isLowStock(x) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
+    const matchesCategory=orderCategory==="Recomendados" ? (!smartRecommendationCount||isSmartRecommendation(x)) : (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : orderCategory==="Stock bajo" ? isLowStock(x) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
     return matchesQuery&&matchesCategory;
   });
   const recommendedScore=item=>{
     const used=usage[item.codigo]||{};
+    const insight=pedidoInsightForItem(item)||{};
     const selected=state.items.some(current=>!current.free&&current.codigo===item.codigo)?10000:0;
     const recent=used.lastUsed?Math.max(0,30-Math.floor((Date.now()-used.lastUsed)/86400000)):0;
-    return selected+(Number(used.count)||0)*40+recent+(isLowStock(item)?5:0);
+    const sharedHistory=(Number(insight.pedidos)||0)*75+(insight.confianza==="alta"?30:insight.confianza==="media"?15:0);
+    return selected+sharedHistory+(Number(used.count)||0)*40+recent+(isLowStock(item)?5:0);
   };
   allFiltered=allFiltered.slice().sort((a,b)=>{
     if(q&&queryScore(a)!==queryScore(b)) return queryScore(b)-queryScore(a);
@@ -3280,6 +3298,7 @@ function renderQuickCatalog(){
         <div class="quick-pick-main">
           <div class="quick-pick-name">${esc(item.nombre)}</div>
           <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${catalogStockBadge(item)}</div>
+          ${pedidoInsightButton(item)}
         </div>
         <div class="order-product-stepper" aria-label="Cantidad de ${esc(item.nombre)}">
           <button type="button" data-qty-step="-1" aria-label="Restar ${esc(item.nombre)}">−</button>
@@ -3295,6 +3314,8 @@ function renderQuickCatalog(){
       setCatalogItemQuantity(item,Math.max(0,(current?num(current.qty)||0:0)+Number(btn.dataset.qtyStep||0)));
     }));
     row.querySelector("[data-qty-value]").addEventListener("change",e=>setCatalogItemQuantity(item,Math.max(0,num(e.target.value)||0)));
+    const suggested=row.querySelector("[data-use-suggested]");
+    if(suggested) suggested.addEventListener("click",()=>setCatalogItemQuantity(item,Math.max(0,num(suggested.dataset.useSuggested)||0)));
   });
 }
 
@@ -4193,6 +4214,7 @@ function applyBootstrapPayload(d){
   if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }
   if(d&&d.produccion){ PRODUCCION=d.produccion; }
   if(d&&d.elaborados){ ELABORADOS=d.elaborados; }
+  if(d&&d.pedido_intelligence){ PEDIDO_INTELLIGENCE=d.pedido_intelligence; }
   if(d&&d.snapshot){ SNAPSHOT=d.snapshot; }
   setLiveMeta({ version:d&&d.version||"", capabilities:d&&d.capabilities||{} });
 }
