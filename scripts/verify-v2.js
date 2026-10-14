@@ -92,6 +92,8 @@ function main() {
     "<option value=\"Marcado\">Marcado</option>",
     "<option value=\"Crudo\">Crudo</option>",
     "id=\"homeSystemStatus\"",
+    "id=\"homePulse\"",
+    "id=\"homePulseList\"",
     "aria-live=\"polite\"",
     "rel=\"icon\" href=\"favicon.svg\"",
     "meta name=\"description\"",
@@ -107,6 +109,7 @@ function main() {
     "async function saveElaborados()",
     "async function confirmCatalogProduct(",
     "function localOperationalMetrics()",
+    "function renderOperationalPulse()",
     "async function confirmPedidoPersisted(",
     "async function confirmOperationPersisted(",
     "async function backendGet(",
@@ -137,6 +140,9 @@ function main() {
   expectContains(html, "function catalogStockBadge(", "pedido stock context badges");
   expectContains(html, "normalizeLooseText(search.value.trim())", "pedido accent tolerant search");
   expectContains(html, "function setCatalogItemQuantity(", "pedido inline quantity controls");
+  expectContains(html, "SNAPSHOT.openItemsByLocal", "home pulse reads live open items");
+  expectContains(html, "metrics.cat.filter(isLowStock)", "home pulse reads catalog stock risk");
+  expectContains(html, "recepDraftStats(state.local)", "home pulse reads local operational drafts");
   ["encargado", "recepEncargado", "prodEncargado", "elabEncargado", "stockEncargado"].forEach((id) => {
     expectRegex(html, new RegExp(`id="${id}"[^>]+list="${id}Options"`), `editable responsable combobox ${id}`);
     expectContains(html, `data-responsable-add="${id}"`, `inline responsable add ${id}`);

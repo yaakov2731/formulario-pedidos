@@ -9,7 +9,7 @@
 <title>Pedidos · Polo Gastronómico Docks del Puerto</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg: oklch(0.975 0.009 86);
@@ -1635,6 +1635,98 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .catalog-tools{align-items:stretch}.catalog-sort{max-width:none;width:100%}
   .responsable-control{grid-template-columns:1fr}.responsable-add{width:100%}
 }
+
+/* ===== Docks Service Board: identidad editorial operativa ===== */
+body,.app-main{
+  background-color:var(--bg);
+  background-image:linear-gradient(rgb(76 25 50 / .025) 1px,transparent 1px),linear-gradient(90deg,rgb(76 25 50 / .025) 1px,transparent 1px);
+  background-size:32px 32px
+}
+.shell-sidebar{width:224px;padding:26px 18px;background:#1d161a;border-right:1px solid rgb(255 255 255 / .08)}
+.app-main{margin-left:224px}
+.shell-brand{padding:0 5px 26px;border-bottom:1px solid rgb(255 255 255 / .10)}
+.shell-brand-mark{width:42px;height:42px;border-radius:0;background:var(--copper);font-family:'Fraunces',serif;font-size:14px}
+.shell-nav{gap:1px}.shell-nav-label{margin:18px 12px 7px;color:#8f7d86}
+.shell-nav-btn{min-height:42px;border-left:2px solid transparent;border-radius:0;padding-left:13px}
+.shell-nav-btn:hover{background:rgb(255 255 255 / .045)}
+.shell-nav-btn[aria-current="page"]{border-left-color:var(--copper);background:linear-gradient(90deg,rgb(112 42 75 / .38),transparent);color:#fff}
+.shell-sidebar-foot{border-radius:0;border-color:rgb(255 255 255 / .12);background:transparent}
+#cfg{left:224px}
+.home-hero-panel{
+  grid-template-columns:minmax(300px,.85fr) minmax(430px,1.15fr);gap:38px;min-height:176px;padding:28px 32px;
+  border:0;border-radius:0;clip-path:polygon(0 0,calc(100% - 30px) 0,100% 30px,100% 100%,0 100%);
+  background:
+    linear-gradient(90deg,rgb(199 102 60 / .18) 1px,transparent 1px) 0 0/54px 100%,
+    linear-gradient(135deg,#381323,var(--brand-strong) 54%,#702a4b);
+  box-shadow:10px 12px 0 rgb(199 102 60 / .16),0 24px 50px rgb(36 27 34 / .16)
+}
+.home-hero-panel::before{content:"SERVICE / BOARD";position:absolute;right:18px;bottom:10px;color:rgb(255 255 255 / .14);font-size:10px;font-weight:800;letter-spacing:.24em;writing-mode:vertical-rl}
+.home-hero-panel::after{display:none}
+.home-hero-panel .skicker{color:#e9a483;font-size:10px;letter-spacing:.16em}
+.home-hero-panel h2{max-width:10ch;margin-top:8px;font-family:'Fraunces',Georgia,serif;font-size:clamp(34px,4vw,48px);font-weight:600;line-height:.98;letter-spacing:-.035em}
+.home-hero-lede{margin-top:12px;max-width:36ch;color:#e9d9df;font-size:13px}
+.home-hero-panel .locales{grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-top:1px solid rgb(255 255 255 / .24)}
+.local.local-choice{min-height:52px;justify-content:flex-start;gap:12px;padding:0 12px;border:0;border-right:1px solid rgb(255 255 255 / .18);border-bottom:1px solid rgb(255 255 255 / .18);border-radius:0;background:transparent;color:#f8eef2}
+.local.local-choice:hover{background:rgb(255 255 255 / .08);border-color:rgb(255 255 255 / .18)}
+.local.local-choice[aria-pressed="true"]{background:#fffaf6;color:var(--ink)}
+.local-no{min-width:22px;color:#d58b69;font-size:10px;font-weight:800;letter-spacing:.08em}
+.local.local-choice[aria-pressed="true"] .local-no{color:var(--brand)}
+.local.local-choice .nm{font-size:13px;font-weight:650}
+.home-modules-head{align-items:center;margin:46px 0 18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.home-modules-head .skicker{margin-bottom:5px;color:var(--copper);letter-spacing:.14em}
+.home-modules-head h2{font-family:'Fraunces',Georgia,serif;font-size:31px;font-weight:600}
+.home-system-status{border:1px solid color-mix(in srgb,var(--green) 24%,var(--line));border-radius:0;background:transparent}
+.home-pulse{display:grid;grid-template-columns:220px minmax(0,1fr);gap:28px;margin:0 0 22px;padding:0 0 22px;border-bottom:1px solid var(--ink)}
+.home-pulse[hidden]{display:none}
+.home-pulse-label{display:flex;flex-direction:column;justify-content:space-between;min-height:112px;padding:16px;background:var(--copper);color:#24181d}
+.home-pulse-label .skicker{margin:0;color:#4b2935;font-size:9px;letter-spacing:.14em}
+.home-pulse-label strong{max-width:9ch;font-family:'Fraunces',Georgia,serif;font-size:23px;font-weight:600;line-height:1}
+.home-pulse-label span{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.home-pulse-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line-strong)}
+.pulse-item{min-height:112px;padding:15px 16px;display:flex;flex-direction:column;align-items:flex-start;border:0;background:var(--bg);color:var(--ink);text-align:left}
+.pulse-item:hover{background:#fffaf6}.pulse-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pulse-no{color:var(--copper);font-size:9px;font-weight:800;letter-spacing:.12em}.pulse-state{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.pulse-item.warn .pulse-state{background:var(--amber)}.pulse-item.bad .pulse-state{background:var(--red)}
+.pulse-item strong{margin-top:19px;font-size:13px;line-height:1.2}.pulse-item small{margin-top:5px;color:var(--muted);font-size:10.5px;line-height:1.35}
+.pulse-item b{margin-top:auto;padding-top:12px;color:var(--brand);font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.local-actions-bar.show{
+  display:grid;grid-template-columns:minmax(290px,.88fr) minmax(440px,1.12fr);grid-template-rows:repeat(5,minmax(72px,auto));
+  gap:0 28px;border-top:1px solid var(--ink)
+}
+.local-action{
+  min-height:72px;padding:12px 8px;display:grid;grid-template-columns:34px 44px minmax(0,1fr) minmax(120px,auto);align-items:center;gap:13px;
+  border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);box-shadow:none;text-align:left
+}
+.local-action:hover{transform:none;border-color:var(--ink);background:rgb(255 252 247 / .58);box-shadow:none}
+.local-action .module-index{align-self:start;padding-top:4px;color:var(--copper);font-size:10px;font-weight:800;letter-spacing:.12em}
+.local-action .module-icon{width:38px;height:38px;border-radius:50%;background:transparent;border:1px solid var(--line-strong);color:var(--brand)}
+.local-action .module-icon svg{width:18px;height:18px}
+.module-copy{margin:0}.module-copy strong{font-size:15px;font-weight:700}.module-copy small{margin:3px 0 0;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.local-action .module-link{width:auto;margin:0;justify-content:flex-end;gap:12px}.module-link b{font-size:11px;text-transform:uppercase;letter-spacing:.08em}.module-link b::after{content:"  ↗";color:var(--copper)}.module-link em{max-width:110px;text-align:right;font-size:10.5px}
+.local-action[data-go="pedido"]{
+  grid-column:1;grid-row:1/6;min-height:100%;padding:32px;display:flex;align-items:flex-start;border:0;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%);
+  background:#2a2025;color:#fff;box-shadow:inset 0 0 0 1px rgb(255 255 255 / .08)
+}
+.local-action[data-go="pedido"]::after{content:"";position:absolute;left:32px;right:32px;top:92px;border-top:1px dashed rgb(255 255 255 / .22)}
+.local-action[data-go="pedido"] .module-index{color:#e9a483}.local-action[data-go="pedido"] .module-icon{margin-top:28px;border-color:rgb(255 255 255 / .25);color:#fff}
+.local-action[data-go="pedido"] .module-copy{margin-top:26px}.local-action[data-go="pedido"] .module-copy strong{font-family:'Fraunces',Georgia,serif;font-size:34px;font-weight:600}
+.local-action[data-go="pedido"] .module-copy small{max-width:27ch;margin-top:10px;color:#d9cbd1;font-size:13px;white-space:normal}
+.local-action[data-go="pedido"] .module-link{width:100%;margin-top:auto;justify-content:space-between;padding-top:18px;border-top:1px solid rgb(255 255 255 / .16)}
+.local-action[data-go="pedido"] .module-link b{font-size:12px}.local-action[data-go="pedido"] .module-link em{color:#cdbbc3}
+@media(max-width:1020px){.shell-sidebar{width:84px;padding:24px 14px}.app-main{margin-left:84px}.shell-brand-copy,.shell-nav-label,.shell-nav-btn span,.shell-sidebar-foot{display:none}.shell-brand{justify-content:center}.shell-nav-btn{justify-content:center;padding:0;border-left:0;border-bottom:2px solid transparent}.shell-nav-btn[aria-current="page"]{border-bottom-color:var(--copper)}#cfg{left:84px}}
+@media(max-width:760px){
+  .app-main{margin-left:0}.shell-sidebar{width:268px}.shell-brand-copy,.shell-nav-label,.shell-nav-btn span,.shell-sidebar-foot{display:block}.shell-brand{justify-content:flex-start}.shell-nav-btn{justify-content:flex-start;padding:0 12px;border-bottom:0;border-left:2px solid transparent}.shell-nav-btn[aria-current="page"]{border-left-color:var(--copper)}
+  #cfg{left:0}.home-hero-panel{display:block;min-height:0;padding:22px 18px 18px;clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,0 100%);box-shadow:6px 7px 0 rgb(199 102 60 / .15)}
+  .home-hero-panel h2{max-width:12ch;font-size:32px}.home-hero-lede{font-size:12px}.home-hero-panel .locales,body.compact-mobile-shell .home-hero-panel .locales{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin-top:18px;overflow:visible}
+  .home-hero-panel .local-choice,body.compact-mobile-shell .home-hero-panel .local-choice{width:100%;min-height:46px;padding:0 10px}
+  .home-modules-head{margin:32px 0 12px}.home-modules-head h2{font-size:26px}
+  .home-pulse{grid-template-columns:1fr;gap:8px;margin-bottom:18px;padding-bottom:18px}.home-pulse-label{min-height:78px}.home-pulse-label strong{max-width:none;font-size:22px}.home-pulse-list{grid-template-columns:1fr}.pulse-item{min-height:88px}.pulse-item strong{margin-top:12px}
+  .local-actions-bar.show{display:flex;flex-direction:column;border-top:1px solid var(--ink)}
+  .local-action{min-height:68px;padding:10px 4px;grid-template-columns:26px 36px minmax(0,1fr) auto;gap:9px}
+  .local-action .module-index{font-size:9px}.local-action .module-icon{width:34px;height:34px}.module-copy strong{font-size:14px}.module-copy small{display:none}.local-action .module-link em{display:none}.module-link b{font-size:10px}
+  .local-action[data-go="pedido"]{order:-1;min-height:188px;padding:22px;margin-bottom:8px;display:flex;clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
+  .local-action[data-go="pedido"]::after{left:22px;right:22px;top:58px}.local-action[data-go="pedido"] .module-icon{display:none}.local-action[data-go="pedido"] .module-copy{margin-top:28px}.local-action[data-go="pedido"] .module-copy strong{font-size:29px}.local-action[data-go="pedido"] .module-copy small{display:block;margin-top:7px;font-size:12px}.local-action[data-go="pedido"] .module-link{padding-top:12px}
+}
 </style>
 </head>
 <body data-design-version="reference-handoff-v3-mobile-app">
@@ -1709,16 +1801,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <section class="home-shell tab-panel" data-tab="home">
     <div class="home-hero-panel">
       <div class="home-hero-copy">
-        <p class="skicker">Docks · Operación gastronómica</p>
-        <h2>¿Qué necesita tu local?</h2>
-        <p class="home-hero-lede">Elegí el local y entrá directo a la operación.</p>
+        <p class="skicker">Pase operativo · Docks</p>
+        <h2>Todo listo para el servicio.</h2>
+        <p class="home-hero-lede">Elegí el local y resolvé el día desde un solo lugar.</p>
       </div>
       <div class="locales" id="locales"></div>
     </div>
     <div class="home-modules-head">
-      <div><p class="skicker">Operación diaria</p><h2>¿Qué necesitás hacer?</h2></div>
+      <div><p class="skicker" id="homeDateLabel">Operación diaria</p><h2>Mesa de operaciones</h2></div>
       <span class="home-system-status checking" id="homeSystemStatus"><i></i><span>Comprobando conexión</span></span>
     </div>
+    <section class="home-pulse" id="homePulse" aria-labelledby="homePulseTitle" hidden>
+      <div class="home-pulse-label">
+        <p class="skicker">Lectura en vivo</p>
+        <strong id="homePulseTitle">Pulso operativo</strong>
+        <span id="homePulseLocal">Local activo</span>
+      </div>
+      <div class="home-pulse-list" id="homePulseList"></div>
+    </section>
     <div class="home-local-block">
       <div class="local-actions-bar" id="localActionsBar"></div>
     </div>
@@ -2528,7 +2628,46 @@ function homeCard(label, meta, stat, action, icon, colors){
 }
 
 function renderHome(){
+  const dateLabel=$("#homeDateLabel");
+  if(dateLabel){
+    const today=new Intl.DateTimeFormat("es-AR",{weekday:"long",day:"2-digit",month:"short"}).format(new Date());
+    dateLabel.textContent=`Pase de ${today}`;
+  }
+  renderOperationalPulse();
   renderLocalActions();
+}
+
+function renderOperationalPulse(){
+  const wrap=$("#homePulse"), list=$("#homePulseList"), localLabel=$("#homePulseLocal");
+  if(!wrap || !list) return;
+  if(!state.local){ wrap.hidden=true; list.innerHTML=""; return; }
+  const metrics=localOperationalMetrics();
+  const openItems=(SNAPSHOT.openItemsByLocal&&SNAPSHOT.openItemsByLocal[state.local])||[];
+  const lowStock=metrics.cat.filter(isLowStock).length;
+  const recepDraft=recepDraftStats(state.local);
+  const prodDraft=prodDraftStats(state.local);
+  const elabDraft=elabDraftStats(state.local);
+  const priorities=[];
+  if(state.items.length) priorities.push({
+    tab:"pedido",tone:metrics.riskRows.length?"bad":"warn",title:`Pedido en borrador · ${state.items.length} producto${state.items.length===1?"":"s"}`,
+    detail:metrics.riskRows.length?`${metrics.riskRows.length} con faltante real antes de enviar`:(metrics.coveragePct?`${metrics.coveragePct}% con cobertura verificada`:"Cobertura pendiente de conteo"),action:"Continuar pedido"
+  });
+  if(openItems.length || metrics.snapshotLocal.faltantes) priorities.push({
+    tab:"reportes",tone:"bad",title:`${Math.max(openItems.length,metrics.snapshotLocal.faltantes||0)} pendiente${Math.max(openItems.length,metrics.snapshotLocal.faltantes||0)===1?"":"s"} abierto${Math.max(openItems.length,metrics.snapshotLocal.faltantes||0)===1?"":"s"}`,
+    detail:"La planilla registra demanda todavía sin cerrar",action:"Revisar pendientes"
+  });
+  if(lowStock) priorities.push({tab:"stock",tone:"bad",title:`${lowStock} producto${lowStock===1?"":"s"} bajo mínimo`,detail:"El stock real requiere conteo o reposición",action:"Abrir stock"});
+  if(recepDraft.items) priorities.push({tab:"recepcion",tone:"warn",title:`Recepción sin confirmar · ${recepDraft.items} línea${recepDraft.items===1?"":"s"}`,detail:`${recepDraft.total} unidades protegidas en este dispositivo`,action:"Completar recepción"});
+  if(prodDraft.items) priorities.push({tab:"produccion",tone:"warn",title:`Parte productivo en curso`,detail:`${prodDraft.items} insumo${prodDraft.items===1?"":"s"} cargado${prodDraft.items===1?"":"s"}`,action:"Completar parte"});
+  if(elabDraft.items) priorities.push({tab:"elaborados",tone:"warn",title:`Cierre diario pendiente`,detail:`${elabDraft.items} elaborado${elabDraft.items===1?"":"s"} listo${elabDraft.items===1?"":"s"} para confirmar`,action:"Completar cierre"});
+  if(!priorities.length) priorities.push({tab:"pedido",tone:"ok",title:"Turno al día",detail:"No hay borradores, faltantes ni stock crítico visible",action:"Crear pedido"});
+  wrap.hidden=false;
+  localLabel.textContent=state.local;
+  list.innerHTML=priorities.slice(0,3).map((item,index)=>`<button type="button" class="pulse-item ${item.tone}" data-pulse-go="${item.tab}">
+    <span class="pulse-top"><span class="pulse-no">${String(index+1).padStart(2,"0")}</span><i class="pulse-state" aria-hidden="true"></i></span>
+    <strong>${esc(item.title)}</strong><small>${esc(item.detail)}</small><b>${esc(item.action)} ↗</b>
+  </button>`).join("");
+  list.querySelectorAll("[data-pulse-go]").forEach(btn=>btn.addEventListener("click",()=>setTab(btn.dataset.pulseGo)));
 }
 
 function renderLocalHub(){
@@ -2804,8 +2943,9 @@ function renderElabCardsOnly(local){
 
 /* ---- Render locales ---- */
 function renderLocales(){
-  $("#locales").innerHTML = LOCALES.map(l=>`
+  $("#locales").innerHTML = LOCALES.map((l,index)=>`
     <button type="button" class="local local-choice" data-local="${l.id}" style="--accent:${l.accent}" aria-pressed="${String(state.local===l.id)}">
+      <span class="local-no">${String(index+1).padStart(2,"0")}</span>
       <span class="nm">${l.id}</span>
     </button>`).join("");
   $("#locales").querySelectorAll(".local").forEach(b=>{
@@ -2830,8 +2970,9 @@ function renderLocalActions(){
     ['elaborados','Elaborados','Cerrá el día declarando sobrantes y su destino.','Cierre diario','<path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/>'],
     ['reportes','Reportes','Leé riesgos, pedidos y movimientos en un resumen.','Lectura ejecutiva','<path d="M4 20V10m6 10V4m6 16v-7m6 7H2"/>']
   ];
-  const html = modules.map(([tab,label,description,status,paths])=>`
+  const html = modules.map(([tab,label,description,status,paths],index)=>`
     <button type="button" class="local-action" data-go="${tab}">
+      <span class="module-index">${String(index).padStart(2,"0")}</span>
       <span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg></span>
       <span class="module-copy"><strong>${label}</strong><small>${description}</small></span>
       <span class="module-link"><b>Abrir módulo</b><em>${status}</em></span>
