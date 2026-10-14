@@ -1814,6 +1814,8 @@ html,body,.app-main{background:var(--bg)}
 #prodStockReview p{white-space:normal;text-wrap:pretty}
 #prodStockConfirmWrap label{display:flex;align-items:flex-start;gap:10px;min-height:44px;white-space:normal;text-transform:none;font-size:12px}
 #prodStockConfirm{width:18px;height:18px;min-height:18px;flex-shrink:0}
+.receipt-external-choice{display:flex;align-items:flex-start;gap:10px;min-height:44px;font-size:12px;line-height:1.5}
+#recepExternalConsent{width:18px;height:18px;min-height:18px;flex-shrink:0}
 #prodSaveError{color:var(--red);white-space:normal}
 .bar.tab-panel[data-tab="pedido"]{background:var(--surface);border:1px solid var(--line);padding:10px 16px;box-shadow:none}
 .order-workspace .catalog-tools{margin:0 0 10px;display:flex;justify-content:flex-end}
@@ -2091,6 +2093,8 @@ html,body,.app-main{background:var(--bg)}
             <button class="cfg-btn alt" id="recepPhotoReset" type="button">Limpiar archivo</button>
           </div>
         </div>
+        <p class="hint" id="recepExternalHelp">La lectura de la foto se realiza en este equipo. El procesamiento externo es opcional.</p>
+        <label class="receipt-external-choice" for="recepExternalConsent"><input id="recepExternalConsent" type="checkbox" disabled> Autorizo enviar a OpenAI el texto extraído de esta foto, que puede incluir datos fiscales y precios. Esta autorización vale para una sola foto.</label>
         <div class="grid2">
           <div class="field"><label for="recepProveedor">Proveedor</label><input id="recepProveedor" type="text" placeholder="Proveedor o remito"></div>
           <div class="field"><label for="recepEncargado">Encargado</label><div class="responsable-control"><input id="recepEncargado" type="text" list="recepEncargadoOptions" placeholder="Escribí o elegí un nombre" autocomplete="off"><datalist id="recepEncargadoOptions"></datalist><button class="responsable-add" type="button" data-responsable-add="recepEncargado" hidden>+ Guardar nuevo</button></div></div>
@@ -3125,6 +3129,15 @@ function renderRecepCardsOnly(local){
   ].join("");
 }
 function renderRecepPhotoPanel(local){
+  const consent=$("#recepExternalConsent");
+  if(consent){
+    if(consent.dataset.local!==local){consent.checked=false;consent.dataset.local=local;}
+    consent.disabled=!local||recepUi.ocrBusy||!capabilityEnabled("receipt_ai_parse")||!capabilityEnabled("receipt_external_opt_in");
+    if(consent.disabled) consent.checked=false;
+    $("#recepExternalHelp").textContent=capabilityEnabled("receipt_ai_parse")&&capabilityEnabled("receipt_external_opt_in")
+      ? "La foto se lee en este equipo. Sólo se envía texto al servicio externo si lo autorizás antes de elegir esa foto."
+      : "Lectura en este equipo. El servicio externo no está habilitado; no se enviará texto a OpenAI.";
+  }
   const chip=$("#recepPhotoChip");
   const sub=$("#recepPhotoSubtext");
   const meta=$("#recepPhotoMeta");
@@ -4427,10 +4440,15 @@ async function saveReception(){
 async function loadReceptionFromPhoto(file){
   if(!state.local){ toast("Elegí un local primero","err"); return; }
   if(!file) return;
+  if(recepUi.ocrBusy){toast("Hay una lectura en curso. Esperá antes de elegir otra foto.","err");return;}
   if(typeof Tesseract === "undefined" || !Tesseract || typeof Tesseract.recognize !== "function"){
     toast("No pude cargar el lector OCR en este equipo","err");
     return;
   }
+  const photoLocal=state.local;
+  const consent=$("#recepExternalConsent");
+  const allowExternal=!!(consent&&consent.checked&&!consent.disabled);
+  if(consent) consent.checked=false;
   recepUi.ocrBusy=true;
   renderRecepPhotoPanel(state.local);
   try{
@@ -4438,14 +4456,14 @@ async function loadReceptionFromPhoto(file){
     const rawText=(result&&result.data&&result.data.text)||"";
     const filteredText=filterReceiptRelevantText(rawText);
     const text=filteredText||rawText;
-    let parsed=parseReceiptPhotoText(text,state.local);
+    let parsed=parseReceiptPhotoText(text,photoLocal);
     const localUnknownItems=Array.isArray(parsed.unknown_items)?parsed.unknown_items:[];
     const localReviewItems=Array.isArray(parsed.review_items)?parsed.review_items:[];
     let engineLabel="OCR";
     let engineMeta="Filtré la foto para leer solo líneas de artículo, precio, cantidad e importe. Podés corregir cantidades antes de guardar.";
-    if(capabilityEnabled("receipt_ai_parse")){
+    if(allowExternal&&state.local===photoLocal&&capabilityEnabled("receipt_ai_parse")&&capabilityEnabled("receipt_external_opt_in")){
       try{
-        const aiParsed=await backendGet("parseReceiptTextAi",{local:state.local,text:text.slice(0,4000),t:Date.now()});
+        const aiParsed=await backendGet("parseReceiptTextAi",{local:photoLocal,text:text.slice(0,4000),allow_external:"true",t:Date.now()});
         if(aiParsed&&aiParsed.ok&&Array.isArray(aiParsed.matches)){
           parsed={
             rawText,
@@ -4460,7 +4478,7 @@ async function loadReceptionFromPhoto(file){
     }
     if(!Array.isArray(parsed.unknown_items)) parsed.unknown_items=localUnknownItems;
     const unknownItems=parsed.unknown_items;
-    recepUi.photoByLocal[state.local]={
+    recepUi.photoByLocal[photoLocal]={
       fileName:file.name||"boleta",
       rawText,
       matches:parsed.matches,
@@ -4469,14 +4487,14 @@ async function loadReceptionFromPhoto(file){
       engineLabel,
       engineMeta
     };
-    applyPhotoMatchesToReceptionDraft(state.local, parsed);
-    if(parsed.proveedor){
-      $("#recepProveedor").value = ensureRecepDrafts(state.local).proveedor || parsed.proveedor;
+    applyPhotoMatchesToReceptionDraft(photoLocal, parsed);
+    if(state.local===photoLocal&&parsed.proveedor){
+      $("#recepProveedor").value = ensureRecepDrafts(photoLocal).proveedor || parsed.proveedor;
     }
     renderRecepcionModule();
     renderWorkspaceStats();
     if(parsed.matches.length || unknownItems.length || localReviewItems.length){
-      toast(`${engineLabel}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${unknownItems.length?` · ${unknownItems.length} fuera del catálogo`:""}`,"ok");
+      toast(`${photoLocal} · ${engineLabel}: ${parsed.matches.length} producto${parsed.matches.length===1?"":"s"} sugerido${parsed.matches.length===1?"":"s"}${unknownItems.length?` · ${unknownItems.length} fuera del catálogo`:""}`,"ok");
     }else{
       toast("Leí la foto, pero no encontré coincidencias claras. Podés completar a mano.","err");
     }
