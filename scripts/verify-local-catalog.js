@@ -40,7 +40,7 @@ const fields = {};
 const field = id => fields[id] ||= {value:'',innerHTML:'',textContent:'',querySelectorAll:()=>[],querySelector:()=>null};
 const norm = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
 const frontend = vm.createContext({
-  console, Date, $:field, search:field('#prodSearch'), normalizeLooseText:norm, esc:String,
+  console, Date, LIVE:true, $:field, search:field('#prodSearch'), normalizeLooseText:norm, esc:String,
   num:value=>Number(value)||0, catalogStockBadge:()=>'', pedidoInsightButton:()=>'',
   isLowStock:()=>false, catalogUsageForLocal:()=>({CAF002:{count:100}}),
   state:{local:'Trento Café',items:[]}, orderCategory:'Recomendados',orderShowAllCategories:false,
@@ -95,6 +95,8 @@ assert.equal(ui("localHistoryExtras('Trento Café').length"),0,'Uncoded foreign 
 assert.equal(field('#pedidoHistoryExtras').innerHTML,'','Unregistered history is absent from cafe sections');
 ui("CATALOG['Umo Grill'].push({codigo:'PAR002',nombre:'Agua',unidad:'litro'});PEDIDO_INTELLIGENCE.byLocal['Trento Café'].water={producto:'Agua',unidad:'litro',pedidos:3,codigo:''}");
 assert.equal(ui("localHistoryExtras('Trento Café').length"),1,'Shared drinks are not falsely classified as exclusive grill products');
+ui("LIVE=false;const savedCatalog=CATALOG;CATALOG={};renderQuickCatalog();CATALOG=savedCatalog;LIVE=true;");
+assert.match(field('#quickPickMeta').textContent,/Esperando lectura/,'Loading is not presented as an empty master catalog');
 ui("addFromCatalog(CATALOG['Umo Grill'][0])");
 assert.equal(frontend.state.items.length,0,'Stale handlers cannot add a foreign product');
 assert.equal(ui("aliasKeys({'Umo Grill':[{codigo:'PAR001'}],'Umo grill':[{codigo:'PAR002'}]})['Umo Grill'].length"),2);
