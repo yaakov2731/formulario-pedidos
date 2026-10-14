@@ -25,3 +25,35 @@ assert.doesNotThrow(()=>vm.runInContext('renderDashboard()',ctx));
 ctx.state.local='';
 assert.doesNotThrow(()=>vm.runInContext('renderDashboard()',ctx));
 console.log('Dashboard rendering passed: connected summary, empty decisions, offline and no local.');
+
+// Exercise both real asynchronous loaders: the initial pulse must use loaded data,
+// not the empty startup state, without requiring a local change to trigger rendering.
+async function checkHomeRefresh(){
+  let loaded=false, homeRenders=0;
+  const noop=()=>{};
+  const refreshCtx=vm.createContext({console,Date,
+    backendGet:async()=>({ok:true}),applyBootstrapPayload:()=>{loaded=true;},
+    renderHome:()=>{assert.equal(loaded,true);homeRenders++;},
+    renderStockIntelligence:noop,renderRecepcionModule:noop,renderProduccionModule:noop,
+    renderElaboradosModule:noop,renderDashboard:noop,renderWorkspaceStats:noop,
+    refreshResponsableInputs:noop,renderQuickCatalog:noop,fillEncargadoSelect:noop,
+    renderLiveWarning:noop,setConn:noop,renderCfg:noop,
+    state:{local:'Umo Grill'},cfg:{hidden:true},LIVE:false,LIVE_META:{},$:()=>({value:''})
+  });
+  const warmStart=html.indexOf('async function warmData()');
+  const warmEnd=html.indexOf('const LOCAL_ALIAS',warmStart);
+  vm.runInContext(html.slice(warmStart,warmEnd),refreshCtx);
+  const refreshStart=html.indexOf('async function refreshData(');
+  const refreshEnd=html.indexOf('async function confirmPedidoPersisted(',refreshStart);
+  vm.runInContext(html.slice(refreshStart,refreshEnd),refreshCtx);
+  await vm.runInContext('warmData()',refreshCtx);
+  assert.equal(homeRenders,1,'Initial live load refreshes the home pulse');
+  loaded=false;
+  assert.equal(await vm.runInContext('refreshData()',refreshCtx),true);
+  assert.equal(homeRenders,2,'Subsequent operation refresh updates the home pulse');
+  for(const label of ['Inicio','Pedido','Stock real','Recepción','Producción','Elaborados','Reportes','Administración']){
+    assert.ok(html.includes(`class="shell-nav-btn" type="button" aria-label="${label}"`),`${label} remains accessible in the icon-only sidebar`);
+  }
+  console.log('Home refresh and icon-only navigation accessibility passed.');
+}
+checkHomeRefresh().catch(err=>{console.error(err);process.exitCode=1;});

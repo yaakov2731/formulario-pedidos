@@ -1120,12 +1120,13 @@ function buildDecisionCenterByLocal_(snap, pedidoIntelligence) {
       var insight = localIntel[insightKey] || {};
       var habitual = round2_(numberOrZero_(insight.cantidad_sugerida, 0));
       var minimum = numberOrNull_(item.stock_minimo);
-      if (!stockKnown) {
-        if (pending > 0 || habitual > 0 || minimum > 0) {
+      if (!stockKnown || stock < 0) {
+        if (stock < 0 || pending > 0 || habitual > 0 || minimum > 0) {
           needsCount.push({
             codigo: item.codigo || '', producto: item.nombre || '', categoria: item.categoria || '', unidad: item.unidad || '',
             proveedor: item.proveedor || '', pendiente: pending, habitual: habitual, stock_objetivo: minimum,
-            razon: pending > 0 ? 'Hay demanda abierta pero falta un conteo confiable' : (habitual > 0 ? 'Tiene historial de pedidos pero falta stock real' : 'Tiene un objetivo configurado pero falta stock real')
+            stock: stock,
+            razon: stock < 0 ? 'Saldo negativo de ' + stock + ' ' + (item.unidad || '') + ': revisar unidades y movimientos; confirmar un conteo antes de sugerir compras' : (pending > 0 ? 'Hay demanda abierta pero falta un conteo confiable' : (habitual > 0 ? 'Tiene historial de pedidos pero falta stock real' : 'Tiene un objetivo configurado pero falta stock real'))
           });
         }
         return;

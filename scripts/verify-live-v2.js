@@ -51,7 +51,7 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.9.0", "bootstrap local order catalog version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.0`);
+  expect(bootstrap && bootstrap.version === "2.9.1", "bootstrap stock review version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.1`);
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.local_order_catalog), "local order catalog enabled", "local order catalog capability missing");
   const catalogOwners = {};
   Object.entries(bootstrap.catalog || {}).forEach(([local,items]) => items.forEach(item => {
@@ -133,6 +133,7 @@ async function main() {
   decisionLocals.forEach(local => {
     const catalog = (bootstrap.catalog && bootstrap.catalog[local]) || [];
     const suggestions = bootstrap.snapshot.decisionCenterByLocal[local].suggestions || [];
+    expect(!suggestions.some(row => Number(row.stock) < 0), `${local} negative balances excluded from purchase suggestions`, `${local} suggests buying against an invalid negative balance`);
     suggestions.forEach(row => {
       const item = catalog.find(item => row.codigo ? item.codigo === row.codigo : item.nombre === row.producto);
       if (!item || item.stock_actual === '' || item.stock_actual === null || item.stock_actual === undefined) return;
