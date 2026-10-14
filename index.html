@@ -3959,6 +3959,8 @@ function renderDashboard(){
     const stock=num(item.stock_actual);
     return stock===null || stock<=0;
   });
+  const decisionData=(SNAPSHOT.decisionCenterByLocal&&SNAPSHOT.decisionCenterByLocal[state.local])||{summary:{}};
+  const decisionSummary=decisionData.summary||{};
   const riskTotal=Math.max(localRisks.length, metrics.reviewRows.length, metrics.snapshotLocal.faltantes||0);
   $("#dashMeta").textContent = snapshotStampText() ? `${state.local} · ${snapshotStampText()}` : state.local;
   cards.innerHTML = [
