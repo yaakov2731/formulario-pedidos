@@ -2436,14 +2436,16 @@ function pedidoInsightButton(item){
   if(reviews&&(reviews[state.local]||[]).some(row=>row.codigo===item.codigo)) return `<span class="history-suggestion">Revisar medidas del pedido abierto</span>`;
   const insight=pedidoInsightForItem(item), habitual=num(insight&&insight.cantidad_sugerida);
   const par=num(item&&item.stock_minimo);
-  const target=Math.max(habitual||0,par||0);
+  const reference=typeof SNAPSHOT!=="undefined"&&SNAPSHOT&&SNAPSHOT.receptionGuideByLocal;
+  const pending=(reference&&reference[state.local]||[]).filter(row=>item.codigo&&row.codigo===item.codigo&&String(row.unidad||"").trim().toLowerCase()===String(item.unidad||"").trim().toLowerCase()).reduce((total,row)=>total+(num(row.cantidad)||0),0);
+  const target=Math.max(habitual||0,par||0,pending);
   const stock=num(item&&item.stock_actual);
   if(stock!==null&&stock<0) return `<span class="history-suggestion">Revisar stock negativo · ${esc(trim(stock))} ${esc(item.unidad||"")} · contar antes de sugerir</span>`;
   if(!(target>0)) return "";
   const suggested=stock===null?target:Math.max(0,Math.round((target-stock)*100)/100);
   const direction=insight&&insight.tendencia==="subiendo"?"↑":insight&&insight.tendencia==="bajando"?"↓":"→";
   const unit=item.unidad||"";
-  const context=par!==null&&par>= (habitual||0)?`par ${esc(trim(par))}`:`habitual ${esc(trim(habitual||0))}`;
+  const context=pending>0&&pending>=Math.max(habitual||0,par||0)?`abierto ${esc(trim(pending))}`:par!==null&&par>= (habitual||0)?`par ${esc(trim(par))}`:`habitual ${esc(trim(habitual||0))}`;
   if(stock===null) return `<span class="history-suggestion">Contar stock · ${context}</span>`;
   if(!(suggested>0)) return `<span class="history-suggestion covered" title="El stock actual cubre el objetivo"><i>✓</i> Cubierto · ${context} ${esc(unit)}</span>`;
   return `<button type="button" class="history-suggestion" data-use-suggested="${esc(suggested)}" title="Objetivo menos stock actual"><i>${direction}</i> Pedir ${esc(trim(suggested))} ${esc(unit)} · ${context}</button>`;
