@@ -75,6 +75,14 @@ Validación de esta regla: `node scripts/verify-par.js`, con planilla en memoria
 
 ## Revisión del consumo de producción
 
+Producción usa las mismas secciones del catálogo local que Pedido, Stock y
+Recepción. En Trento abre los insumos de pastelería existentes; Todos permite
+elegir otras preparaciones, sin copiar productos de otros locales. Las unidades
+aparecen al agregar, la búsqueda tolera acentos y Mostrar más recorre toda la
+sección. Cambiar la vista no borra insumos elegidos, cantidades ni lote. No se
+precargan cantidades ni se inventan recetas. La navegación no inicializa una
+sección cuando todavía no se pudo leer el catálogo.
+
 Antes de enviar un parte, la app consulta el catálogo actual mediante
 `getProductionReview`, un endpoint de sólo lectura. Valida productos del local,
 unidad original y cantidades positivas finitas; no convierte gramos a kg ni

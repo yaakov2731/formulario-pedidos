@@ -2137,7 +2137,7 @@ html,body,.app-main{background:var(--bg)}
       </div>
       <div class="op-form">
         <div class="grid2">
-          <div class="field"><label for="prodNombre">Producto elaborado</label><input id="prodNombre" type="text" placeholder="Ej: prep pizza, salsa, base burger"></div>
+          <div class="field"><label for="prodNombre">Producto elaborado</label><input id="prodNombre" type="text" placeholder="Producto o preparación del local"></div>
           <div class="field"><label for="prodCantidad">Cantidad producida</label><input id="prodCantidad" type="number" step="0.1" placeholder="0"></div>
           <div class="field"><label for="prodLote">Lote</label><input id="prodLote" type="text" placeholder="Código interno o turno"></div>
           <div class="field"><label for="prodEncargado">Encargado</label><div class="responsable-control"><input id="prodEncargado" type="text" list="prodEncargadoOptions" placeholder="Escribí o elegí un nombre" autocomplete="off"><datalist id="prodEncargadoOptions"></datalist><button class="responsable-add" type="button" data-responsable-add="prodEncargado" hidden>+ Guardar nuevo</button></div></div>
@@ -2149,7 +2149,9 @@ html,body,.app-main{background:var(--bg)}
             <span id="prodQuickPickMeta"></span>
           </div>
           <input class="stock-search" id="prodInsumoSearch" type="text" placeholder="Buscá insumos para agregar al parte...">
+          <div class="field"><label for="prodSection">Sección para agregar insumos</label><select id="prodSection" disabled><option>Esperando catálogo</option></select></div>
           <div class="quick-pick-list" id="prodQuickPickList" style="margin-top:10px"></div>
+          <button class="stock-more" id="prodCatalogMore" type="button" hidden>Mostrar más insumos</button>
         </div>
         <span class="snum" id="prodCatalogMeta"></span>
         <div class="op-grid" id="prodGrid"></div>
@@ -3380,7 +3382,7 @@ function selectLocal(id, opts={}){
   orderVisibleLimit=24;
   scheduleDraftSave();
   recepUi.visibleLimit=40;
-  prodUi.visibleLimit=40;
+  prodUi.visibleLimit=12;
   if(!opts.silent) setTab("home");
   renderLocales();
   renderLocalActions();
@@ -5030,7 +5032,7 @@ $("#cfgCatList").addEventListener("click",e=>{
 const stockModal=$("#stockModal");
 const stockUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{}, metaByLocal:{} };
 const recepUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, scopeByLocal:{}, photoByLocal:{}, ocrBusy:false };
-const prodUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
+const prodUi = { drafts:{}, visibleLimit:12, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
 const elabUi = { drafts:{}, visibleLimit:40, filterTimer:null, queryByLocal:{}, selectedByLocal:{} };
 function openStock(){
   const sel=$("#stockLocal");
@@ -5085,19 +5087,25 @@ function renderProdQuickPick(local){
   const box=$("#prodQuickPickList");
   const meta=$("#prodQuickPickMeta");
   const cat=CATALOG[local]||[];
+  if(!cat.length){
+    const section=$("#prodSection");
+    section.disabled=true;
+    section.innerHTML='<option>Esperando catálogo</option>';
+    meta.textContent=LIVE?"Sin catálogo del local":"Esperando lectura del catálogo";
+    box.innerHTML='<div class="quick-pick-empty">El catálogo del local debe estar disponible para agregar insumos.</div>';
+    $("#prodCatalogMore").hidden=true;
+    return;
+  }
   const selected=ensureProdSelection(local);
   const drafts=ensureProdDrafts(local);
-  const q=(prodUi.queryByLocal[local]||"").trim().toLowerCase();
-  const filtered=(q
-    ? cat.filter(item=>
-      item.nombre.toLowerCase().includes(q) ||
-      String(item.codigo||"").toLowerCase().includes(q) ||
-      String(item.categoria||"").toLowerCase().includes(q) ||
-      String(item.proveedor||"").toLowerCase().includes(q)
-    )
-    : cat
-  ).slice(0,12);
-  meta.textContent = q ? `${filtered.length} resultados rápidos` : `${Math.min(cat.length,12)} visibles de ${cat.length}`;
+  prodUi.sectionByLocal=prodUi.sectionByLocal||{};
+  if(!prodUi.sectionByLocal[local]&&cat.length) prodUi.sectionByLocal[local]=local==="Trento Café"?"Insumos de pastelería":"Todos";
+  const section=renderOperationalSectionPicker("prodSection",local,prodUi);
+  const matches=filterOperationalCatalog(local,prodUi.queryByLocal[local]||"",section);
+  const filtered=matches.slice(0,prodUi.visibleLimit||12);
+  meta.textContent=`${filtered.length} de ${matches.length} insumos · ${selected.length} agregados`;
+  const more=$("#prodCatalogMore");
+  if(more){more.hidden=filtered.length>=matches.length;more.textContent=`Mostrar más (${matches.length-filtered.length})`;}
   if(!filtered.length){
     box.innerHTML=`<div class="quick-pick-empty">No hay coincidencias para agregar.</div>`;
     return;
@@ -5109,8 +5117,8 @@ function renderProdQuickPick(local){
     return `
       <div class="quick-pick-item">
         <div class="quick-pick-main">
-          <div class="quick-pick-name">${esc(item.nombre)}</div>
-          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${used?` · usado ${esc(trim(used))} ${esc(item.unidad||"unidad")}`:""}</div>
+          <div class="quick-pick-name">${esc(catalogDisplayName(item))} <span class="catalog-unit">${esc(item.unidad||"unidad")}</span></div>
+          <div class="quick-pick-meta">${esc(catalogSectionForLocal(item,local))}${item.proveedor?` · ${esc(item.proveedor)}`:""}${used?` · usado ${esc(trim(used))} ${esc(item.unidad||"unidad")}`:""}</div>
         </div>
         <button type="button" class="quick-pick-btn" data-prod-add="${esc(key)}">${added?"Agregado":"Agregar"}</button>
       </div>`;
@@ -5933,9 +5941,18 @@ $("#elabObs").addEventListener("input",()=>{ if(state.local){ ensureElabDrafts(s
 $("#prodInsumoSearch").addEventListener("input",()=>{
   if(!state.local) return;
   prodUi.queryByLocal[state.local]=$("#prodInsumoSearch").value;
+  prodUi.visibleLimit=12;
   clearTimeout(prodUi.filterTimer);
   prodUi.filterTimer=setTimeout(()=>renderProduccionModule(),120);
 });
+$("#prodSection").addEventListener("change",()=>{
+  if(!state.local) return;
+  prodUi.sectionByLocal=prodUi.sectionByLocal||{};
+  prodUi.sectionByLocal[state.local]=$("#prodSection").value;
+  prodUi.visibleLimit=12;
+  renderProduccionModule();
+});
+$("#prodCatalogMore").addEventListener("click",()=>{prodUi.visibleLimit+=12;renderProduccionModule();});
 $("#elabSearch").addEventListener("input",()=>{
   if(!state.local) return;
   elabUi.queryByLocal[state.local]=$("#elabSearch").value;
