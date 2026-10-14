@@ -2425,6 +2425,7 @@ const CATALOG_USAGE_KEY = "docks-pedidos-catalog-usage-v1";
 let draftSaveTimer = null;
 let restoredDraft = false;
 let restoredDraftSavedAt = "";
+let pedidoDraftsByLocal = {};
 
 /* ---- State ---- */
 const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"productos", admin:false };
@@ -2489,6 +2490,35 @@ function scheduleDraftSave(){
   clearTimeout(draftSaveTimer);
   draftSaveTimer=setTimeout(persistOperationalDrafts,180);
 }
+function capturePedidoDraft(){
+  return {
+    local:state.local,urgencia:state.urgencia,
+    items:state.items.map(({_id,...item})=>({...item})),
+    encargado:$("#encargado").value,email:$("#email").value,
+    semana:$("#semana").value,fechaEntrega:$("#fecha_entrega").value,
+    observaciones:$("#observaciones").value,pedidoStep:state.pedidoStep,
+    encTouched:state.encTouched,emailTouched:state.emailTouched
+  };
+}
+function applyPedidoDraft(pedido){
+  state.urgencia=["Baja","Normal","Urgente"].includes(pedido.urgencia)?pedido.urgencia:"Normal";
+  state.items=Array.isArray(pedido.items)?pedido.items.map(item=>({...item,_id:++uid})):[];
+  state.encTouched=pedido.encTouched===true;
+  state.emailTouched=pedido.emailTouched===true;
+  state.pedidoStep=PEDIDO_STEPS.some(step=>step.id===pedido.pedidoStep)?pedido.pedidoStep:"productos";
+  $("#encargado").value=pedido.encargado||"";
+  $("#email").value=pedido.email||"";
+  $("#semana").value=pedido.semana||"";
+  $("#fecha_entrega").value=pedido.fechaEntrega||"";
+  $("#observaciones").value=pedido.observaciones||"";
+  $("#urg").querySelectorAll(".urgb").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.u===state.urgencia)));
+}
+function switchPedidoLocal(id){
+  if(state.local===id) return;
+  if(state.local) pedidoDraftsByLocal[state.local]=capturePedidoDraft();
+  state.local=id;
+  applyPedidoDraft(pedidoDraftsByLocal[id]||{});
+}
 function persistOperationalDrafts(){
   clearTimeout(draftSaveTimer);
   try{
@@ -2501,21 +2531,12 @@ function persistOperationalDrafts(){
         observaciones:$("#stockObs").value
       };
     }
+    const activePedido=capturePedidoDraft();
+    if(state.local) pedidoDraftsByLocal[state.local]=activePedido;
     localStorage.setItem(DRAFT_STORAGE_KEY,JSON.stringify({
       savedAt:new Date().toISOString(),
-      pedido:{
-        local:state.local,
-        urgencia:state.urgencia,
-        items:state.items.map(({_id,...item})=>item),
-        encargado:$("#encargado").value,
-        email:$("#email").value,
-        semana:$("#semana").value,
-        fechaEntrega:$("#fecha_entrega").value,
-        observaciones:$("#observaciones").value,
-        pedidoStep:state.pedidoStep,
-        encTouched:state.encTouched,
-        emailTouched:state.emailTouched
-      },
+      pedido:activePedido,
+      pedidoByLocal:pedidoDraftsByLocal,
       stock:{drafts:stockUi.drafts,selectedByLocal:stockUi.selectedByLocal,metaByLocal:stockMeta},
       recepcion:{drafts:recepUi.drafts},
       produccion:{drafts:prodUi.drafts,selectedByLocal:prodUi.selectedByLocal},
@@ -2525,7 +2546,8 @@ function persistOperationalDrafts(){
 }
 function hasMeaningfulOperationalDraft(saved){
   const pedido=(saved&&saved.pedido)||{};
-  const hasPedido=(Array.isArray(pedido.items)&&pedido.items.length>0) || [pedido.semana,pedido.fechaEntrega,pedido.observaciones].some(value=>String(value||"").trim()) || (pedido.encTouched&&String(pedido.encargado||"").trim()) || (pedido.emailTouched&&String(pedido.email||"").trim());
+  const meaningfulPedido=pedido=>(Array.isArray(pedido.items)&&pedido.items.length>0) || [pedido.semana,pedido.fechaEntrega,pedido.observaciones].some(value=>String(value||"").trim()) || (pedido.encTouched&&String(pedido.encargado||"").trim()) || (pedido.emailTouched&&String(pedido.email||"").trim());
+  const hasPedido=meaningfulPedido(pedido)||Object.values((saved&&saved.pedidoByLocal)||{}).some(meaningfulPedido);
   const hasItems=drafts=>Object.values(drafts||{}).some(draft=>Object.values((draft&&draft.items)||{}).some(value=>String(value??"").trim()!==""));
   const hasStockSelection=Object.values((saved.stock&&saved.stock.selectedByLocal)||{}).some(items=>Array.isArray(items)&&items.length>0);
   const hasRecepcion=Object.values((saved.recepcion&&saved.recepcion.drafts)||{}).some(draft=>
@@ -2544,6 +2566,8 @@ function restoreOperationalDrafts(){
     const saved=JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY)||"null");
     if(!saved||!saved.pedido) return false;
     const pedido=saved.pedido;
+    pedidoDraftsByLocal=saved.pedidoByLocal&&typeof saved.pedidoByLocal==="object"?saved.pedidoByLocal:{};
+    if(pedido.local&&!pedidoDraftsByLocal[pedido.local]) pedidoDraftsByLocal[pedido.local]=pedido;
     if(LOCALES.some(local=>local.id===pedido.local)) state.local=pedido.local;
     state.urgencia=["Baja","Normal","Urgente"].includes(pedido.urgencia)?pedido.urgencia:"Normal";
     state.items=Array.isArray(pedido.items)?pedido.items.map(item=>({...item,_id:++uid})):[];
@@ -3148,7 +3172,8 @@ document.querySelectorAll("[data-responsable-add]").forEach(btn=>{
   input.addEventListener("input",()=>syncResponsableAddButton(id,id==="stockEncargado"?($("#stockLocal").value||state.local):state.local));
 });
 function selectLocal(id, opts={}){
-  state.local=id;
+  switchPedidoLocal(id);
+  orderCategory="Recomendados";
   orderShowAllCategories=false;
   orderVisibleLimit=24;
   scheduleDraftSave();
@@ -3164,6 +3189,7 @@ function selectLocal(id, opts={}){
   fillEncargadoSelect("encargado", id, !state.encTouched ? (c.enc||"") : $("#encargado").value, { preferFirst:true, placeholder:"Elegí encargado" });
   if(!state.encTouched){ $("#encargado").value = $("#encargado").value || c.enc || ""; }
   if(!state.emailTouched){ $("#email").value=c.email||""; }
+  renderItems();
   $("#encAuto").hidden = !(c.enc && !state.encTouched);
   const cat=CATALOG[id]||[];
   $("#catHint").innerHTML = cat.length
@@ -3382,12 +3408,13 @@ function setCatalogItemQuantity(rec, quantity){
 /* ---- Items render ---- */
 function renderItems(){
   const box=$("#items");
+  const mismatches=new Set(pedidoCatalogMismatches());
   if(!state.items.length){ box.innerHTML=`<div class="items-empty">Todavía no agregaste productos.</div>`; }
   else box.innerHTML=state.items.map(it=>`
     <div class="item" data-id="${it._id}">
       <div class="it-wrap">
         <div class="it-nm">${esc(it.nombre)} ${it.free?'<span class="tag free">libre</span>':`<span class="tag">${esc(it.codigo)}</span>`}</div>
-        <div class="it-sub">${it.free?'Producto libre':esc(it.proveedor||'Sin proveedor')}</div>
+        <div class="it-sub">${mismatches.has(it)?'Revisar: no figura en el catálogo de este local':it.free?'Producto libre':esc(it.proveedor||'Sin proveedor')}</div>
       </div>
       <input class="qty" type="number" min="0.1" step="0.1" value="${it.qty}" data-act="qty" inputmode="decimal" aria-label="Cantidad de ${esc(it.nombre)}">
       <select class="unit" data-act="unit" aria-label="Unidad de ${esc(it.nombre)}">${unitOptions(it.unidad)}</select>
@@ -3447,7 +3474,14 @@ $("#email").addEventListener("input",()=>{state.emailTouched=true;syncSend();sch
 function valid(){
   return state.local && $("#encargado").value.trim() && /\S+@\S+\.\S+/.test($("#email").value)
     && $("#semana").value && $("#fecha_entrega").value && state.items.length>0
-    && state.items.every(i=>i.qty>0);
+    && state.items.every(i=>i.qty>0) && !pedidoCatalogMismatches().length;
+}
+function pedidoCatalogMismatches(){
+  if(!LIVE||!state.local) return [];
+  const cat=CATALOG[state.local]||[];
+  return state.items.filter(item=>!item.free&&!cat.some(product=>item.codigo
+    ? String(product.codigo||"")===String(item.codigo)
+    : normalizeLooseText(product.nombre)===normalizeLooseText(item.nombre)));
 }
 function syncSend(){
   const btn=$("#send");
@@ -3460,6 +3494,7 @@ function syncSend(){
   if(!$("#fecha_entrega").value) missing.push("fecha de entrega");
   if(!state.items.length) missing.push("productos");
   if(state.items.some(item=>!(item.qty>0))) missing.push("cantidades");
+  if(pedidoCatalogMismatches().length) missing.push("revisar productos que no pertenecen al catálogo de este local");
   const ready=LIVE&&!missing.length;
   btn.disabled=!ready;
   btn.title=!LIVE?"Sin conexión: el pedido no se puede enviar":missing.length?`Falta: ${missing.join(", ")}`:"Pedido listo para confirmar";
@@ -3526,22 +3561,15 @@ async function submit(){
       (confirmed && confirmed.telegramOk === true)
     );
     if(!confirmed.ok){
-      const refreshed = await refreshData();
-      if(refreshed){
-        toast("Pedido enviado. El backend publicado no confirma por ID todavia.","ok");
-        recordCatalogUsage(payload.local,items);
-        resetForm();
-      }else{
-        toast("No pude confirmar el pedido. Revisá la planilla antes de reenviar.","err");
-      }
+      toast("No pude confirmar el pedido. Conservé el borrador; revisá la planilla antes de reenviar.","err");
     }else if(!telegramOk){
       toast("Pedido guardado, pero Telegram no confirmó la notificación","err");
       recordCatalogUsage(payload.local,items);
-      resetForm();
+      resetForm(payload.local);
     }else{
       toast("Pedido enviado","ok");
       recordCatalogUsage(payload.local,items);
-      resetForm();
+      resetForm(payload.local);
     }
   }catch{
     toast("Error de red, reintentá","err");
@@ -3549,7 +3577,12 @@ async function submit(){
     btn.innerHTML=orig; syncSend();
   }
 }
-function resetForm(){
+function resetForm(local=state.local){
+  if(local!==state.local){
+    pedidoDraftsByLocal[local]={local,items:[],urgencia:"Normal",pedidoStep:"productos"};
+    scheduleDraftSave();
+    return;
+  }
   state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="productos"; orderCategory="Recomendados"; orderVisibleLimit=24;
   $("#observaciones").value=""; renderItems();
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
@@ -5011,7 +5044,7 @@ function addPhotoSuggestionToCatalog(local, index){
   const photo=getRecepPhotoState(local);
   const suggestion=photo && Array.isArray(photo.unknownItems) ? photo.unknownItems[index] : null;
   if(!suggestion){ toast("No encontré esa sugerencia del archivo","err"); return; }
-  if(state.local !== local) state.local = local;
+  if(state.local !== local) selectLocal(local,{silent:true});
   openCfg();
   $("#cfgLocal").value = local;
   $("#cfgPNombre").value = suggestion.producto || suggestion.sourceLine || "";
