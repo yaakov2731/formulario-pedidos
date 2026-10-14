@@ -863,7 +863,8 @@ function filterReceiptOcrText_(text) {
   return filtered.join('\n');
 }
 
-function parseReceiptTextAi_(local, text) {
+function parseReceiptTextAi_(local, text, allowExternal) {
+  if (allowExternal !== true) return { ok: false, error: 'external_consent_required' };
   local = normalizeLocalName_(local);
   text = String(text || '').trim();
   if (!local) return { ok: false, error: 'Falta local' };

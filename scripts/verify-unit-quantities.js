@@ -231,7 +231,8 @@ assert.equal(packaged.review_items[0].codigo,'LEC');
 assert.match(packaged.review_items[0].sourceLine,/24 21.00/);
 console.log('Actual OCR text regression passed: footer fallback, packaged units withheld and review provenance retained.');
 const photoElements={};
-ctx.$=id=>photoElements[id]||(photoElements[id]={textContent:'',innerHTML:'',hidden:false,querySelectorAll:()=>[]});
+ctx.$=id=>photoElements[id]||(photoElements[id]={textContent:'',innerHTML:'',hidden:false,dataset:{},checked:false,querySelectorAll:()=>[]});
+ctx.capabilityEnabled=()=>false;
 ctx.recepUi={ocrBusy:false};
 ctx.getRecepPhotoState=()=>({fileName:'factura.jpeg',matches:[],unknownItems:[],reviewItems:packaged.review_items});
 load('renderRecepPhotoPanel','renderProdCardsOnly');
@@ -240,3 +241,46 @@ assert.match(photoElements['#recepPhotoMatches'].innerHTML,/productos por revisa
 assert.match(photoElements['#recepPhotoMatches'].innerHTML,/data-photo-review/);
 assert.match(photoElements['#recepPhotoMeta'].textContent,/no se precargaron/);
 assert.doesNotMatch(photoElements['#recepPhotoMatches'].innerHTML,/recep-photo-qty/,'A review row cannot masquerade as a confirmed stock amount');
+
+const privacyBackend=vm.createContext({console});
+for(const file of fs.readdirSync('gas').filter(file=>file.endsWith('.gs'))) vm.runInContext(fs.readFileSync(`gas/${file}`,'utf8'),privacyBackend);
+vm.runInContext("var settingsReads=0;getOpenAiSettings_=function(){settingsReads++;return {enabled:false};};",privacyBackend);
+assert.equal(vm.runInContext("parseReceiptTextAi_('Trento Café','Fixture sin documentos reales').error",privacyBackend),'external_consent_required');
+assert.equal(vm.runInContext('settingsReads',privacyBackend),0,'No provider configuration or network request occurs without consent');
+assert.equal(vm.runInContext("parseReceiptTextAi_('Trento Café','Fixture', 'true').error",privacyBackend),'external_consent_required','Only explicit boolean approval is valid inside the service');
+
+const consentField={checked:false,disabled:false,dataset:{}};
+const privacyCalls=[],privacyTargets=[];
+const privacyUi=vm.createContext({console,Date,
+  state:{local:'Trento Café'},recepUi:{ocrBusy:false,photoByLocal:{}},
+  $:id=>id==='#recepExternalConsent'?consentField:{value:''},
+  Tesseract:{recognize:async()=>({data:{text:'Texto de fixture local'}})},
+  toast:()=>{},capabilityEnabled:()=>true,filterReceiptRelevantText:text=>text,
+  parseReceiptPhotoText:(text,local)=>({matches:[],unknown_items:[],review_items:[],proveedor:''}),
+  mergeUnknownPhotoItems:(a,b)=>a.concat(b),
+  renderRecepPhotoPanel:()=>{},renderRecepcionModule:()=>{},renderWorkspaceStats:()=>{},
+  applyPhotoMatchesToReceptionDraft:local=>privacyTargets.push(local),ensureRecepDrafts:()=>({proveedor:''}),
+  backendGet:async(action,params)=>{privacyCalls.push({action,params});return {ok:true,matches:[],unknown_items:[]};}
+});
+const privacyStart=html.indexOf('async function loadReceptionFromPhoto('),privacyEnd=html.indexOf('async function saveProduction(',privacyStart);
+vm.runInContext(html.slice(privacyStart,privacyEnd),privacyUi);
+const privacyRun=code=>vm.runInContext(code,privacyUi);
+(async()=>{
+  await privacyRun("loadReceptionFromPhoto({name:'fixture-local.jpeg'})");
+  assert.equal(privacyCalls.length,0,'Local reading never calls the external parser by default');
+  consentField.checked=true;
+  await privacyRun("loadReceptionFromPhoto({name:'fixture-local.jpeg'})");
+  assert.equal(privacyCalls.length,1);
+  assert.equal(privacyCalls[0].params.allow_external,'true');
+  assert.equal(consentField.checked,false,'Permission is consumed by one photo');
+  await privacyRun("loadReceptionFromPhoto({name:'second-fixture.jpeg'})");
+  assert.equal(privacyCalls.length,1,'A subsequent file does not inherit approval');
+  consentField.checked=true;
+  privacyUi.Tesseract.recognize=async()=>{privacyUi.state.local='Umo Grill';return {data:{text:'Fixture local'}};};
+  await privacyRun("loadReceptionFromPhoto({name:'switch-local-fixture.jpeg'})");
+  assert.equal(privacyCalls.length,1,'Changing local during OCR cancels external processing');
+  assert.equal(privacyTargets.at(-1),'Trento Café','Photo results retain their original local');
+  assert.ok(privacyUi.recepUi.photoByLocal['Trento Café']);
+  assert.equal(privacyUi.recepUi.photoByLocal['Umo Grill'],undefined);
+  console.log('Receipt privacy passed: local default, one-photo consent, service denial and original-local isolation. No external service calls.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

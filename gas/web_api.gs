@@ -14,7 +14,8 @@ function doGet(e) {
     if (action === 'parseReceiptTextAi') {
       return webResponse_(parseReceiptTextAi_(
         (e && e.parameter && e.parameter.local) || '',
-        (e && e.parameter && e.parameter.text) || ''
+        (e && e.parameter && e.parameter.text) || '',
+        !!(e && e.parameter && e.parameter.allow_external === 'true')
       ), e);
     }
     if (action === 'getPedidoStatus') {
@@ -396,7 +397,8 @@ function appCapabilities_() {
     local_order_catalog: true,
     demand_unit_review: true,
     telegram_notify: telegram.enabled,
-    receipt_ai_parse: openai.enabled
+    receipt_ai_parse: openai.enabled,
+    receipt_external_opt_in: true
   };
 }
 

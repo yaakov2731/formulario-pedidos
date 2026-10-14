@@ -138,6 +138,15 @@ línea y el operador debe completarla manualmente. Las
 pruebas de texto transcrito están en `verify-unit-quantities.js`: no prueban la
 calidad de reconocimiento de la foto completa ni la extracción externa.
 
+La lectura predeterminada de fotos usa Tesseract en el navegador. El envío del
+texto a OpenAI es opcional y requiere marcar la autorización antes de elegir
+esa foto; el aviso explica que puede contener datos fiscales y precios. No se
+conserva el permiso para otro archivo o local. El servidor rechaza el parser
+externo sin consentimiento antes de leer su configuración o llamar al proveedor.
+Si el local cambia durante la lectura, no se pide procesamiento externo y el
+borrador queda asociado al local original. Esta barrera de consentimiento no
+sustituye autenticación, control de acceso o límites de uso del servicio.
+
 El filtro exige encontrar líneas de artículos antes de dar por válida una tabla:
 un pie de factura mal leído como encabezado no reemplaza el detalle. Productos
 reconocidos con presentaciones multiplicadas se muestran en «Productos por revisar»
