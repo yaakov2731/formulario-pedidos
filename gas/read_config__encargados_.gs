@@ -30,6 +30,7 @@ function readConfigBundle_() {
       nombre: cEnc   > -1 ? String(values[i][cEnc]   || '').trim() : '',
       email:  cEmail > -1 ? String(values[i][cEmail] || '').trim() : ''
     };
+    if (!responsable.nombre) continue;
     if (!config[local]) config[local] = { enc: responsable.nombre, email: responsable.email };
     if (!responsables[local]) responsables[local] = [];
     responsables[local].push(responsable);

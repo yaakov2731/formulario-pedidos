@@ -209,6 +209,12 @@ function updateProductoCatalogo_(d) {
 function addResponsableConfig_(d) {
   if (!d.local || !d.nombre) return { ok: false, error: 'Faltan local o nombre' };
   d.local = normalizeLocalName_(d.local);
+  d.nombre = String(d.nombre || '').trim();
+  d.email = String(d.email || '').trim();
+  if (d.nombre.length > 80) return { ok: false, error: 'El nombre es demasiado largo' };
+  if (d.email && !/^\S+@\S+\.\S+$/.test(d.email)) return { ok: false, error: 'Email inválido' };
+  var allowedLocals = operationalLocals_();
+  if (allowedLocals.indexOf(d.local) === -1) return { ok: false, error: 'Local no reconocido' };
   var sh = ss_().getSheetByName(SHEET_CONFIG);
   if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CONFIG };
   var values = sh.getDataRange().getValues();
@@ -230,6 +236,23 @@ function addResponsableConfig_(d) {
     }
   }
   if (headerRow === -1) return { ok: false, error: 'No encuentro el bloque de encargados' };
+
+  var wantedName = normalizeLooseText_(d.nombre);
+  for (var existingRow = headerRow + 1; existingRow < values.length; existingRow++) {
+    var existingLocal = normalizeLocalName_(String(values[existingRow][cols.cLocal] || '').trim());
+    var existingName = String(values[existingRow][cols.cEnc] || '').trim();
+    if (existingLocal !== d.local || normalizeLooseText_(existingName) !== wantedName) continue;
+    var existingEmail = cols.cEmail > -1 ? String(values[existingRow][cols.cEmail] || '').trim() : '';
+    if (d.email && existingEmail && existingEmail.toLowerCase() !== d.email.toLowerCase()) {
+      return { ok: false, error: 'Ese encargado ya existe con otro email' };
+    }
+    if (d.email && !existingEmail && cols.cEmail > -1) {
+      sh.getRange(existingRow + 1, cols.cEmail + 1).setValue(d.email);
+      existingEmail = d.email;
+      invalidateBootstrapCaches_();
+    }
+    return { ok: true, created: false, responsable: { nombre: existingName, email: existingEmail } };
+  }
   
   var insertAt = headerRow + 2;
   for (var k = headerRow + 1; k < values.length; k++) {
@@ -248,7 +271,7 @@ function addResponsableConfig_(d) {
   sh.insertRowBefore(insertAt);
   sh.getRange(insertAt, 1, 1, newRow.length).setValues([newRow]);
   invalidateBootstrapCaches_();
-  return { ok: true };
+  return { ok: true, created: true, responsable: { nombre: d.nombre, email: d.email } };
 }
 
 function json(obj) {

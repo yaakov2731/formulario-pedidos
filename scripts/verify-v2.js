@@ -131,7 +131,17 @@ function main() {
   expectContains(html, "async function retryConnection()", "offline service can retry the live backend");
   expectContains(html, "Los borradores quedan protegidos en este dispositivo.", "offline service explains draft safety");
   expectContains(html, 'id="orderCategories"', "pedido category filters");
+  expectContains(html, 'id="orderSort"', "pedido smart catalog sorting");
+  expectContains(html, 'id="orderMore"', "pedido catalog pagination");
+  expectContains(html, 'const CATALOG_USAGE_KEY = "docks-pedidos-catalog-usage-v1"', "pedido confirmed usage memory");
+  expectContains(html, "function catalogStockBadge(", "pedido stock context badges");
+  expectContains(html, "normalizeLooseText(search.value.trim())", "pedido accent tolerant search");
   expectContains(html, "function setCatalogItemQuantity(", "pedido inline quantity controls");
+  ["encargado", "recepEncargado", "prodEncargado", "elabEncargado", "stockEncargado"].forEach((id) => {
+    expectRegex(html, new RegExp(`id="${id}"[^>]+list="${id}Options"`), `editable responsable combobox ${id}`);
+    expectContains(html, `data-responsable-add="${id}"`, `inline responsable add ${id}`);
+  });
+  expectContains(html, "async function addResponsableInline(", "inline responsable persistence");
   expectContains(html, 'id="pedidoReviewStatus" role="status"', "pedido review status");
   expectContains(html, "Confirmar y enviar", "pedido explicit confirmation action");
   expectNotContains(html, 'data-pedido-step="datos"', "legacy pedido data step removed");
@@ -170,6 +180,8 @@ function main() {
     "function buildLocalPedidoViews_() {",
     "function buildLocalStockViews_() {",
     "function operationalLocals_() {",
+    "created: false, responsable:",
+    "if (!responsable.nombre) continue;",
     "function buildFrontendOperationalSnapshot_() {",
     "if (action === 'getPedidoStatus') {",
     "if (action === 'getOperationStatus') {",

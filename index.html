@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#17596a">
+<meta name="theme-color" content="#4c1932">
 <meta name="description" content="Operación semanal de pedidos, stock, recepción, producción y elaborados de Docks del Puerto.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>Pedidos · Polo Gastronómico Docks del Puerto</title>
@@ -1565,6 +1565,76 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
   .order-product-stepper{width:max-content}
   .review-panel-head{flex-direction:column;gap:4px}
 }
+
+/* ===== Identidad gastronomica: vino, arcilla y marfil ===== */
+:root{
+  --bg:#f7f3eb;
+  --surface:#fffcf7;
+  --surface-2:#eee7dc;
+  --ink:#241b22;
+  --ink-soft:#655b62;
+  --ink-faint:#81747c;
+  --line:#d8cec4;
+  --line-strong:#b9aaa1;
+  --brand:#702a4b;
+  --brand-strong:#4c1932;
+  --brand-tint:#f5e6ed;
+  --steel:#8a6576;
+  --steel-tint:#f1e7eb;
+  --copper:#c7663c;
+  --copper-tint:#f7e6dd;
+  --green:#2f7155;
+  --green-tint:#e7f2ec;
+  --amber:#a86616;
+  --amber-tint:#f8edda;
+  --red:#b23a3a;
+  --red-tint:#f8e5e3;
+}
+body,.app-main{background:var(--bg)}
+.shell-sidebar{background:var(--ink)}
+.shell-brand-mark{background:var(--brand);color:#fff0f5}
+.shell-nav-btn[aria-current="page"]{background:var(--brand-strong);color:#fff}
+.topbar-context::before{background:var(--green);box-shadow:0 0 0 4px var(--green-tint)}
+.home-hero-panel{
+  display:grid;grid-template-columns:minmax(240px,.82fr) minmax(420px,1.18fr);align-items:center;
+  gap:24px;min-height:136px;padding:20px 24px;border-radius:16px;
+  background:linear-gradient(135deg,var(--brand-strong),var(--brand));
+  box-shadow:0 16px 38px rgb(76 25 50 / .18)
+}
+.home-hero-panel::after{width:210px;right:-92px;top:-142px;border:48px solid rgb(199 102 60 / .22)}
+.home-hero-copy{min-width:0}
+.home-hero-panel h2{max-width:none;font-size:clamp(27px,3vw,32px)}
+.home-hero-lede{max-width:48ch;margin-top:6px;font-size:13px;line-height:1.45;color:#f1dfe7}
+.home-hero-panel .locales{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:0}
+.local.local-choice{width:100%;min-height:44px;padding:0 12px}
+.local.local-choice[aria-pressed="true"] .nm::after{content:"  ✓";color:var(--brand)}
+.local-action[data-go="pedido"]{background:linear-gradient(145deg,var(--brand-strong),var(--brand));border-color:var(--brand-strong)}
+.order-category[aria-pressed="true"]{border-color:var(--brand);background:var(--brand);color:#fff}
+.catalog-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.catalog-sort{min-height:40px;max-width:210px;padding:0 34px 0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px;font-weight:650}
+.order-category small{margin-left:3px;font-size:10px;opacity:.78}
+.catalog-more{width:100%;min-height:44px;margin:10px 0 0;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--brand-strong);font:inherit;font-size:13px;font-weight:750;cursor:pointer}
+.stock-badge{display:inline-flex;align-items:center;margin-left:6px;padding:2px 7px;border-radius:999px;background:var(--surface-2);color:var(--ink-soft);font-size:10px;font-weight:750;white-space:nowrap}
+.stock-badge.low{background:var(--amber-tint);color:#74450c}
+.stock-badge.none{background:var(--surface-2);color:var(--ink-faint)}
+.responsable-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}
+.responsable-control datalist{display:none}
+.responsable-add{min-height:44px;padding:0 12px;border:1px solid var(--brand);border-radius:10px;background:var(--brand-tint);color:var(--brand-strong);font:inherit;font-size:11px;font-weight:750;cursor:pointer}
+.responsable-add[hidden]{display:none}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid color-mix(in srgb,var(--copper) 72%,white);outline-offset:2px}
+@media(max-width:760px){
+  html,body{background:var(--bg)}
+  .hero{background:color-mix(in srgb,var(--bg) 92%,transparent)}
+  .mobile-tabbar{background:var(--surface)}
+  .home-hero-panel{display:block;min-height:0;padding:15px 16px;border-radius:15px}
+  .home-hero-panel h2{font-size:24px}.home-hero-lede{font-size:12.5px;max-width:38ch}
+  .home-hero-panel .locales{display:flex;flex-wrap:nowrap;gap:8px;margin-top:13px;overflow-x:auto;scrollbar-width:none}
+  .home-hero-panel .locales::-webkit-scrollbar{display:none}
+  .home-hero-panel .local-choice{flex:0 0 auto;width:auto;min-height:44px}
+  .catalog-tools{align-items:stretch}.catalog-sort{max-width:none;width:100%}
+  .responsable-control{grid-template-columns:1fr}.responsable-add{width:100%}
+}
 </style>
 </head>
 <body data-design-version="reference-handoff-v3-mobile-app">
@@ -1638,9 +1708,11 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
 
   <section class="home-shell tab-panel" data-tab="home">
     <div class="home-hero-panel">
-      <p class="skicker">Docks · Operación gastronómica</p>
-      <h2>¿Qué necesita tu local?</h2>
-      <p class="home-hero-lede">Elegí el local una vez. Después entrás directo al pedido, con el catálogo y las cantidades en una sola pantalla.</p>
+      <div class="home-hero-copy">
+        <p class="skicker">Docks · Operación gastronómica</p>
+        <h2>¿Qué necesita tu local?</h2>
+        <p class="home-hero-lede">Elegí el local y entrá directo a la operación.</p>
+      </div>
       <div class="locales" id="locales"></div>
     </div>
     <div class="home-modules-head">
@@ -1693,6 +1765,14 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
       <div class="suggest" id="suggest" role="listbox"></div>
     </div>
     <div class="order-categories" id="orderCategories" aria-label="Filtrar por categoría"></div>
+    <div class="catalog-tools">
+      <label class="sr-only" for="orderSort">Ordenar catálogo</label>
+      <select class="catalog-sort" id="orderSort" aria-label="Ordenar catálogo">
+        <option value="recommended">Orden: recomendados</option>
+        <option value="az">Orden: A–Z</option>
+        <option value="stock">Orden: stock bajo</option>
+      </select>
+    </div>
     <div class="quick-pick order-catalog">
       <div class="quick-pick-head">
         <strong>Catálogo del local</strong>
@@ -1700,6 +1780,7 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
       </div>
       <div class="quick-pick-list" id="quickPickList"></div>
     </div>
+    <button class="catalog-more" id="orderMore" type="button" hidden>Mostrar más productos</button>
     <p class="hint" id="catHint">Elegí un local y sumá cantidades con los controles del catálogo.</p>
   </section>
 
@@ -1781,7 +1862,7 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
         </div>
         <div class="grid2">
           <div class="field"><label for="recepProveedor">Proveedor</label><input id="recepProveedor" type="text" placeholder="Proveedor o remito"></div>
-          <div class="field"><label for="recepEncargado">Encargado</label><select id="recepEncargado"></select></div>
+          <div class="field"><label for="recepEncargado">Encargado</label><div class="responsable-control"><input id="recepEncargado" type="text" list="recepEncargadoOptions" placeholder="Escribí o elegí un nombre" autocomplete="off"><datalist id="recepEncargadoOptions"></datalist><button class="responsable-add" type="button" data-responsable-add="recepEncargado" hidden>+ Guardar nuevo</button></div></div>
         </div>
         <div class="field"><label for="recepObs">Observaciones</label><input id="recepObs" type="text" placeholder="Faltantes, cambio, devolución, diferencia..."></div>
         <input class="stock-search" id="recepSearch" type="text" placeholder="Filtrá productos para recibir más rápido...">
@@ -1818,7 +1899,7 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
           <div class="field"><label for="prodNombre">Producto elaborado</label><input id="prodNombre" type="text" placeholder="Ej: prep pizza, salsa, base burger"></div>
           <div class="field"><label for="prodCantidad">Cantidad producida</label><input id="prodCantidad" type="number" step="0.1" placeholder="0"></div>
           <div class="field"><label for="prodLote">Lote</label><input id="prodLote" type="text" placeholder="Código interno o turno"></div>
-          <div class="field"><label for="prodEncargado">Encargado</label><select id="prodEncargado"></select></div>
+          <div class="field"><label for="prodEncargado">Encargado</label><div class="responsable-control"><input id="prodEncargado" type="text" list="prodEncargadoOptions" placeholder="Escribí o elegí un nombre" autocomplete="off"><datalist id="prodEncargadoOptions"></datalist><button class="responsable-add" type="button" data-responsable-add="prodEncargado" hidden>+ Guardar nuevo</button></div></div>
         </div>
         <div class="field"><label for="prodObs">Observaciones</label><input id="prodObs" type="text" placeholder="Merma, ajuste, desvío, cambio..."></div>
         <div class="quick-pick">
@@ -1860,7 +1941,7 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
       <div class="op-form">
         <div class="grid2">
           <div class="field"><label for="elabTurno">Turno</label><select id="elabTurno"><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Noche">Noche</option><option value="Cierre">Cierre</option></select></div>
-          <div class="field"><label for="elabEncargado">Encargado</label><select id="elabEncargado"></select></div>
+          <div class="field"><label for="elabEncargado">Encargado</label><div class="responsable-control"><input id="elabEncargado" type="text" list="elabEncargadoOptions" placeholder="Escribí o elegí un nombre" autocomplete="off"><datalist id="elabEncargadoOptions"></datalist><button class="responsable-add" type="button" data-responsable-add="elabEncargado" hidden>+ Guardar nuevo</button></div></div>
           <div class="field"><label for="elabEstado">Condición del sobrante</label><select id="elabEstado"><option value="">Seleccionar</option><option value="Marcado">Marcado</option><option value="Crudo">Crudo</option></select></div>
           <div class="field"><label for="elabDestino">Destino</label><select id="elabDestino"><option value="Revisar">Revisar</option><option value="Reventa">Reventa</option><option value="Guardar">Guardar</option><option value="Uso interno">Uso interno</option><option value="Descarte">Descarte</option></select></div>
         </div>
@@ -1937,8 +2018,7 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
         <div class="grid2">
           <div class="field">
             <label for="encargado">Encargado <span class="req">*</span><span class="auto" id="encAuto" hidden>auto</span></label>
-            <input id="encargado" type="text" list="encargadoOptions" placeholder="Escribí tu nombre" autocomplete="name" required aria-required="true">
-            <datalist id="encargadoOptions"></datalist>
+            <div class="responsable-control"><input id="encargado" type="text" list="encargadoOptions" placeholder="Escribí o elegí tu nombre" autocomplete="name" required aria-required="true"><datalist id="encargadoOptions"></datalist><button class="responsable-add" type="button" data-responsable-add="encargado" hidden>+ Guardar nuevo</button></div>
           </div>
           <div class="field">
             <label for="email">Email <span class="req">*</span></label>
@@ -2074,7 +2154,7 @@ body[data-connection="checking"] .topbar-context::before{background:var(--ink-fa
       <div class="grid2">
         <div class="field">
           <label for="stockEncargado">Encargado que registra</label>
-          <select id="stockEncargado"></select>
+          <div class="responsable-control"><input id="stockEncargado" type="text" list="stockEncargadoOptions" placeholder="Escribí o elegí un nombre" autocomplete="off"><datalist id="stockEncargadoOptions"></datalist><button class="responsable-add" type="button" data-responsable-add="stockEncargado" hidden>+ Guardar nuevo</button></div>
         </div>
         <div class="field">
           <label for="stockObs">Observación general</label>
@@ -2203,6 +2283,7 @@ let LIVE_META = { version:"", capabilities:{} };
 let LIVE = false;   // true solo si el /exec de Apps Script respondió
 let LAST_SYNC_AT = null;
 const DRAFT_STORAGE_KEY = "docks-pedidos-operational-drafts-v1";
+const CATALOG_USAGE_KEY = "docks-pedidos-catalog-usage-v1";
 let draftSaveTimer = null;
 let restoredDraft = false;
 let restoredDraftSavedAt = "";
@@ -2211,7 +2292,41 @@ let restoredDraftSavedAt = "";
 const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"productos", admin:false };
 let uid = 0;
 let bootstrapRefreshTimer = null;
-let orderCategory = "Todos";
+let orderCategory = "Recomendados";
+let orderSort = "recommended";
+let orderVisibleLimit = 24;
+let orderShowAllCategories = false;
+
+function catalogUsageForLocal(local){
+  try{
+    const all=JSON.parse(localStorage.getItem(CATALOG_USAGE_KEY)||"{}");
+    return all[local]&&typeof all[local]==="object"?all[local]:{};
+  }catch{ return {}; }
+}
+function recordCatalogUsage(local, items){
+  if(!local||!Array.isArray(items)) return;
+  try{
+    const all=JSON.parse(localStorage.getItem(CATALOG_USAGE_KEY)||"{}");
+    const usage=all[local]&&typeof all[local]==="object"?all[local]:{};
+    const now=Date.now();
+    items.filter(item=>!item.free&&item.codigo).forEach(item=>{
+      const prev=usage[item.codigo]||{};
+      usage[item.codigo]={count:(Number(prev.count)||0)+1,lastUsed:now,lastQty:num(item.qty)||0};
+    });
+    all[local]=usage;
+    localStorage.setItem(CATALOG_USAGE_KEY,JSON.stringify(all));
+  }catch{}
+}
+function isLowStock(item){
+  const actual=num(item&&item.stock_actual), minimum=num(item&&item.stock_minimo);
+  return actual!==null&&minimum!==null&&actual<=minimum;
+}
+function catalogStockBadge(item){
+  const actual=num(item&&item.stock_actual), minimum=num(item&&item.stock_minimo);
+  if(actual===null) return `<span class="stock-badge none">Sin conteo</span>`;
+  if(minimum!==null&&actual<=minimum) return `<span class="stock-badge low">Bajo mínimo · ${esc(trim(actual))}</span>`;
+  return `<span class="stock-badge">Stock ${esc(trim(actual))}</span>`;
+}
 
 function scheduleDraftSave(){
   clearTimeout(draftSaveTimer);
@@ -2762,10 +2877,11 @@ function fillEncargadoSelect(selectId, local, currentValue="", opts={}){
   if(sel.tagName==="INPUT"){
     const listId=sel.getAttribute("list");
     const list=listId?document.getElementById(listId):null;
-    if(list) list.innerHTML=people.map(person=>`<option value="${esc(String(person.nombre||"").trim())}"></option>`).join("");
+    if(list) list.innerHTML=people.map(person=>`<option value="${esc(String(person.nombre||"").trim())}" label="${esc(person.email||"")}"></option>`).join("");
     sel.placeholder=people.length?"Escribí o elegí tu nombre":"Escribí tu nombre";
     if(current) sel.value=current;
     else if(opts.preferFirst&&people[0]) sel.value=String(people[0].nombre||"").trim();
+    syncResponsableAddButton(sel.id,local);
     return;
   }
   let options = people.map(person=>({ value:String(person.nombre||"").trim(), label:String(person.nombre||"").trim() }));
@@ -2786,8 +2902,55 @@ function selectedResponsable(local, nombre){
   if(!wanted) return null;
   return responsablesForLocal(local).find(person=>String(person.nombre||"").trim().toLowerCase()===wanted) || null;
 }
+function syncResponsableAddButton(inputId, local=state.local){
+  const input=document.getElementById(inputId);
+  const btn=document.querySelector(`[data-responsable-add="${inputId}"]`);
+  if(!input||!btn) return;
+  const value=input.value.trim();
+  btn.hidden=!local||!value||!!selectedResponsable(local,value);
+  btn.textContent=value?`+ Guardar “${value}”`:
+    "+ Guardar nuevo";
+}
+function refreshResponsableInputs(local){
+  ["encargado","recepEncargado","prodEncargado","elabEncargado","stockEncargado"].forEach(id=>{
+    const input=document.getElementById(id);
+    if(!input) return;
+    fillEncargadoSelect(id,local,input.value,{preferFirst:false});
+    syncResponsableAddButton(id,local);
+  });
+}
+async function addResponsableInline(inputId){
+  const input=document.getElementById(inputId);
+  const btn=document.querySelector(`[data-responsable-add="${inputId}"]`);
+  const local=inputId==="stockEncargado"?(($("#stockLocal")&&$("#stockLocal").value)||state.local):state.local;
+  const nombre=input&&input.value.trim();
+  if(!local||!nombre){ toast("Elegí un local y escribí el nombre","err"); return; }
+  if(!requireLiveWrite("El encargado")) return;
+  const email=inputId==="encargado"?$("#email").value.trim():"";
+  if(inputId==="encargado"&&email&&!/^\S+@\S+\.\S+$/.test(email)){ toast("Corregí el email antes de guardar el encargado","err"); return; }
+  btn.disabled=true;
+  const original=btn.textContent;
+  btn.textContent="Guardando...";
+  try{
+    await apiPost({action:"addResponsable",local,nombre,email});
+    const saved=await confirmResponsable(local,{nombre,email});
+    if(!saved) throw new Error("No pude confirmar el encargado en Google Sheets");
+    applyBootstrapPayload(saved.payload);
+    refreshResponsableInputs(local);
+    toast("Encargado guardado y seleccionado","ok");
+  }catch(err){ toast(err&&err.message?err.message:"No se pudo guardar el encargado","err"); }
+  finally{ btn.disabled=false; btn.textContent=original; syncResponsableAddButton(inputId,local); }
+}
+document.querySelectorAll("[data-responsable-add]").forEach(btn=>{
+  const id=btn.dataset.responsableAdd;
+  const input=document.getElementById(id);
+  btn.addEventListener("click",()=>addResponsableInline(id));
+  input.addEventListener("input",()=>syncResponsableAddButton(id,id==="stockEncargado"?($("#stockLocal").value||state.local):state.local));
+});
 function selectLocal(id, opts={}){
   state.local=id;
+  orderShowAllCategories=false;
+  orderVisibleLimit=24;
   scheduleDraftSave();
   recepUi.visibleLimit=40;
   prodUi.visibleLimit=40;
@@ -2825,7 +2988,7 @@ function selectLocal(id, opts={}){
 const search=$("#prodSearch"), suggest=$("#suggest");
 let sgIndex=-1, sgData=[];
 search.addEventListener("input",()=>renderSuggest(search.value));
-search.addEventListener("input",()=>renderQuickCatalog());
+search.addEventListener("input",()=>{ orderVisibleLimit=24; renderQuickCatalog(); });
 search.addEventListener("focus",()=>{ if(search.value.trim()) renderSuggest(search.value); });
 search.addEventListener("keydown",e=>{
   if(!suggest.classList.contains("open"))return;
@@ -2885,49 +3048,97 @@ function addFree(){
   scheduleDraftSave();
 }
 $("#freeBtn").addEventListener("click",addFree);
+$("#orderSort").addEventListener("change",e=>{ orderSort=e.target.value; orderVisibleLimit=24; renderQuickCatalog(); });
+$("#orderMore").addEventListener("click",()=>{ orderVisibleLimit+=24; renderQuickCatalog(); });
 
 function renderQuickCatalog(){
   const box=$("#quickPickList");
   const meta=$("#quickPickMeta");
   const categories=$("#orderCategories");
+  const more=$("#orderMore");
   if(!state.local){
     meta.textContent="Elegí un local";
     if(categories) categories.innerHTML="";
+    if(more) more.hidden=true;
     box.innerHTML=`<div class="quick-pick-empty">Seleccioná un local para sumar varios productos rápido.</div>`;
     return;
   }
   const cat=CATALOG[state.local]||[];
-  const q=search.value.trim().toLowerCase();
+  $("#catHint").innerHTML=cat.length
+    ? `Catálogo de <b>${esc(state.local)}</b>: ${cat.length} productos. Buscá, filtrá o cargá uno fuera de catálogo.`
+    : `<b>${esc(state.local)}</b> todavía no tiene productos configurados.`;
+  const q=normalizeLooseText(search.value.trim());
+  const usage=catalogUsageForLocal(state.local);
   const categoryMap=new Map();
   cat.map(x=>String(x.categoria||"").trim()).filter(Boolean).forEach(name=>{
     const key=normalizeLooseText(name);
     if(!categoryMap.has(key)) categoryMap.set(key,name.charAt(0).toUpperCase()+name.slice(1).toLowerCase());
   });
-  const categoryNames=[...categoryMap.values()].sort((a,b)=>a.localeCompare(b,"es"));
-  const categoryOptions=["Todos",...(state.items.length?["En pedido"]:[]),...categoryNames];
-  if(!categoryOptions.includes(orderCategory)) orderCategory="Todos";
+  const categoryCount=name=>cat.filter(item=>normalizeLooseText(item.categoria||"")===normalizeLooseText(name)).length;
+  const categoryNames=[...categoryMap.values()].sort((a,b)=>categoryCount(b)-categoryCount(a)||a.localeCompare(b,"es"));
+  let visibleCategoryNames=orderShowAllCategories?categoryNames:categoryNames.slice(0,6);
+  if(!["Recomendados","En pedido","Stock bajo"].includes(orderCategory)&&categoryNames.includes(orderCategory)&&!visibleCategoryNames.includes(orderCategory)) visibleCategoryNames=visibleCategoryNames.concat(orderCategory);
+  const categoryOptions=["Recomendados",...(state.items.length?["En pedido"]:[]),...(cat.some(isLowStock)?["Stock bajo"]:[]),...visibleCategoryNames];
+  if(!["Recomendados","En pedido","Stock bajo",...categoryNames].includes(orderCategory)) orderCategory="Recomendados";
   if(categories){
-    categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${esc(name)}</button>`).join("");
-    categories.querySelectorAll(".order-category").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; renderQuickCatalog(); }));
+    const countFor=name=>name==="Recomendados"?cat.length:name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
+    categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${esc(name)} <small>${countFor(name)}</small></button>`).join("")+(categoryNames.length>6?`<button type="button" class="order-category" data-category-more aria-expanded="${String(orderShowAllCategories)}">${orderShowAllCategories?"Menos categorías":`Más categorías +${categoryNames.length-6}`}</button>`:"");
+    categories.querySelectorAll("[data-category]").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; orderVisibleLimit=24; renderQuickCatalog(); }));
+    const moreCategories=categories.querySelector("[data-category-more]");
+    if(moreCategories) moreCategories.addEventListener("click",()=>{ orderShowAllCategories=!orderShowAllCategories; renderQuickCatalog(); });
   }
-  const allFiltered=cat.filter(x=>{
-    const matchesQuery=!q || x.nombre.toLowerCase().includes(q) || String(x.categoria||"").toLowerCase().includes(q) || String(x.proveedor||"").toLowerCase().includes(q);
-    const matchesCategory=orderCategory==="Todos" || (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
+  const queryScore=item=>{
+    if(!q) return 0;
+    const name=normalizeLooseText(item.nombre||""), category=normalizeLooseText(item.categoria||""), provider=normalizeLooseText(item.proveedor||"");
+    if(name===q) return 100;
+    if(name.startsWith(q)) return 70;
+    if(name.includes(q)) return 50;
+    if(category.includes(q)) return 25;
+    if(provider.includes(q)) return 15;
+    return 0;
+  };
+  let allFiltered=cat.filter(x=>{
+    const matchesQuery=!q || queryScore(x)>0;
+    const matchesCategory=orderCategory==="Recomendados" || (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : orderCategory==="Stock bajo" ? isLowStock(x) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
     return matchesQuery&&matchesCategory;
   });
-  const filtered=allFiltered.slice(0,30);
+  const recommendedScore=item=>{
+    const used=usage[item.codigo]||{};
+    const selected=state.items.some(current=>!current.free&&current.codigo===item.codigo)?10000:0;
+    const recent=used.lastUsed?Math.max(0,30-Math.floor((Date.now()-used.lastUsed)/86400000)):0;
+    return selected+(Number(used.count)||0)*40+recent+(isLowStock(item)?5:0);
+  };
+  allFiltered=allFiltered.slice().sort((a,b)=>{
+    if(q&&queryScore(a)!==queryScore(b)) return queryScore(b)-queryScore(a);
+    if(orderSort==="az") return String(a.nombre||"").localeCompare(String(b.nombre||""),"es");
+    if(orderSort==="stock"){
+      if(isLowStock(a)!==isLowStock(b)) return isLowStock(a)?-1:1;
+      const av=num(a.stock_actual),bv=num(b.stock_actual);
+      if(av!==null&&bv!==null&&av!==bv) return av-bv;
+    }
+    const scoreDiff=recommendedScore(b)-recommendedScore(a);
+    return scoreDiff||String(a.nombre||"").localeCompare(String(b.nombre||""),"es");
+  });
+  const filtered=allFiltered.slice(0,orderVisibleLimit);
   meta.textContent = `${filtered.length}${allFiltered.length>filtered.length?` de ${allFiltered.length}`:""} producto${allFiltered.length===1?'':'s'} · ${state.items.length} en el pedido`;
+  if(more){
+    more.hidden=filtered.length>=allFiltered.length;
+    more.textContent=`Mostrar más (${allFiltered.length-filtered.length})`;
+  }
   if(!filtered.length){
-    box.innerHTML=`<div class="quick-pick-empty">No hay coincidencias. Usá <b>Fuera de catálogo</b> si necesitás cargar otro producto.</div>`;
+    const typed=search.value.trim();
+    box.innerHTML=`<div class="quick-pick-empty">${typed?`No encontramos <b>${esc(typed)}</b>. Podés agregarlo fuera de catálogo.`:"No hay productos en este filtro."}</div>`;
+    $("#freeBtn").textContent=typed?`Agregar “${typed}”`:"Fuera de catálogo";
     return;
   }
+  $("#freeBtn").textContent="Fuera de catálogo";
   box.innerHTML = filtered.map(item=>{
     const current = state.items.find(x=>!x.free && x.codigo===item.codigo);
     return `
       <div class="quick-pick-item ${current?'in-order':''}" data-code="${esc(item.codigo||"")}">
         <div class="quick-pick-main">
           <div class="quick-pick-name">${esc(item.nombre)}</div>
-          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${item.stock_actual!==undefined&&item.stock_actual!==null?` · Stock ${esc(trim(num(item.stock_actual)||0))}`:""}</div>
+          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${catalogStockBadge(item)}</div>
         </div>
         <div class="order-product-stepper" aria-label="Cantidad de ${esc(item.nombre)}">
           <button type="button" data-qty-step="-1" aria-label="Restar ${esc(item.nombre)}">−</button>
@@ -3111,15 +3322,18 @@ async function submit(){
       const refreshed = await refreshData();
       if(refreshed){
         toast("Pedido enviado. El backend publicado no confirma por ID todavia.","ok");
+        recordCatalogUsage(payload.local,items);
         resetForm();
       }else{
         toast("No pude confirmar el pedido. Revisá la planilla antes de reenviar.","err");
       }
     }else if(!telegramOk){
       toast("Pedido guardado, pero Telegram no confirmó la notificación","err");
+      recordCatalogUsage(payload.local,items);
       resetForm();
     }else{
       toast("Pedido enviado","ok");
+      recordCatalogUsage(payload.local,items);
       resetForm();
     }
   }catch{
@@ -3129,7 +3343,7 @@ async function submit(){
   }
 }
 function resetForm(){
-  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="productos"; orderCategory="Todos";
+  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="productos"; orderCategory="Recomendados"; orderVisibleLimit=24;
   $("#observaciones").value=""; renderItems();
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
   if(state.local) selectLocal(state.local);
@@ -3746,6 +3960,10 @@ async function warmData(){
     renderElaboradosModule();
     renderDashboard();
     renderWorkspaceStats();
+    if(state.local){
+      refreshResponsableInputs(state.local);
+      renderQuickCatalog();
+    }
     LIVE = true;
     if(!cfg.hidden) renderCfg();
   }catch{
