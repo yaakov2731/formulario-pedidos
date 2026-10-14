@@ -2222,7 +2222,17 @@ body,.app-main{
             <input id="cfgPCat" placeholder="Categoría (ej: Carnes)" aria-label="Categoría del producto">
             <select id="cfgPUnidad" aria-label="Unidad del producto"></select>
           </div>
-          <input id="cfgPProv" placeholder="Proveedor (opcional)" aria-label="Proveedor del producto">
+          <div class="row2">
+            <div class="field">
+              <label for="cfgPProv">Proveedor</label>
+              <input id="cfgPProv" placeholder="Opcional" aria-label="Proveedor del producto">
+            </div>
+            <div class="field">
+              <label for="cfgPMin">Stock objetivo (par)</label>
+              <input id="cfgPMin" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Ej: 12" aria-label="Stock objetivo o par del producto">
+            </div>
+          </div>
+          <p class="cfg-note">El par indica cuánto stock querés tener disponible. La sugerencia usa el mayor valor entre par, pedidos abiertos y cantidad habitual.</p>
           <button class="cfg-btn cfg-btn-ghost" id="cfgCancelEditProd" type="button" hidden>Cancelar edición</button>
           <button class="cfg-btn" id="cfgAddProd" type="button">+ Agregar al catálogo</button>
         </div>
@@ -2452,14 +2462,17 @@ function pedidoInsightForItem(item){
 }
 function pedidoInsightButton(item){
   const insight=pedidoInsightForItem(item), habitual=num(insight&&insight.cantidad_sugerida);
-  if(!(habitual>0)) return "";
+  const par=num(item&&item.stock_minimo);
+  const target=Math.max(habitual||0,par||0);
+  if(!(target>0)) return "";
   const stock=num(item&&item.stock_actual);
-  const suggested=stock===null?habitual:Math.max(0,Math.round((habitual-stock)*100)/100);
-  const direction=insight.tendencia==="subiendo"?"↑":insight.tendencia==="bajando"?"↓":"→";
-  const unit=insight.unidad||item.unidad||"";
-  if(!(suggested>0)) return `<span class="history-suggestion covered" title="El stock actual cubre la cantidad habitual"><i>✓</i> Cubierto · habitual ${esc(trim(habitual))} ${esc(unit)} · ${esc(insight.pedidos)}×</span>`;
-  const action=stock===null?"Usar habitual":`Pedir ${esc(trim(suggested))} ${esc(unit)}`;
-  return `<button type="button" class="history-suggestion" data-use-suggested="${esc(suggested)}" title="Cantidad habitual menos stock actual"><i>${direction}</i> ${action} · habitual ${esc(trim(habitual))} · ${esc(insight.pedidos)}×</button>`;
+  const suggested=stock===null?target:Math.max(0,Math.round((target-stock)*100)/100);
+  const direction=insight&&insight.tendencia==="subiendo"?"↑":insight&&insight.tendencia==="bajando"?"↓":"→";
+  const unit=item.unidad||"";
+  const context=par!==null&&par>= (habitual||0)?`par ${esc(trim(par))}`:`habitual ${esc(trim(habitual||0))}`;
+  if(stock===null) return `<span class="history-suggestion">Contar stock · ${context}</span>`;
+  if(!(suggested>0)) return `<span class="history-suggestion covered" title="El stock actual cubre el objetivo"><i>✓</i> Cubierto · ${context} ${esc(unit)}</span>`;
+  return `<button type="button" class="history-suggestion" data-use-suggested="${esc(suggested)}" title="Objetivo menos stock actual"><i>${direction}</i> Pedir ${esc(trim(suggested))} ${esc(unit)} · ${context}</button>`;
 }
 
 function scheduleDraftSave(){
@@ -3955,7 +3968,7 @@ function renderDecisionCenter(){
     const priority=item.type==="count"?"contar":item.prioridad||"media";
     const evidence=item.type==="count"
       ? `<b>Falta conteo real</b><small>${esc(item.razon||"")}${item.pendiente?` · ${esc(trim(item.pendiente))} ${esc(item.unidad||"")} pendiente`:""}</small>`
-      : `<b>Pedir ${esc(trim(item.cantidad_sugerida))} ${esc(item.unidad||"")}</b><small>Stock ${esc(trim(item.stock))} · abierto ${esc(trim(item.pendiente))} · habitual ${esc(trim(item.habitual))}</small>`;
+      : `<b>Pedir ${esc(trim(item.cantidad_sugerida))} ${esc(item.unidad||"")}</b><small>Stock ${esc(trim(item.stock))} · abierto ${esc(trim(item.pendiente))} · habitual ${esc(trim(item.habitual))}${num(item.stock_objetivo)!==null?` · par ${esc(trim(num(item.stock_objetivo)))}`:""}</small><small>${esc(item.razon||"")}</small>`;
     const action=item.type==="count"
       ? `<button type="button" class="decision-action" data-decision-stock>Contar stock</button>`
       : `<button type="button" class="decision-action" data-decision-add="${esc(item.codigo||"")}" data-decision-name="${esc(item.producto||"")}" data-decision-qty="${esc(item.cantidad_sugerida)}" ${inOrder?"disabled":""}>${inOrder?"En pedido":"Sumar al pedido"}</button>`;
@@ -4329,6 +4342,7 @@ function resetCfgProductForm(){
   $("#cfgPNombre").value = "";
   $("#cfgPCat").value = "";
   $("#cfgPProv").value = "";
+  $("#cfgPMin").value = "";
   $("#cfgPUnidad").value = UNITS[0];
   $("#cfgAddProd").textContent = "+ Agregar al catálogo";
   $("#cfgCancelEditProd").hidden = true;
@@ -4341,8 +4355,9 @@ function startEditProducto(code){
   $("#cfgPNombre").value = item.nombre || "";
   $("#cfgPCat").value = item.categoria || "";
   $("#cfgPProv").value = item.proveedor || "";
+  $("#cfgPMin").value = num(item.stock_minimo)===null ? "" : trim(num(item.stock_minimo));
   $("#cfgPUnidad").value = item.unidad || UNITS[0];
-  $("#cfgAddProd").textContent = "Guardar nombre corregido";
+  $("#cfgAddProd").textContent = "Guardar cambios";
   $("#cfgCancelEditProd").hidden = false;
   $("#cfgPNombre").focus();
   $("#cfgPNombre").select();
@@ -4352,7 +4367,11 @@ function renderCfg(){
   const cat=CATALOG[local]||[];
   $("#cfgCatCount").textContent=`${cat.length} producto${cat.length===1?'':'s'}`;
   $("#cfgCatList").innerHTML = cat.length
-    ? cat.map(x=>`<div class="cfg-li"><span class="li-code">${esc(x.codigo||'—')}</span><span class="li-nm">${esc(x.nombre)}</span><span class="li-meta">${esc(x.categoria||'')} · ${esc(x.unidad)}</span><button class="cfg-mini-btn" type="button" data-edit-producto="${esc(x.codigo||'')}">Editar nombre</button></div>`).join("")
+    ? cat.map(x=>{
+        const par=num(x.stock_minimo);
+        const parText=par===null ? "Par sin definir" : `Par ${trim(par)} ${x.unidad||""}`;
+        return `<div class="cfg-li"><span class="li-code">${esc(x.codigo||'—')}</span><span class="li-nm">${esc(x.nombre)}</span><span class="li-meta">${esc(x.categoria||'')} · ${esc(x.unidad)} · ${esc(parText)}</span><button class="cfg-mini-btn" type="button" data-edit-producto="${esc(x.codigo||'')}">Editar</button></div>`;
+      }).join("")
     : `<div class="cfg-empty">Sin productos en el catálogo. Agregá el primero.</div>`;
   const resp=responsablesForLocal(local);
   $("#cfgRespCount").textContent=`${resp.length} responsable${resp.length===1?'':'s'}`;
@@ -4439,7 +4458,13 @@ async function confirmCatalogProduct(local, expected, attempts=7, delayMs=700){
       });
       const product=status&&status.product;
       const sameName=product&&normalizeLooseText(product.nombre)===normalizeLooseText(expected.nombre);
-      if(status&&status.ok&&status.found&&sameName) return product;
+      const sameCategory=!Object.prototype.hasOwnProperty.call(expected,"categoria")||String(product&&product.categoria||"").trim()===String(expected.categoria||"").trim();
+      const sameUnit=!Object.prototype.hasOwnProperty.call(expected,"unidad")||String(product&&product.unidad||"").trim()===String(expected.unidad||"").trim();
+      const sameProvider=!Object.prototype.hasOwnProperty.call(expected,"proveedor")||String(product&&product.proveedor||"").trim()===String(expected.proveedor||"").trim();
+      const expectedPar=num(expected.stock_minimo);
+      const productPar=num(product&&product.stock_minimo);
+      const samePar=!Object.prototype.hasOwnProperty.call(expected,"stock_minimo")||(expectedPar===null?productPar===null:productPar===expectedPar);
+      if(status&&status.ok&&status.found&&sameName&&sameCategory&&sameUnit&&sameProvider&&samePar) return product;
     }catch{}
     await sleep(delayMs);
   }
@@ -4528,25 +4553,28 @@ async function addProducto(){
   const nombre=$("#cfgPNombre").value.trim();
   if(!nombre){ toast("Escribí el nombre del producto","err"); return; }
   if(!requireLiveWrite("El producto")) return;
+  const parRaw=$("#cfgPMin").value.trim();
+  const parValue=num(parRaw);
+  if(parRaw!==""&&(parValue===null||parValue<0)){ toast("Ingresá un stock objetivo válido","err"); return; }
   const payload={action:cfgProductEdit ? "updateProducto" : "addProducto",local,nombre,
-    categoria:$("#cfgPCat").value.trim(),unidad:$("#cfgPUnidad").value,proveedor:$("#cfgPProv").value.trim()};
+    categoria:$("#cfgPCat").value.trim()||"General",unidad:$("#cfgPUnidad").value,proveedor:$("#cfgPProv").value.trim(),stock_minimo:parRaw===""?"":parValue};
   if(cfgProductEdit){ payload.codigo = cfgProductEdit.codigo; }
   const btn=$("#cfgAddProd"); btn.disabled=true; const o=btn.textContent; btn.textContent="Guardando...";
   const editingCode = cfgProductEdit && cfgProductEdit.codigo;
   try{
     await apiPost(payload);
-    const saved=await confirmCatalogProduct(local,{codigo:editingCode||"",nombre});
+    const saved=await confirmCatalogProduct(local,{codigo:editingCode||"",nombre,categoria:payload.categoria,unidad:payload.unidad,proveedor:payload.proveedor,stock_minimo:payload.stock_minimo});
     if(!saved) throw new Error("El producto no apareció en Google Sheets");
     const refreshed=await refreshData({ scope:"full" });
     if(!refreshed) throw new Error("No se pudo refrescar el catálogo");
-    toast(editingCode ? "Nombre del producto actualizado" : "Producto agregado al catálogo","ok");
+    toast(editingCode ? "Producto y stock objetivo actualizados" : "Producto agregado al catálogo","ok");
     resetCfgProductForm();
   }
   catch(err){ toast(err&&err.message?err.message:"Error al guardar el producto","err"); }
   finally{
     renderCfg();
     btn.disabled=false;
-    btn.textContent = cfgProductEdit ? "Guardar nombre corregido" : "+ Agregar al catálogo";
+    btn.textContent = cfgProductEdit ? "Guardar cambios" : "+ Agregar al catálogo";
   }
 }
 async function addResponsable(){

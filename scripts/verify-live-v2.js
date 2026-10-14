@@ -51,7 +51,8 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.5.1", "bootstrap browser-safe version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.5.1`);
+  expect(bootstrap && bootstrap.version === "2.6.0", "bootstrap stock objective version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.6.0`);
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.catalog_par), "editable stock objective enabled", "catalog_par capability missing");
   expect(bootstrap && bootstrap.capabilities, "bootstrap capabilities present", "bootstrap capabilities missing");
 
   expect(!!bootstrap.catalog, "catalog present", "catalog missing");

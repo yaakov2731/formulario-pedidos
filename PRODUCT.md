@@ -32,6 +32,21 @@ viven en el mismo Google Sheet.
 3. **Mobile real, no "mobile responsive de adorno".** El uso primario es teléfono en mano.
 4. **Profesional, no decorativo.** Es una herramienta de trabajo, no una landing.
 
+## Stock objetivo y decisiones de compra
+
+El catálogo permite editar nombre, categoría, unidad, proveedor y stock objetivo
+(par) desde la configuración existente. El objetivo usa la columna `Stock_Mínimo`
+por producto y local; vacío significa sin definir y cero sigue siendo un valor válido.
+El guardado sólo se confirma cuando la lectura del backend coincide con los campos
+solicitados. Editar el catálogo no modifica el stock real ni los movimientos previos.
+
+La sugerencia calcula `máximo(pedidos abiertos, cantidad habitual, par) - stock real`,
+con un piso de cero. Si falta stock confiable, propone contar. La cantidad habitual
+es historial de pedidos, no consumo medido ni pronóstico de ventas. Las sugerencias
+se incorporan al borrador y requieren la confirmación del encargado para enviarse.
+
+Validación de esta regla: `node scripts/verify-par.js`, con planilla en memoria.
+
 ## Brand
 
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).

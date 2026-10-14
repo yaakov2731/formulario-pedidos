@@ -1109,28 +1109,28 @@ function buildDecisionCenterByLocal_(snap, pedidoIntelligence) {
       var habitual = round2_(numberOrZero_(insight.cantidad_sugerida, 0));
       var minimum = numberOrNull_(item.stock_minimo);
       if (!stockKnown) {
-        if (pending > 0 || habitual > 0) {
+        if (pending > 0 || habitual > 0 || minimum > 0) {
           needsCount.push({
             codigo: item.codigo || '', producto: item.nombre || '', categoria: item.categoria || '', unidad: item.unidad || '',
-            proveedor: item.proveedor || '', pendiente: pending, habitual: habitual,
-            razon: pending > 0 ? 'Hay demanda abierta pero falta un conteo confiable' : 'Tiene historial de consumo pero falta stock real'
+            proveedor: item.proveedor || '', pendiente: pending, habitual: habitual, stock_objetivo: minimum,
+            razon: pending > 0 ? 'Hay demanda abierta pero falta un conteo confiable' : (habitual > 0 ? 'Tiene historial de pedidos pero falta stock real' : 'Tiene un objetivo configurado pero falta stock real')
           });
         }
         return;
       }
       stock = round2_(numberOrZero_(stock, 0));
-      var target = Math.max(pending, habitual);
+      var target = Math.max(pending, habitual, minimum === null ? 0 : minimum);
       var suggested = round2_(Math.max(0, target - stock));
       if (suggested > 0) {
         var openShortage = pending > stock;
         suggestions.push({
           codigo: item.codigo || '', producto: item.nombre || '', categoria: item.categoria || '', unidad: item.unidad || '',
-          proveedor: item.proveedor || '', stock: stock, pendiente: pending, habitual: habitual,
+          proveedor: item.proveedor || '', stock: stock, pendiente: pending, habitual: habitual, stock_objetivo: minimum,
           cantidad_sugerida: suggested, prioridad: openShortage ? 'alta' : 'media',
           tendencia: insight.tendencia || 'estable', confianza: insight.confianza || '',
-          razon: openShortage ? 'El stock no cubre los pedidos abiertos' : (minimum !== null && stock <= minimum ? 'Stock bajo y consumo habitual sin cubrir' : 'El stock no cubre el consumo habitual')
+          razon: openShortage ? 'El stock no cubre los pedidos abiertos' : (minimum !== null && stock < minimum ? 'El stock está por debajo del objetivo configurado' : 'El stock no cubre el consumo habitual')
         });
-      } else if (habitual > 0 || pending > 0) {
+      } else if (habitual > 0 || pending > 0 || minimum > 0) {
         covered += 1;
       }
     });

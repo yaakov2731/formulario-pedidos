@@ -80,6 +80,8 @@ function prefixFor_(local) {
 /* Agrega un producto al CATÁLOGO con código autogenerado. */
 function addProductoCatalogo_(d) {
   if (!d.local || !d.nombre) return { ok: false, error: 'Faltan local o nombre' };
+  var par = validateCatalogPar_(d);
+  if (!par.ok) return par;
   d.local = normalizeLocalName_(d.local);
   var sh = ss_().getSheetByName(SHEET_CATALOGO);
   if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CATALOGO };
@@ -95,6 +97,8 @@ function addProductoCatalogo_(d) {
   var iProv = idx_(head, ['proveedor']);
   var iEstado = idx_(head, ['estado']);
   var iFecha = idx_(head, ['fecha', 'fecha_alta']);
+  var iMin = idx_(head, ['stock_mínimo', 'stock_minimo', 'stock mínimo', 'stock minimo']);
+  if (par.provided && iMin < 0 && par.value !== '') return { ok: false, error: 'Falta columna Stock_Mínimo en el catálogo' };
   if (iCod < 0 || iNom < 0 || iLocal < 0) {
     return { ok: false, error: 'No encuentro las columnas Código, Producto y Local en el catálogo' };
   }
@@ -125,6 +129,7 @@ function addProductoCatalogo_(d) {
   if (iProv > -1) newRow[iProv] = d.proveedor || '';
   if (iEstado > -1) newRow[iEstado] = 'Disponible';
   if (iFecha > -1) newRow[iFecha] = hoy;
+  if (iMin > -1 && par.provided) newRow[iMin] = par.value;
   sh.getRange(sh.getLastRow() + 1, 1, 1, newRow.length).setValues([newRow]);
   invalidateBootstrapCaches_();
   return { ok: true, codigo: codigo, nombre: String(d.nombre).trim(), local: d.local };
@@ -143,6 +148,7 @@ function getCatalogProductStatus_(local, codigo, nombre) {
   var iCat = idx_(head, ['categoría', 'categoria']);
   var iUni = idx_(head, ['unidad_medida', 'unidad']);
   var iProv = idx_(head, ['proveedor']);
+  var iMin = idx_(head, ['stock_mínimo', 'stock_minimo', 'stock mínimo', 'stock minimo']);
   if (iCod < 0 || iNom < 0 || iLocal < 0) {
     return { ok: false, error: 'No encuentro las columnas principales del catálogo', found: false };
   }
@@ -166,7 +172,8 @@ function getCatalogProductStatus_(local, codigo, nombre) {
           nombre: rowName,
           categoria: iCat > -1 ? String(row[iCat] || '') : '',
           unidad: iUni > -1 ? String(row[iUni] || 'unidad') : 'unidad',
-          proveedor: iProv > -1 ? String(row[iProv] || '') : ''
+          proveedor: iProv > -1 ? String(row[iProv] || '') : '',
+          stock_minimo: iMin > -1 ? numberOrBlank_(row[iMin]) : ''
         }
       };
     }
@@ -174,9 +181,19 @@ function getCatalogProductStatus_(local, codigo, nombre) {
   return { ok: true, found: false, local: local, local_count: localCount };
 }
 
-/* Corrige el nombre de un producto ya existente en el catálogo. */
+function validateCatalogPar_(d) {
+  var provided = Object.prototype.hasOwnProperty.call(d, 'stock_minimo');
+  var raw = provided ? String(d.stock_minimo === null ? '' : d.stock_minimo).trim() : '';
+  var value = raw === '' ? '' : Number(raw.replace(',', '.'));
+  if (raw !== '' && (!isFinite(value) || value < 0)) return { ok: false, error: 'Stock objetivo inválido' };
+  return { ok: true, provided: provided, value: value };
+}
+
+/* Actualiza únicamente los campos del catálogo presentes en la solicitud. */
 function updateProductoCatalogo_(d) {
   if (!d.codigo || !d.nombre) return { ok: false, error: 'Faltan código o nombre' };
+  var par = validateCatalogPar_(d);
+  if (!par.ok) return par;
   var sh = ss_().getSheetByName(SHEET_CATALOGO);
   if (!sh) return { ok: false, error: 'Falta hoja ' + SHEET_CATALOGO };
   var values = sh.getDataRange().getValues();
@@ -191,6 +208,20 @@ function updateProductoCatalogo_(d) {
   var wantedCode = String(d.codigo).trim();
   var wantedLocal = normalizeLocalName_(d.local || '');
   var newName = String(d.nombre).trim();
+  var fields = [
+    { key: 'categoria', aliases: ['categoría', 'categoria'] },
+    { key: 'unidad', aliases: ['unidad_medida', 'unidad'] },
+    { key: 'proveedor', aliases: ['proveedor'] },
+    { key: 'stock_minimo', aliases: ['stock_mínimo', 'stock_minimo', 'stock mínimo', 'stock minimo'] }
+  ];
+  var updates = [];
+  for (var f = 0; f < fields.length; f++) {
+    var field = fields[f];
+    if (!Object.prototype.hasOwnProperty.call(d, field.key)) continue;
+    var column = idx_(head, field.aliases);
+    if (column < 0) return { ok: false, error: 'Falta columna de ' + field.key + ' en el catálogo' };
+    updates.push({ column: column, value: field.key === 'stock_minimo' ? par.value : String(d[field.key] || '').trim() });
+  }
 
   for (var r = 1; r < values.length; r++) {
     var rowCode = String(values[r][iCod] || '').trim();
@@ -198,6 +229,7 @@ function updateProductoCatalogo_(d) {
     if (rowCode !== wantedCode) continue;
     if (wantedLocal && rowLocal && rowLocal !== wantedLocal) continue;
     sh.getRange(r + 1, iNom + 1).setValue(newName);
+    updates.forEach(function (update) { sh.getRange(r + 1, update.column + 1).setValue(update.value); });
     invalidateBootstrapCaches_();
     return { ok: true, codigo: wantedCode, nombre: newName };
   }
@@ -353,6 +385,7 @@ function appCapabilities_() {
     operation_status: true,
     pedido_intelligence: true,
     decision_center: true,
+    catalog_par: true,
     telegram_notify: telegram.enabled,
     receipt_ai_parse: openai.enabled
   };

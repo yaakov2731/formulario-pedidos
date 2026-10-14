@@ -153,8 +153,10 @@ function main() {
   expectContains(html, "d.pedido_intelligence", "shared order intelligence bootstrap");
   expectContains(html, "data-use-suggested", "shared habitual quantity action");
   expectContains(html, "Number(insight.pedidos)", "shared order history recommendation score");
-  expectContains(html, "habitual-stock", "stock-aware habitual order suggestion");
-  expectContains(html, "Cubierto · habitual", "covered habitual demand state");
+  expectContains(html, "target-stock", "stock-aware objective order suggestion");
+  expectContains(html, "Cubierto · ${context}", "covered objective demand state");
+  expectContains(html, 'id="cfgPMin"', "editable catalog stock objective");
+  expectContains(code, "catalog_par: true", "stock objective backend capability");
   expectContains(html, "SNAPSHOT.decisionCenterByLocal", "decision center reads live operational decisions");
   expectContains(html, "data-decision-add", "decision center can stage a suggested purchase");
   expectContains(html, "data-decision-stock", "decision center can open stock counting");
