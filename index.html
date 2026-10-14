@@ -3939,7 +3939,7 @@ function renderDashboard(){
     const syncText=LAST_SYNC_AT ? `Última sincronización ${LAST_SYNC_AT.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}` : "Datos locales sin fecha de actualización";
     $("#dashMeta").textContent=`${state.local} · Sin conexión`;
     cards.innerHTML = [
-      metricCard("Riesgos activos", "—", "Sin datos actuales", "warn"),
+      metricCard("Acciones de abastecimiento", "—", "Sin datos actuales", "warn"),
       metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", `${state.items.length} productos en este equipo`, state.items.length?"warn":""),
       metricCard("Recepciones", "—", "Sin datos actuales", "warn"),
       metricCard("Producción", "—", "Sin datos actuales", "warn")
@@ -3956,25 +3956,25 @@ function renderDashboard(){
   });
   const decisionData=(SNAPSHOT.decisionCenterByLocal&&SNAPSHOT.decisionCenterByLocal[state.local])||{summary:{}};
   const decisionSummary=decisionData.summary||{};
-  const riskTotal=Math.max(localRisks.length, metrics.reviewRows.length, metrics.snapshotLocal.faltantes||0);
+  const actionTotal=(decisionSummary.comprar||0)+(decisionSummary.contar||0);
   $("#dashMeta").textContent = snapshotStampText() ? `${state.local} · ${snapshotStampText()}` : state.local;
   cards.innerHTML = [
-    metricCard("Riesgos activos", riskTotal, `${decisionSummary.comprar||0} compras · ${decisionSummary.contar||0} revisiones`, riskTotal?"bad":"good"),
+    metricCard("Acciones de abastecimiento", actionTotal, `${decisionSummary.comprar||0} compras · ${decisionSummary.contar||0} revisiones`, actionTotal?"warn":"good"),
     metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", quantitiesByUnitText(state.items,"qty","unidad"), state.items.length?"warn":""),
     metricCard("Recepciones", metrics.recepSummary.movimientos||0, "registros confirmados; cantidades en cada movimiento", "good"),
     metricCard("Producción", metrics.prodSummary.movimientos||0, "partes históricos; cantidades en cada registro", "warn")
   ].join("");
   renderDecisionCenter();
   const risks=[
-    ...metrics.reviewRows.map(row=>({title:row.it.nombre, meta:`${row.meta.label} · ${row.meta.message}${row.meta.side?` · ${row.meta.side}`:""}`})),
+    ...metrics.reviewRows.map(row=>({label:"PEDIDO",title:row.it.nombre, meta:`${row.meta.label} · ${row.meta.message}${row.meta.side?` · ${row.meta.side}`:""}`})),
     ...localRisks.map(item=>{
       const stock=num(item.stock_actual);
-      return {title:item.nombre, meta:stock===null ? `${item.categoria||"Sin categoría"} · falta relevar stock real` : stock<0?`${item.categoria||"Sin categoría"} · saldo negativo: revisar conteo`:`${item.categoria||"Sin categoría"} · stock agotado`};
+      return {label:stock<0?"SALDO":stock===null?"CONTEO":"STOCK",title:item.nombre, meta:stock===null ? `${item.categoria||"Sin categoría"} · falta relevar stock real` : stock<0?`${item.categoria||"Sin categoría"} · saldo negativo: revisar conteo`:`${item.categoria||"Sin categoría"} · stock agotado`};
     })
   ].slice(0,5);
   riskList.innerHTML = risks.length ? risks.map((row,index)=>`
     <div class="event-item timeline-event">
-      <span class="event-level">${index===0?"ALTO":index<3?"MEDIO":"BAJO"}</span>
+      <span class="event-level">${esc(row.label)}</span>
       <span class="event-dot"></span>
       <span class="event-copy"><strong>${esc(row.title)}</strong><small>${esc(row.meta)}</small></span>
     </div>`).join("") : `<div class="stock-empty">El local no tiene riesgos activos.</div>`;
