@@ -2089,6 +2089,7 @@ html,body,.app-main{background:var(--bg)}
         </div>
         <div class="field"><label for="recepObs">Observaciones</label><input id="recepObs" type="text" placeholder="Faltantes, cambio, devolución, diferencia..."></div>
         <input class="stock-search" id="recepSearch" type="text" placeholder="Filtrá productos para recibir más rápido...">
+        <div class="field"><label for="recepSection">Sección del catálogo</label><select id="recepSection" disabled><option>Esperando catálogo</option></select></div>
         <div class="field">
           <label for="recepScope">Productos a mostrar</label>
           <select id="recepScope">
@@ -2418,7 +2419,9 @@ html,body,.app-main{background:var(--bg)}
             <span id="stockQuickPickMeta"></span>
           </div>
           <input class="stock-search" id="stockSearch" type="text" placeholder="Buscá producto para agregar al conteo...">
+          <div class="field"><label for="stockSection">Sección para agregar productos</label><select id="stockSection" disabled><option>Esperando catálogo</option></select></div>
           <div class="quick-pick-list" id="stockQuickPickList" style="margin-top:10px"></div>
+          <button type="button" class="stock-more" id="stockCatalogMore" hidden>Mostrar más productos</button>
         </div>
         <span class="snum" id="stockCatalogMeta"></span>
         <div class="stock-grid" id="stockGrid"></div>
@@ -2552,7 +2555,34 @@ function cafeCatalogSection(item){
   return "Otros insumos";
 }
 function orderCatalogSection(item){
-  return state.local==="Trento Café"?cafeCatalogSection(item):String(item.categoria||"Sin categoría").trim();
+  return catalogSectionForLocal(item,state.local);
+}
+function catalogSectionForLocal(item,local){
+  return local==="Trento Café"?cafeCatalogSection(item):String(item.categoria||"Sin categoría").trim();
+}
+function operationalCatalogSections(local){
+  const names=[...new Set((CATALOG[local]||[]).map(item=>catalogSectionForLocal(item,local)))];
+  if(local==="Trento Café"){
+    return ["Café y barra","Pastelería","Insumos de pastelería","Sándwiches y cocina","Frutas y licuados","Descartables","Limpieza","Otros insumos"].filter(name=>names.includes(name));
+  }
+  return names.sort((a,b)=>a.localeCompare(b,"es"));
+}
+function filterOperationalCatalog(local,query,section){
+  const q=normalizeLooseText(query);
+  return (CATALOG[local]||[]).filter(item=>
+    (!section||section==="Todos"||normalizeLooseText(catalogSectionForLocal(item,local))===normalizeLooseText(section))&&
+    (!q||normalizeLooseText([item.nombre,item.codigo,item.categoria,catalogSectionForLocal(item,local),item.proveedor].join(" ")).includes(q)));
+}
+function renderOperationalSectionPicker(id,local,ui){
+  const select=$("#"+id);
+  if(!select) return "Todos";
+  ui.sectionByLocal=ui.sectionByLocal||{};
+  const options=["Todos",...operationalCatalogSections(local)];
+  const selected=options.includes(ui.sectionByLocal[local])?ui.sectionByLocal[local]:"Todos";
+  ui.sectionByLocal[local]=selected;
+  select.disabled=!(CATALOG[local]||[]).length;
+  select.innerHTML=select.disabled?'<option>Esperando catálogo</option>':options.map(name=>`<option value="${esc(name)}" ${name===selected?"selected":""}>${esc(name)} · ${filterOperationalCatalog(local,"",name).length}</option>`).join("");
+  return selected;
 }
 function defaultOrderCategory(local){
   return local==="Trento Café"?"Café y barra":"Recomendados";
@@ -3983,6 +4013,7 @@ function renderRecepcionModule(){
   const box=$("#recepGrid"), cards=$("#recepCards");
   if(!state.local){
     cards.innerHTML="";
+    renderOperationalSectionPicker("recepSection","",recepUi);
     box.innerHTML=`<div class="stock-empty">Elegí un local para cargar recepción.</div>`;
     $("#recepMeta").textContent="Sin local";
     $("#recepCatalogMeta").textContent="";
@@ -3998,30 +4029,31 @@ function renderRecepcionModule(){
   $("#recepObs").value = drafts.observaciones || "";
   $("#recepSearch").value = recepUi.queryByLocal[state.local] || "";
   const allRows=(CATALOG[state.local]||[]);
+  const section=renderOperationalSectionPicker("recepSection",state.local,recepUi);
   const q=normalizeLooseText(recepUi.queryByLocal[state.local]||"");
   const scope=recepUi.scopeByLocal[state.local]||"all";
   $("#recepScope").value=scope;
   $("#recepGuideHint").textContent=LIVE&&capabilityEnabled("reception_guide")
     ? "Pedido abierto es una referencia acumulada. Recepción de mercadería; las entregas previas no se descuentan aquí y el pedido conserva su estado."
     : "Cargá las cantidades que recibiste. Reconectá para consultar pedidos abiertos.";
-  const filtered=allRows.filter(item=>{
+  const filtered=filterOperationalCatalog(state.local,q,section).filter(item=>{
     const reference=receptionReference(item,state.local);
     const received=num(drafts.items[stockKey(item.codigo,item.nombre)])||0;
     if(scope==="open"&&!reference.length) return false;
     if(scope==="draft"&&!(received>0)) return false;
-    return !q||normalizeLooseText([item.nombre,item.codigo,item.categoria,item.proveedor].join(" ")).includes(q);
+    return true;
   });
   const visible = filtered.slice(0, recepUi.visibleLimit);
   $("#recepCatalogMeta").textContent=`${visible.length} de ${filtered.length} filtrados · ${allRows.length} total`;
   box.innerHTML = visible.length ? visible.map(item=>`
     <div class="op-row" data-code="${esc(item.codigo||"")}" data-name="${esc(item.nombre)}">
       <div class="op-row-main">
-        <div class="op-row-name">${esc(item.nombre)}</div>
-        <div class="op-row-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""} · ${esc(item.unidad||"unidad")}</div>
+        <div class="op-row-name">${esc(catalogDisplayName(item))}</div>
+        <div class="op-row-meta">${esc(catalogSectionForLocal(item,state.local))}${item.proveedor?` · ${esc(item.proveedor)}`:""} · ${esc(item.unidad||"unidad")}</div>
       </div>
       <input type="number" min="0" step="0.1" inputmode="decimal" aria-label="Cantidad recibida de ${esc(item.nombre)}" value="${drafts.items[stockKey(item.codigo,item.nombre)]||""}" data-field="recepcion" placeholder="0">
       <div class="op-row-meta recep-reference" data-reception-reference>${esc(receptionReferenceText(item,state.local,drafts.items[stockKey(item.codigo,item.nombre)]))}</div>
-    </div>`).join("") : `<div class="stock-empty">${allRows.length ? "No hay coincidencias para ese filtro." : "Este local no tiene catálogo cargado."}</div>`;
+    </div>`).join("") : `<div class="stock-empty">${allRows.length ? "No hay coincidencias para ese filtro." : LIVE?"Este local no tiene catálogo cargado.":"Esperando lectura del catálogo de este local."}</div>`;
   $("#recepMore").hidden = visible.length >= filtered.length;
   $("#recepMeta").textContent = drafts.items && Object.values(drafts.items).some(v=>num(v)>0)
     ? `${recepDraftStats(state.local).items} líneas listas`
@@ -5543,19 +5575,15 @@ function renderStockQuickPick(local){
   const meta=$("#stockQuickPickMeta");
   const cat=CATALOG[local]||[];
   const selected=ensureStockSelection(local);
-  const q=(stockUi.queryByLocal[local]||"").trim().toLowerCase();
-  const filtered=(q
-    ? cat.filter(item=>
-      item.nombre.toLowerCase().includes(q) ||
-      String(item.codigo||"").toLowerCase().includes(q) ||
-      String(item.categoria||"").toLowerCase().includes(q) ||
-      String(item.proveedor||"").toLowerCase().includes(q)
-    )
-    : cat
-  ).slice(0,12);
-  meta.textContent = q ? `${filtered.length} resultados rápidos` : `${Math.min(cat.length,12)} visibles de ${cat.length}`;
+  const q=stockUi.queryByLocal[local]||"";
+  const section=renderOperationalSectionPicker("stockSection",local,stockUi);
+  const matches=filterOperationalCatalog(local,q,section);
+  const filtered=matches.slice(0,stockUi.visibleLimit||12);
+  meta.textContent = `${filtered.length} de ${matches.length} productos · ${selected.length} agregados`;
+  const more=$("#stockCatalogMore");
+  if(more){more.hidden=filtered.length>=matches.length;more.textContent=`Mostrar más (${matches.length-filtered.length})`;}
   if(!filtered.length){
-    box.innerHTML=`<div class="quick-pick-empty">No hay coincidencias para agregar.</div>`;
+    box.innerHTML=`<div class="quick-pick-empty">${!cat.length&&!LIVE?"Esperando lectura del catálogo de este local.":"No hay coincidencias para agregar."}</div>`;
     return;
   }
   box.innerHTML = filtered.map(item=>{
@@ -5566,8 +5594,8 @@ function renderStockQuickPick(local){
     return `
       <div class="quick-pick-item">
         <div class="quick-pick-main">
-          <div class="quick-pick-name">${esc(item.nombre)}</div>
-          <div class="quick-pick-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""}${counted?` · cargado ${esc(trim(num(current.stock_actual)||0))} ${esc(item.unidad||"unidad")}`:""}</div>
+          <div class="quick-pick-name">${esc(catalogDisplayName(item))} <span class="catalog-unit">${esc(item.unidad||"unidad")}</span></div>
+          <div class="quick-pick-meta">${esc(catalogSectionForLocal(item,local))}${item.proveedor?` · ${esc(item.proveedor)}`:""}${counted?` · cargado ${esc(trim(num(current.stock_actual)||0))} ${esc(item.unidad||"unidad")}`:""}</div>
         </div>
         <button type="button" class="quick-pick-btn" data-stock-add="${esc(key)}">${added?"Agregado":"Agregar"}</button>
       </div>`;
@@ -5710,9 +5738,18 @@ $("#stockLocal").addEventListener("change",()=>{
 $("#stockSearch").addEventListener("input",()=>{
   const local=stockLocalVal();
   stockUi.queryByLocal[local]=$("#stockSearch").value;
+  stockUi.visibleLimit=12;
   clearTimeout(stockUi.filterTimer);
   stockUi.filterTimer=setTimeout(()=>renderStockModal(),120);
 });
+$("#stockSection").addEventListener("change",()=>{
+  const local=stockLocalVal();
+  stockUi.sectionByLocal=stockUi.sectionByLocal||{};
+  stockUi.sectionByLocal[local]=$("#stockSection").value;
+  stockUi.visibleLimit=12;
+  renderStockModal();
+});
+$("#stockCatalogMore").addEventListener("click",()=>{stockUi.visibleLimit+=12;renderStockModal();});
 $("#stockQuickPickList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-stock-add]");
   if(!btn) return;
@@ -5785,6 +5822,13 @@ $("#recepSearch").addEventListener("input",()=>{
 $("#recepScope").addEventListener("change",()=>{
   if(!state.local) return;
   recepUi.scopeByLocal[state.local]=$("#recepScope").value;
+  recepUi.visibleLimit=40;
+  renderRecepcionModule();
+});
+$("#recepSection").addEventListener("change",()=>{
+  if(!state.local) return;
+  recepUi.sectionByLocal=recepUi.sectionByLocal||{};
+  recepUi.sectionByLocal[state.local]=$("#recepSection").value;
   recepUi.visibleLimit=40;
   renderRecepcionModule();
 });
