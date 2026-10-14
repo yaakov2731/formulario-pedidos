@@ -626,6 +626,10 @@ function normalizeLocalName_(local) {
   var value = String(local || '').trim();
   if (!value) return '';
   var low = value.toLowerCase();
+  var canonical = ['Umo Grill', 'Trento Café', 'Brooklyn', 'Puerto Gelato', 'GreenFresh', 'Shopping', 'Eventos'];
+  for (var i = 0; i < canonical.length; i++) {
+    if (normalizeLooseText_(value) === normalizeLooseText_(canonical[i])) return canonical[i];
+  }
   if (low === 'hamburguesería' || low === 'hamburgueseria') return 'Brooklyn';
   if (low === 'parrilla') return 'Umo Grill';
   if (low === 'heladería' || low === 'heladeria') return 'Puerto Gelato';
@@ -1165,10 +1169,20 @@ function buildPedidoIntelligence_() {
   var sh = ss_().getSheetByName(SHEET_DETALLE);
   var output = {
     generated_at: Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd HH:mm:ss'),
-    byLocal: {}
+    byLocal: {},
+    excludedByLocal: {}
   };
   if (!sh || sh.getLastRow() < 2) return output;
   var values = sh.getDataRange().getValues();
+  var catalog = readCatalog_();
+  var codeOwners = {};
+  Object.keys(catalog).forEach(function (local) {
+    catalog[local].forEach(function (item) {
+      if (!item.codigo) return;
+      if (!codeOwners[item.codigo]) codeOwners[item.codigo] = {};
+      codeOwners[item.codigo][local] = true;
+    });
+  });
   var buckets = {};
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
@@ -1179,7 +1193,16 @@ function buildPedidoIntelligence_() {
     var name = String(row[7] || '').trim();
     var qty = numberOrNull_(row[9]);
     if (!local || (!code && !name) || qty === null || qty <= 0) continue;
-    var itemKey = code || ('name:' + normalizeLooseText_(name));
+    // Historical mistakes must not teach a café to use another local's catalog.
+    if (code && codeOwners[code] && !codeOwners[code][local]) {
+      output.excludedByLocal[local] = (output.excludedByLocal[local] || 0) + 1;
+      continue;
+    }
+    var unit = String(row[10] || '').trim();
+    var localItem = (catalog[local] || []).filter(function (item) { return item.codigo === code; })[0];
+    var matchingUnit = localItem && normalizeLooseText_(localItem.unidad) === normalizeLooseText_(unit);
+    // Keep free-text and nonstandard units separate: never average kg with packs.
+    var itemKey = matchingUnit ? code : ('name:' + normalizeLooseText_(name) + '|unit:' + normalizeLooseText_(unit));
     var bucketKey = local + '||' + itemKey;
     var orderId = String(row[0] || ('row-' + r)).trim();
     if (!buckets[bucketKey]) {
@@ -1188,7 +1211,7 @@ function buildPedidoIntelligence_() {
         key: itemKey,
         codigo: code,
         producto: name,
-        unidad: String(row[10] || '').trim(),
+        unidad: unit,
         orderIds: [],
         quantities: {},
         lastDate: ''

@@ -51,7 +51,20 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.8.1", "bootstrap operational stock version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.8.1`);
+  expect(bootstrap && bootstrap.version === "2.9.0", "bootstrap local order catalog version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.0`);
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.local_order_catalog), "local order catalog enabled", "local order catalog capability missing");
+  const catalogOwners = {};
+  Object.entries(bootstrap.catalog || {}).forEach(([local,items]) => items.forEach(item => {
+    if(item.codigo) (catalogOwners[item.codigo] ||= new Set()).add(local);
+  }));
+  const foreignHistory = [];
+  Object.entries((bootstrap.pedido_intelligence && bootstrap.pedido_intelligence.byLocal) || {}).forEach(([local,rows]) => {
+    Object.values(rows).forEach(row => {
+      if(row.codigo && catalogOwners[row.codigo] && !catalogOwners[row.codigo].has(local)) foreignHistory.push(`${local}/${row.codigo}`);
+    });
+  });
+  expect(foreignHistory.length === 0, "history never recommends another local's codes", `Foreign history codes: ${foreignHistory.join(', ')}`);
+  expect(!Object.hasOwn(bootstrap.catalog || {}, "Umo grill"), "Umo spelling variants merged", "duplicate Umo catalog key remains");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.reception_guide), "reception guide enabled", "reception guide capability missing");
   expect(!!(bootstrap.snapshot && bootstrap.snapshot.receptionGuideByLocal), "complete reception reference present", "reception reference missing");
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.catalog_par), "editable stock objective enabled", "catalog_par capability missing");

@@ -387,6 +387,7 @@ function appCapabilities_() {
     decision_center: true,
     catalog_par: true,
     reception_guide: true,
+    local_order_catalog: true,
     telegram_notify: telegram.enabled,
     receipt_ai_parse: openai.enabled
   };
@@ -405,7 +406,7 @@ function savePedido_(data) {
     var it = data.items[i];
     if (!it.producto) return { ok: false, error: 'Producto sin nombre en el pedido' };
     if (!(Number(it.cantidad) > 0)) return { ok: false, error: 'Cantidad inválida en "' + it.producto + '"' };
-    if (it.codigo && !it.libre && !catalog.some(function (item) { return String(item.codigo || '') === String(it.codigo); })) {
+    if (it.codigo && !catalog.some(function (item) { return String(item.codigo || '') === String(it.codigo); })) {
       return { ok: false, error: 'El producto ' + it.producto + ' no pertenece al catálogo de ' + data.local };
     }
   }

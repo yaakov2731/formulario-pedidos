@@ -1892,6 +1892,7 @@ body,.app-main{
       <div class="quick-pick-list" id="quickPickList"></div>
     </div>
     <button class="catalog-more" id="orderMore" type="button" hidden>Mostrar más productos</button>
+    <div id="pedidoHistoryExtras"></div>
     <p class="hint" id="catHint">Elegí un local y sumá cantidades con los controles del catálogo.</p>
   </section>
 
@@ -2349,57 +2350,8 @@ let CONFIG = {
   "Shopping":{enc:"Dario Cabrera",email:"diego@shopping.com"},
 };
 
-/* ---- Catálogo (snapshot de CATÁLOGO PRODUCTOS; el script puede sobreescribir) ---- */
-let CATALOG = {
-  "Umo Grill":[
-    p("PAR001","Asado","kg","Distribuidora Florida",8500,"Carnes"),
-    p("PAR002","Chorizo","kg","Frigorífico Central",6200,"Achuras"),
-    p("PAR003","Morcilla","kg","Frigorífico Central",5800,"Achuras"),
-    p("PAR004","Chinchulín","kg","Carbones Del Sur",3500,"Achuras"),
-    p("PAR005","Entraña","kg","Distribuidora Milano",1200,"Carnes"),
-    p("PAR006","Bife de Chorizo","kg","Distribuidora Milano",4500,"Carnes"),
-    p("PAR007","Pata y Muslo","kg","Distribuidora Milano",2800,"Carnes"),
-    p("PAR008","Tapa de Empanadas","kg","Distribuidora Milano",3200,"Vegetales"),
-    p("PAR009","Supremas de Pollo","kg","Lácteos Premium",3800,"Carnes"),
-    p("PAR010","Vino La Linda Malbec","unidad","Dos Hermanos",4200,"Vinos"),
-    p("PAR011","D V Catena Cabernet","unidad","Repostería Central",150,"Vinos"),
-  ],
-  "GreenFresh":[
-    p("GRE001","Pechuga de Pollo","kg","Distribuidora Milano",7000,"Proteínas"),
-    p("GRE002","Mix de Hojas Verdes","kg","Vegetales Frescos",2200,"Vegetales"),
-    p("GRE003","Quinoa","kg","Almacén Natural",5400,"Granos"),
-    p("GRE004","Palta","unidad","Vegetales Frescos",900,"Frutas"),
-    p("GRE005","Tomate Cherry","kg","Vegetales Frescos",2600,"Vegetales"),
-    p("GRE006","Huevos","docena","Granja del Sol",3200,"Proteínas"),
-    p("GRE007","Arroz Integral","kg","Almacén Natural",1900,"Granos"),
-    p("GRE008","Batata","kg","Vegetales Frescos",1500,"Vegetales"),
-    p("GRE009","Garbanzos","kg","Almacén Natural",2100,"Legumbres"),
-    p("GRE010","Salmón","kg","Pescadería del Puerto",16000,"Proteínas"),
-    p("GRE011","Aceite de Oliva","litro","Almacén Natural",8200,"Aderezos"),
-    p("GRE012","Yogur Natural","litro","Lácteos Premium",2400,"Lácteos"),
-  ],
-  "Puerto Gelato":[],
-  "Trento Café":[
-    p("CAF001","Café en Grano","kg","Café Colombia",12000,"Café"),
-    p("CAF002","Leche","litro","Lácteos Premium",1800,"Lácteos"),
-    p("CAF003","Azúcar","kg","Azúcar Central",800,"Endulzantes"),
-    p("CAF004","Medialunas","docena","Panadería Artesanal",2500,"Panadería"),
-  ],
-  "Brooklyn":[
-    p("HAM001","Pan de Hamburguesa","unidad","Panadería Gourmet",450,"Panadería"),
-    p("HAM002","Carne Molida","kg","Frigorífico Central",7500,"Carnes"),
-    p("HAM003","Queso Cheddar","kg","Lácteos Premium",5200,"Lácteos"),
-    p("HAM004","Papas","kg","Vegetales Frescos",1800,"Vegetales"),
-  ],
-  "Eventos":[
-    p("EVE001","Vajilla Descartable","set","Eventos Premium",1200,"Vajilla"),
-    p("EVE002","Manteles","unidad","Eventos Premium",2800,"Decoración"),
-    p("EVE003","Flores Decorativas","arreglo","Florería Central",4500,"Decoración"),
-  ],
-  "Shopping":[
-    p("SHO001","Productos Generales","unidad","Distribuidora General",2500,"General"),
-  ],
-};
+/* Catálogo exclusivo de la planilla: sin productos de ejemplo ni copias entre locales. */
+let CATALOG = {};
 function p(codigo,nombre,unidad,proveedor,precio,categoria,stock_actual,stock_minimo){
   return {codigo,nombre,unidad,proveedor,precio,categoria,stock_actual,stock_minimo};
 }
@@ -2469,7 +2421,44 @@ function catalogStockBadge(item){
 function pedidoInsightForItem(item){
   if(!state.local||!item) return null;
   const localMap=(PEDIDO_INTELLIGENCE.byLocal&&PEDIDO_INTELLIGENCE.byLocal[state.local])||{};
-  return localMap[String(item.codigo||"").trim()]||localMap[`name:${normalizeLooseText(item.nombre||"")}`]||null;
+  const unit=normalizeLooseText(item.unidad||"");
+  const candidates=Object.values(localMap).filter(row=>normalizeLooseText(row.unidad||"")===unit &&
+    ((row.codigo&&row.codigo===item.codigo)||(!row.codigo&&normalizeLooseText(row.producto)===normalizeLooseText(item.nombre))));
+  return candidates.sort((a,b)=>(Number(b.pedidos)||0)-(Number(a.pedidos)||0))[0]||null;
+}
+
+function localHistoryExtras(local){
+  const catalog=CATALOG[local]||[];
+  const history=(PEDIDO_INTELLIGENCE.byLocal&&PEDIDO_INTELLIGENCE.byLocal[local])||{};
+  return Object.values(history).filter(row=>{
+    if(!row.producto||!(Number(row.pedidos)>0)) return false;
+    if(row.codigo&&Object.entries(CATALOG).some(([owner,items])=>owner!==local&&items.some(item=>item.codigo===row.codigo))&&
+      !catalog.some(item=>item.codigo===row.codigo)) return false;
+    return !catalog.some(item=>normalizeLooseText(item.unidad)===normalizeLooseText(row.unidad)&&
+      ((row.codigo&&item.codigo===row.codigo)||normalizeLooseText(item.nombre)===normalizeLooseText(row.producto)));
+  }).sort((a,b)=>(Number(b.pedidos)||0)-(Number(a.pedidos)||0)||String(b.ultima_fecha||"").localeCompare(String(a.ultima_fecha||"")));
+}
+
+function renderLocalHistoryExtras(){
+  const box=$("#pedidoHistoryExtras");
+  if(!box) return;
+  box.innerHTML="";
+  if(!state.local||orderCategory!=="Recomendados") return;
+  const q=normalizeLooseText(search.value);
+  const allRows=localHistoryExtras(state.local).filter(row=>!q||normalizeLooseText(row.producto).includes(q));
+  const rows=allRows.slice(0,orderVisibleLimit);
+  if(!rows.length) return;
+  box.innerHTML=`<details ${q?"open":""}><summary class="hint">También pedidos por ${esc(state.local)} · fuera de catálogo (${allRows.length})</summary><p class="hint">Conservan su unidad original. Revisá la cantidad; no se carga automáticamente lo pedido anteriormente.</p><div class="quick-pick-list">${rows.map((row,i)=>`<div class="quick-pick-item"><div class="quick-pick-main"><div class="quick-pick-name">${esc(row.producto)}</div><div class="quick-pick-meta">${esc(row.unidad||"sin unidad")} · ${row.pedidos} pedido${row.pedidos===1?"":"s"} · último ${esc(row.ultima_fecha||"")} · fuera de catálogo</div></div><button type="button" class="home-jump" data-history-add="${i}">Agregar</button></div>`).join("")}</div>${rows.length<allRows.length?'<button type="button" class="catalog-more" data-history-more>Mostrar más del historial</button>':""}</details>`;
+  const more=box.querySelector("[data-history-more]");
+  if(more) more.addEventListener("click",()=>{ orderVisibleLimit+=24; renderLocalHistoryExtras(); box.querySelector("details").open=true; });
+  box.querySelectorAll("[data-history-add]").forEach(btn=>btn.addEventListener("click",()=>{
+    const row=rows[Number(btn.dataset.historyAdd)];
+    const existing=state.items.find(item=>item.free&&normalizeLooseText(item.nombre)===normalizeLooseText(row.producto)&&normalizeLooseText(item.unidad)===normalizeLooseText(row.unidad));
+    if(existing){ toast("Ya está agregado. Revisá su cantidad."); return; }
+    state.items.push({_id:++uid,codigo:"",nombre:row.producto,unidad:row.unidad||"unidad",proveedor:"",categoria:"",precio:0,qty:1,free:true});
+    renderItems(); renderQuickCatalog(); scheduleDraftSave();
+    toast("Agregado desde el historial del local. Revisá la cantidad.","ok");
+  }));
 }
 function pedidoInsightButton(item){
   const insight=pedidoInsightForItem(item), habitual=num(insight&&insight.cantidad_sugerida);
@@ -3259,6 +3248,9 @@ function closeSuggest(){suggest.classList.remove("open");search.setAttribute("ar
 
 function addFromCatalog(rec){
   if(!rec)return;
+  if(!(CATALOG[state.local]||[]).some(item=>item.codigo===rec.codigo&&item.nombre===rec.nombre)){
+    toast("Ese producto no pertenece al catálogo del local seleccionado","err"); return;
+  }
   const ex=state.items.find(i=>i.codigo===rec.codigo && !i.free);
   if(ex){ ex.qty+=1; toast(`+1 ${rec.nombre}`); }
   else state.items.push({_id:++uid,codigo:rec.codigo,nombre:rec.nombre,unidad:rec.unidad,
@@ -3278,6 +3270,7 @@ $("#orderSort").addEventListener("change",e=>{ orderSort=e.target.value; orderVi
 $("#orderMore").addEventListener("click",()=>{ orderVisibleLimit+=24; renderQuickCatalog(); });
 
 function renderQuickCatalog(){
+  renderLocalHistoryExtras();
   const box=$("#quickPickList");
   const meta=$("#quickPickMeta");
   const categories=$("#orderCategories");
@@ -3291,7 +3284,7 @@ function renderQuickCatalog(){
   }
   const cat=CATALOG[state.local]||[];
   $("#catHint").innerHTML=cat.length
-    ? `Catálogo de <b>${esc(state.local)}</b>: ${cat.length} productos. Buscá, filtrá o cargá uno fuera de catálogo.`
+    ? `Sólo <b>${esc(state.local)}</b> · ${cat.length} productos propios. Primero los pedidos por este local; el resto está en Otros del local.`
     : `<b>${esc(state.local)}</b> todavía no tiene productos configurados.`;
   const q=normalizeLooseText(search.value.trim());
   const usage=catalogUsageForLocal(state.local);
@@ -3304,13 +3297,13 @@ function renderQuickCatalog(){
   const categoryNames=[...categoryMap.values()].sort((a,b)=>categoryCount(b)-categoryCount(a)||a.localeCompare(b,"es"));
   let visibleCategoryNames=orderShowAllCategories?categoryNames:categoryNames.slice(0,6);
   if(!["Recomendados","En pedido","Stock bajo"].includes(orderCategory)&&categoryNames.includes(orderCategory)&&!visibleCategoryNames.includes(orderCategory)) visibleCategoryNames=visibleCategoryNames.concat(orderCategory);
-  const isSmartRecommendation=item=>!!(pedidoInsightForItem(item)||usage[item.codigo]||state.items.some(current=>!current.free&&current.codigo===item.codigo));
+  const isSmartRecommendation=item=>!!pedidoInsightForItem(item);
   const smartRecommendationCount=cat.filter(isSmartRecommendation).length;
-  const categoryOptions=["Recomendados",...(state.items.length?["En pedido"]:[]),...(cat.some(isLowStock)?["Stock bajo"]:[]),...visibleCategoryNames];
-  if(!["Recomendados","En pedido","Stock bajo",...categoryNames].includes(orderCategory)) orderCategory="Recomendados";
+  const categoryOptions=["Recomendados","Otros del local",...(state.items.length?["En pedido"]:[]),...(cat.some(isLowStock)?["Stock bajo"]:[]),...visibleCategoryNames];
+  if(!["Recomendados","Otros del local","En pedido","Stock bajo",...categoryNames].includes(orderCategory)) orderCategory="Recomendados";
   if(categories){
-    const countFor=name=>name==="Recomendados"?(smartRecommendationCount||cat.length):name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
-    categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${esc(name)} <small>${countFor(name)}</small></button>`).join("")+(categoryNames.length>6?`<button type="button" class="order-category" data-category-more aria-expanded="${String(orderShowAllCategories)}">${orderShowAllCategories?"Menos categorías":`Más categorías +${categoryNames.length-6}`}</button>`:"");
+    const countFor=name=>name==="Recomendados"?smartRecommendationCount:name==="Otros del local"?cat.filter(item=>!isSmartRecommendation(item)).length:name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
+    categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${name==="Recomendados"?"Ya pedidos":esc(name)} <small>${countFor(name)}</small></button>`).join("")+(categoryNames.length>6?`<button type="button" class="order-category" data-category-more aria-expanded="${String(orderShowAllCategories)}">${orderShowAllCategories?"Menos categorías":`Más categorías +${categoryNames.length-6}`}</button>`:"");
     categories.querySelectorAll("[data-category]").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; orderVisibleLimit=24; renderQuickCatalog(); }));
     const moreCategories=categories.querySelector("[data-category-more]");
     if(moreCategories) moreCategories.addEventListener("click",()=>{ orderShowAllCategories=!orderShowAllCategories; renderQuickCatalog(); });
@@ -3327,7 +3320,7 @@ function renderQuickCatalog(){
   };
   let allFiltered=cat.filter(x=>{
     const matchesQuery=!q || queryScore(x)>0;
-    const matchesCategory=orderCategory==="Recomendados" ? (!smartRecommendationCount||isSmartRecommendation(x)) : (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : orderCategory==="Stock bajo" ? isLowStock(x) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
+    const matchesCategory=orderCategory==="Recomendados" ? (q||isSmartRecommendation(x)) : orderCategory==="Otros del local" ? !isSmartRecommendation(x) : (orderCategory==="En pedido" ? state.items.some(item=>!item.free&&item.codigo===x.codigo) : orderCategory==="Stock bajo" ? isLowStock(x) : normalizeLooseText(x.categoria||"")===normalizeLooseText(orderCategory));
     return matchesQuery&&matchesCategory;
   });
   const recommendedScore=item=>{
@@ -3357,7 +3350,7 @@ function renderQuickCatalog(){
   }
   if(!filtered.length){
     const typed=search.value.trim();
-    box.innerHTML=`<div class="quick-pick-empty">${typed?`No encontramos <b>${esc(typed)}</b>. Podés agregarlo fuera de catálogo.`:"No hay productos en este filtro."}</div>`;
+    box.innerHTML=`<div class="quick-pick-empty">${typed?`No encontramos <b>${esc(typed)}</b> en ${esc(state.local)}. Podés agregarlo fuera de catálogo.`:orderCategory==="Recomendados"?`Sin productos de catálogo con pedidos previos en ${esc(state.local)}. Consultá Otros del local o cargá uno fuera de catálogo. No copiamos productos de otros locales.`:"No hay productos en este filtro."}</div>`;
     $("#freeBtn").textContent=typed?`Agregar “${typed}”`:"Fuera de catálogo";
     return;
   }
@@ -3392,6 +3385,9 @@ function renderQuickCatalog(){
 
 function setCatalogItemQuantity(rec, quantity){
   if(!rec) return;
+  if(!(CATALOG[state.local]||[]).some(item=>item.codigo===rec.codigo&&item.nombre===rec.nombre)){
+    toast("Ese producto no pertenece al catálogo del local seleccionado","err"); return;
+  }
   const existing=state.items.find(item=>!item.free&&item.codigo===rec.codigo);
   if(quantity<=0){
     state.items=state.items.filter(item=>item!==existing);
@@ -4317,7 +4313,11 @@ const LOCAL_ALIAS = {
 };
 function aliasKeys(obj){
   const out={};
-  for(const k in obj){ out[LOCAL_ALIAS[k]||k]=obj[k]; }
+  for(const k in obj){
+    const canonical=LOCALES.find(local=>normalizeLooseText(local.id)===normalizeLooseText(k));
+    const key=LOCAL_ALIAS[k]||(canonical&&canonical.id)||k;
+    out[key]=Array.isArray(obj[k])?[...(out[key]||[]),...obj[k]]:Object.assign({},out[key]||{},obj[k]);
+  }
   return out;
 }
 function normalizeCatalog(raw){
@@ -4381,7 +4381,7 @@ function requireLiveWrite(label){
   return false;
 }
 function applyBootstrapPayload(d){
-  if(d&&d.catalog&&Object.keys(d.catalog).length){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); resetCatalogDerivedCaches(); }
+  if(d&&d.catalog){ CATALOG=normalizeCatalog(aliasKeys(d.catalog)); resetCatalogDerivedCaches(); }
   if(d&&d.config){ CONFIG=Object.assign(CONFIG,aliasKeys(d.config)); }
   if(d&&d.responsables){ RESP=aliasKeys(d.responsables); }
   if(d&&d.recepciones){ RECEPCIONES=d.recepciones; }

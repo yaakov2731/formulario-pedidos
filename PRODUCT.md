@@ -81,6 +81,24 @@ que el pedido se haya guardado. Si la confirmación falla, se conserva la carga.
 
 Validación: `node scripts/verify-local-drafts.js`, con almacenamiento y backend en memoria.
 
+## Catálogo según los pedidos de cada local
+
+La vista inicial `Ya pedidos` muestra productos del catálogo con historial positivo,
+no cancelado, del local seleccionado y en su unidad. `Otros del local` permite
+consultar sus productos todavía sin historial. Buscar recorre todo el catálogo
+propio, aunque el producto no se haya pedido antes. Nunca se copia el catálogo
+de una parrilla a una cafetería ni se usan productos de ejemplo al iniciar.
+
+Los productos históricos fuera de catálogo se consultan en una sección separada.
+Se agregan como líneas libres con cantidad inicial 1 para revisión, conservando la
+unidad original; no se mezclan kg, paquetes ni unidades para sugerir cantidades.
+Los códigos pertenecientes exclusivamente a otro local se excluyen del aprendizaje
+y se rechazan al enviar incluso si la línea declara ser libre. Los registros históricos
+no se borran ni se cambian de local. Las variantes de escritura del nombre de un
+local se unifican sin sobrescribir sus productos.
+
+Validación: `node scripts/verify-local-catalog.js`, sin escrituras de datos operativos.
+
 ## Brand
 
 - **Nombre:** Docks del Puerto · Polo Gastronómico. Contexto portuario (Puerto de Frutos).

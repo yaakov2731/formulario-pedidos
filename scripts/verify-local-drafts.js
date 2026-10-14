@@ -56,6 +56,9 @@ var payload={local:'Trento Café',encargado:'Encargado',email_encargado:'test@ex
 `,backend);
 assert.equal(vm.runInContext('savePedido_(payload).ok',backend),false);
 assert.equal(vm.runInContext('writes',backend),0);
+vm.runInContext('payload.items[0].libre=true',backend);
+assert.equal(vm.runInContext('savePedido_(payload).ok',backend),false,'Free flag cannot bypass local code ownership');
+assert.equal(vm.runInContext('writes',backend),0);
 vm.runInContext("payload.items[0].codigo='CAF001'",backend);
 assert.equal(vm.runInContext('savePedido_(payload).ok',backend),true);
 console.log('Local draft checks passed: isolated quantities, people, notes, urgency, reload, legacy retention and backend local validation.');
