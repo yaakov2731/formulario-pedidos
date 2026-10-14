@@ -4284,6 +4284,7 @@ async function saveElaborados(){
 async function warmData(){
   try{
     const d=await backendGet("getBootstrap",{},{ retries:2, timeoutMs:15000 });
+    if(!d||d.ok!==true) throw new Error("La planilla no devolvió datos válidos");
     applyBootstrapPayload(d);
     renderStockIntelligence();
     renderRecepcionModule();
@@ -4297,7 +4298,8 @@ async function warmData(){
     }
     LIVE = true;
     if(!cfg.hidden) renderCfg();
-  }catch{
+  }catch(err){
+    console.error("No se pudo cargar la operación de Docks",err);
     LIVE = false;
     LIVE_META = { version:"", capabilities:{} };
     renderLiveWarning();
@@ -4568,6 +4570,7 @@ async function refreshData(opts={}){
   try{
     const scope=opts.scope||"ops";
     const d=await backendGet("getBootstrap",{ scope, t:Date.now() },{ retries:1, timeoutMs:12000 });
+    if(!d||d.ok!==true) throw new Error("La planilla no devolvió datos válidos");
     applyBootstrapPayload(d);
     renderStockIntelligence();
     renderRecepcionModule();
@@ -4582,7 +4585,8 @@ async function refreshData(opts={}){
     LIVE = true;
     if(!cfg.hidden) renderCfg();
     return true;
-  }catch{
+  }catch(err){
+    console.error("No se pudo actualizar la operación de Docks",err);
     LIVE = false;
     LIVE_META = { version:"", capabilities:{} };
     renderLiveWarning();
