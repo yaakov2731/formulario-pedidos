@@ -1764,7 +1764,10 @@ html,body,.app-main{background:var(--bg)}
 .recep-intake{gap:8px}.recep-intake-btn{min-height:48px;padding:10px 12px;border-radius:3px;box-shadow:none}
 .recep-intake-btn strong{font-size:12px}.recep-intake-btn span{display:none}
 .recep-photo-panel{padding:12px;border-radius:3px;box-shadow:none}.recep-photo-panel:has(.recep-photo-matches:empty){margin-bottom:12px}
-.decision-title{padding:0!important;background:transparent}.decision-title h3{font-size:16px}
+.decision-center{margin-top:20px;padding:0;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
+.decision-head{grid-template-columns:1fr;gap:10px;padding:14px 0;background:transparent;border-bottom:1px solid var(--line)}
+.decision-title{padding:0!important;border:0;background:transparent}.decision-title h3{font-size:14px;margin:0}.decision-title p{display:none}
+.decision-list{padding:0}
 .decision-kpi{background:transparent;padding:8px 12px}.decision-kpi strong{font:500 22px ui-monospace,monospace;color:var(--ink)}
 .decision-row{padding:12px 0}.decision-product strong{font-weight:550;font-size:13px}
 .event-item{border-radius:0;background:transparent;box-shadow:none}
@@ -2156,7 +2159,7 @@ html,body,.app-main{background:var(--bg)}
     <div class="dash-grid" id="dashCards"></div>
     <section class="decision-center" id="dashDecisionCenter" aria-labelledby="dashDecisionTitle">
       <div class="decision-head">
-        <div class="decision-title"><p class="skicker">Control de abastecimiento</p><h3 id="dashDecisionTitle">Reposición y conteos</h3><p>Stock, demanda abierta e historial cruzados sin modificar la planilla.</p></div>
+        <div class="decision-title"><h3 id="dashDecisionTitle">Compras y revisión</h3></div>
         <div class="decision-summary" id="dashDecisionSummary"></div>
       </div>
       <div class="decision-list" id="dashDecisionList"></div>
