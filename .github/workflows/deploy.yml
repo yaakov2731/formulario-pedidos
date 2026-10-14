@@ -36,21 +36,6 @@ jobs:
           cd gas
           clasp push -f
 
-      - name: Update public Apps Script deployment
-        run: |
-          DEPLOYMENT_ID=$(python3 - <<'PY'
-          import re
-          from pathlib import Path
-          html = Path('index.html').read_text(encoding='utf-8')
-          match = re.search(r'https://script\.google\.com/macros/s/([^/]+)/exec', html)
-          if not match:
-              raise SystemExit('SCRIPT_URL deployment id not found')
-          print(match.group(1))
-          PY
-          )
-          cd gas
-          clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA::7}"
-
   deploy-frontend:
     runs-on: ubuntu-latest
     permissions:
