@@ -51,6 +51,7 @@ function main() {
   expectContains(html, 'Docks: mesa de trabajo, marfil y oliva', 'professional operational palette');
   expectContains(html, '<h2>Pedidos semanales</h2>', 'operational home title');
   expectContains(html, '.stock-card.metric,.stock-dash-card{padding:12px 0;border:0;', 'unboxed compact metrics');
+  expectContains(html, 'body.compact-mobile-shell .home-pulse,body.compact-mobile-shell .local-action', 'mobile legacy card overrides disabled');
   expectNotContains(html, '<h2>Resumen del local</h2>', 'generic report heading');
   expectNotContains(html, 'Todo listo para el servicio.', 'promotional home copy');
   expectNotContains(html, 'Lo importante, sin buscarlo', 'generic report copy');
