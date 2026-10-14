@@ -91,6 +91,7 @@ assert.equal(ui("cafeCatalogSection({nombre:'QUESO MASCARPONE',categoria:'Almace
 assert.equal(ui("cafeCatalogSection({nombre:'PAPEL MANTECA',categoria:'Papelera'})"),'Descartables');
 assert.equal(ui("cafeCatalogSection({nombre:'DULCE DE LECHE REPOSTERO',categoria:'Almacen'})"),'Insumos de pastelería');
 assert.equal(ui("cafeCatalogSection({nombre:'CREMA DE LECHE',categoria:'Lacteos'})"),'Insumos de pastelería');
+assert.equal(ui("cafeCatalogSection({nombre:'PRE MEZCLA BRAWNIE EXQUISITA',categoria:'Almacen'})"),'Insumos de pastelería','Premix is an ingredient, not a ready pastry');
 assert.equal(ui("cafeCatalogSection({nombre:'Medialunas',categoria:'Panadería'})"),'Pastelería');
 assert.equal(ui("cafeCatalogSection({nombre:'FRUTOS ROJOS',categoria:'Almacen'})"),'Frutas y licuados');
 ui("PEDIDO_INTELLIGENCE.byLocal['Trento Café']={a:{producto:'Nutella',unidad:'kg',pedidos:4,codigo:''},b:{producto:'NUTELLA',unidad:'kg',pedidos:2,codigo:''},c:{producto:'Nutella',unidad:'unidad',pedidos:1,codigo:''}}");

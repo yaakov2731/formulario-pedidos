@@ -2543,7 +2543,7 @@ function cafeCatalogSection(item){
   const category=normalizeLooseText(item.categoria||"");
   if(/limpieza/.test(category)||/\b(detergente|lavandina|desodorante|guantes|trapo|rejilla|escoba|alcohol|blem|blen|esponja)\b/.test(name)) return "Limpieza";
   if(/papelera/.test(category)||/\b(vasos?|servilletas?|sorbetes?|bolsas?|bandeja|banbeja|sobre|folex|film|papel|rollo|comandera|remito|manga|tuper|ensaladera)\b/.test(name)) return "Descartables";
-  if(/\b(crema|dulce de leche)\b/.test(name)) return "Insumos de pastelería";
+  if(/\b(crema|dulce de leche|pre mezcla|premezcla|harina|maicena|gelatina|semilla|semillas)\b/.test(name)) return "Insumos de pastelería";
   if(/\b(leche|cafe|te|mate|azucar ind|edulcorante|sub marino|submarino|agua|aquarius|cocacola|sprite)\b/.test(name)||name==="azucar"||/\b(salsa caramelo|salsa chocolate|salsa de frutilla)\b/.test(name)) return "Café y barra";
   if(/\b(jamon|tybo|mayonesa|pan|palta|paltas|pollo|provoleta|aceite|vinagre|morron|moron)\b/.test(name)) return "Sándwiches y cocina";
   if(/verduleria/.test(category)||/\b(frutilla|frutillas|mango|banana|maracuya|frutos rojos|naranja|manzana verde|pera|limon|menta|durazno)\b/.test(name)) return "Frutas y licuados";
