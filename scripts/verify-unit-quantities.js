@@ -1,7 +1,114 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
+const productionBackend=vm.createContext({console});
+for(const file of fs.readdirSync('gas').filter(file=>file.endsWith('.gs'))) vm.runInContext(fs.readFileSync(`gas/${file}`,'utf8'),productionBackend);
+const productionRun=code=>vm.runInContext(code,productionBackend);
+productionRun(`
+var catalogCells=[CATALOGO_HEADERS.slice(),
+ ['CAF001','Café','','Trento Café','Café','kg',0,'Proveedor',5,'','',''],
+ ['CAF002','Leche','','Trento Café','Lácteos','litro',0,'Proveedor','','','',''],
+ ['PAR001','Asado','','Umo Grill','Carnes','kg',0,'Proveedor',40,'','','']];
+var savedProductions=[], lockTrace=[], allowLock=true, failFlush=false;
+ss_=function(){return {getSheetByName:function(name){return name===SHEET_CATALOGO?
+ {getLastRow:function(){return catalogCells.length;},getDataRange:function(){return {getValues:function(){return catalogCells;}};}}:
+ {getLastRow:function(){return savedProductions.length;},getRange:function(){return {setValues:function(rows){savedProductions.push(JSON.parse(JSON.stringify(rows)));}};}};
+}};};
+applyCatalogColumnUpdates_=function(){};invalidateBootstrapCaches_=function(){};
+LockService={getScriptLock:function(){return {tryLock:function(){lockTrace.push('lock');return allowLock;},releaseLock:function(){lockTrace.push('release');}};}};
+SpreadsheetApp={flush:function(){lockTrace.push('flush');if(failFlush)throw new Error('flush');}};
+var fixture={local:'Trento Café',producto_elaborado:'Fixture local sin envío',rebuild_views:false,items:[{codigo:'CAF001',insumo:'Nombre no confiable',unidad:'kg',cantidad_usada:2}]};
+`);
+assert.equal(productionRun('getProductionReview_(fixture).rows[0].insumo'),'Café');
+assert.equal(productionRun('getProductionReview_(fixture).rows[0].proyectado'),3);
+productionRun("fixture.items[0].unidad='g'");
+assert.equal(productionRun('saveProduccion_(fixture).ok'),false);
+productionRun("fixture.items[0].unidad='kg';fixture.items[0].codigo='PAR001'");
+assert.equal(productionRun('saveProduccion_(fixture).ok'),false);
+productionRun("fixture.items[0].codigo='CAF001';fixture.items[0].cantidad_usada='2kg'");
+assert.equal(productionRun('saveProduccion_(fixture).ok'),false);
+productionRun('fixture.items[0].cantidad_usada=Infinity');
+assert.equal(productionRun('saveProduccion_(fixture).ok'),false);
+productionRun('fixture.items[0].cantidad_usada=7');
+assert.equal(productionRun('getProductionReview_(fixture).warnings[0].motivo'),'Consumo mayor al stock');
+assert.equal(productionRun('saveProduccion_(fixture).ok'),false);
+productionRun("fixture.stock_review_confirmed=true;fixture.observaciones='Consumo verificado en la prueba local';fixture.stock_review_signature=getProductionReview_(fixture).signature;catalogCells[1][8]=4");
+assert.equal(productionRun('saveProduccion_(fixture).ok'),false,'Changed stock invalidates the previous acknowledgement');
+assert.equal(productionRun('savedProductions.length'),0,'Rejected payloads never append nor change stock');
+productionRun("catalogCells[1][8]=5;catalogCells.push(['CAF001','Café anterior','','Trento Café','Café','kg',0,'Proveedor',99,'','Inactivo','']);fixture.stock_review_signature=getProductionReview_(fixture).signature");
+assert.equal(productionRun('saveProduccion_(fixture).ok'),true);
+assert.equal(productionRun('catalogCells[1][8]'),-2);
+assert.equal(productionRun('catalogCells[4][8]'),99,'Inactive catalog entries are never debited');
+assert.match(productionRun('savedProductions[0][0][13]'),/saldo previo 5 kg/,'Acknowledged deviation retains prior balance in the audit note');
+productionRun("fixture.items=[{codigo:'CAF002',insumo:'Leche',unidad:'litro',cantidad_usada:2}];fixture.stock_review_signature=getProductionReview_(fixture).signature");
+assert.equal(productionRun('saveProduccion_(fixture).ok'),true);
+assert.equal(productionRun('catalogCells[2][8]'),'','Unknown balance never becomes a invented zero-minus-consumption count');
+assert.throws(()=>productionRun("withStockMutationLock_(function(){throw new Error('callback');})"),/callback/);
+assert.match(productionRun('lockTrace.join(",")'),/lock,flush,release/);
+productionRun('lockTrace=[];failFlush=true');
+assert.throws(()=>productionRun('withStockMutationLock_(function(){return true;})'),/flush/);
+assert.equal(productionRun('lockTrace[2]'),'release','Lock is released even when flush fails');
+productionRun('lockTrace=[];failFlush=false;allowLock=false');
+assert.equal(productionRun('withStockMutationLock_(function(){throw new Error("should not run");}).ok'),false);
+assert.equal(productionRun('lockTrace.length'),1,'Unacquired lock does not run the mutation');
+console.log('Production server review passed: canonical local units, finite quantities, no rejected writes, explicit deviation, stale stock and lock cleanup.');
 const html=fs.readFileSync('index.html','utf8');
+const productionFields={};
+const productionField=id=>productionFields[id]||={value:'',textContent:'',innerHTML:'',hidden:false,checked:false,disabled:false,dataset:{},focus:()=>{}};
+const productionUi=vm.createContext({console,Date,Number,JSON,$:productionField,
+  document:{querySelectorAll:()=>[]},productionSaving:false,
+  esc:String,trim:value=>Number(value.toFixed(2)),num:value=>value===''||value==null?null:Number(value),
+  state:{local:'Trento Café'},CATALOG:{'Trento Café':[{codigo:'CAF001',nombre:'Café',unidad:'kg',stock_actual:5}]},
+  ensureProdDrafts:()=>({items:{selected:'7'}}),ensureProdSelection:()=>['selected'],
+  prodCatalogRecord:()=>({codigo:'CAF001',nombre:'Café',unidad:'kg',categoria:''}),
+  toast:()=>{},requireLiveWrite:()=>true,capabilityEnabled:()=>true,
+  clearProdDrafts:()=>{},renderProduccionModule:()=>{},renderStockIntelligence:()=>{},
+  renderDashboard:()=>{},renderWorkspaceStats:()=>{},queueBootstrapRefresh:()=>{},syncWriteAvailability:()=>{}
+});
+const productionUiRun=code=>vm.runInContext(code,productionUi);
+const reviewStart=html.indexOf('function productionQuantity('),reviewEnd=html.indexOf('function renderElaboradosModule(',reviewStart);
+vm.runInContext(html.slice(reviewStart,reviewEnd),productionUi);
+const saveStart=html.indexOf('async function saveProduction('),saveEnd=html.indexOf('async function saveElaborados(',saveStart);
+vm.runInContext(html.slice(saveStart,saveEnd),productionUi);
+const sentProductions=[];
+productionUi.apiPost=async payload=>{sentProductions.push(JSON.parse(JSON.stringify(payload)));};
+productionUi.confirmOperationPersisted=async()=>true;
+productionUi.applyProductionOptimistic=(local)=>{productionUi.appliedLocal=local;};
+productionUi.backendGet=async(action,params)=>productionRun(`getProductionReview_(${JSON.stringify({local:params.local,items:JSON.parse(params.items)})})`);
+productionField('#prodNombre').value='Fixture sin envío real';
+productionField('#prodSave').textContent='Guardar producción';
+productionRun('catalogCells[1][8]=5');
+(async()=>{
+  productionUiRun('renderProductionReview()');
+  await productionUiRun('saveProduction()');
+  assert.equal(sentProductions.length,0,'UI cannot post an unacknowledged deviation');
+  assert.match(productionField('#prodSaveError').textContent,/Confirmá el desvío/);
+  productionField('#prodStockConfirm').checked=true;
+  await productionUiRun('saveProduction()');
+  assert.equal(sentProductions.length,0,'A checked box without an observation still blocks');
+  productionField('#prodObs').value='Consumo comprobado en prueba local';
+  productionField('#prodStockConfirm').checked=true;
+  productionRun('catalogCells[1][8]=4');
+  await productionUiRun('saveProduction()');
+  assert.equal(sentProductions.length,0,'Fresh server stock resets prior UI consent');
+  assert.equal(productionField('#prodStockConfirm').checked,false);
+  productionField('#prodStockConfirm').checked=true;
+  await productionUiRun('saveProduction()');
+  assert.equal(sentProductions.length,1);
+  assert.equal(sentProductions[0].stock_review_confirmed,true);
+  assert.equal(productionUi.appliedLocal,'Trento Café');
+  productionUi.backendGet=async(action,params)=>{productionUi.state.local='Umo Grill';return {ok:true,rows:[],warnings:[],errors:[],signature:'[]'};};
+  await productionUiRun('saveProduction()');
+  assert.equal(sentProductions.length,1,'Switching local during the review never posts the old draft');
+  productionUi.PRODUCCION={byLocal:{},latest:[]};
+  productionUi.stockKey=(code,name)=>`${code}|${name}`;
+  productionUi.CATALOG['Trento Café'][0].stock_actual='';
+  const optimisticStart=html.indexOf('function applyProductionOptimistic('),optimisticEnd=html.indexOf('function applyElabOptimistic(',optimisticStart);
+  vm.runInContext(html.slice(optimisticStart,optimisticEnd),productionUi);
+  productionUiRun("applyProductionOptimistic('Trento Café',{items:[{codigo:'CAF001',insumo:'Café',unidad:'kg',cantidad_usada:2}]})");
+  assert.equal(productionUi.CATALOG['Trento Café'][0].stock_actual,'','Optimistic UI also preserves an unknown balance');
+  console.log('Production UI review passed: no unreviewed posts, reason required, fresh stock reconfirmation and local isolation. No live writes.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
 const ctx=vm.createContext({console,
   esc:value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;'),
   num:value=>{const n=parseFloat(String(value).replace(',','.'));return Number.isFinite(n)?n:null;},

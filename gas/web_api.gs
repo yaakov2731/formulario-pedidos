@@ -3,6 +3,11 @@
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'ping';
   try {
+    if (action === 'getProductionReview') {
+      var rawItems = String((e && e.parameter && e.parameter.items) || '[]');
+      if (rawItems.length > 20000) return webResponse_({ ok: false, errors: ['Demasiados insumos'], rows: [], warnings: [] }, e);
+      return webResponse_(getProductionReview_({ local: e.parameter.local, items: JSON.parse(rawItems) }), e);
+    }
     if (action === 'getBootstrap') {
       return webResponse_(getBootstrapPayload_((e && e.parameter && e.parameter.scope) || 'full'), e);
     }
@@ -53,9 +58,9 @@ function doPost(e) {
     if (data.action === 'addProducto')   { return json(addProductoCatalogo_(data)); }
     if (data.action === 'updateProducto'){ return json(updateProductoCatalogo_(data)); }
     if (data.action === 'addResponsable'){ return json(addResponsableConfig_(data)); }
-    if (data.action === 'saveStock')     { return json(saveStockConteo_(data)); }
-    if (data.action === 'saveReception') { return json(saveRecepcion_(data)); }
-    if (data.action === 'saveProduction'){ return json(saveProduccion_(data)); }
+    if (data.action === 'saveStock')     { return json(withStockMutationLock_(function () { return saveStockConteo_(data); })); }
+    if (data.action === 'saveReception') { return json(withStockMutationLock_(function () { return saveRecepcion_(data); })); }
+    if (data.action === 'saveProduction'){ return json(withStockMutationLock_(function () { return saveProduccion_(data); })); }
     if (data.action === 'saveElaborados'){ return json(saveElaboradosConteo_(data)); }
     return json(savePedido_(data));
   } catch (err) {
@@ -373,6 +378,7 @@ function appCapabilities_() {
     stock: true,
     recepcion: true,
     produccion: true,
+    production_stock_review: true,
     elaborados: true,
     elaborados_report: true,
     catalog_product_status: true,

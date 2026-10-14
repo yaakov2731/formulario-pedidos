@@ -1807,6 +1807,14 @@ html,body,.app-main{background:var(--bg)}
 .order-workspace .order-category small{font-variant-numeric:tabular-nums;font-size:10px;opacity:.65}
 .order-workspace-products{min-width:0}
 .order-mobile-section{display:none}
+#prodStockReview{border:0;border-top:1px solid var(--line);padding:12px 0;background:transparent;box-shadow:none;border-radius:0;font-variant-numeric:tabular-nums}
+#prodGrid .op-row{grid-template-columns:minmax(0,1fr) 86px 44px;align-items:center;gap:8px}
+#prodGrid .icon-btn{width:44px;height:44px;min-height:44px;padding:10px;display:grid;place-items:center;border:1px solid var(--line);border-radius:3px;box-shadow:none;background:var(--surface)}
+#prodGrid .icon-btn svg{width:18px;height:18px;display:block}
+#prodStockReview p{white-space:normal;text-wrap:pretty}
+#prodStockConfirmWrap label{display:flex;align-items:flex-start;gap:10px;min-height:44px;white-space:normal;text-transform:none;font-size:12px}
+#prodStockConfirm{width:18px;height:18px;min-height:18px;flex-shrink:0}
+#prodSaveError{color:var(--red);white-space:normal}
 .bar.tab-panel[data-tab="pedido"]{background:var(--surface);border:1px solid var(--line);padding:10px 16px;box-shadow:none}
 .order-workspace .catalog-tools{margin:0 0 10px;display:flex;justify-content:flex-end}
 .order-workspace .quick-pick{margin:0;border:0;background:transparent;box-shadow:none}
@@ -2146,6 +2154,9 @@ html,body,.app-main{background:var(--bg)}
         <span class="snum" id="prodCatalogMeta"></span>
         <div class="op-grid" id="prodGrid"></div>
         <button class="ghost" id="prodMore" type="button" hidden>Cargar más</button>
+        <section id="prodStockReview" aria-label="Revisión del consumo" aria-live="polite" hidden></section>
+        <div id="prodStockConfirmWrap" class="field" hidden><label for="prodStockConfirm"><input id="prodStockConfirm" type="checkbox"> Revisé las unidades y el saldo. Confirmo el consumo con el desvío indicado en Observaciones.</label></div>
+        <p id="prodSaveError" class="hint" role="alert" hidden></p>
         <div class="op-actions">
           <button class="cfg-btn alt" id="prodClear" type="button">Limpiar carga</button>
           <button class="cfg-btn" id="prodSave" type="button">Guardar producción</button>
@@ -2496,6 +2507,7 @@ let pedidoDraftsByLocal = {};
 /* ---- State ---- */
 const state = { local:"", urgencia:"Normal", items:[], encTouched:false, emailTouched:false, tab:"home", pedidoStep:"productos", admin:false };
 let uid = 0;
+let productionSaving = false;
 let bootstrapRefreshTimer = null;
 let orderCategory = "Recomendados";
 let orderSort = "recommended";
@@ -4113,7 +4125,7 @@ function renderProduccionModule(){
         <div class="op-row-name">${esc(item.nombre)}</div>
         <div class="op-row-meta">${esc(item.categoria||"Sin categoría")}${item.proveedor?` · ${esc(item.proveedor)}`:""} · ${esc(item.unidad||"unidad")}</div>
       </div>
-      <input type="number" step="0.1" value="${drafts.items[key]||""}" data-field="produccion" placeholder="0">
+      <input type="number" min="0" step="0.1" inputmode="decimal" aria-label="Consumo de ${esc(item.nombre)} en ${esc(item.unidad||'unidad')}" value="${drafts.items[key]||""}" data-field="produccion" placeholder="0">
       <button type="button" class="icon-btn" data-prod-remove="${esc(key)}" aria-label="Quitar insumo">${icoTrash}</button>
     </div>`;
   }).join("") : `<div class="stock-empty">Todavía no agregaste insumos. Buscalos arriba y sumalos al parte.</div>`;
@@ -4121,6 +4133,59 @@ function renderProduccionModule(){
   $("#prodMeta").textContent = filled
     ? `${filled} insumo${filled===1?"":"s"} con cantidad cargada`
     : (selected.length ? `${selected.length} insumo${selected.length===1?"":"s"} seleccionado${selected.length===1?"":"s"}` : "Sumá los insumos usados");
+  $("#prodStockConfirm").checked=false;
+  renderProductionReview();
+  if(productionSaving) setProductionBusy(true);
+}
+
+function productionQuantity(value){
+  if(value===null||value===undefined||String(value).trim()==="") return null;
+  const number=Number(String(value).trim().replace(",","."));
+  return Number.isFinite(number)?number:null;
+}
+function setProductionBusy(busy){
+  productionSaving=busy;
+  document.querySelectorAll('[data-tab="produccion"] input,[data-tab="produccion"] button,[data-tab="produccion"] select').forEach(control=>{
+    if(busy){
+      if(control.dataset.productionWasDisabled===undefined) control.dataset.productionWasDisabled=String(control.disabled);
+      control.disabled=true;
+    }else if(control.dataset.productionWasDisabled!==undefined){
+      control.disabled=control.dataset.productionWasDisabled==="true";
+      delete control.dataset.productionWasDisabled;
+    }
+  });
+}
+function selectedProductionItems(local){
+  const drafts=ensureProdDrafts(local);
+  return ensureProdSelection(local).map(key=>{
+    const item=prodCatalogRecord(local,key)||{};
+    const value=drafts.items[key];
+    const qty=productionQuantity(value);
+    return {codigo:item.codigo||"",insumo:item.nombre||"",categoria:item.categoria||"",unidad:item.unidad||"unidad",cantidad_usada:qty===null?value:qty};
+  }).filter(item=>String(item.cantidad_usada??"").trim()!==""&&item.cantidad_usada!==0);
+}
+function localProductionReview(local,items){
+  const rows=[],warnings=[],errors=[];
+  items.forEach(item=>{
+    const record=(CATALOG[local]||[]).find(row=>row.codigo===item.codigo&&row.nombre===item.insumo);
+    const qty=productionQuantity(item.cantidad_usada);
+    if(!record||qty===null||qty<=0){errors.push(`${item.insumo||item.codigo}: revisá la cantidad positiva y el producto del local.`);return;}
+    const stock=num(record.stock_actual);
+    const row={...item,cantidad_usada:qty,disponible:stock,proyectado:stock===null?null:trim(stock-qty)};
+    rows.push(row);
+    if(stock===null||stock<0||qty>stock) warnings.push({...row,motivo:stock===null?"Sin stock confirmado":stock<0?"Saldo actual negativo":"Consumo mayor al stock"});
+  });
+  return {rows,warnings,errors,signature:JSON.stringify(rows.map(row=>[row.codigo,row.insumo,row.unidad,row.cantidad_usada,row.disponible]))};
+}
+function renderProductionReview(review){
+  const panel=$("#prodStockReview"),confirm=$("#prodStockConfirmWrap");
+  if(!panel||!confirm) return;
+  review=review||localProductionReview(state.local,selectedProductionItems(state.local));
+  review={...review,rows:Array.isArray(review.rows)?review.rows:[],warnings:Array.isArray(review.warnings)?review.warnings:[],errors:Array.isArray(review.errors)?review.errors:review.error?[review.error]:[]};
+  panel.hidden=!(review.rows.length||review.errors.length);
+  panel.dataset.reviewSignature=review.signature||"";
+  panel.innerHTML=`<strong>Antes de guardar el consumo</strong>${review.rows.map(row=>`<p class="hint">${esc(row.insumo)} · usar ${esc(row.cantidad_usada)} ${esc(row.unidad)} · saldo ${row.disponible===null?"sin conteo":esc(row.disponible)+" "+esc(row.unidad)} · después ${row.proyectado===null?"sin conteo":esc(row.proyectado)+" "+esc(row.unidad)}</p>`).join("")}${review.warnings.map(row=>`<p class="hint">${esc(row.motivo)}: ${esc(row.insumo)}. Revisá cantidad y unidad; no se convierten gramos, kg o litros automáticamente.</p>`).join("")}${review.errors.map(error=>`<p class="hint" role="alert">${esc(error)}</p>`).join("")}`;
+  confirm.hidden=!review.warnings.length;
 }
 
 function renderElaboradosModule(){
@@ -4424,27 +4489,17 @@ async function loadReceptionFromPhoto(file){
 async function saveProduction(){
   if(!state.local){ toast("Elegí un local primero","err"); return; }
   if(!requireLiveWrite("La producción")) return;
-  if(!capabilityEnabled("produccion")){
-    toast("Producción bloqueada: el Apps Script publicado todavía no tiene V2","err");
+  if(!capabilityEnabled("produccion")||!capabilityEnabled("production_stock_review")){
+    toast("La revisión de stock del servidor no está disponible. La producción no se enviará.","err");
     return;
   }
   if(!$("#prodNombre").value.trim()){ toast("Indicá el producto elaborado","err"); $("#prodNombre").focus(); return; }
   const drafts=ensureProdDrafts(state.local);
-  const items=ensureProdSelection(state.local).map(key=>{
-    const item=prodCatalogRecord(state.local, key);
-    const rec=item || {};
-    return {
-      codigo:rec.codigo||"",
-      insumo:rec.nombre||"",
-      categoria:rec.categoria||"",
-      unidad:rec.unidad||"unidad",
-      cantidad_usada:drafts.items[key]||""
-    };
-  }).filter(it=>num(it.cantidad_usada)>0);
+  const items=selectedProductionItems(state.local);
   if(!items.length){ toast("Cargá al menos un insumo consumido","err"); return; }
   const payload={
     action:"saveProduction",
-    id_produccion:"PROD"+Date.now().toString().slice(-6),
+    id_produccion:"PROD"+Date.now().toString()+"-"+Math.random().toString(36).slice(2,10),
     fecha_hora:new Date().toLocaleString("es-AR"),
     local:state.local,
     rebuild_views:false,
@@ -4457,22 +4512,42 @@ async function saveProduction(){
   };
   const btn=$("#prodSave"), orig=btn.textContent;
   btn.disabled=true; btn.textContent="Guardando...";
+  const error=$("#prodSaveError");
+  error.hidden=true;
+  setProductionBusy(true);
   try{
+    const review=await backendGet("getProductionReview",{local:payload.local,items:JSON.stringify(items)});
+    if(state.local!==payload.local||JSON.stringify(selectedProductionItems(payload.local))!==JSON.stringify(items)||$("#prodNombre").value.trim()!==payload.producto_elaborado||$("#prodObs").value.trim()!==payload.observaciones) throw new Error("La carga cambió durante la revisión. Revisá y volvé a guardar.");
+    if(!review||!review.ok){renderProductionReview(review||{rows:[],warnings:[],errors:["No se pudo revisar el stock"]});throw new Error((review&&review.errors||[]).join("; ")||"No se pudo revisar el stock");}
+    const unchanged=$("#prodStockReview").dataset.reviewSignature===review.signature;
+    renderProductionReview(review);
+    if(!unchanged) $("#prodStockConfirm").checked=false;
+    if(review.warnings.length&&(!$("#prodStockConfirm").checked||!payload.observaciones)) throw new Error("Revisá los saldos y las unidades. Confirmá el desvío y explicalo en Observaciones antes de guardar.");
+    payload.stock_review_confirmed=$("#prodStockConfirm").checked;
+    payload.stock_review_signature=review.signature;
     await apiPost(payload);
     const confirmed=await confirmOperationPersisted("production",payload.id_produccion);
     if(!confirmed) throw new Error("La producción no fue confirmada por Google Sheets");
-    applyProductionOptimistic(state.local, payload);
-    clearProdDrafts(state.local);
+    review.rows.forEach(row=>{
+      const item=(CATALOG[payload.local]||[]).find(item=>item.codigo===row.codigo&&item.nombre===row.insumo);
+      if(item) item.stock_actual=row.disponible===null?"":row.disponible;
+    });
+    applyProductionOptimistic(payload.local, payload);
+    clearProdDrafts(payload.local);
     toast("Producción registrada","ok");
     renderProduccionModule();
     renderStockIntelligence();
     renderDashboard();
     renderWorkspaceStats();
     queueBootstrapRefresh(900);
-  }catch{
+  }catch(err){
+    error.textContent=err.message||"No se confirmó el guardado. La carga se conserva.";
+    error.hidden=false;
     toast("Error al guardar producción","err");
   }finally{
+    setProductionBusy(false);
     btn.disabled=false; btn.textContent=orig;
+    syncWriteAvailability();
   }
 }
 
@@ -5432,7 +5507,8 @@ function applyProductionOptimistic(local, payload){
   (CATALOG[local]||[]).forEach(item=>{
     const used=map.get(stockKey(item.codigo,item.nombre));
     if(!used) return;
-    item.stock_actual = trim((num(item.stock_actual)||0) - used);
+    const before=num(item.stock_actual);
+    item.stock_actual = before===null?"":trim(before-used);
   });
   if(!PRODUCCION.byLocal) PRODUCCION.byLocal={};
   if(!PRODUCCION.latest) PRODUCCION.latest=[];
@@ -5886,6 +5962,8 @@ $("#prodGrid").addEventListener("input",e=>{
   if(!row || !state.local) return;
   const key=row.dataset.key || stockKey(row.dataset.code||"", row.dataset.name||"");
   ensureProdDrafts(state.local).items[key] = e.target.value;
+  $("#prodStockConfirm").checked=false;
+  renderProductionReview();
   scheduleDraftSave();
   renderProdCardsOnly(state.local);
   renderWorkspaceStats();

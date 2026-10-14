@@ -163,12 +163,61 @@ function saveRecepcion_(d) {
   return { ok: true, id_recepcion: recepcionId, rows: rows.length };
 }
 
+function getProductionReview_(d) {
+  var local = normalizeLocalName_(d.local);
+  if (!local || !Array.isArray(d.items) || d.items.length > 200) return { ok: false, errors: ['Local o insumos inválidos'], rows: [], warnings: [] };
+  var catalog = readCatalog_()[local] || [];
+  var rows = [], errors = [], warnings = [], seen = {};
+  d.items.forEach(function (it) {
+    if (!it || typeof it !== 'object') { errors.push('Insumo inválido'); return; }
+    var candidates = catalog.filter(function (item) {
+      return it.codigo ? String(item.codigo) === String(it.codigo) : normalizeLooseText_(item.nombre) === normalizeLooseText_(it.insumo || it.producto);
+    });
+    if (candidates.length !== 1) { errors.push('Insumo inexistente o ambiguo en ' + local + ': ' + (it.codigo || it.insumo || 'sin nombre')); return; }
+    var item = candidates[0];
+    if (typeof it.cantidad_usada !== 'number' && typeof it.cantidad_usada !== 'string') { errors.push(item.nombre + ': cantidad inválida'); return; }
+    var qty = typeof it.cantidad_usada === 'number' ? it.cantidad_usada : Number(String(it.cantidad_usada == null ? '' : it.cantidad_usada).trim().replace(',', '.'));
+    if (!isFinite(qty) || qty <= 0) { errors.push(item.nombre + ': indicá una cantidad positiva'); return; }
+    if (normalizeLooseText_(it.unidad) !== normalizeLooseText_(item.unidad)) { errors.push(item.nombre + ': la unidad del catálogo es ' + item.unidad + ', no ' + (it.unidad || 'sin unidad')); return; }
+    var key = keyFor_(local, item.codigo, item.nombre);
+    if (seen[key]) { errors.push(item.nombre + ': insumo repetido'); return; }
+    seen[key] = true;
+    var stock = numberOrNull_(item.stock_actual);
+    if (stock !== null && !isFinite(stock)) stock = null;
+    var row = { codigo: item.codigo, insumo: item.nombre, categoria: item.categoria, unidad: item.unidad, cantidad_usada: qty,
+      disponible: stock, proyectado: stock === null ? null : round2_(stock - qty) };
+    rows.push(row);
+    if (stock === null || stock < 0 || qty > stock) {
+      warnings.push({ codigo: item.codigo, insumo: item.nombre, unidad: item.unidad,
+        disponible: stock, cantidad_usada: qty, proyectado: row.proyectado,
+        motivo: stock === null ? 'Sin stock confirmado' : stock < 0 ? 'Saldo actual negativo' : 'Consumo mayor al stock' });
+    }
+  });
+  return { ok: errors.length === 0, local: local, rows: rows, errors: errors, warnings: warnings,
+    signature: JSON.stringify(rows.map(function (row) { return [row.codigo, row.insumo, row.unidad, row.cantidad_usada, row.disponible]; })) };
+}
+
+function withStockMutationLock_(callback) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { ok: false, error: 'Otro guardado está en curso. Reintentá con el mismo borrador.' };
+  try { return callback(); }
+  finally { try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); } }
+}
+
 function saveProduccion_(d) {
   if (!d.local) return { ok: false, error: 'Falta local' };
   if (!d.items || !d.items.length) return { ok: false, error: 'Faltan insumos de producción' };
   d.local = normalizeLocalName_(d.local);
+  var review = getProductionReview_(d);
+  if (!review.ok) return { ok: false, error: review.errors.join('; '), production_review: review };
+  if (d.stock_review_signature && d.stock_review_signature !== review.signature) return { ok: false, error: 'El stock cambió desde la revisión. Volvé a revisar el mismo borrador.', production_review: review };
+  if (review.warnings.length && (d.stock_review_confirmed !== true || !String(d.observaciones || '').trim() || d.stock_review_signature !== review.signature)) {
+    return { ok: false, error: 'Revisá stock, unidad y consumo. Confirmá el desvío y explicalo en Observaciones.', production_review: review };
+  }
+  // Persist and subtract only canonical local products, in their original unit.
+  d.items = review.rows;
 
-  var produccionId = d.id_produccion || ('PROD' + new Date().getTime().toString().slice(-6));
+  var produccionId = d.id_produccion || ('PROD' + new Date().getTime().toString());
   var fechaHora = d.fecha_hora || new Date().toLocaleString('es-AR');
   var rows = [];
 
@@ -189,7 +238,7 @@ function saveProduccion_(d) {
       cantidadUsada,
       numberOrZero_(d.cantidad_producida, 0),
       'Producido',
-      d.observaciones || it.observaciones || ''
+      review.warnings.length ? 'Revisión de stock confirmada: ' + review.warnings.map(function (warning) { return warning.insumo + ': saldo previo ' + (warning.disponible === null ? 'sin conteo' : warning.disponible + ' ' + warning.unidad); }).join('; ') + '. ' + d.observaciones : d.observaciones || it.observaciones || ''
     ]);
   });
 
@@ -363,6 +412,7 @@ function descontarProduccionDelCatalogo_(local, items, fechaHora, productoElabor
     if (qty === null || qty <= 0) return;
     map[keyFor_(local, it.codigo, it.insumo || it.producto)] = qty;
   });
+  var iEstado = idx_(head, ['estado']);
 
   var changedStock = false;
   var changedFecha = false;
@@ -372,8 +422,11 @@ function descontarProduccionDelCatalogo_(local, items, fechaHora, productoElabor
     var key = keyFor_(values[r][iLocal], iCod > -1 ? values[r][iCod] : '', iNom > -1 ? values[r][iNom] : '');
     var useQty = map[key];
     if (!useQty) continue;
+    var estado = iEstado > -1 ? String(values[r][iEstado] || '').toLowerCase() : '';
+    if (estado.indexOf('inactiv') > -1 || estado.indexOf('baja') > -1) continue;
     changedRows.push(r + 1);
-    values[r][iStock] = round2_(numberOrZero_(values[r][iStock], 0) - useQty);
+    var before = numberOrNull_(values[r][iStock]);
+    values[r][iStock] = before === null ? '' : round2_(before - useQty);
     changedStock = true;
     if (iFecha > -1) {
       values[r][iFecha] = fechaHora;

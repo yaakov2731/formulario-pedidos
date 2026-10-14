@@ -51,7 +51,18 @@ async function main() {
   const bootstrap = await getJson(`${scriptUrl}?action=getBootstrap`);
   expect(bootstrap && bootstrap.ok === true, "bootstrap responded", "bootstrap did not return ok:true");
   expect(bootstrap && bootstrap.version, "bootstrap version present", "bootstrap version missing");
-  expect(bootstrap && bootstrap.version === "2.9.2", "bootstrap unit review version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.2`);
+  expect(bootstrap && bootstrap.version === "2.9.3", "bootstrap production review version live", `bootstrap version is ${bootstrap && bootstrap.version}, expected 2.9.3`);
+  expect(!!(bootstrap.capabilities && bootstrap.capabilities.production_stock_review), "production stock review enabled", "production stock review missing");
+  const productionLocal=Object.keys(bootstrap.catalog||{}).find(local=>(bootstrap.catalog[local]||[]).some(item=>item.codigo));
+  const productionItem=(bootstrap.catalog[productionLocal]||[]).find(item=>item.codigo);
+  if(productionItem){
+    const reviewItems=[{codigo:productionItem.codigo,unidad:productionItem.unidad,cantidad_usada:0.01}];
+    const review=await getJson(`${scriptUrl}?action=getProductionReview&local=${encodeURIComponent(productionLocal)}&items=${encodeURIComponent(JSON.stringify(reviewItems))}`);
+    expect(review.ok&&Array.isArray(review.rows)&&review.rows.length===1&&typeof review.signature==='string',"production review reads canonical product without writes","production review failed");
+    reviewItems[0].unidad='__unidad_incompatible__';
+    const invalid=await getJson(`${scriptUrl}?action=getProductionReview&local=${encodeURIComponent(productionLocal)}&items=${encodeURIComponent(JSON.stringify(reviewItems))}`);
+    expect(!invalid.ok&&invalid.errors.length>0,"production review rejects incompatible unit without writes","production unit validation failed");
+  }
   expect(!!(bootstrap.capabilities && bootstrap.capabilities.demand_unit_review), "demand unit review enabled", "demand unit review missing");
   const reviews = (bootstrap.snapshot && bootstrap.snapshot.demandReviewsByLocal) || {};
   Object.entries(reviews).forEach(([local, rows]) => {

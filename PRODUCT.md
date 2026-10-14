@@ -73,6 +73,31 @@ se incorporan al borrador y requieren la confirmación del encargado para enviar
 
 Validación de esta regla: `node scripts/verify-par.js`, con planilla en memoria.
 
+## Revisión del consumo de producción
+
+Antes de enviar un parte, la app consulta el catálogo actual mediante
+`getProductionReview`, un endpoint de sólo lectura. Valida productos del local,
+unidad original y cantidades positivas finitas; no convierte gramos a kg ni
+interpreta cantidades con texto. Muestra disponible, consumo y saldo posterior.
+Un saldo desconocido, negativo o insuficiente exige confirmación explícita y
+una observación. Un cambio de cantidad, local o lectura de stock exige revisar
+de nuevo. Los controles de producción quedan bloqueados mientras se revisa y guarda.
+
+El servidor vuelve a validar al guardar, usa nombres/unidades canónicos y
+rechaza una firma de revisión desactualizada. Los desvíos aceptados conservan
+saldo previo y explicación en las observaciones del movimiento. Si no existe
+saldo numérico, registra el consumo pero conserva el saldo como desconocido;
+no inventa un conteo cero. Los saldos negativos previos no se corrigen solos.
+
+Las rutas web de Stock, Recepción y Producción comparten un bloqueo de script
+durante su escritura, usando
+[LockService](https://developers.google.com/apps-script/reference/lock/lock-service).
+Esto evita que esas rutas se ejecuten simultáneamente; no ofrece rollback ni
+protege ediciones manuales de la planilla o rutas administrativas externas.
+La validación se prueba con los renderizadores y funciones reales en
+`scripts/verify-unit-quantities.js`, sin enviar registros reales. El verificador
+live prueba revisiones válidas e incompatibles mediante GET, sin movimientos.
+
 ## Guía de recepción
 
 Pedido, Recepción y el formulario existente de Stock comparten las secciones
