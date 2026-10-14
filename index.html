@@ -1620,6 +1620,7 @@ body,.app-main{background:var(--bg)}
 .stock-badge.none{background:var(--surface-2);color:var(--ink-faint)}
 .history-suggestion{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:5px 8px;border:1px solid color-mix(in srgb,var(--copper) 45%,var(--line));border-radius:999px;background:#fffaf6;color:var(--brand-strong);font:inherit;font-size:10px;font-weight:750;cursor:pointer}
 .history-suggestion:hover{border-color:var(--copper);background:#fff}.history-suggestion i{font-style:normal;color:var(--copper)}
+.history-suggestion.covered{border-color:color-mix(in srgb,var(--green) 35%,var(--line));background:var(--green-tint);color:#28583f;cursor:default}
 .responsable-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}
 .responsable-control datalist{display:none}
 .responsable-add{min-height:44px;padding:0 12px;border:1px solid var(--brand);border-radius:10px;background:var(--brand-tint);color:var(--brand-strong);font:inherit;font-size:11px;font-weight:750;cursor:pointer}
@@ -2436,10 +2437,15 @@ function pedidoInsightForItem(item){
   return localMap[String(item.codigo||"").trim()]||localMap[`name:${normalizeLooseText(item.nombre||"")}`]||null;
 }
 function pedidoInsightButton(item){
-  const insight=pedidoInsightForItem(item), suggested=num(insight&&insight.cantidad_sugerida);
-  if(!(suggested>0)) return "";
+  const insight=pedidoInsightForItem(item), habitual=num(insight&&insight.cantidad_sugerida);
+  if(!(habitual>0)) return "";
+  const stock=num(item&&item.stock_actual);
+  const suggested=stock===null?habitual:Math.max(0,Math.round((habitual-stock)*100)/100);
   const direction=insight.tendencia==="subiendo"?"↑":insight.tendencia==="bajando"?"↓":"→";
-  return `<button type="button" class="history-suggestion" data-use-suggested="${esc(suggested)}" title="Mediana de los últimos pedidos compartidos"><i>${direction}</i> Habitual ${esc(trim(suggested))} ${esc(insight.unidad||item.unidad||"")} · ${esc(insight.pedidos)} pedido${Number(insight.pedidos)===1?"":"s"}</button>`;
+  const unit=insight.unidad||item.unidad||"";
+  if(!(suggested>0)) return `<span class="history-suggestion covered" title="El stock actual cubre la cantidad habitual"><i>✓</i> Cubierto · habitual ${esc(trim(habitual))} ${esc(unit)} · ${esc(insight.pedidos)}×</span>`;
+  const action=stock===null?"Usar habitual":`Pedir ${esc(trim(suggested))} ${esc(unit)}`;
+  return `<button type="button" class="history-suggestion" data-use-suggested="${esc(suggested)}" title="Cantidad habitual menos stock actual"><i>${direction}</i> ${action} · habitual ${esc(trim(habitual))} · ${esc(insight.pedidos)}×</button>`;
 }
 
 function scheduleDraftSave(){

@@ -148,6 +148,8 @@ function main() {
   expectContains(html, "d.pedido_intelligence", "shared order intelligence bootstrap");
   expectContains(html, "data-use-suggested", "shared habitual quantity action");
   expectContains(html, "Number(insight.pedidos)", "shared order history recommendation score");
+  expectContains(html, "habitual-stock", "stock-aware habitual order suggestion");
+  expectContains(html, "Cubierto · habitual", "covered habitual demand state");
   ["encargado", "recepEncargado", "prodEncargado", "elabEncargado", "stockEncargado"].forEach((id) => {
     expectRegex(html, new RegExp(`id="${id}"[^>]+list="${id}Options"`), `editable responsable combobox ${id}`);
     expectContains(html, `data-responsable-add="${id}"`, `inline responsable add ${id}`);
