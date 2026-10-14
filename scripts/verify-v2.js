@@ -107,6 +107,7 @@ function main() {
     "function saveProduction()",
     "function renderDashboard()",
     "function renderDecisionCenter()",
+    "function activityTimeLabel(value)",
     "function renderRecepcionModule()",
     "function renderProduccionModule()",
     "function renderElaboradosModule()",
@@ -157,6 +158,7 @@ function main() {
   expectContains(html, "SNAPSHOT.decisionCenterByLocal", "decision center reads live operational decisions");
   expectContains(html, "data-decision-add", "decision center can stage a suggested purchase");
   expectContains(html, "data-decision-stock", "decision center can open stock counting");
+  expectContains(html, "partes históricos", "dashboard labels accumulated production honestly");
   ["encargado", "recepEncargado", "prodEncargado", "elabEncargado", "stockEncargado"].forEach((id) => {
     expectRegex(html, new RegExp(`id="${id}"[^>]+list="${id}Options"`), `editable responsable combobox ${id}`);
     expectContains(html, `data-responsable-add="${id}"`, `inline responsable add ${id}`);
