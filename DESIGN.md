@@ -1,4 +1,24 @@
-# Diseño operativo · Docks del Puerto
+# Docks del Puerto · Cobalto
+
+## Revisión visual vigente: 14 de octubre de 2026
+
+Esta dirección reemplaza la paleta oliva documentada abajo. La skill impeccable
+orienta la jerarquía, los estados y el color con función. Registro: product.
+Encargados cargan desde el celular, dentro del local y con luz de día: lectura
+clara, navegación oscura en escritorio y cobalto para acción y selección.
+
+Tokens OKLCH hacia 265 grados: fondo 97% .008, superficie 99.5% .003,
+tinta 25% .027, acción 48% .22, hover 39% .18 y navegación 24% .033.
+Verde, ámbar y rojo tienen funciones semánticas y siempre texto explicativo.
+Inicio agrupa alertas en filas y destaca sólo Nuevo pedido. Sin grilla de
+tarjetas decorativas, hero promocional ni métricas gigantes. Geist, títulos
+23–28 px, radios 7–10 px y controles de al menos 44 px. Catálogo en superficie
+clara continua; secciones laterales en escritorio y selector nativo en móvil.
+
+Se conservan contratos, IDs, unidades, borradores y confirmaciones existentes.
+El aviso de consentimiento externo para comprobantes sigue explícito.
+
+## Referencia anterior (sustituida visualmente)
 
 ## Dirección
 

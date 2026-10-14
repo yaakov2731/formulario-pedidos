@@ -48,7 +48,8 @@ function main() {
   else pass("favicon.svg present");
 
   const html = read(indexPath);
-  expectContains(html, 'Docks: mesa de trabajo, marfil y oliva', 'professional operational palette');
+  expectContains(html, 'Docks / Cobalto: sistema visual operativo', 'professional operational palette');
+  expectContains(html, 'data-design-version="docks-cobalto-v4"', 'coherent design version');
   expectContains(html, '<h2>Pedidos semanales</h2>', 'operational home title');
   expectContains(html, '.stock-card.metric,.stock-dash-card{padding:12px 0;border:0;', 'unboxed compact metrics');
   expectContains(html, 'body.compact-mobile-shell .home-pulse,body.compact-mobile-shell .local-action', 'mobile legacy card overrides disabled');
@@ -85,7 +86,7 @@ function main() {
     "id=\"prodMore\"",
     "id=\"elabRecentList\"",
     "id=\"shellSidebar\"",
-    "data-design-version=\"reference-handoff-v3-mobile-app\"",
+    "data-design-version=\"docks-cobalto-v4\"",
     "id=\"mobileTabbar\"",
     "data-mobile-more",
     "body.shell-menu-open,body.modal-open",
