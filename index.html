@@ -3959,7 +3959,7 @@ function renderDashboard(){
   const riskTotal=Math.max(localRisks.length, metrics.reviewRows.length, metrics.snapshotLocal.faltantes||0);
   $("#dashMeta").textContent = snapshotStampText() ? `${state.local} · ${snapshotStampText()}` : state.local;
   cards.innerHTML = [
-    metricCard("Riesgos activos", riskTotal, `${decisionSummary.comprar||0} compras · ${decisionSummary.contar||0} conteos`, riskTotal?"bad":"good"),
+    metricCard("Riesgos activos", riskTotal, `${decisionSummary.comprar||0} compras · ${decisionSummary.contar||0} revisiones`, riskTotal?"bad":"good"),
     metricCard("Pedido actual", state.items.length ? "Borrador" : "Sin cargar", quantitiesByUnitText(state.items,"qty","unidad"), state.items.length?"warn":""),
     metricCard("Recepciones", metrics.recepSummary.movimientos||0, "registros confirmados; cantidades en cada movimiento", "good"),
     metricCard("Producción", metrics.prodSummary.movimientos||0, "partes históricos; cantidades en cada registro", "warn")
@@ -4032,7 +4032,7 @@ function renderDecisionCenter(){
   list.innerHTML=rows.map(item=>{
     const catalogItem=(CATALOG[state.local]||[]).find(rec=>(item.codigo&&rec.codigo===item.codigo)||normalizeLooseText(rec.nombre)===normalizeLooseText(item.producto));
     const inOrder=catalogItem&&state.items.find(rec=>!rec.free&&rec.codigo===catalogItem.codigo);
-    const priority=item.type==="count"?"contar":item.prioridad||"media";
+    const priority=item.type==="count"?(item.review_type==="unidades"?"revisar":"contar"):item.prioridad||"media";
     const evidence=item.type==="count"
       ? `<b>${item.review_type==="unidades"?"Medidas por revisar":"Falta conteo real"}</b><small>${esc(item.razon||"")}${item.pendiente?` · ${esc(trim(item.pendiente))} ${esc(item.unidad||"")} pendiente`:""}</small>`
       : `<b>Pedir ${esc(trim(item.cantidad_sugerida))} ${esc(item.unidad||"")}</b><small>Stock ${esc(trim(item.stock))} · abierto ${esc(trim(item.pendiente))} · habitual ${esc(trim(item.habitual))}${num(item.stock_objetivo)!==null?` · par ${esc(trim(num(item.stock_objetivo)))}`:""}</small><small>${esc(item.razon||"")}</small>`;
