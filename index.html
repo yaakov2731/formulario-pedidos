@@ -1806,6 +1806,8 @@ html,body,.app-main{background:var(--bg)}
 .order-workspace .order-category[aria-pressed="true"]{background:var(--brand-tint);color:var(--brand-dark);font-weight:650}
 .order-workspace .order-category small{font-variant-numeric:tabular-nums;font-size:10px;opacity:.65}
 .order-workspace-products{min-width:0}
+.order-mobile-section{display:none}
+.bar.tab-panel[data-tab="pedido"]{background:var(--surface);border:1px solid var(--line);padding:10px 16px;box-shadow:none}
 .order-workspace .catalog-tools{margin:0 0 10px;display:flex;justify-content:flex-end}
 .order-workspace .quick-pick{margin:0;border:0;background:transparent;box-shadow:none}
 .order-workspace .quick-pick-head{padding:8px 0 14px;border-bottom:1px solid var(--ink);background:transparent}
@@ -1821,6 +1823,9 @@ html,body,.app-main{background:var(--bg)}
 .pedido-progress .pedido-step-btn{background:transparent;border:0;border-radius:0;box-shadow:none;min-height:44px}
 .pedido-progress .pedido-step-btn[aria-pressed="true"]{border-bottom:2px solid var(--brand);background:transparent}
 @media(max-width:760px){
+  .order-mobile-section{display:grid;gap:6px;font-size:11px;color:var(--ink-soft)}
+  .order-mobile-section select{width:100%;min-height:44px;background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:10px;color:var(--ink);font:inherit;font-size:13px}
+  .order-workspace .order-categories{display:none}
   body.compact-mobile-shell .pedido-progress,body.compact-mobile-shell.compact-mobile-shell-xs .pedido-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:100%}
   body.compact-mobile-shell .pedido-progress .pedido-step-btn{border-radius:0;box-shadow:none;margin:0;font-size:11px;padding:10px 5px}
   body.compact-mobile-shell .pedido-shell-head{margin-bottom:8px}
@@ -1974,6 +1979,10 @@ html,body,.app-main{background:var(--bg)}
       <div class="suggest" id="suggest" role="listbox"></div>
     </div>
     <div class="order-workspace">
+    <div class="order-mobile-section">
+      <label for="orderMobileSection">Sección del catálogo</label>
+      <select id="orderMobileSection" disabled><option>Cargando catálogo</option></select>
+    </div>
     <nav class="order-categories" id="orderCategories" aria-label="Secciones del catálogo"></nav>
     <div class="order-workspace-products">
     <div class="catalog-tools">
@@ -2565,7 +2574,7 @@ function catalogDisplayName(item){
 function localHistoryExtras(local){
   const catalog=CATALOG[local]||[];
   const history=(PEDIDO_INTELLIGENCE.byLocal&&PEDIDO_INTELLIGENCE.byLocal[local])||{};
-  return Object.values(history).filter(row=>{
+  const rows=Object.values(history).filter(row=>{
     if(!row.producto||!(Number(row.pedidos)>0)) return false;
     // Un código vacío no autoriza recomendar un producto exclusivo de otro local.
     if(local==="Trento Café"&&!row.codigo&&/\b(asado|entrana|chinchulin|molleja|vacio|costillar|matambre|bife de chorizo)\b/.test(normalizeLooseText(row.producto))&&!catalog.some(item=>normalizeLooseText(item.nombre)===normalizeLooseText(row.producto))&&
@@ -2575,6 +2584,13 @@ function localHistoryExtras(local){
     return !catalog.some(item=>normalizeLooseText(item.unidad)===normalizeLooseText(row.unidad)&&
       ((row.codigo&&item.codigo===row.codigo)||normalizeLooseText(item.nombre)===normalizeLooseText(row.producto)));
   }).sort((a,b)=>(Number(b.pedidos)||0)-(Number(a.pedidos)||0)||String(b.ultima_fecha||"").localeCompare(String(a.ultima_fecha||"")));
+  const unique=new Map();
+  rows.forEach(row=>{
+    const key=`${normalizeLooseText(row.producto)}|${normalizeLooseText(row.unidad)}`;
+    if(unique.has(key)) unique.get(key).historyVariants++;
+    else unique.set(key,{...row,historyVariants:1});
+  });
+  return [...unique.values()];
 }
 
 function renderLocalHistoryExtras(){
@@ -3431,10 +3447,12 @@ function renderQuickCatalog(){
   const meta=$("#quickPickMeta");
   const categories=$("#orderCategories");
   const more=$("#orderMore");
+  const mobileSection=$("#orderMobileSection");
   if(!state.local){
     meta.textContent="Elegí un local";
     if(categories) categories.innerHTML="";
     if(more) more.hidden=true;
+    if(mobileSection){ mobileSection.disabled=true;mobileSection.innerHTML='<option>Elegí un local</option>'; }
     box.innerHTML=`<div class="quick-pick-empty">Seleccioná un local para sumar varios productos rápido.</div>`;
     return;
   }
@@ -3443,6 +3461,7 @@ function renderQuickCatalog(){
     meta.textContent="Esperando lectura del catálogo";
     categories.innerHTML="";
     more.hidden=true;
+    if(mobileSection){ mobileSection.disabled=true;mobileSection.innerHTML='<option>Esperando catálogo</option>'; }
     box.innerHTML='<div class="quick-pick-empty">El catálogo se mostrará cuando responda la planilla.</div>';
     $("#catHint").textContent="No se cargan productos de otro local mientras se comprueba la conexión.";
     return;
@@ -3469,6 +3488,11 @@ function renderQuickCatalog(){
   if(categories){
     const countFor=name=>name==="Todos"?cat.length:name==="Historial sin catalogar"?localHistoryExtras(state.local).length:name==="Recomendados"?smartRecommendationCount:name==="Otros del local"?cat.filter(item=>!isSmartRecommendation(item)).length:name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
     categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${name==="Recomendados"?"Frecuentes":esc(name)} <small>${countFor(name)}</small></button>`).join("");
+    if(mobileSection){
+      mobileSection.disabled=false;
+      mobileSection.innerHTML=categoryOptions.map(name=>`<option value="${esc(name)}" ${name===orderCategory?"selected":""}>${name==="Recomendados"?"Frecuentes":esc(name)} · ${countFor(name)}</option>`).join("");
+      mobileSection.onchange=()=>{ orderCategory=mobileSection.value;orderVisibleLimit=24;renderQuickCatalog(); };
+    }
     categories.querySelectorAll("[data-category]").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; orderVisibleLimit=24; renderQuickCatalog(); }));
     const moreCategories=categories.querySelector("[data-category-more]");
     if(moreCategories) moreCategories.addEventListener("click",()=>{ orderShowAllCategories=!orderShowAllCategories; renderQuickCatalog(); });
