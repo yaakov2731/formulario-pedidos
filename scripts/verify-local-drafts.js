@@ -52,6 +52,8 @@ readCatalog_=function(){return {'Trento Café':[{codigo:'CAF001'}]};};
 appendPedido_=function(){writes++;};appendDetalle_=function(){writes++;};
 notifyTelegramForPedido_=function(){writes++;return {ok:true};};
 refreshOperationalViews_=function(){};invalidateBootstrapCaches_=function(){};
+LockService={getScriptLock:function(){return {tryLock:function(){return true;},releaseLock:function(){}};}};
+SpreadsheetApp={flush:function(){}};findPedidoRowById_=function(){return null;};
 var payload={local:'Trento Café',encargado:'Encargado',email_encargado:'test@example.com',semana_pedido:'Semana 1',fecha_entrega:'2026-10-15',items:[{codigo:'PAR001',producto:'Aceite',cantidad:2}]};
 `,backend);
 assert.equal(vm.runInContext('savePedido_(payload).ok',backend),false);

@@ -2654,6 +2654,22 @@ function pedidoDraftFingerprint(draft){
   const {pedidoStep,encTouched,emailTouched,...content}=draft;
   return JSON.stringify(content);
 }
+// Un envío sin confirmar conserva su id_pedido: si el encargado vuelve a
+// tocar Enviar con el mismo borrador, la planilla lo reconoce y no duplica.
+const PEDIDO_PENDING_SEND_KEY = "docks-pedidos-pending-send-v1";
+function readPendingPedidoSend(local,fingerprint){
+  try{
+    const saved=JSON.parse(localStorage.getItem(PEDIDO_PENDING_SEND_KEY)||"null");
+    if(saved&&saved.local===local&&saved.fingerprint===fingerprint&&Date.now()-saved.saved_at<12*3600*1000) return saved.id_pedido;
+  }catch(_err){}
+  return "";
+}
+function writePendingPedidoSend(value){
+  try{
+    if(value) localStorage.setItem(PEDIDO_PENDING_SEND_KEY,JSON.stringify({...value,saved_at:Date.now()}));
+    else localStorage.removeItem(PEDIDO_PENDING_SEND_KEY);
+  }catch(_err){}
+}
 function setPedidoSendStatus(message){
   const status=$("#pedidoSendStatus");
   if(status){ status.textContent=message; status.hidden=!message; }
@@ -2666,6 +2682,36 @@ function pedidoStatusMatches(status,payload){
     &&pedido.encargado===payload.encargado&&pedido.semana===payload.semana_pedido
     &&JSON.stringify(tuples(status.items))===JSON.stringify(tuples(payload.items));
 }
+// La planilla escribe el pedido, avisa por Telegram y recién después redibuja
+// sus vistas. En paralelo al POST se consulta el id_pedido para confirmar
+// apenas la fila existe, sin esperar ese redibujo.
+async function waitPedidoConfirmation(payload,post,onPolling){
+  let settled=false,result=null;
+  const done=post.then(value=>{result=value;},()=>{}).then(()=>{settled=true;});
+  const fromPost=()=>{
+    if(result&&result.ok===false) return {ok:false,rejected:true,error:result.error};
+    if(result&&result.ok===true&&result.id_pedido===payload.id_pedido){
+      return {ok:true,telegramKnown:true,telegramOk:!!(result.telegram&&result.telegram.ok===true),duplicate:result.duplicate===true};
+    }
+    return null;
+  };
+  await Promise.race([done,sleep(1500)]);
+  let pollsAfterPost=0;
+  while(true){
+    if(settled){
+      const direct=fromPost();
+      if(direct){ if(direct.ok) queueBootstrapRefresh(120,"ops"); return direct; }
+      if(pollsAfterPost++>=8) return {ok:false};
+    }
+    if(onPolling){ onPolling(); onPolling=null; }
+    const status=await confirmPedidoPersisted(payload.id_pedido,1,0,payload);
+    if(status.ok){
+      const telegram=status.status&&status.status.telegram;
+      return {ok:true,telegramKnown:!!(telegram&&telegram.found),telegramOk:status.telegramOk};
+    }
+    await Promise.race([done,sleep(900)]);
+  }
+}
 async function submit(){
   if(pedidoSendBusy) return;
   if(!requireLiveWrite("El pedido")) return;
@@ -2675,8 +2721,9 @@ async function submit(){
   const productosTexto=items.map(i=>`${i.nombre} - ${trim(i.qty)} ${i.unidad}`).join(", ");
   const proveedores=[...new Set(items.map(i=>i.proveedor).filter(Boolean))].join(", ");
   const ahora=new Date();
+  const pendingId=readPendingPedidoSend(state.local,draftFingerprint);
   const payload={
-    id_pedido:"PED-"+ahora.getTime()+"-"+(typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)),
+    id_pedido:pendingId||"PED-"+ahora.getTime()+"-"+(typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)),
     fecha_hora:ahora.toLocaleString("es-AR"),
     local:state.local,
     encargado:$("#encargado").value.trim(),
@@ -2701,32 +2748,50 @@ async function submit(){
   };
   const btn=$("#send"); const orig=btn.innerHTML;
   pedidoSendBusy=true;
-  setPedidoSendStatus(`Enviando pedido de ${payload.local}.`);
+  writePendingPedidoSend({local:payload.local,fingerprint:draftFingerprint,id_pedido:payload.id_pedido});
+  setPedidoSendStatus(`Enviando pedido de ${payload.local}... No cierres la app.`);
   btn.disabled=true; btn.innerHTML=`<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Enviando...`;
+  const slowTimer=setTimeout(()=>setPedidoSendStatus(`La planilla está tardando con el pedido de ${payload.local}. Seguí esperando, no lo envíes de nuevo.`),6000);
+  const retryHint="Podés tocar Enviar otra vez: si ya había llegado, no se duplica.";
   try{
-    const backendResult = await apiPost(payload);
-    const confirmed = await confirmPedidoPersisted(payload.id_pedido,8,900,payload);
-    const telegramOk = !!(
-      (backendResult && backendResult.telegram && backendResult.telegram.ok === true) ||
-      (confirmed && confirmed.telegramOk === true)
-    );
+    const post=apiPostJson(payload);
+    const confirmed=await waitPedidoConfirmation(payload,post,()=>setPedidoSendStatus(`Confirmando en la planilla el pedido de ${payload.local}...`));
+    if(confirmed.rejected){
+      clearTimeout(slowTimer);
+      const reason=confirmed.error||"La planilla rechazó el pedido";
+      setPedidoSendStatus(`${reason}. Conservé el borrador.`);
+      toast(`${reason}. Conservé el borrador.`,"err");
+      return;
+    }
+    clearTimeout(slowTimer);
+    // Si la fila apareció antes de que Telegram quedara registrado, no se
+    // avisa una falla que todavía no ocurrió; se revisa cuando termine el POST.
+    const telegramOk = confirmed.telegramOk === true || confirmed.telegramKnown !== true;
+    if(confirmed.ok&&confirmed.telegramKnown!==true){
+      post.then(result=>{
+        if(result&&result.ok===true&&result.telegram&&result.telegram.ok===false&&!result.duplicate) toast(`Pedido ${payload.id_pedido} guardado, pero Telegram no confirmó la notificación.`,"err");
+      }).catch(()=>{});
+    }
     if(!confirmed.ok){
-      setPedidoSendStatus(`No se confirmó ${payload.id_pedido} de ${payload.local}. Conservé el borrador. Revisá la planilla antes de reenviar.`);
-      toast("No pude confirmar el pedido. Conservé el borrador; revisá la planilla antes de reenviar.","err");
+      setPedidoSendStatus(`No se confirmó ${payload.id_pedido} de ${payload.local}. Conservé el borrador. ${retryHint}`);
+      toast(`No pude confirmar el pedido. ${retryHint}`,"err");
     }else{
+      writePendingPedidoSend(null);
       const currentDraft=state.local===payload.local?capturePedidoDraft():pedidoDraftsByLocal[payload.local];
       const unchanged=pedidoDraftFingerprint(currentDraft)===draftFingerprint;
       recordCatalogUsage(payload.local,items);
       if(typeof rememberResponsable==="function") rememberResponsable(payload.local,payload.encargado,payload.email_encargado);
       if(unchanged) resetForm(payload.local);
-      const message=`Pedido ${payload.id_pedido} de ${payload.local} guardado.${unchanged?"":" Conservé los cambios que hiciste durante el envío."}${telegramOk?"":" Telegram no confirmó la notificación."}`;
+      const already=confirmed.duplicate===true?" Ya estaba en la planilla, no se duplicó.":"";
+      const message=`Pedido ${payload.id_pedido} de ${payload.local} guardado.${already}${unchanged?"":" Conservé los cambios que hiciste durante el envío."}${telegramOk?"":" Telegram no confirmó la notificación."}`;
       setPedidoSendStatus(message);
       toast(message,telegramOk?"ok":"err");
     }
   }catch{
-    setPedidoSendStatus(`No se pudo confirmar ${payload.id_pedido} de ${payload.local}. Conservé el borrador. Revisá la planilla antes de reenviar.`);
-    toast("Pedido sin confirmar. Revisá la planilla antes de reenviar.","err");
+    setPedidoSendStatus(`No se pudo confirmar ${payload.id_pedido} de ${payload.local}. Conservé el borrador. ${retryHint}`);
+    toast(`Pedido sin confirmar. ${retryHint}`,"err");
   }finally{
+    clearTimeout(slowTimer);
     pedidoSendBusy=false; btn.innerHTML=orig; syncSend();
   }
 }
@@ -3736,6 +3801,18 @@ function renderCfg(){
 async function apiPost(payload){
   if(!LIVE) throw new Error("Sin conexión con Apps Script");
   await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:OPAQUE_POST_HEADERS,body:JSON.stringify(payload)});
+}
+// Igual que apiPost pero lee la respuesta de Apps Script (text/plain no
+// dispara preflight). Si la respuesta no se puede leer devuelve null y el
+// llamador confirma por id: el POST pudo haber llegado igual.
+async function apiPostJson(payload, timeoutMs=45000){
+  if(!LIVE) throw new Error("Sin conexión con Apps Script");
+  try{
+    const res=await fetchWithTimeout_(SCRIPT_URL,{method:"POST",headers:OPAQUE_POST_HEADERS,body:JSON.stringify(payload)},timeoutMs);
+    return await res.json();
+  }catch(_err){
+    return null;
+  }
 }
 async function fetchWithTimeout_(url, opts={}, timeoutMs=15000){
   const ctrl = new AbortController();
