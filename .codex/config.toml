@@ -1,0 +1,20 @@
+# Enrutador del proyecto. Una selección explícita de la sesión puede prevalecer.
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+
+[agents]
+# Compatibilidad CLI 0.144.4: margen para coordinador + un agente.
+# AGENTS.md exige ejecución secuencial incluso si el cliente interpreta otro límite.
+max_threads = 2
+
+[agents.planificador_ia]
+description = "Planifica cambios complejos con Astra antes de ejecutar."
+config_file = "agents/planificador-ia.toml"
+
+[agents.ejecutor_ia]
+description = "Implementa planes definidos con Sol y ejecuta sus verificaciones."
+config_file = "agents/ejecutor-ia.toml"
+
+[agents.ejecutor_simple_ia]
+description = "Implementa cambios mecánicos claros con Luna."
+config_file = "agents/ejecutor-simple-ia.toml"

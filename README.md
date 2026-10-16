@@ -51,3 +51,11 @@ parte de una actualización habitual.
 Consultar [DEPLOY-V2.md](DEPLOY-V2.md) para las comprobaciones de cierre,
 [PRODUCT.md](PRODUCT.md) para los flujos y [DESIGN.md](DESIGN.md) para el diseño.
 No incluir planillas privadas, capturas operativas ni credenciales en Git.
+
+## Continuidad con herramientas de IA
+
+Leer `ESTADO.md` al retomar trabajo. [USO-IA.md](USO-IA.md) explica el protocolo
+de tareas, modelos y revisión de siete días. Las reglas están en `AGENTS.md` y
+`CLAUDE.md`; el registro personal de consumo y presupuesto queda en `.uso-ia/`,
+excluido de Git. `.codex/` y `.claude/` configuran modelos por rol para nuevas
+sesiones del proyecto; no modifican suscripciones.

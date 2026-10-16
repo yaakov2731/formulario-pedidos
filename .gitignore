@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 gas/.clasp.json
+
+# Registro personal de consumo y facturación de IA
+.uso-ia/
