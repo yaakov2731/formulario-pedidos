@@ -194,7 +194,7 @@ ctx.pedidoInsightForItem=()=>({cantidad_sugerida:10});
 ctx.CATALOG['Trento Café'][1].stock_actual=30;
 ctx.CATALOG['Trento Café'][1].stock_minimo=15;
 assert.match(run("pedidoInsightButton(CATALOG['Trento Café'][1])"),/data-use-suggested="110"/,'Open demand overrides a smaller habitual objective');
-assert.match(run("pedidoInsightButton(CATALOG['Trento Café'][1])"),/abierto 140/);
+assert.match(run("pedidoInsightButton(CATALOG['Trento Café'][1])"),/Pedir 110 litro/);
 ctx.SNAPSHOT.demandReviewsByLocal={'Trento Café':[{codigo:'CAF002'}]};
 assert.doesNotMatch(run("pedidoInsightButton(CATALOG['Trento Café'][1])"),/data-use-suggested/,'Unit review still blocks open-demand suggestions');
 console.log('Unit quantities passed: separate measures, no conversion, unit review blocks purchases, original references and no live writes.');
