@@ -132,16 +132,16 @@ body[data-connection="checking"] .dot{background:var(--line-strong)}
 
 /* ---------- Texto y encabezados de sección ---------- */
 .skicker{font-size:13px;font-weight:500;color:var(--muted);margin:0 0 2px}
-.shead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 0 14px}
+.shead{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 0 14px;text-align:center}
 .shead>div:first-child,.shead>h2,.shell-report-head>div{text-align:center}
-.shead>div:first-child{flex:1}
+.shead>div:first-child{width:100%}
 h2,h3{text-align:center}
 .shead h2{font-size:22px}
 .snum{font-size:13px;color:var(--muted);white-space:nowrap}
 .hint{font-size:13px;color:var(--muted);margin:8px 0 0}
 .foot{margin:48px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
 .foot b{font-weight:600;color:var(--ink-2)}
-.module-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.module-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
 .tab-panel{margin:0 0 28px}
 
 /* ---------- Botones ---------- */
@@ -193,7 +193,9 @@ input[type="checkbox"]{width:20px;height:20px;accent-color:var(--river);vertical
 /* ---------- Inicio ---------- */
 .home-hero-panel{display:grid;gap:16px;margin:8px 0 28px}
 .home-hero-copy h2{font-size:32px;line-height:1.05}
+.home-hero-copy{text-align:center}
 .home-hero-lede{margin-top:4px;color:var(--muted)}
+#localHubSub{text-align:center}
 .home-hero-copy .skicker{display:none}
 .locales{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .local{position:relative;display:flex;align-items:center;gap:10px;min-height:56px;padding:0 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);text-align:left;font:600 18px/1.15 var(--font-cond);transition:border-color .15s var(--ease)}
@@ -468,8 +470,8 @@ details>summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:8px 0}
 .event-copy small{font-size:13px;color:var(--muted)}
 
 /* ---------- Reportes ---------- */
-.shell-report-head{display:flex;align-items:flex-end;gap:12px;margin:0 0 14px}
-.shell-report-head>div{flex:1}
+.shell-report-head{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 0 14px;text-align:center}
+.shell-report-head>div{width:100%}
 .shell-report-head .skicker{display:none}
 .shell-report-head h2{font-size:26px}
 .shell-report-head p{color:var(--muted);font-size:14px}
