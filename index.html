@@ -23,7 +23,7 @@
   --ink-2:#3D4A46;
   --muted:#5D6A66;
   --line:#D2D9D6;
-  --line-strong:#AEB9B5;
+  --line-strong:#7F8C88;
   --river:#0F5C52;
   --river-hover:#0A473F;
   --river-tint:#E1EEEA;
@@ -64,7 +64,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 button:disabled{cursor:not-allowed}
 svg{stroke:currentColor}
-:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.shell-sidebar :focus-visible,.bar :focus-visible,.stock-action-bar :focus-visible,.local[aria-pressed="true"]:focus-visible{outline-color:var(--tape)}
+.shell-nav :focus-visible{outline-offset:-3px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 /* ---------- Shell ---------- */
@@ -347,7 +349,7 @@ details>summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:8px 0}
 .bar .nav-btn:hover,.bar .send:hover:not(:disabled){background:#FFD866;border-color:#FFD866}
 .bar .nav-btn.alt{min-width:0;background:transparent;border-color:#56635F;color:#fff}
 .bar .nav-btn.alt:hover{background:#2B3936}
-.bar .send:disabled{opacity:1;background:#3A4844;border-color:#3A4844;color:#93A19C}
+.bar .send:disabled,.bar .nav-btn[aria-disabled="true"]{opacity:1;background:#3A4844;border-color:#3A4844;color:#93A19C}
 
 /* ---------- Stock ---------- */
 .stock-actions{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px;align-items:stretch;margin:0 0 16px}
@@ -514,6 +516,8 @@ details>summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:8px 0}
 /* Avisos */
 .toast{position:fixed;left:50%;bottom:96px;z-index:140;max-width:min(520px,calc(100vw - 32px));padding:12px 16px;border-radius:var(--r);background:var(--ink);color:#fff;font-size:14px;font-weight:500;box-shadow:0 10px 30px rgba(30,42,39,.3);opacity:0;pointer-events:none;transform:translate(-50%,12px);transition:opacity .2s var(--ease),transform .2s var(--ease)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.toast{display:flex;align-items:center;gap:10px}
+.toast svg{width:18px;height:18px;flex:none}
 .toast.ok{border-left:5px solid #57C08A}
 .toast.err{border-left:5px solid #F07167}
 .spin{width:18px;height:18px;animation:spin .8s linear infinite}
@@ -1138,11 +1142,11 @@ details>summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:8px 0}
 <!-- Sticky submit -->
 <div class="bar tab-panel" data-tab="pedido">
   <div class="bar-in">
-    <div class="bar-meta"><b><span id="barCount">0</span> <span id="barCountLabel">productos</span></b><span class="meta-soft" id="barMetaText">Sin productos cargados</span></div>
+    <div class="bar-meta"><b><span id="barCount">0</span> <span id="barCountLabel">productos</span></b><span class="meta-soft" id="barMetaText">Agregá un producto para revisar</span></div>
     <div class="bar-actions">
       <div class="pedido-nav">
         <button type="button" class="nav-btn alt" id="pedidoBack" hidden>Editar productos</button>
-        <button type="button" class="nav-btn" id="pedidoNext">Revisar pedido</button>
+        <button type="button" class="nav-btn" id="pedidoNext" aria-disabled="true">Revisar pedido</button>
       </div>
       <button type="button" class="send" id="send" disabled hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
@@ -1360,6 +1364,7 @@ let uid = 0;
 let productionSaving = false;
 let bootstrapRefreshTimer = null;
 let orderCategory = "Recomendados";
+let orderCategoryAuto = true;
 let orderSort = "recommended";
 let orderVisibleLimit = 24;
 let orderShowAllCategories = false;
@@ -2271,7 +2276,7 @@ document.querySelectorAll("[data-responsable-add]").forEach(btn=>{
 });
 function selectLocal(id, opts={}){
   switchPedidoLocal(id);
-  orderCategory=defaultOrderCategory(id);
+  orderCategory=defaultOrderCategory(id); orderCategoryAuto=true;
   orderShowAllCategories=false;
   orderVisibleLimit=24;
   scheduleDraftSave();
@@ -2422,16 +2427,18 @@ function renderQuickCatalog(){
   const isSmartRecommendation=item=>!!pedidoInsightForItem(item);
   const smartRecommendationCount=cat.filter(isSmartRecommendation).length;
   const categoryOptions=[...visibleCategoryNames,"Todos","Recomendados",...(state.local!=="Trento Café"?["Otros del local"]:[]),...(state.items.length?["En pedido"]:[]),...(cat.some(isLowStock)?["Stock bajo"]:[]),"Historial sin catalogar"];
-  if(!categoryOptions.includes(orderCategory)) orderCategory=defaultOrderCategory(state.local);
+  if(!categoryOptions.includes(orderCategory)){ orderCategory=defaultOrderCategory(state.local); orderCategoryAuto=true; }
+  // Sin historial, Frecuentes abriría vacío: la vista inicial pasa a Todos.
+  if(typeof orderCategoryAuto!=="undefined"&&orderCategoryAuto&&typeof defaultOrderCategory==="function"&&defaultOrderCategory(state.local)==="Recomendados") orderCategory=smartRecommendationCount||!cat.length?"Recomendados":"Todos";
   if(categories){
     const countFor=name=>name==="Todos"?cat.length:name==="Historial sin catalogar"?localHistoryExtras(state.local).length:name==="Recomendados"?smartRecommendationCount:name==="Otros del local"?cat.filter(item=>!isSmartRecommendation(item)).length:name==="En pedido"?state.items.filter(item=>!item.free).length:name==="Stock bajo"?cat.filter(isLowStock).length:categoryCount(name);
     categories.innerHTML=categoryOptions.map(name=>`<button type="button" class="order-category" data-category="${esc(name)}" aria-pressed="${String(name===orderCategory)}">${name==="Recomendados"?"Frecuentes":esc(name)} <small>${countFor(name)}</small></button>`).join("");
     if(mobileSection){
       mobileSection.disabled=false;
       mobileSection.innerHTML=categoryOptions.map(name=>`<option value="${esc(name)}" ${name===orderCategory?"selected":""}>${name==="Recomendados"?"Frecuentes":esc(name)} · ${countFor(name)}</option>`).join("");
-      mobileSection.onchange=()=>{ orderCategory=mobileSection.value;orderVisibleLimit=24;renderQuickCatalog(); };
+      mobileSection.onchange=()=>{ orderCategory=mobileSection.value;orderCategoryAuto=false;orderVisibleLimit=24;renderQuickCatalog(); };
     }
-    categories.querySelectorAll("[data-category]").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; orderVisibleLimit=24; renderQuickCatalog(); }));
+    categories.querySelectorAll("[data-category]").forEach(btn=>btn.addEventListener("click",()=>{ orderCategory=btn.dataset.category; orderCategoryAuto=false; orderVisibleLimit=24; renderQuickCatalog(); }));
     const moreCategories=categories.querySelector("[data-category-more]");
     if(moreCategories) moreCategories.addEventListener("click",()=>{ orderShowAllCategories=!orderShowAllCategories; renderQuickCatalog(); });
   }
@@ -2570,8 +2577,10 @@ function updateSummary(){
     : `Cargá los productos que necesitás`;
   const barMeta = $("#barMetaText");
   if(barMeta){
-    barMeta.textContent = n ? [provs?`${provs} proveedor${provs===1?"":"es"}`:"",metrics&&metrics.pressure?metrics.pressure:""].filter(Boolean).join(" · ")||"En borrador" : "Sin productos cargados";
+    barMeta.textContent = n ? [provs?`${provs} proveedor${provs===1?"":"es"}`:"",metrics&&metrics.pressure?metrics.pressure:""].filter(Boolean).join(" · ")||"En borrador" : "Agregá un producto para revisar";
   }
+  const nextBtn = $("#pedidoNext");
+  if(nextBtn) nextBtn.setAttribute("aria-disabled", String(!n));
   renderWorkspaceStats();
   renderHome();
   renderPedidoFlow();
@@ -2801,7 +2810,7 @@ function resetForm(local=state.local){
     scheduleDraftSave();
     return;
   }
-  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="productos"; orderCategory="Recomendados"; orderVisibleLimit=24;
+  state.items=[]; state.urgencia="Normal"; state.encTouched=false; state.emailTouched=false; state.pedidoStep="productos"; orderCategory="Recomendados"; orderCategoryAuto=true; orderVisibleLimit=24;
   $("#observaciones").value=""; renderItems();
   $("#urg").querySelectorAll(".urgb").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.u==="Normal")));
   if(state.local) selectLocal(state.local);
