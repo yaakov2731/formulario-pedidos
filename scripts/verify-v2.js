@@ -48,11 +48,16 @@ function main() {
   else pass("favicon.svg present");
 
   const html = read(indexPath);
-  expectContains(html, 'Docks / Cobalto: sistema visual operativo', 'professional operational palette');
-  expectContains(html, 'data-design-version="docks-cobalto-v4"', 'coherent design version');
+  expectContains(html, 'Docks / Cocina de servicio: sistema visual único', 'single operational stylesheet');
+  expectContains(html, 'data-design-version="docks-cocina-v5"', 'coherent design version');
   expectContains(html, '<h2>Pedidos semanales</h2>', 'operational home title');
-  expectContains(html, '.stock-card.metric,.stock-dash-card{padding:12px 0;border:0;', 'unboxed compact metrics');
-  expectContains(html, 'body.compact-mobile-shell .home-pulse,body.compact-mobile-shell .local-action', 'mobile legacy card overrides disabled');
+  expectContains(html, '.stock-card.metric,.stock-dash-card{padding:12px 16px;border:0;', 'unboxed compact metrics');
+  expectContains(html, 'BOOTSTRAP_CACHE_KEY', 'catalog cached for instant start');
+  expectContains(html, 'function ensureOcrEngine()', 'OCR loaded on demand');
+  expectNotContains(html, '<script defer src="https://cdn.jsdelivr.net/npm/tesseract.js', 'OCR not loaded at startup');
+  expectNotContains(html, 'Geist', 'previous generic typeface');
+  if ((html.match(/<style>/g) || []).length > 2) fail('single stylesheet: stylesheet layers accumulated again');
+  else pass('single stylesheet');
   expectNotContains(html, '<h2>Resumen del local</h2>', 'generic report heading');
   expectNotContains(html, 'Todo listo para el servicio.', 'promotional home copy');
   expectNotContains(html, 'Lo importante, sin buscarlo', 'generic report copy');
@@ -86,7 +91,7 @@ function main() {
     "id=\"prodMore\"",
     "id=\"elabRecentList\"",
     "id=\"shellSidebar\"",
-    "data-design-version=\"docks-cobalto-v4\"",
+    "data-design-version=\"docks-cocina-v5\"",
     "id=\"mobileTabbar\"",
     "data-mobile-more",
     "body.shell-menu-open,body.modal-open",

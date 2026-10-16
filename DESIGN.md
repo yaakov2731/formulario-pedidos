@@ -1,6 +1,44 @@
-# Docks del Puerto · Cobalto
+# Docks del Puerto · Cocina de servicio
 
-## Revisión visual vigente: 14 de octubre de 2026
+## Revisión visual vigente: 16 de octubre de 2026
+
+Reemplaza Cobalto. Motivo: la hoja acumulaba ocho rediseños superpuestos
+(158 KB de CSS que se pisaban entre sí) y el resultado se leía genérico.
+Ahora hay una sola hoja, escrita desde cero, con los mismos nombres de clase.
+
+Referencia: la cocina profesional. Acero como fondo, verde río (Delta de Tigre)
+para acciones, y la cinta de papel con la que se rotulan los envases como único
+acento: marca lo que ya está en el pedido (borde y cantidad), el contador de la
+barra y el botón principal de la barra de comanda.
+
+| Rol | Valor | Uso |
+| --- | --- | --- |
+| Acero | #E8ECEA | Fondo de trabajo |
+| Superficie | #FFFFFF | Listas, formularios |
+| Tinta | #1E2A27 | Texto, navegación, barra de comanda |
+| Río | #0F5C52 | Acción principal, selección |
+| Cinta | #F3C94B | Productos en el pedido y botón de la barra |
+| Rojo / ámbar / verde | #B3261E / #8A5300 / #1D6B45 | Sólo estados, siempre con texto |
+
+Tipografía: Barlow (texto) y Barlow Semi Condensed (títulos, nombres de
+producto y cantidades): legible a la luz del día y entra más producto por
+línea en el celular. Números tabulares. Radios 6–8 px, sin sombras salvo
+diálogos y sugerencias.
+
+Celular: barra superior con local y conexión, búsqueda fija al hacer scroll,
+sección y orden en una fila, filas de producto de una línea con stepper de
+46 px y barra de comanda oscura. Escritorio: barra lateral oscura con
+secciones del catálogo a la izquierda. Sin numeración decorativa (01, 02).
+
+Flujo: la revisión completa semana actual y entrega para mañana si están
+vacías (nunca pisa valores cargados). La última lectura completa de la
+planilla se guarda en el equipo y se muestra al abrir mientras Apps Script
+responde; guardar sigue exigiendo conexión. El lector de fotos (Tesseract)
+se descarga al abrir Recepción, no al cargar la app.
+
+Se conservan IDs, contratos, borradores y confirmaciones existentes.
+
+## Revisión anterior: Cobalto (sustituida)
 
 Esta dirección reemplaza la paleta oliva documentada abajo. La skill impeccable
 orienta la jerarquía, los estados y el color con función. Registro: product.
