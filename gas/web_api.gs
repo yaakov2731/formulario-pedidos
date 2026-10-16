@@ -420,14 +420,29 @@ function savePedido_(data) {
       return { ok: false, error: 'El producto ' + it.producto + ' no pertenece al catálogo de ' + data.local };
     }
   }
-  appendPedido_(data);
-  appendDetalle_(data, { skipRefresh: true });   // capa normalizada: 1 fila por producto
+  var pedidoId = String(data.id_pedido || '').trim();
+  // El mismo id_pedido puede llegar dos veces si el encargado reintenta:
+  // el lock + la búsqueda por id evitan filas y avisos duplicados.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { ok: false, error: 'Otro guardado está en curso. Reintentá: el pedido no se duplica.' };
+  try {
+    if (pedidoId && findPedidoRowById_(pedidoId)) {
+      return { ok: true, id_pedido: pedidoId, duplicate: true, telegram: readTelegramLogByPedido_(pedidoId) };
+    }
+    appendPedido_(data);
+    appendDetalle_(data, { skipRefresh: true });   // capa normalizada: 1 fila por producto
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
   var telegram = notifyTelegramForPedido_(data);
-  refreshOperationalViews_();
   invalidateBootstrapCaches_();
+  // Las vistas tardan varios segundos; la app ya confirma por id_pedido
+  // apenas el flush deja visible la fila, sin esperar este paso.
+  refreshOperationalViews_();
   return {
     ok: true,
-    id_pedido: data.id_pedido || '',
+    id_pedido: pedidoId,
     telegram: telegram
   };
 }
