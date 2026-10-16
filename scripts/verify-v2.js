@@ -169,7 +169,7 @@ function main() {
   expectContains(html, "data-use-suggested", "shared habitual quantity action");
   expectContains(html, "Number(insight.pedidos)", "shared order history recommendation score");
   expectContains(html, "target-stock", "stock-aware objective order suggestion");
-  expectContains(html, "Cubierto · ${context}", "covered objective demand state");
+  expectContains(html, "<i>✓</i> Cubierto</span>", "covered objective demand state");
   expectContains(html, 'id="cfgPMin"', "editable catalog stock objective");
   expectContains(html, 'id="recepScope"', "reception catalog scopes");
   expectContains(code, "buildReceptionGuideByLocal_(snap.activeRows || [])", "complete reception guide uses all active rows");
