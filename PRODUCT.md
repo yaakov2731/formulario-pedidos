@@ -217,6 +217,14 @@ y no propone una compra automática, ni desde el historial ni desde el objetivo.
 «Ver referencia» abre las líneas del local en Recepción, sin registrar movimientos.
 El consolidado conserva cajas y litros como renglones distintos; no convierte medidas.
 
+## Encargados escritos a mano
+
+El campo Encargado acepta un nombre nuevo. Cuando el pedido, stock, recepción,
+producción o sobrante se confirma en la planilla, ese nombre se suma a la lista
+del local: al instante en el equipo y en `CONFIGURACIÓN` para los demás. El
+backend no duplica nombres del mismo local. Sin conexión no se envía nada.
+Validación: `node scripts/verify-responsables.js`.
+
 ## Brand
 
 Configuración abre un diálogo HTML nativo, no `prompt()`. El campo de código

@@ -32,6 +32,7 @@ node .\scripts\verify-jsonp.js
 node .\scripts\verify-dashboard-render.js
 node .\scripts\verify-unit-quantities.js
 node .\scripts\verify-order-send.js
+node .\scripts\verify-responsables.js
 ```
 
 Después de publicar:
