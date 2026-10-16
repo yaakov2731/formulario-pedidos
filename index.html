@@ -2229,6 +2229,18 @@ function refreshResponsableInputs(local){
     syncResponsableAddButton(id,local);
   });
 }
+// Un nombre escrito a mano queda en la lista del local cuando la carga se
+// confirma: al instante en este equipo y en CONFIGURACIÓN para los demás.
+// El backend no duplica nombres existentes del mismo local.
+function rememberResponsable(local, nombre, email=""){
+  const name=String(nombre||"").trim();
+  if(!local||!name||name.length>80||selectedResponsable(local,name)) return;
+  const mail=/^\S+@\S+\.\S+$/.test(String(email||"").trim())?String(email).trim():"";
+  RESP[local]=(RESP[local]||[]).concat([{nombre:name,email:mail}]);
+  refreshResponsableInputs(local);
+  if(!LIVE) return;
+  apiPost({action:"addResponsable",local,nombre:name,email:mail}).catch(err=>console.error("No se pudo guardar el encargado",err));
+}
 async function addResponsableInline(inputId){
   const input=document.getElementById(inputId);
   const btn=document.querySelector(`[data-responsable-add="${inputId}"]`);
@@ -2705,6 +2717,7 @@ async function submit(){
       const currentDraft=state.local===payload.local?capturePedidoDraft():pedidoDraftsByLocal[payload.local];
       const unchanged=pedidoDraftFingerprint(currentDraft)===draftFingerprint;
       recordCatalogUsage(payload.local,items);
+      if(typeof rememberResponsable==="function") rememberResponsable(payload.local,payload.encargado,payload.email_encargado);
       if(unchanged) resetForm(payload.local);
       const message=`Pedido ${payload.id_pedido} de ${payload.local} guardado.${unchanged?"":" Conservé los cambios que hiciste durante el envío."}${telegramOk?"":" Telegram no confirmó la notificación."}`;
       setPedidoSendStatus(message);
@@ -3319,6 +3332,7 @@ async function saveReception(){
     if(!confirmed) throw new Error("La recepción no fue confirmada por Google Sheets");
     applyReceptionOptimistic(state.local, items);
     clearRecepDrafts(state.local);
+    if(typeof rememberResponsable==="function") rememberResponsable(payload.local,payload.encargado);
     toast("Recepción registrada","ok");
     renderRecepcionModule();
     renderStockIntelligence();
@@ -3449,6 +3463,7 @@ async function saveProduction(){
     });
     applyProductionOptimistic(payload.local, payload);
     clearProdDrafts(payload.local);
+    if(typeof rememberResponsable==="function") rememberResponsable(payload.local,payload.encargado);
     toast("Producción registrada","ok");
     renderProduccionModule();
     renderStockIntelligence();
@@ -3511,6 +3526,7 @@ async function saveElaborados(){
     if(!confirmed) throw new Error("El conteo no fue confirmado por Google Sheets");
     applyElabOptimistic(state.local, payload);
     clearElabDrafts(state.local);
+    if(typeof rememberResponsable==="function") rememberResponsable(payload.local,payload.encargado);
     toast("Elaborados registrados","ok");
     renderElaboradosModule();
     renderDashboard();
@@ -4696,6 +4712,7 @@ async function saveStock(){
     if(!confirmed) throw new Error("El stock no fue confirmado por Google Sheets");
     syncCatalogStockFromDrafts(local);
     clearStockDrafts(local);
+    if(typeof rememberResponsable==="function") rememberResponsable(local,payload.encargado);
     if(state.local===local) renderStockIntelligence();
     if(state.local===local) renderWorkspaceStats();
     const telegram = confirmed.telegram || (backendResult && backendResult.telegram) || null;
