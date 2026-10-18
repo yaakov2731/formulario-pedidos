@@ -409,11 +409,12 @@
 
   var esc = Docks.esc;
   var KEY_SESION = 'docksv3:admin_key';
-  var SECCIONES = ['compras', 'ordenes', 'faltantes', 'stock', 'catalogo', 'proveedores', 'locales'];
+  var SECCIONES = ['compras', 'ordenes', 'faltantes', 'stock', 'elaborados', 'catalogo', 'proveedores', 'locales'];
   var NECESITA = {
     compras: ['boot', 'consolidado'], ordenes: ['ordenes'], faltantes: ['faltantes'], stock: ['boot', 'stock'],
-    catalogo: ['boot', 'catalogo'], proveedores: ['boot'], locales: ['boot']
+    elaborados: ['boot', 'elaborados'], catalogo: ['boot', 'catalogo'], proveedores: ['boot'], locales: ['boot']
   };
+  var ESTADOS_ELAB = [['listo', 'Listo'], ['marcado', 'Marcado'], ['crudo', 'Crudo']];
   var VIGENCIA_MS = 60000;
 
   var S = {
@@ -427,6 +428,7 @@
     ordenesEstado: '',
     faltDias: 14,
     stockLocal: '', stockEstado: '', stockQ: '',
+    elabLocal: '', elabFiltro: '', elabQ: '', editElab: null,
     catLocal: '', catFiltro: '', catQ: '',
     provQ: '',
     wa: { cola: [], idx: 0 },
@@ -523,6 +525,7 @@
     ordenes: function () { return Docks.api.get('getOrdenes', S.ordenesEstado ? { estado: S.ordenesEstado } : {}); },
     faltantes: function () { return Docks.api.get('getFaltantes', { dias: S.faltDias }); },
     stock: function () { return Docks.api.get('getStockPanel'); },
+    elaborados: function () { return Docks.api.get('getElaborados'); },
     catalogo: function () { return Docks.api.get('getCatalogo'); }
   };
 
@@ -556,6 +559,7 @@
     if (key === 'faltantes') S.cont.faltantes = (d.lineas || []).length;
     if (key === 'stock') S.cont.stock = (d.filas || []).filter(function (f) { return f.estado === 'SIN_STOCK' || f.estado === 'BAJO'; }).length;
     if (key === 'catalogo') S.cont.catalogo = (d.productos || []).length;
+    if (key === 'elaborados') S.cont.elaborados = (d.productos || []).filter(function (p) { return p.activo; }).length;
     if (key === 'boot') {
       S.cont.proveedores = (d.proveedores || []).filter(function (p) { return esActivo(p.activo); }).length;
       S.cont.locales = (d.locales || []).filter(function (l) { return esActivo(l.activo); }).length;
@@ -634,7 +638,7 @@
     if ($('cx-app').hidden) return;
     ({
       compras: renderCompras, ordenes: renderOrdenes, faltantes: renderFaltantes, stock: renderStock,
-      catalogo: renderCatalogo, proveedores: renderProveedores, locales: renderLocales
+      elaborados: renderElaborados, catalogo: renderCatalogo, proveedores: renderProveedores, locales: renderLocales
     })[sec]();
   }
 
@@ -1132,6 +1136,142 @@
   }
 
   /* =====================================================================
+   * ELABORADOS: qué queda en cada local
+   * ===================================================================== */
+  function elaborados() { return (S.data.elaborados && S.data.elaborados.productos) || []; }
+
+  function renderElaborados() {
+    var body = $('cx-elaborados-body');
+    var carga = estadoCarga('elaborados');
+    if (carga) { body.innerHTML = carga; return; }
+    var todos = elaborados();
+    var q = Docks.norm(S.elabQ);
+    var lista = todos.filter(function (p) {
+      if (S.elabLocal && p.local !== S.elabLocal) return false;
+      var dias = p.dias_sin_contar === null || p.dias_sin_contar === undefined ? Docks.haceDias(p.ultimo_conteo) : num(p.dias_sin_contar);
+      if (S.elabFiltro === 'inactivos' && p.activo) return false;
+      if ((S.elabFiltro === '' || S.elabFiltro === 'sin_conteo') && !p.activo) return false;
+      if (S.elabFiltro === 'sin_conteo' && dias === 0) return false;
+      if (q && Docks.norm([p.codigo, p.producto, p.categoria, p.local].join(' ')).indexOf(q) < 0) return false;
+      return true;
+    }).sort(function (a, b) { return cmpEs(a.local, b.local) || cmpEs(a.categoria, b.categoria) || cmpEs(a.producto, b.producto); });
+    var conLocal = !S.elabLocal;
+    if (!todos.length) {
+      body.innerHTML = bannerRefresco('elaborados') + vacioHtml('Todavía no hay elaborados cargados',
+        'Cargalos con «Nuevo elaborado» o pedile al encargado que los agregue desde el celular (pestaña Elaborados).');
+      return;
+    }
+    if (!lista.length) {
+      body.innerHTML = bannerRefresco('elaborados') + vacioHtml('No hay elaborados con estos filtros', 'Probá con otra búsqueda, «Todos los locales» o «Todos».');
+      return;
+    }
+    var sinHoy = lista.filter(function (p) { return p.activo && (p.dias_sin_contar === null || p.dias_sin_contar === undefined || num(p.dias_sin_contar) > 0); }).length;
+    var totales = { listo: 0, marcado: 0, crudo: 0 };
+    lista.forEach(function (p) { ESTADOS_ELAB.forEach(function (e) { totales[e[0]] += num(p[e[0]]) || 0; }); });
+    body.innerHTML = bannerRefresco('elaborados') +
+      '<div class="cx-resumen" aria-label="Resumen">' +
+      badge(lista.length + (lista.length === 1 ? ' producto' : ' productos'), 'muted') +
+      (sinHoy ? badge(sinHoy + (sinHoy === 1 ? ' sin conteo hoy' : ' sin conteo hoy'), 'warn') : badge('Todo contado hoy', 'ok')) +
+      '</div>' +
+      '<div class="table-wrap cx-scroll"><table class="table"><thead><tr>' +
+      (conLocal ? '<th>Local</th>' : '') + '<th>Código</th><th>Producto</th><th>Grupo</th><th>Unidad</th>' +
+      '<th class="r">Listo</th><th class="r">Marcado</th><th class="r">Crudo</th><th class="r">Total</th><th>Último conteo</th><th>Estado</th>' +
+      '</tr></thead><tbody>' + lista.map(function (p) {
+        var dias = p.dias_sin_contar === null || p.dias_sin_contar === undefined ? Docks.haceDias(p.ultimo_conteo) : num(p.dias_sin_contar);
+        var nunca = p.total === null || p.total === undefined;
+        var viejo = !nunca && dias !== null && dias > 0;
+        return '<tr class="cx-click' + (p.activo ? '' : ' is-off') + '" tabindex="0" data-act="editar-elaborado" data-i="' + todos.indexOf(p) + '" aria-label="Editar ' + esc(p.producto) + ' de ' + esc(p.local) + '">' +
+          (conLocal ? '<td>' + esc(p.local) + '</td>' : '') +
+          '<td class="cx-id">' + esc(p.codigo || '—') + '</td><td class="cx-prod">' + esc(p.producto) + '</td>' +
+          '<td>' + esc(p.categoria || '—') + '</td><td>' + esc(p.unidad) + '</td>' +
+          ESTADOS_ELAB.map(function (e) {
+            var v = num(p[e[0]]);
+            return '<td class="r">' + (nunca ? '<span class="muted">—</span>' : v ? '<strong>' + fmtN(v) + '</strong>' : '<span class="muted">0</span>') + '</td>';
+          }).join('') +
+          '<td class="r">' + (nunca ? '<span class="muted">—</span>' : '<strong>' + fmtN(p.total, p.unidad) + '</strong>') + '</td>' +
+          '<td class="nowrap' + (nunca || viejo ? ' cx-amb' : '') + '" title="' + esc(p.ultimo_conteo ? Docks.fechaCorta(p.ultimo_conteo) : 'Sin conteo') + '">' + esc(nunca ? 'Nunca' : haceTexto(dias)) + '</td>' +
+          '<td>' + badge(p.activo ? 'Activo' : 'Inactivo', p.activo ? 'ok' : 'muted') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="small muted">Listo: para vender · Marcado: sellado, falta terminar · Crudo: sin cocinar. El encargado lo carga desde el celular al cierre.</p>';
+  }
+
+  function llenarDatalistElabCategorias() {
+    var vistas = {};
+    var cats = [];
+    elaborados().forEach(function (p) { var c = texto(p.categoria); if (c && !vistas[Docks.norm(c)]) { vistas[Docks.norm(c)] = true; cats.push(c); } });
+    cats.sort(cmpEs);
+    $('dl-elab-categorias').innerHTML = cats.map(function (c) { return '<option value="' + esc(c) + '"></option>'; }).join('');
+  }
+
+  function abrirElaborado(p) {
+    S.editElab = p || null;
+    llenarDatalistElabCategorias();
+    var localDef = p ? p.local : (S.elabLocal || ((locales().filter(function (l) { return esActivo(l.activo); })[0] || {}).local || ''));
+    var selLocal = $('fe-local');
+    selLocal.innerHTML = opcionesLocales(localDef, !p);
+    selLocal.value = localDef;
+    selLocal.disabled = !!p;
+    var unidades = Docks.UNIDADES.slice();
+    if (p && p.unidad && unidades.indexOf(p.unidad) < 0) unidades.push(p.unidad);
+    $('fe-unidad').innerHTML = (p ? '' : '<option value="">Elegir…</option>') + unidades.map(function (u) { return '<option>' + esc(u) + '</option>'; }).join('');
+    $('fe-unidad').value = p ? p.unidad : '';
+    $('dlg-elaborado-titulo').textContent = p ? 'Editar elaborado' : 'Nuevo elaborado';
+    var cod = $('dlg-elaborado-codigo');
+    cod.hidden = !p;
+    cod.textContent = p ? 'Código ' + (p.codigo || '—') + ' · ' + p.local + '. Las cantidades las carga el encargado al contar.' : '';
+    $('fe-producto').value = p ? p.producto : '';
+    $('fe-categoria').value = p ? (p.categoria || '') : '';
+    $('fe-activo').value = p && !p.activo ? 'NO' : 'SÍ';
+    $('fe-obs').value = p ? (p.observaciones || '') : '';
+    setError($('fe-error'), '');
+    abrirDialogo($('dlg-elaborado'), $('fe-producto'));
+  }
+
+  function upsertElaborado(p) {
+    if (!S.data.elaborados || !p) return;
+    var lista = S.data.elaborados.productos = S.data.elaborados.productos || [];
+    for (var i = 0; i < lista.length; i++) {
+      if (lista[i].local === p.local && lista[i].codigo === p.codigo) { lista[i] = p; break; }
+    }
+    if (i === lista.length) lista.push(p);
+    S.cont.elaborados = lista.filter(function (x) { return x.activo; }).length;
+    actualizarContadores();
+  }
+
+  function enviarElaborado(e) {
+    e.preventDefault();
+    var errEl = $('fe-error');
+    var orig = S.editElab;
+    var local = $('fe-local').value;
+    var producto = texto($('fe-producto').value);
+    var unidad = $('fe-unidad').value;
+    var falta = !local ? ['Elegí el local.', 'fe-local'] : !producto ? ['Escribí el nombre del elaborado.', 'fe-producto'] : !unidad ? ['Elegí la unidad.', 'fe-unidad'] : null;
+    if (falta) { setError(errEl, falta[0]); $(falta[1]).focus(); return; }
+    setError(errEl, '');
+    var payload = {
+      action: 'saveElaborado', admin_key: S.key, local: local, producto: producto, categoria: texto($('fe-categoria').value),
+      unidad: unidad, activo: $('fe-activo').value, observaciones: texto($('fe-obs').value)
+    };
+    if (orig && orig.codigo) payload.codigo = orig.codigo;
+    ocupado($('fe-guardar'), 'Guardando…', function () {
+      return Docks.api.post(payload).then(function (r) {
+        if (r && r.producto && typeof r.producto === 'object') { upsertElaborado(r.producto); return true; }
+        S.ts.elaborados = 0;
+        return cargar('elaborados').then(function () {
+          return elaborados().some(function (p) {
+            return p.local === local && (payload.codigo ? p.codigo === payload.codigo : claveProducto(p.producto, p.unidad) === claveProducto(producto, unidad));
+          });
+        });
+      }).then(function (ok) {
+        if (!ok) { setError(errEl, 'No pudimos confirmar el guardado. Revisá la conexión y probá de nuevo.'); return; }
+        cerrarDialogo($('dlg-elaborado'));
+        Docks.toast(orig ? 'Elaborado actualizado' : 'Elaborado creado', 'ok');
+        renderElaborados();
+      }, function (err) { setError(errEl, mensaje(err)); });
+    });
+  }
+
+  /* =====================================================================
    * CATÁLOGO
    * ===================================================================== */
   function llenarSelectoresLocales() {
@@ -1141,6 +1281,8 @@
     $('cx-stock-local').value = S.stockLocal;
     $('cx-cat-local').innerHTML = '<option value="">Todos los locales</option>' + ops;
     $('cx-cat-local').value = S.catLocal;
+    $('cx-elab-local').innerHTML = '<option value="">Todos los locales</option>' + ops;
+    $('cx-elab-local').value = S.elabLocal;
     $('dl-proveedores').innerHTML = proveedores().map(function (p) { return '<option value="' + esc(p.proveedor) + '"></option>'; }).join('');
   }
 
@@ -1732,7 +1874,10 @@
       n(r.ordenes, 'orden de compra borrada', 'órdenes de compra borradas'),
       n(r.movimientos, 'conteo o recepción borrado', 'conteos y recepciones borrados'),
       n(r.productos_sin_contar, 'producto queda sin contar', 'productos quedan sin contar')
-    ];
+    ].concat(r.conteos_elaborados !== undefined || r.elaborados_sin_contar !== undefined ? [
+      n(r.conteos_elaborados, 'conteo de elaborados borrado', 'conteos de elaborados borrados') + ' · ' +
+      n(r.elaborados_sin_contar, 'elaborado queda sin contar', 'elaborados quedan sin contar')
+    ] : []);
   }
 
   function salir() {
@@ -1757,6 +1902,8 @@
       case 'copiar-reclamo': copiarReclamo(); break;
       case 'nuevo-producto': if (S.data.boot) abrirProducto(null); else Docks.toast('Esperá a que carguen los locales.', 'info'); break;
       case 'editar-producto': abrirProducto(productos()[Number(t.getAttribute('data-i'))]); break;
+      case 'nuevo-elaborado': if (S.data.boot) abrirElaborado(null); else Docks.toast('Esperá a que carguen los locales.', 'info'); break;
+      case 'editar-elaborado': abrirElaborado(elaborados()[Number(t.getAttribute('data-i'))]); break;
       case 'nuevo-proveedor': abrirProveedor(null); break;
       case 'editar-proveedor': abrirProveedor(proveedores()[Number(t.getAttribute('data-i'))]); break;
       case 'editar-local': abrirLocal(locales()[Number(t.getAttribute('data-i'))]); break;
@@ -1807,6 +1954,9 @@
     $('cx-stock-local').addEventListener('change', function () { S.stockLocal = this.value; renderStock(); });
     $('cx-stock-estado').addEventListener('change', function () { S.stockEstado = this.value; renderStock(); });
     $('cx-stock-buscar').addEventListener('input', function () { S.stockQ = this.value; renderStock(); });
+    $('cx-elab-local').addEventListener('change', function () { S.elabLocal = this.value; renderElaborados(); });
+    $('cx-elab-filtro').addEventListener('change', function () { S.elabFiltro = this.value; renderElaborados(); });
+    $('cx-elab-buscar').addEventListener('input', function () { S.elabQ = this.value; renderElaborados(); });
     $('cx-cat-local').addEventListener('change', function () { S.catLocal = this.value; renderCatalogo(); });
     $('cx-cat-filtro').addEventListener('change', function () { S.catFiltro = this.value; renderCatalogo(); });
     $('cx-cat-buscar').addEventListener('input', function () { S.catQ = this.value; renderCatalogo(); });
@@ -1828,6 +1978,7 @@
     $('dlg-wa-listo').addEventListener('click', waListo);
     $('form-cancelar').addEventListener('submit', enviarCancelar);
     $('form-producto').addEventListener('submit', enviarProducto);
+    $('form-elaborado').addEventListener('submit', enviarElaborado);
     $('fp-proveedor').addEventListener('input', avisoProveedor);
     $('form-proveedor').addEventListener('submit', enviarProveedor);
     $('form-local').addEventListener('submit', enviarLocal);

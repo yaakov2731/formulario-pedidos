@@ -291,6 +291,69 @@ const CATALOGO = [
   assert.equal(cntPosts.length, antes, 'cantidad inválida no se envía');
   E.borrarBorrador('conteo', 'Umo Grill');
 
+  /* ---------- elaborados: lógica pura ---------- */
+  const ELAB = [
+    { codigo: 'UMO-E002', producto: 'Pollo deshuesado', categoria: 'Parrilla', unidad: 'unidad', listo: null, marcado: null, crudo: null, total: null, ultimo_conteo: '' },
+    { codigo: 'UMO-E003', producto: 'Chimichurri', categoria: '', unidad: 'litro', listo: 1, marcado: 0, crudo: 0, total: 1, ultimo_conteo: fecha(1) },
+    { codigo: 'UMO-E001', producto: 'Bondiola', categoria: 'Parrilla', unidad: 'unidad', listo: 3, marcado: 0, crudo: 5, total: 8, ultimo_conteo: fecha(0) }
+  ];
+  assert.deepEqual(plain(E.ESTADOS_ELAB.map(e => e[0])), ['listo', 'marcado', 'crudo']);
+  assert.deepEqual(plain(E.ordenarElaborados(ELAB).map(p => p.codigo)), ['UMO-E001', 'UMO-E002', 'UMO-E003'], 'por grupo y nombre; sin grupo al final');
+  assert.deepEqual(plain(E.leerBorrador('elab', 'Umo Grill')), { items: {}, id: null });
+  const bElab = { items: {
+    'UMO-E001': { listo: '3', crudo: '5' },          // marcado vacío = 0
+    'UMO-E002': { listo: '', marcado: ' ' },          // nada escrito: no se cuenta
+    'UMO-E003': { listo: '0' },                       // cero explícito sí
+    'UMO-E009': { listo: '1' },                       // no está en la lista
+    'UMO-E004': { listo: 'dos' }                      // inválido
+  }, id: null };
+  assert.deepEqual(plain(E.itemsElaborados(bElab, E.ordenarElaborados(ELAB))), [
+    { codigo: 'UMO-E001', listo: 3, marcado: 0, crudo: 5 },
+    { codigo: 'UMO-E003', listo: 0, marcado: 0, crudo: 0 }], 'en el orden de la lista');
+  assert.deepEqual(plain(E.itemsElaborados(bElab, null)).map(i => i.codigo), ['UMO-E001', 'UMO-E003', 'UMO-E009']);
+  assert.deepEqual(plain(E.elabInvalidos(bElab)), ['UMO-E004']);
+  assert.deepEqual(plain(E.elabInvalidos({ items: { 'UMO-E001': { listo: '-1' } } })), ['UMO-E001']);
+  assert.equal(E.totalElab({ listo: 1.5, marcado: 0, crudo: 2 }), 3.5);
+  assert.equal(E.itemsElaborados({ items: { 'UMO-E001': { listo: '1,5' } } }, ELAB)[0].listo, 1.5, 'coma decimal');
+
+  /* ---------- elaborados: envío ---------- */
+  E.guardarBorrador('elab', 'Umo Grill', { items: { 'UMO-E001': { listo: '3', crudo: '5' }, 'UMO-E004': { listo: 'dos' } }, id: null });
+  const elbPosts = [];
+  api.post = async p => { elbPosts.push(JSON.parse(JSON.stringify(p))); return null; };
+  r = await E.enviarElaborados(sesion, ELAB);
+  assert.equal(r.ok, false, 'con una cantidad inválida no se envía');
+  assert.equal(elbPosts.length, 0);
+  E.guardarBorrador('elab', 'Umo Grill', { items: { 'UMO-E001': { listo: '3', crudo: '5' }, 'UMO-E003': { marcado: '0' } }, id: null });
+  api.confirm = async () => null;
+  const ELAB_ORD = E.ordenarElaborados(ELAB);
+  r = await E.enviarElaborados(sesion, ELAB_ORD);
+  assert.equal(r.ok, false, 'sin confirmación no se da por guardado');
+  assert.equal(E.leerBorrador('elab', 'Umo Grill').id, elbPosts[0].id_conteo, 'el ID queda en el borrador para reintentar');
+  api.confirm = async (action, id) => { assert.equal(action, 'getOperacion'); assert.equal(id, elbPosts[0].id_conteo); return { ok: true, found: true, tipo: 'ELABORADOS', local: 'Umo Grill', items: 2 }; };
+  r = await E.enviarElaborados(sesion, ELAB_ORD);
+  assert.equal(r.ok, true);
+  assert.equal(r.items, 2);
+  assert.equal(elbPosts[0].id_conteo, elbPosts[1].id_conteo, 'reintento con el mismo ID');
+  assert.match(elbPosts[0].id_conteo, /^ELB-/);
+  assert.deepEqual(elbPosts[0], {
+    action: 'saveConteoElaborados', id_conteo: elbPosts[0].id_conteo, local: 'Umo Grill', encargado: 'Juan',
+    items: [{ codigo: 'UMO-E001', listo: 3, marcado: 0, crudo: 5 }, { codigo: 'UMO-E003', listo: 0, marcado: 0, crudo: 0 }]
+  });
+  assert.deepEqual(plain(E.leerBorrador('elab', 'Umo Grill')), { items: {}, id: null }, 'borrador limpio al guardar');
+  E.guardarBorrador('elab', 'Umo Grill', { items: { 'UMO-E001': { listo: '1' } }, id: null });
+  api.post = async p => ({ ok: true, id_conteo: p.id_conteo, items: 5 });
+  r = await E.enviarElaborados(sesion, ELAB);
+  assert.equal(r.ok, false, 'la planilla ya tiene ese ID con otra cantidad: conflicto');
+  assert.equal(r.conflicto, true);
+  api.post = async p => ({ ok: true, id_conteo: p.id_conteo, items: 1 });
+  r = await E.enviarElaborados(sesion, ELAB);
+  assert.equal(r.ok, true);
+  api.post = async () => null;
+  r = await E.enviarElaborados(sesion, ELAB);
+  assert.equal(r.ok, false, 'sin nada cargado no se guarda');
+  assert.match(r.error, /No cargaste/);
+  E.borrarBorrador('elab', 'Umo Grill');
+
   /* ---------- envío de recepción ---------- */
   E.guardarBorrador('recepcion', 'Umo Grill', { marcas: estadoRec.marcas, extras: estadoRec.extras, observaciones: ' tomate golpeado ', id: null });
   const recPosts = [];
@@ -358,7 +421,9 @@ const CATALOGO = [
     const ok = ids.includes(id) || plantillas.includes(id) || prefijos.some(p => id.startsWith(p));
     assert.ok(ok, 'el id "' + id + '" que usa encargado.js existe');
   });
-  assert.ok(['app', 'nav', 'barra', 'hdr-sesion', 'nav-badge', 'dlg-libre', 'dlg-extra'].every(i => ids.includes(i)));
+  assert.ok(['app', 'nav', 'barra', 'hdr-sesion', 'nav-badge', 'dlg-libre', 'dlg-extra', 'dlg-elab', 'form-elab'].every(i => ids.includes(i)));
+  assert.deepEqual([...html.matchAll(/data-tab="([^"]+)"/g)].map(m => m[1]), ['hoy', 'pedir', 'contar', 'elaborados', 'recibir'], 'cinco pestañas');
+  assert.match(read('v3/encargado.css'), /\.enc-nav\{[^}]*repeat\(5,/, 'la navegación reparte cinco columnas');
   assert.doesNotMatch(js, /\bfetch\(|XMLHttpRequest|localStorage|sessionStorage/, 'todo pasa por Docks.api y Docks.store');
   assert.doesNotMatch(read('v3/encargado.css'), /#(?!fff\b)[0-9a-fA-F]{3,8}\b/, 'colores sólo con tokens (salvo #fff)');
 

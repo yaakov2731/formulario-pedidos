@@ -55,7 +55,7 @@ No incluir planillas privadas, capturas operativas ni credenciales en Git.
 
 ## V3 · sistema nuevo (en construcción, no reemplaza todavía a la app actual)
 
-Pedidos, conteo, recepción y compras con planilla propia de 9 pestañas. Contrato en
+Pedidos, conteo, recepción, elaborados (qué queda: listo, marcado, crudo) y compras con planilla propia de 11 pestañas. Contrato en
 [docs/v3/CONTRATO.md](docs/v3/CONTRATO.md), despliegue en [docs/v3/DESPLIEGUE.md](docs/v3/DESPLIEGUE.md).
 
 - `v3/index.html`: encargados (celular) · Hoy, Pedir, Contar, Recibir.

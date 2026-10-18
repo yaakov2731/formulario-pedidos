@@ -46,6 +46,7 @@
         <li><a href="#ordenes" data-nav="ordenes">Órdenes <span class="cx-count" data-count="ordenes"></span></a></li>
         <li><a href="#faltantes" data-nav="faltantes">Faltantes <span class="cx-count" data-count="faltantes"></span></a></li>
         <li><a href="#stock" data-nav="stock">Stock <span class="cx-count" data-count="stock"></span></a></li>
+        <li><a href="#elaborados" data-nav="elaborados">Elaborados <span class="cx-count" data-count="elaborados"></span></a></li>
         <li><a href="#catalogo" data-nav="catalogo">Catálogo <span class="cx-count" data-count="catalogo"></span></a></li>
         <li><a href="#proveedores" data-nav="proveedores">Proveedores <span class="cx-count" data-count="proveedores"></span></a></li>
         <li><a href="#locales" data-nav="locales">Locales <span class="cx-count" data-count="locales"></span></a></li>
@@ -159,6 +160,40 @@
           </div>
         </header>
         <div id="cx-stock-body" aria-live="polite"></div>
+      </section>
+
+      <!-- ELABORADOS -->
+      <section id="sec-elaborados" class="cx-sec" data-sec="elaborados" hidden aria-labelledby="h-elaborados">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-elaborados" tabindex="-1">Elaborados</h1>
+            <p class="muted small">Qué quedó en cada local al último conteo: listo para vender, marcado o crudo. Hacé clic en una fila para editar el producto.</p>
+          </div>
+          <div class="cx-tools">
+            <button class="btn btn-primary" type="button" data-act="nuevo-elaborado">Nuevo elaborado</button>
+          </div>
+        </header>
+        <div class="cx-filtros">
+          <div class="field cx-field-inline">
+            <label for="cx-elab-local">Local</label>
+            <select id="cx-elab-local" class="input"></select>
+          </div>
+          <div class="field cx-field-inline">
+            <label for="cx-elab-filtro">Mostrar</label>
+            <select id="cx-elab-filtro" class="input">
+              <option value="">Activos</option>
+              <option value="sin_conteo">Sin conteo hoy</option>
+              <option value="inactivos">Inactivos</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+          <div class="field cx-field-inline cx-grow">
+            <label for="cx-elab-buscar">Buscar</label>
+            <input id="cx-elab-buscar" class="input" type="search" placeholder="Producto, grupo o código">
+          </div>
+          <button class="btn" type="button" data-act="recargar" data-sec="elaborados">Actualizar</button>
+        </div>
+        <div id="cx-elaborados-body" aria-live="polite"></div>
       </section>
 
       <!-- CATÁLOGO -->
@@ -354,6 +389,53 @@
       <div class="dialog-actions">
         <button class="btn" type="button" data-cerrar>Cancelar</button>
         <button id="fp-guardar" class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: elaborado -->
+  <dialog id="dlg-elaborado" aria-labelledby="dlg-elaborado-titulo">
+    <form id="form-elaborado" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-elaborado-titulo">Nuevo elaborado</h2>
+        <p id="dlg-elaborado-codigo" class="muted small" hidden></p>
+        <div class="field">
+          <label for="fe-local">Local</label>
+          <select id="fe-local" class="input" required></select>
+        </div>
+        <div class="field">
+          <label for="fe-producto">Producto</label>
+          <input id="fe-producto" class="input" type="text" required autocomplete="off" maxlength="80">
+        </div>
+        <div class="cx-grid2">
+          <div class="field">
+            <label for="fe-categoria">Grupo</label>
+            <input id="fe-categoria" class="input" type="text" list="dl-elab-categorias" autocomplete="off" maxlength="40">
+            <datalist id="dl-elab-categorias"></datalist>
+          </div>
+          <div class="field">
+            <label for="fe-unidad">Unidad</label>
+            <select id="fe-unidad" class="input" required></select>
+          </div>
+        </div>
+        <div class="cx-grid2">
+          <div class="field">
+            <label for="fe-activo">Estado</label>
+            <select id="fe-activo" class="input">
+              <option value="SÍ">Activo</option>
+              <option value="NO">Inactivo</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fe-obs">Observaciones</label>
+            <input id="fe-obs" class="input" type="text" autocomplete="off" maxlength="200">
+          </div>
+        </div>
+        <p id="fe-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" data-cerrar>Cancelar</button>
+        <button id="fe-guardar" class="btn btn-primary" type="submit">Guardar</button>
       </div>
     </form>
   </dialog>

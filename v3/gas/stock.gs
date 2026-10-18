@@ -284,7 +284,9 @@ function getHoy_(p) {
     pedidos_semana: deSemana.length,
     ultimo_conteo: ultimoConteo,
     por_recibir: porRecibir_(loc.local).length,
-    bajo_par: bajo
+    bajo_par: bajo,
+    ultimo_elaborados: ultimoConteoElaborados_(loc.local),
+    elaborados_activos: elaboradosActivos_(loc.local)
   };
 }
 
@@ -312,6 +314,8 @@ function getOperacion_(p) {
       })
     };
   }
+  var opElab = operacionElaborados_(id);
+  if (opElab) return opElab;
   if (movs.length || lineasRec.length) {
     var items = lineasRec.map(function (i) {
       return {

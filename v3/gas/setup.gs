@@ -196,10 +196,13 @@ function setupValidaciones_(ss) {
     PEDIDOS: { 'Local': vLocal, 'Prioridad': lista(PRIORIDADES), 'Estado': lista(EST_PEDIDO) },
     PEDIDO_LINEAS: { 'Local': vLocal, 'Unidad': vUnidad, 'Proveedor': vProv, 'Estado': lista(EST_LINEA) },
     MOVIMIENTOS: { 'Tipo': lista(TIPOS_MOV), 'Local': vLocal, 'Unidad': vUnidad },
-    COMPRAS: { 'Proveedor': vProv, 'Estado': lista(EST_OC) }
+    COMPRAS: { 'Proveedor': vProv, 'Estado': lista(EST_OC) },
+    ELABORADOS: { 'Local': vLocal, 'Unidad': vUnidad, 'Activo': lista(SI_NO) },
+    CONTEO_ELABORADOS: { 'Local': vLocal, 'Unidad': vUnidad }
   };
   Object.keys(reglas).forEach(function (name) {
     var sh = ss.getSheetByName(name);
+    if (!sh) return;
     Object.keys(reglas[name]).forEach(function (h) {
       var r = rangoColumna_(sh, h);
       if (r) r.setDataValidation(reglas[name][h]);
@@ -214,10 +217,11 @@ function proteger_(sh, descripcion) {
   p.setWarningOnly(true);
 }
 
-/* TABLERO (§3.3): B1 selector de local; cinco bloques QUERY lado a lado (no se pisan al crecer). */
+/* TABLERO (§3.3): B1 selector de local; seis bloques QUERY lado a lado (no se pisan al crecer). */
 function setupTablero_(ss, sh) {
   var cat = ss.getSheetByName(SH_CATALOGO);
   var lin = ss.getSheetByName(SH_LINEAS);
+  var ela = ss.getSheetByName(SH_ELABORADOS);
   function L(hoja, h) { return letraCol_(colDe_(hoja, h)); }
   function todo(hoja) { return hoja.getName() + '!A:' + letraCol_(hoja.getLastColumn()); }
   function cond(col) {
@@ -238,6 +242,10 @@ function setupTablero_(ss, sh) {
   var c = {
     cod: L(cat, 'Código'), prod: L(cat, 'Producto'), loc: L(cat, 'Local'), uni: L(cat, 'Unidad'),
     prov: L(cat, 'Proveedor'), par: L(cat, 'Par'), stock: L(cat, 'Stock_Actual'), conteo: L(cat, 'Ultimo_Conteo'), est: L(cat, 'Estado')
+  };
+  var e = {
+    loc: L(ela, 'Local'), prod: L(ela, 'Producto'), uni: L(ela, 'Unidad'), listo: L(ela, 'Listo'), marc: L(ela, 'Marcado'),
+    crudo: L(ela, 'Crudo'), conteo: L(ela, 'Ultimo_Conteo'), act: L(ela, 'Activo')
   };
   var bloques = [
     { col: 1, titulo: 'Pendientes de compra por proveedor', f: query(todo(lin),
@@ -262,10 +270,17 @@ function setupTablero_(ss, sh) {
       ' where ' + l.est + " = 'Incompleto' and " + l.frec + " >= '" + fecha(14) + "'" + cond(l.loc) +
       ' order by ' + l.frec + ' desc' +
       ' label ' + l.frec + " 'Recepción', " + l.loc + " 'Local', " + l.prov + " 'Proveedor', " + l.prod + " 'Producto', " +
-      l.uni + " 'Unidad', " + l.cant + " 'Pedido', " + l.rec + " 'Recibido', " + l.oc + " 'Orden'") }
+      l.uni + " 'Unidad', " + l.cant + " 'Pedido', " + l.rec + " 'Recibido', " + l.oc + " 'Orden'") },
+    { col: 33, titulo: 'Elaborados: qué queda (último conteo)', f: query(todo(ela),
+      'select ' + e.loc + ', ' + e.prod + ', ' + e.uni + ', ' + e.listo + ', ' + e.marc + ', ' + e.crudo + ', ' + e.conteo +
+      ' where ' + e.act + " = 'SÍ' and " + e.conteo + ' is not null' + cond(e.loc) +
+      ' order by ' + e.loc + ', ' + e.prod +
+      ' label ' + e.loc + " 'Local', " + e.prod + " 'Producto', " + e.uni + " 'Unidad', " + e.listo + " 'Listo', " +
+      e.marc + " 'Marcado', " + e.crudo + " 'Crudo', " + e.conteo + " 'Último conteo'") }
   ];
   var AYUDA = 32;
-  if (sh.getMaxColumns() < AYUDA) sh.insertColumnsAfter(sh.getMaxColumns(), AYUDA - sh.getMaxColumns());
+  var ANCHO = 40;
+  if (sh.getMaxColumns() < ANCHO) sh.insertColumnsAfter(sh.getMaxColumns(), ANCHO - sh.getMaxColumns());
 
   sh.getRange(1, 1).setValue('Local');
   sh.getRange(1, 1).setFontWeight('bold');

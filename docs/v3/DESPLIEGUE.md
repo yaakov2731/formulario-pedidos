@@ -10,7 +10,7 @@ La V3 es independiente de la app actual. Publicarla no cambia nada de lo que usa
    (en GitHub: abrir el archivo y usar el botón **Copy raw file**). Guardar con Ctrl+S.
 4. Elegir la función **`instalarV3`** en la barra superior y tocar **Ejecutar**. Aceptar los permisos
    (Google avisa "app no verificada": Configuración avanzada → Ir a … → Permitir; es tu propio script).
-   Crea las 9 pestañas, carga los locales y genera la **clave de gerencia**, que aparece en el
+   Crea las 11 pestañas, carga los locales y genera la **clave de gerencia**, que aparece en el
    **Registro de ejecución**. Guardarla. Se puede ejecutar de nuevo sin perder datos ni cambiar la clave.
 5. **Implementar → Nueva implementación →** engranaje **Aplicación web**. Ejecutar como: *yo*.
    Quién tiene acceso: *cualquier persona*. **Implementar** y copiar la URL que termina en `/exec`.
@@ -33,6 +33,9 @@ Debe terminar con `Live V3 verification passed.`.
 2. **Implementar → Gestionar implementaciones →** lápiz de la implementación existente → Versión: **Nueva versión** → **Implementar**.
    Así la URL `/exec` no cambia. Si Google pide permisos nuevos, aceptarlos.
 3. Con los secretos `GAS_V3_SCRIPT_ID` y `GAS_V3_DEPLOYMENT_ID` cargados en GitHub (§3), esto lo hace el workflow solo.
+4. Si la planilla se instaló antes de la etapa **Elaborados** (18/10/2026), no hace falta nada más: las pestañas
+   `ELABORADOS` y `CONTEO_ELABORADOS` se crean solas la primera vez que alguien abre la pestaña Elaborados.
+   También se pueden crear a mano ejecutando `setupV3` (o el menú **Docks V3 → Preparar o reparar planilla**).
 
 ## 2. Frontend
 
@@ -53,6 +56,10 @@ Con los secretos cargados, cada merge a `main` publica `v3/gas/` sobre la misma 
 2. **Catálogo**: elegir local y "Pegar desde Excel" con columnas Producto, Categoría, Unidad, Proveedor, Precio, Par.
 3. **Locales**: revisar activos, día y hora de corte, y cargar los encargados.
 4. Pedir a cada encargado un primer **conteo** desde el celular: sin conteo no hay sugerido.
+5. **Elaborados** (opcional, p. ej. Umo Grill): cargar en Compras → Elaborados lo que produce el local (bondiola,
+   pollo, salsas…) o dejar que el encargado los agregue desde la pestaña Elaborados del celular. Al cierre, el
+   encargado anota cuánto quedó **listo**, **marcado** o **crudo**; gerencia lo ve en Compras → Elaborados y en
+   el bloque 6 del TABLERO.
 
 ## 5. Desarrollo local
 
