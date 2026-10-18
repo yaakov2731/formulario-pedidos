@@ -554,6 +554,7 @@ class FakeSheet {
 
 /* ---------- Spreadsheet ---------- */
 class FakeSpreadsheet {
+  static _copias = 0;
   constructor(id, name, tz) {
     this._id = id; this._name = name; this._tz = tz || DEFAULT_TZ;
     this._sheets = [new FakeSheet(this, 'Hoja 1')];
@@ -563,6 +564,21 @@ class FakeSpreadsheet {
   getName() { return this._name; }
   rename(n) { this._name = String(n); }
   getUrl() { return 'https://docs.google.com/spreadsheets/d/' + this._id + '/edit'; }
+  copy(name) {
+    if (this._copyError) throw new Error(this._copyError);
+    const copia = new FakeSpreadsheet(this._id + '-copia-' + (++FakeSpreadsheet._copias), String(name), this._tz);
+    copia._sheets = [];
+    this._sheets.forEach(sh => {
+      const nueva = copia.insertSheet(sh.getName());
+      const vals = sh.getDataRange().getValues();
+      if (!vals.length || !vals[0].length) return;
+      if (nueva.getMaxColumns() < vals[0].length) nueva.insertColumnsAfter(nueva.getMaxColumns(), vals[0].length - nueva.getMaxColumns());
+      if (nueva.getMaxRows() < vals.length) nueva.insertRowsAfter(nueva.getMaxRows(), vals.length - nueva.getMaxRows());
+      nueva.getRange(1, 1, vals.length, vals[0].length).setValues(vals);
+    });
+    (this._copiasHechas = this._copiasHechas || []).push(copia);
+    return copia;
+  }
   getSpreadsheetTimeZone() { return this._tz; }
   setSpreadsheetTimeZone(tz) { this._tz = tz; }
   getSpreadsheetLocale() { return 'es_AR'; }

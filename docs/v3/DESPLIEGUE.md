@@ -27,6 +27,13 @@ node scripts/verify-live-v3.js
 
 Debe terminar con `Live V3 verification passed.`.
 
+### Actualizar el backend después de un cambio
+
+1. Pegar de nuevo `v3/apps-script/DocksV3.gs` completo sobre el código del editor y guardar.
+2. **Implementar → Gestionar implementaciones →** lápiz de la implementación existente → Versión: **Nueva versión** → **Implementar**.
+   Así la URL `/exec` no cambia. Si Google pide permisos nuevos, aceptarlos.
+3. Con los secretos `GAS_V3_SCRIPT_ID` y `GAS_V3_DEPLOYMENT_ID` cargados en GitHub (§3), esto lo hace el workflow solo.
+
 ## 2. Frontend
 
 - Pegar la URL `/exec` en `v3/config.js` (`API_URL`) y hacer merge a `main`: el workflow publica
