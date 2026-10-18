@@ -204,6 +204,20 @@ const rt = mk();
   assert.equal(JSON.parse(r3.doPost({ postData: { contents: JSON.stringify({ action: 'checkAdmin', admin_key: clave }) } }).text).ok, true);
 }
 
+/* fórmulas según configuración regional (es_AR usa ";") */
+{
+  const r = mk({});
+  assert.equal(r.call('formulaConPuntoYComa_', '=IFERROR(QUERY(A:B,"select A, B label A \'x, y\'",1),"Sin datos, nada")'),
+    '=IFERROR(QUERY(A:B;"select A, B label A \'x, y\'";1);"Sin datos, nada")');
+  const escritas = [];
+  const rango = (display) => ({ setFormula(f) { escritas.push(f); return this; }, getDisplayValue() { return display; } });
+  r.call('setFormulaLocal_', rango('#ERROR!'), '=SUM(A1,B1)');
+  assert.deepEqual(escritas, ['=SUM(A1,B1)', '=SUM(A1;B1)']);
+  escritas.length = 0;
+  r.call('setFormulaLocal_', rango('3'), '=SUM(A1,B1)');
+  assert.deepEqual(escritas, ['=SUM(A1,B1)']);
+}
+
 /* ================= ping, bootstrap, JSONP ================= */
 {
   const out = rt.doGet({ parameter: { action: 'ping', callback: 'cb_1' } });

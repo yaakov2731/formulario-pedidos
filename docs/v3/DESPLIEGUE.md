@@ -19,6 +19,14 @@ Opcional, en **Configuración del proyecto → Propiedades de la secuencia de co
 `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` para avisos. La clave `ADMIN_KEY` también se cambia ahí.
 El manifiesto `appsscript.json` no hace falta tocarlo: el acceso se elige en el paso 5.
 
+Comprobar la instalación sin escribir datos (desde una PC con Node):
+
+```
+node scripts/verify-live-v3.js
+```
+
+Debe terminar con `Live V3 verification passed.`.
+
 ## 2. Frontend
 
 - Pegar la URL `/exec` en `v3/config.js` (`API_URL`) y hacer merge a `main`: el workflow publica

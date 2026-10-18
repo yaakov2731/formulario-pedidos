@@ -1124,6 +1124,27 @@ function instalarV3() {
   return { ok: true, admin_key_nueva: !props.getProperty('ADMIN_KEY') ? false : true };
 }
 
+/**
+ * setFormula usa el separador de argumentos de la configuración regional de la planilla:
+ * en es_AR es ";". Se escribe con "," y, si la planilla marca error de sintaxis, se reescribe con ";".
+ */
+function setFormulaLocal_(range, formula) {
+  range.setFormula(formula);
+  SpreadsheetApp.flush();
+  if (String(range.getDisplayValue()) === '#ERROR!') range.setFormula(formulaConPuntoYComa_(formula));
+}
+
+/** Cambia "," por ";" sólo fuera de los textos entre comillas dobles. */
+function formulaConPuntoYComa_(formula) {
+  var out = '', enTexto = false;
+  for (var i = 0; i < formula.length; i++) {
+    var c = formula.charAt(i);
+    if (c === '"') enTexto = !enTexto;
+    out += (!enTexto && c === ',') ? ';' : c;
+  }
+  return out;
+}
+
 function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu('Docks V3').addItem('Preparar o reparar planilla', 'setupV3').addToUi();
@@ -1316,7 +1337,7 @@ function setupTablero_(ss, sh) {
   sh.getRange(1, AYUDA).setValue('Todos');
   var colLoc = L(ss.getSheetByName(SH_LOCALES), 'Local') || 'A';
   var rLoc = SH_LOCALES + '!' + colLoc + '2:' + colLoc;
-  sh.getRange(2, AYUDA).setFormula('=FILTER(' + rLoc + ',' + rLoc + '<>"")');
+  setFormulaLocal_(sh.getRange(2, AYUDA), '=FILTER(' + rLoc + ',' + rLoc + '<>"")');
   sel.setDataValidation(SpreadsheetApp.newDataValidation()
     .requireValueInRange(sh.getRange(1, AYUDA, 60, 1), true).setAllowInvalid(false)
     .setHelpText('Elegí un local o Todos.').build());
@@ -1324,7 +1345,7 @@ function setupTablero_(ss, sh) {
   bloques.forEach(function (b) {
     sh.getRange(3, b.col).setValue(b.titulo);
     sh.getRange(3, b.col).setFontWeight('bold');
-    sh.getRange(4, b.col).setFormula(b.f);
+    setFormulaLocal_(sh.getRange(4, b.col), b.f);
   });
   sh.setFrozenRows(3);
 }

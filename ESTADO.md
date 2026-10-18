@@ -29,15 +29,24 @@ Pasan las 5 verificaciones V3 (core, backend, encargado, compras, paquete) y las
 sugeridos, segundo local, clave incorrecta, orden por proveedor con texto WhatsApp, recepción
 con faltante, faltantes y stock; sin errores de JS ni scroll horizontal. Saldos coherentes.
 
+## Instalación real (18/10/2026)
+
+El usuario pegó el backend, corrió `instalarV3` y publicó la web app; la URL `/exec` está en
+`v3/config.js`. Revisado en la planilla con el conector de Sheets: 9 pestañas, filas congeladas,
+protecciones con advertencia, 9 locales, validaciones y formato texto correctos. Las fórmulas de
+TABLERO daban error de sintaxis porque la planilla está en `es_AR` (separador `;`): corregidas en
+vivo y en el código (`setFormulaLocal_` detecta el separador). Este entorno no llega a
+`script.google.com`; la API en vivo se verifica con `node scripts/verify-live-v3.js` (sólo lectura).
+
 ## Límites
 
-No se probó contra Google Sheets real: fórmulas QUERY de TABLERO, validaciones, protecciones,
-formato texto, LockService y Telegram reales quedan para la primera instalación. No se publicó
-nada. `AGENTS.md`/`CLAUDE.md` no se cambiaron (edición bloqueada por permisos; texto en
-`docs/v3/FASE-0.md`).
+La API en vivo, LockService y Telegram reales siguen sin probar desde aquí. El frontend V3
+sólo se publica en Pages al hacer merge a `main` (decisión del usuario). `AGENTS.md`/`CLAUDE.md`
+no se cambiaron (edición bloqueada por permisos; texto en `docs/v3/FASE-0.md`).
 
 ## Próximo paso
 
-Usuario: seguir `docs/v3/DESPLIEGUE.md` §1 (pegar backend, `ADMIN_KEY`, `setupV3`, publicar)
-y pasar la URL `/exec`. Coordinador: ponerla en `v3/config.js`, revisar TABLERO en la planilla
-real y hacer un recorrido con datos reales antes del merge a `main`.
+Usuario: correr `verify-live-v3.js`; decidir el merge del PR para publicar `/v3/`; cargar
+proveedores y el catálogo de un local piloto; cargar en GitHub los secretos `GAS_V3_SCRIPT_ID`
+y `GAS_V3_DEPLOYMENT_ID` para que los cambios del backend se publiquen solos. Coordinador:
+recorrido piloto con datos reales y ajustes.
