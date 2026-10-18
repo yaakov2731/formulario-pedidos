@@ -27,6 +27,11 @@ jobs:
           node scripts/verify-unit-quantities.js
           node scripts/verify-order-send.js
           node scripts/verify-responsables.js
+          node scripts/verify-v3-core.js
+          node scripts/verify-v3-backend.js
+          node scripts/verify-v3-encargado.js
+          node scripts/verify-v3-compras.js
+          node scripts/v3-bundle-gas.js --check
 
   deploy-gas:
     needs: verify
@@ -65,6 +70,42 @@ jobs:
           cd gas
           clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA::7}"
 
+  deploy-gas-v3:
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      GAS_V3_SCRIPT_ID: ${{ secrets.GAS_V3_SCRIPT_ID }}
+      GAS_V3_DEPLOYMENT_ID: ${{ secrets.GAS_V3_DEPLOYMENT_ID }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Skip when V3 Apps Script is not configured
+        id: gate
+        run: |
+          if [ -z "$GAS_V3_SCRIPT_ID" ] || [ -z "$GAS_V3_DEPLOYMENT_ID" ]; then
+            echo "V3 Apps Script secrets not set; skipping V3 backend deploy."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Push and deploy V3 Apps Script
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          npm install -g @google/clasp
+          echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
+          echo "{\"scriptId\":\"$GAS_V3_SCRIPT_ID\",\"rootDir\":\".\"}" > v3/gas/.clasp.json
+          cd v3/gas
+          clasp push -f
+          clasp deploy --deploymentId "$GAS_V3_DEPLOYMENT_ID" --description "V3 GitHub ${GITHUB_SHA::7}"
+
   deploy-frontend:
     needs: verify
     runs-on: ubuntu-latest
@@ -88,6 +129,8 @@ jobs:
           cp index.html site/
           cp admin.js site/
           cp favicon.svg site/ 2>/dev/null || true
+          mkdir -p site/v3
+          cp v3/*.html v3/*.js v3/*.css site/v3/
           python3 - <<'PY'
           from pathlib import Path
           p=Path('site/index.html')

@@ -1,62 +1,52 @@
 # Estado de continuidad · Pedidos Semanales
 
-Actualizado: 16 de octubre de 2026. Responsable de esta etapa: Codex.
+Actualizado: 18 de octubre de 2026. Coordinador: Opus 5.5. PR: yaakov2731/formulario-pedidos#7.
 
 ## Objetivo y aceptación
 
-Instalar el protocolo aprobado de consumo, continuidad y selección de modelos.
-El usuario agregó planificación con un modelo potente y ejecución delegada a
-otro. El alcance sigue siendo este repositorio, sin despliegues de producto ni
-compras. Las decisiones de enrutamiento son instrucciones del agente, no un
-clasificador determinista ni una garantía de ahorro.
+Rediseño profesional de la app y la planilla (38 pestañas, confusas para los encargados).
+El usuario pidió **sistema nuevo desde cero, sin migración**; proveedores y catálogo se cargan
+de cero. La app actual (`index.html`, `gas/`) y su planilla siguen en uso, sin cambios.
 
-## Contexto comprobado
+## Hecho
 
-El frontend está en `index.html`, con administración en `admin.js`; el backend
-actual es modular, en `gas/*.gs`, conectado a Google Sheets. No hay bundler.
-`README.md` enumera nueve verificaciones locales. `DEPLOY-V2.md` describe la
-publicación de Apps Script y Pages mediante el workflow al actualizar `main`.
-El checkout estaba en `main`, último commit observado `417918e`.
+- Plan (`PLAN-V3.md`) y contrato vigente (`docs/v3/CONTRATO.md`, versión 2, prevalece).
+- Drive: respaldo de producción y planilla V3 vacía (IDs en el contrato §0.1).
+- V3 construida con tres agentes en paralelo, archivos disjuntos:
+  backend `v3/gas/` (9 pestañas, `setupV3`, API completa, Telegram opcional),
+  encargado `v3/index.html` (Hoy, Pedir, Contar, Recibir), gerencia `v3/compras.html`
+  (Compras con orden por WhatsApp, Órdenes, Faltantes, Stock, Catálogo con pegado desde Excel,
+  Proveedores, Locales). Base compartida `v3/core.js` y `v3/base.css` del coordinador.
+- `v3/apps-script/DocksV3.gs`: backend en un archivo para pegar. Guía `docs/v3/DESPLIEGUE.md`.
+- Workflow: corre los checks V3, publica `v3/` en Pages y tiene `deploy-gas-v3`, que se saltea
+  sin los secretos `GAS_V3_SCRIPT_ID` y `GAS_V3_DEPLOYMENT_ID`.
+- Corrección del coordinador: el contador del chip Sugeridos no se actualizaba al refrescar el catálogo.
 
-Antes de esta tarea existían sin seguimiento `ACCEPTANCE.md`,
-`PAGOS-PROVEEDORES.md`, `evidence/` y `graphify-out/`. Son trabajo previo:
-no eliminarlos, publicarlos ni incorporarlos como parte de este cambio.
+## Verificaciones
 
-## Decisiones y archivos propios
+Pasan las 5 verificaciones V3 (core, backend, encargado, compras, paquete) y las 10 del V2.
+`scripts/e2e-v3.js` en Chromium contra la planilla en memoria: login, conteo, pedido con
+sugeridos, segundo local, clave incorrecta, orden por proveedor con texto WhatsApp, recepción
+con faltante, faltantes y stock; sin errores de JS ni scroll horizontal. Saldos coherentes.
 
-`AGENTS.md` conserva las reglas existentes, corrige referencias al backend
-antiguo y añade continuidad, búsquedas acotadas y manejo de cuota. `CLAUDE.md`
-remite a esas reglas y define preferencias de Sonnet y conservación de contexto.
-`USO-IA.md` contiene el procedimiento y la plantilla de encargo. `.gitignore`
-excluye `.uso-ia/`, que contiene registro, presupuesto y revisión semanal privados.
-`.codex/config.toml` añade coordinador Sol y roles Astra para planificar, Sol
-para ejecutar y Luna para cambios mecánicos. Usa `agents.max_threads` y roles
-con `config_file`, compatibles con CLI 0.144.4. Un subagente activo por vez.
-`.claude/settings.json` usa `opusplan`; agentes Opus y Sonnet cubren delegación
-secuencial. No duplicar planificador cuando ya está activo modo Plan nativo.
-Los cambios se cargan en sesiones nuevas; no cambian el modelo del turno actual.
+## Instalación real (18/10/2026)
 
-Una herramienta implementa cada tarea. No repetir el mismo enfoque fallido más
-de dos veces sin nueva evidencia. Actualizar este estado al cerrar o transferir,
-preservando restricciones y resultados reales. No saltar controles obligatorios.
+El usuario pegó el backend, corrió `instalarV3` y publicó la web app; la URL `/exec` está en
+`v3/config.js`. Revisado en la planilla con el conector de Sheets: 9 pestañas, filas congeladas,
+protecciones con advertencia, 9 locales, validaciones y formato texto correctos. Las fórmulas de
+TABLERO daban error de sintaxis porque la planilla está en `es_AR` (separador `;`): corregidas en
+vivo y en el código (`setFormulaLocal_` detecta el separador). Este entorno no llega a
+`script.google.com`; la API en vivo se verifica con `node scripts/verify-live-v3.js` (sólo lectura).
 
-## Verificaciones y límites
+## Límites
 
-Se inspeccionaron estado Git, estructura, instrucciones y documentación local.
-En la primera etapa pasaron `verify-v2.js`, lectura CSV y exclusión Git privada.
-En esta etapa pasaron parseo de cuatro TOML, resolución de roles/modelos,
-validación JSON, `claude plugin validate .claude/agents` y `git diff --check`.
-`codex doctor` confirmó carga correcta de configuración; tiene avisos independientes
-de PATH/npm y terminal no interactiva. No actualizar instalaciones por esta tarea.
-Se delegó realmente la preparación de Claude a un agente Luna y terminó bien.
-No se probó aún el circuito automático completo desde una sesión nueva de cada
-cliente. No se publicó la app ni se ejecutaron pruebas live. Facturas, cuota
-de Claude y ahorro semanal siguen pendientes. No se cambiaron suscripciones.
+La API en vivo, LockService y Telegram reales siguen sin probar desde aquí. El frontend V3
+sólo se publica en Pages al hacer merge a `main` (decisión del usuario). `AGENTS.md`/`CLAUDE.md`
+no se cambiaron (edición bloqueada por permisos; texto en `docs/v3/FASE-0.md`).
 
 ## Próximo paso
 
-Abrir una sesión nueva aquí y dar un encargo real. Comprobar modelo efectivo
-en actividad de agentes, aceptación y ausencia de edición simultánea. Registrar
-cuota inicial/final y resultado, marcar D1 y evaluar al cerrar D7. Si el cliente
-no carga roles, informar y usar delegación explícita disponible, sin inventar
-éxitos. Conciliar facturas antes de compras. Ver `USO-IA.md` bajo demanda.
+Usuario: correr `verify-live-v3.js`; decidir el merge del PR para publicar `/v3/`; cargar
+proveedores y el catálogo de un local piloto; cargar en GitHub los secretos `GAS_V3_SCRIPT_ID`
+y `GAS_V3_DEPLOYMENT_ID` para que los cambios del backend se publiquen solos. Coordinador:
+recorrido piloto con datos reales y ajustes.
