@@ -18,9 +18,11 @@ const HEADERS = {
   PEDIDO_LINEAS: ['ID_Linea', 'ID_Pedido', 'Fecha_Hora', 'Semana', 'Local', 'Código', 'Producto', 'Categoría', 'Unidad', 'Cantidad', 'Proveedor', 'Precio_Ref', 'Estado', 'ID_OC', 'Cantidad_Recibida', 'Fecha_Recepcion', 'ID_Recepcion', 'Observaciones'],
   MOVIMIENTOS: ['Fecha_Hora', 'ID_Operacion', 'Tipo', 'Local', 'Encargado', 'Código', 'Producto', 'Unidad', 'Cantidad', 'Saldo_Anterior', 'Saldo_Resultante', 'Costo_Unitario', 'Referencia', 'Observaciones'],
   COMPRAS: ['ID_OC', 'Fecha_Hora', 'Semana', 'Proveedor', 'Locales', 'Estado', 'Lineas', 'Total_Estimado', 'Responsable', 'Texto_WhatsApp', 'Observaciones'],
+  ELABORADOS: ['Código', 'Producto', 'Local', 'Categoría', 'Unidad', 'Listo', 'Marcado', 'Crudo', 'Ultimo_Conteo', 'Activo', 'Observaciones', 'Actualizado'],
+  CONTEO_ELABORADOS: ['Fecha_Hora', 'ID_Conteo', 'Local', 'Encargado', 'Código', 'Producto', 'Unidad', 'Listo', 'Marcado', 'Crudo', 'Total', 'Observaciones'],
   LOG: ['Fecha_Hora', 'Tipo', 'Referencia', 'Local', 'OK', 'Detalle']
 };
-const ORDER = ['CATALOGO', 'PROVEEDORES', 'LOCALES', 'PEDIDOS', 'PEDIDO_LINEAS', 'MOVIMIENTOS', 'COMPRAS', 'TABLERO', 'LOG'];
+const ORDER = ['CATALOGO', 'PROVEEDORES', 'LOCALES', 'PEDIDOS', 'PEDIDO_LINEAS', 'MOVIMIENTOS', 'COMPRAS', 'ELABORADOS', 'CONTEO_ELABORADOS', 'TABLERO', 'LOG'];
 const FECHA_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
 /* ---------- ayudas ---------- */
@@ -132,12 +134,17 @@ const rt = mk();
   assert.deepEqual(ss.getSheetByName('MOVIMIENTOS').getRange(2, 3).getDataValidation().getCriteriaValues()[0], ['CONTEO', 'RECEPCION', 'AJUSTE']);
   assert.deepEqual(ss.getSheetByName('COMPRAS').getRange(2, 6).getDataValidation().getCriteriaValues()[0], ['Enviada', 'Recibida parcial', 'Recibida', 'Cancelada']);
   assert.deepEqual(ss.getSheetByName('PEDIDO_LINEAS').getRange(2, 13).getDataValidation().getCriteriaValues()[0], ['Pendiente', 'Comprado', 'Entregado', 'Incompleto', 'Cancelado']);
+  assert.deepEqual(ss.getSheetByName('ELABORADOS').getRange(2, 10).getDataValidation().getCriteriaValues()[0], ['SÍ', 'NO']);
+  assert.equal(ss.getSheetByName('ELABORADOS').getRange(2, 3).getDataValidation().getCriteriaType(), 'VALUE_IN_RANGE');
+  assert.equal(ss.getSheetByName('CONTEO_ELABORADOS').getRange(2, 7).getDataValidation().getCriteriaType(), 'VALUE_IN_LIST');
+  assert.equal(ss.getSheetByName('ELABORADOS').getRange(2, 1).getNumberFormat(), '@');
+  assert.equal(ss.getSheetByName('CONTEO_ELABORADOS').getRange(2, 2).getNumberFormat(), '@');
 
   // TABLERO
   const tab = ss.getSheetByName('TABLERO');
   assert.equal(tab.getRange('B1').getValue(), 'Todos');
   assert.equal(tab.getRange('B1').getDataValidation().getCriteriaType(), 'VALUE_IN_RANGE');
-  const formulas = ['A4', 'F4', 'K4', 'R4', 'W4'].map(a => tab.getRange(a).getFormula());
+  const formulas = ['A4', 'F4', 'K4', 'R4', 'W4', 'AG4'].map(a => tab.getRange(a).getFormula());
   formulas.forEach(f => { assert.match(f, /^=IFERROR\(QUERY\(/); assert.match(f, /\$B\$1/); });
   assert.match(formulas[0], /PEDIDO_LINEAS!A:R/);
   assert.match(formulas[0], /sum\(J\)/);
@@ -148,6 +155,10 @@ const rt = mk();
   assert.match(formulas[3], /TODAY\(\)-7/);
   assert.match(formulas[4], /M = 'Incompleto'/);
   assert.match(formulas[4], /TODAY\(\)-14/);
+  assert.match(formulas[5], /ELABORADOS!A:L/);
+  assert.match(formulas[5], /J = 'SÍ'/);
+  assert.match(formulas[5], /I is not null/);
+  assert.equal(tab.getRange('AG3').getValue(), 'Elaborados: qué queda (último conteo)');
 
   // protecciones
   ['TABLERO', 'LOG'].forEach(n => {
@@ -877,6 +888,132 @@ const REC1 = nid('REC');
   assert.ok(t1 - t0 < 15000, 'escrituras demasiado lentas: ' + (t1 - t0) + ' ms');
 }
 
+/* ================= elaborados: qué queda (listo, marcado, crudo) ================= */
+{
+  const rt = mk();
+  rt.call('setupV3');
+  assert.deepEqual(ok(get(rt, 'getElaborados')).productos, []);
+  assert.deepEqual(ok(get(rt, 'getElaborados', { local: 'Umo Grill' })).productos, []);
+  bad(get(rt, 'getElaborados', { local: 'Nadie' }), /no existe/);
+
+  // Alta por gerencia: clave, campos, código UMO-E001, sin duplicar Producto + Unidad.
+  bad(post(rt, { action: 'saveElaborado', local: 'Umo Grill', producto: 'Bondiola', unidad: 'unidad' }), /clave/i);
+  bad(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', producto: '', unidad: 'unidad' }), /nombre/);
+  bad(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', producto: 'Bondiola', unidad: 'tira' }), /Unidad inválida/);
+  const b1 = ok(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', producto: 'Bondiola', categoria: 'Parrilla', unidad: 'unidades', activo: 'SÍ' })).producto;
+  assert.deepEqual(Object.keys(b1), ['codigo', 'producto', 'local', 'categoria', 'unidad', 'listo', 'marcado', 'crudo', 'total', 'ultimo_conteo', 'dias_sin_contar', 'activo', 'observaciones']);
+  assert.deepEqual([b1.codigo, b1.unidad, b1.activo, b1.listo, b1.total, b1.ultimo_conteo, b1.dias_sin_contar], ['UMO-E001', 'unidad', true, null, null, '', null]);
+  bad(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', producto: 'bondiola', unidad: 'unidad' }), /UMO-E001/);
+  const b2 = ok(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', producto: 'Pollo deshuesado', categoria: 'Parrilla', unidad: 'unidad' })).producto;
+  const b3 = ok(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', producto: 'Chimichurri', categoria: 'Salsas', unidad: 'litro' })).producto;
+  const tre = ok(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Trento Café', producto: 'Medialunas', unidad: 'docena' })).producto;
+  assert.deepEqual([b2.codigo, b3.codigo, tre.codigo], ['UMO-E002', 'UMO-E003', 'TRE-E001']);
+  // Edición por código: renombrar, desactivar; no pisa el estado; no permite chocar con otro.
+  const ed = ok(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', codigo: 'UMO-E003', producto: 'Chimichurri casero', activo: false })).producto;
+  assert.deepEqual([ed.codigo, ed.producto, ed.activo, ed.categoria], ['UMO-E003', 'Chimichurri casero', false, 'Salsas']);
+  bad(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', codigo: 'UMO-E002', producto: 'Bondiola' }), /UMO-E001/);
+  bad(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Trento Café', codigo: 'UMO-E002', producto: 'X' }), /no pertenece/);
+  bad(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', codigo: 'UMO-E002', activo: 'quizás' }), /SÍ o NO/);
+
+  // Alta por encargado (sin clave): crea, o devuelve el existente y lo reactiva.
+  bad(post(rt, { action: 'agregarElaborado', local: 'Umo Grill', producto: 'Vacío', unidad: 'kg' }), /quien agrega/);
+  bad(post(rt, { action: 'agregarElaborado', local: 'Pizzería', encargado: 'Ana', producto: 'Vacío', unidad: 'kg' }), /inactivo/);
+  const v1 = ok(post(rt, { action: 'agregarElaborado', local: 'Umo Grill', encargado: 'Ana', producto: ' Vacío ', unidad: 'kilos', categoria: 'Parrilla' }));
+  assert.deepEqual([v1.existia, v1.producto.codigo, v1.producto.producto, v1.producto.unidad], [false, 'UMO-E004', 'Vacío', 'kg']);
+  const v2 = ok(post(rt, { action: 'agregarElaborado', local: 'Umo Grill', encargado: 'Ana', producto: 'vacio', unidad: 'kg' }));
+  assert.deepEqual([v2.existia, v2.producto.codigo], [true, 'UMO-E004']);
+  const re = ok(post(rt, { action: 'agregarElaborado', local: 'Umo Grill', encargado: 'Beto', producto: 'Chimichurri casero', unidad: 'litro' }));
+  assert.deepEqual([re.existia, re.producto.codigo, re.producto.activo], [true, 'UMO-E003', true]);
+  assert.match(String(rows(rt, 'LOCALES').find(x => x.Local === 'Umo Grill').Encargados), /Ana, Beto/);
+  ok(post(rt, { action: 'saveElaborado', admin_key: KEY, local: 'Umo Grill', codigo: 'UMO-E003', activo: 'NO' }));
+
+  // Lectura: con local sólo activos; sin local, todos con su estado.
+  const umo = ok(get(rt, 'getElaborados', { local: 'umo grill' }));
+  assert.equal(umo.local, 'Umo Grill');
+  assert.deepEqual(umo.productos.map(x => x.codigo), ['UMO-E001', 'UMO-E002', 'UMO-E004']);
+  const todos = ok(get(rt, 'getElaborados')).productos;
+  assert.deepEqual(todos.map(x => x.codigo), ['UMO-E001', 'UMO-E002', 'UMO-E003', 'TRE-E001', 'UMO-E004']);
+  assert.equal(todos.find(x => x.codigo === 'UMO-E003').activo, false);
+
+  // Hoy antes de contar.
+  let hoy = ok(get(rt, 'getHoy', { local: 'Umo Grill' }));
+  assert.equal(hoy.ultimo_elaborados, null);
+  assert.equal(hoy.elaborados_activos, 3);
+  assert.equal(ok(get(rt, 'getHoy', { local: 'Brooklyn' })).elaborados_activos, 0);
+
+  // Conteo: validaciones.
+  const E1 = nid('ELB');
+  const base = { action: 'saveConteoElaborados', local: 'Umo Grill', encargado: 'Ana' };
+  bad(post(rt, Object.assign({}, base, { id_conteo: 'x', items: [{ codigo: 'UMO-E001', listo: 1 }] })), /inválido/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [] })), /no tiene productos/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, encargado: '', items: [{ codigo: 'UMO-E001', listo: 1 }] })), /quien hace el conteo/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E001' }] })), /al menos un estado/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E001', listo: '', marcado: ' ', crudo: null }] })), /al menos un estado/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E001', listo: -1 }] })), /negativa/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E001', crudo: 'dos' }] })), /inválida.*crudo/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E003', listo: 1 }] })), /inactivo/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'TRE-E001', listo: 1 }] })), /no pertenece/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E999', listo: 1 }] })), /no existe/);
+  bad(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E001', listo: 1 }, { codigo: 'umo-e001', crudo: 2 }] })), /repetido/);
+  assert.equal(rows(rt, 'CONTEO_ELABORADOS').length, 0, 'nada se escribió al fallar');
+
+  // Conteo válido: vacío = 0, coma decimal, total; actualiza ELABORADOS.
+  const c1 = ok(post(rt, Object.assign({}, base, { id_conteo: E1, items: [
+    { codigo: 'UMO-E001', listo: 3, marcado: '', crudo: '5' },
+    { codigo: 'UMO-E004', listo: '1,5', marcado: 0, crudo: 0, observaciones: 'queda poco' }] })));
+  assert.deepEqual([c1.id_conteo, c1.items], [E1, 2]);
+  const filas = rows(rt, 'CONTEO_ELABORADOS');
+  assert.equal(filas.length, 2);
+  assert.deepEqual([filas[0].ID_Conteo, filas[0].Local, filas[0].Encargado, filas[0].Código, filas[0].Producto, filas[0].Unidad, filas[0].Listo, filas[0].Marcado, filas[0].Crudo, filas[0].Total],
+    [E1, 'Umo Grill', 'Ana', 'UMO-E001', 'Bondiola', 'unidad', 3, 0, 5, 8]);
+  assert.deepEqual([filas[1].Listo, filas[1].Marcado, filas[1].Crudo, filas[1].Total, filas[1].Observaciones], [1.5, 0, 0, 1.5, 'queda poco']);
+  assert.match(filas[0].Fecha_Hora, FECHA_RE);
+  const d1 = ok(get(rt, 'getElaborados', { local: 'Umo Grill' })).productos;
+  const bon = d1.find(x => x.codigo === 'UMO-E001');
+  assert.deepEqual([bon.listo, bon.marcado, bon.crudo, bon.total, bon.dias_sin_contar], [3, 0, 5, 8, 0]);
+  assert.match(bon.ultimo_conteo, FECHA_RE);
+  assert.deepEqual(d1.find(x => x.codigo === 'UMO-E002').total, null, 'el no contado sigue sin estado');
+
+  // Idempotente por ID: no duplica ni cambia lo guardado.
+  const dup = ok(post(rt, Object.assign({}, base, { id_conteo: E1, items: [{ codigo: 'UMO-E001', listo: 99 }] })));
+  assert.deepEqual([dup.duplicado, dup.items], [true, 2]);
+  assert.equal(rows(rt, 'CONTEO_ELABORADOS').length, 2);
+  assert.equal(ok(get(rt, 'getElaborados', { local: 'Umo Grill' })).productos.find(x => x.codigo === 'UMO-E001').listo, 3);
+
+  // Segundo conteo: pisa el estado; Hoy y getOperacion.
+  const E2 = nid('ELB');
+  ok(post(rt, Object.assign({}, base, { id_conteo: E2, encargado: 'Beto', items: [{ codigo: 'UMO-E001', listo: 0, marcado: 2 }] })));
+  const bon2 = ok(get(rt, 'getElaborados', { local: 'Umo Grill' })).productos.find(x => x.codigo === 'UMO-E001');
+  assert.deepEqual([bon2.listo, bon2.marcado, bon2.crudo, bon2.total], [0, 2, 0, 2]);
+  hoy = ok(get(rt, 'getHoy', { local: 'Umo Grill' }));
+  assert.deepEqual([hoy.ultimo_elaborados.id_conteo, hoy.ultimo_elaborados.productos, hoy.ultimo_elaborados.encargado], [E2, 1, 'Beto']);
+  assert.match(hoy.ultimo_elaborados.fecha_hora, FECHA_RE);
+  assert.equal(ok(get(rt, 'getHoy', { local: 'Trento Café' })).ultimo_elaborados, null, 'el último conteo es por local');
+  const op = ok(get(rt, 'getOperacion', { id: E1 }));
+  assert.deepEqual([op.found, op.tipo, op.local, op.items, op.encargado], [true, 'ELABORADOS', 'Umo Grill', 2, 'Ana']);
+  assert.deepEqual(op.detalle[0], { codigo: 'UMO-E001', producto: 'Bondiola', unidad: 'unidad', listo: 3, marcado: 0, crudo: 5, total: 8 });
+  assert.equal(ok(get(rt, 'getOperacion', { id: nid('ELB') })).found, false);
+  assert.ok(rows(rt, 'LOG').some(x => x.Tipo === 'saveConteoElaborados' && x.OK === 'SÍ' && x.Referencia === E2));
+
+  // Planilla instalada antes de esta etapa (sin las dos pestañas): se crean solas al usarlas.
+  const viejo = mk();
+  viejo.call('setupV3');
+  viejo.spreadsheet.deleteSheet(viejo.spreadsheet.getSheetByName('ELABORADOS'));
+  viejo.spreadsheet.deleteSheet(viejo.spreadsheet.getSheetByName('CONTEO_ELABORADOS'));
+  assert.equal(viejo.spreadsheet.getSheets().length, 9);
+  const h0 = ok(get(viejo, 'getHoy', { local: 'Umo Grill' }));
+  assert.deepEqual([h0.ultimo_elaborados, h0.elaborados_activos], [null, 0], 'Hoy no falla sin las pestañas');
+  assert.equal(ok(get(viejo, 'getOperacion', { id: nid('ELB') })).found, false);
+  assert.deepEqual(ok(get(viejo, 'getElaborados', { local: 'Umo Grill' })).productos, []);
+  assert.deepEqual(viejo.spreadsheet.getSheets().map(s => s.getName()), ORDER, 'las pestañas se crean en su lugar');
+  assert.deepEqual(viejo.sheet('ELABORADOS')[0], HEADERS.ELABORADOS);
+  assert.deepEqual(viejo.sheet('CONTEO_ELABORADOS')[0], HEADERS.CONTEO_ELABORADOS);
+  assert.equal(viejo.spreadsheet.getSheetByName('ELABORADOS').getRange(2, 10).getDataValidation().getCriteriaType(), 'VALUE_IN_LIST');
+  const nuevo = ok(post(viejo, { action: 'agregarElaborado', local: 'Umo Grill', encargado: 'Ana', producto: 'Bondiola', unidad: 'unidad' }));
+  assert.equal(nuevo.producto.codigo, 'UMO-E001');
+  assert.deepEqual(plain(viejo.call('setupV3')).creadas, [], 'setupV3 no las vuelve a crear');
+}
+
 /* ================= reiniciarDatos: empezar de cero ================= */
 {
   const rt = mk();
@@ -892,8 +1029,11 @@ const REC1 = nid('REC');
   const lineas = get(rt, 'getConsolidado', {}).grupos.flatMap(g => g.lineas).map(l => l.id_linea);
   ok(post(rt, { action: 'crearOrden', admin_key: KEY, id_oc: nid('OC'), id_lineas: lineas, proveedor: 'Florida', responsable: 'Gerencia' }));
 
-  const antes = { ped: rows(rt, 'PEDIDOS').length, lin: rows(rt, 'PEDIDO_LINEAS').length, mov: rows(rt, 'MOVIMIENTOS').length, oc: rows(rt, 'COMPRAS').length };
-  assert.deepEqual(antes, { ped: 1, lin: 1, mov: 1, oc: 1 });
+  const bond = ok(post(rt, { action: 'agregarElaborado', local: 'Umo Grill', encargado: 'Ana', producto: 'Bondiola', unidad: 'unidad' })).producto.codigo;
+  ok(post(rt, { action: 'saveConteoElaborados', id_conteo: nid('ELB'), local: 'Umo Grill', encargado: 'Ana', items: [{ codigo: bond, listo: 2, marcado: 1, crudo: 3 }] }));
+
+  const antes = { ped: rows(rt, 'PEDIDOS').length, lin: rows(rt, 'PEDIDO_LINEAS').length, mov: rows(rt, 'MOVIMIENTOS').length, oc: rows(rt, 'COMPRAS').length, elb: rows(rt, 'CONTEO_ELABORADOS').length };
+  assert.deepEqual(antes, { ped: 1, lin: 1, mov: 1, oc: 1, elb: 1 });
 
   // Sin clave, con clave mala o sin la frase exacta: no se borra nada.
   bad(post(rt, { action: 'reiniciarDatos', confirmacion: 'EMPEZAR DE CERO' }));
@@ -919,7 +1059,8 @@ const REC1 = nid('REC');
   assert.equal(copia.getSheetByName('PEDIDOS').getDataRange().getValues().filter(x => x.some(v => v !== '')).length, 2);
 
   // Transacciones vacías, encabezados intactos.
-  for (const h of ['PEDIDOS', 'PEDIDO_LINEAS', 'MOVIMIENTOS', 'COMPRAS']) {
+  assert.deepEqual([r.conteos_elaborados, r.elaborados_sin_contar], [1, 1]);
+  for (const h of ['PEDIDOS', 'PEDIDO_LINEAS', 'MOVIMIENTOS', 'COMPRAS', 'CONTEO_ELABORADOS']) {
     assert.equal(rows(rt, h).length, 0, h + ' debería quedar vacía');
     assert.deepEqual(rt.sheet(h)[0].slice(0, HEADERS[h].length), HEADERS[h]);
   }
@@ -928,6 +1069,9 @@ const REC1 = nid('REC');
   assert.equal(cat.length, 2);
   cat.forEach(x => { assert.equal(x.Stock_Actual, ''); assert.equal(x.Ultimo_Conteo, ''); assert.equal(x.Precio !== '', true); });
   assert.equal(rows(rt, 'PROVEEDORES').length, 1);
+  const elb = rows(rt, 'ELABORADOS');
+  assert.equal(elb.length, 1, 'la lista de elaborados se conserva');
+  assert.deepEqual([elb[0].Producto, elb[0].Listo, elb[0].Marcado, elb[0].Crudo, elb[0].Ultimo_Conteo], ['Bondiola', '', '', '', '']);
   assert.match(String(rows(rt, 'LOCALES').find(x => x.Local === 'Umo Grill').Encargados), /Beto/);
   assert.ok(rows(rt, 'LOG').some(x => x.Tipo === 'REINICIO' && x.OK === 'SÍ'));
 

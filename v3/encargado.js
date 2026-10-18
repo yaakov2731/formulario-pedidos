@@ -110,6 +110,7 @@
   function borradorVacio(tipo) {
     if (tipo === 'pedido') return { items: {}, libres: [], prioridad: 'Normal', notas: '', id: null };
     if (tipo === 'conteo') return { items: {}, id: null };
+    if (tipo === 'elab') return { items: {}, id: null };
     return { marcas: {}, extras: [], observaciones: '', id: null };
   }
 
@@ -243,6 +244,64 @@
       var q = D.num.parse(t);
       return q === null || q < 0;
     });
+  }
+
+  /* ---------- elaborados: qué queda ---------- */
+
+  // [clave en la API, etiqueta, plural para textos]
+  var ESTADOS_ELAB = [['listo', 'Listo', 'listos'], ['marcado', 'Marcado', 'marcados'], ['crudo', 'Crudo', 'crudos']];
+
+  function ordenarElaborados(lista) {
+    return (lista || []).slice().sort(function (a, b) {
+      var ca = categoriaDe(a), cb = categoriaDe(b);
+      if (ca !== cb) {
+        if (ca === SIN_CATEGORIA) return 1;
+        if (cb === SIN_CATEGORIA) return -1;
+        return ca.localeCompare(cb, 'es', { sensitivity: 'base' });
+      }
+      return String(a.producto || '').localeCompare(String(b.producto || ''), 'es', { sensitivity: 'base', numeric: true });
+    });
+  }
+
+  function valorEstado(it, clave) {
+    var v = it && it[clave];
+    return v === undefined || v === null ? '' : String(v).trim();
+  }
+
+  // Un producto está "cargado" si tiene al menos un estado escrito. Los estados vacíos de un producto cargado valen 0.
+  function itemsElaborados(b, lista) {
+    var items = (b && b.items) || {};
+    var codigos = lista ? (lista || []).map(function (p) { return p.codigo; }) : Object.keys(items);
+    var out = [];
+    codigos.forEach(function (cod) {
+      if (!Object.prototype.hasOwnProperty.call(items, cod)) return;
+      var it = items[cod] || {};
+      var algo = false, ok = true, res = { codigo: cod };
+      ESTADOS_ELAB.forEach(function (e) {
+        var t = valorEstado(it, e[0]);
+        if (!t) { res[e[0]] = 0; return; }
+        var q = D.num.parse(t);
+        if (q === null || q < 0) ok = false; else { res[e[0]] = q; algo = true; }
+      });
+      if (algo && ok) out.push(res);
+    });
+    return out;
+  }
+
+  function elabInvalidos(b) {
+    var items = (b && b.items) || {};
+    return Object.keys(items).filter(function (cod) {
+      return ESTADOS_ELAB.some(function (e) {
+        var t = valorEstado(items[cod], e[0]);
+        if (!t) return false;
+        var q = D.num.parse(t);
+        return q === null || q < 0;
+      });
+    });
+  }
+
+  function totalElab(it) {
+    return redondear(ESTADOS_ELAB.reduce(function (n, e) { return n + (Number(it[e[0]]) || 0); }, 0));
   }
 
   /* ---------- recepción ---------- */
@@ -484,6 +543,27 @@
     });
   }
 
+  function enviarElaborados(sesion, lista) {
+    var b = leerBorrador('elab', sesion.local);
+    if (elabInvalidos(b).length) return Promise.resolve({ ok: false, error: 'Hay cantidades que no son números. Corregilas antes de guardar.' });
+    var items = itemsElaborados(b, lista);
+    if (!items.length) return Promise.resolve({ ok: false, error: 'No cargaste ningún producto.' });
+    var id = asegurarId(b, 'ELB');
+    guardarBorrador('elab', sesion.local, b);
+    var firma = firmaBorrador('elab', b);
+    return guardarOperacion({
+      payload: { action: 'saveConteoElaborados', id_conteo: id, local: sesion.local, encargado: sesion.encargado, items: items },
+      id: id, campoId: 'id_conteo', campoCantidad: 'items', accionConfirmar: 'getOperacion',
+      esperado: { id: id, local: sesion.local, tipo: 'ELABORADOS', items: items.length },
+      validar: validarOperacionConfirmada
+    }).then(function (r) {
+      r.id = id;
+      r.items = items.length;
+      if (r.ok) r.borradorConservado = cerrarBorrador('elab', sesion.local, firma);
+      return r;
+    });
+  }
+
   function enviarRecepcion(sesion, ordenes) {
     var b = leerBorrador('recepcion', sesion.local);
     var estado = { ordenes: ordenes, marcas: b.marcas, extras: b.extras };
@@ -568,10 +648,11 @@
     hoy: null, hoyLocal: null, hoyCargando: false, hoyError: null,
     cat: null, catLocal: null, catTs: 0, catCargando: false, catError: null,
     rec: null, recLocal: null, recCargando: false, recError: null,
-    filtro: { pedir: { texto: '', cat: '' }, contar: { texto: '', cat: '' } },
+    elab: null, elabLocal: null, elabTs: 0, elabCargando: false, elabError: null,
+    filtro: { pedir: { texto: '', cat: '' }, contar: { texto: '', cat: '' }, elaborados: { texto: '', cat: '' } },
     enviando: false,
-    error: { pedir: null, contar: null, recibir: null },
-    conflicto: { pedir: false, contar: false, recibir: false },
+    error: { pedir: null, contar: null, recibir: null, elab: null },
+    conflicto: { pedir: false, contar: false, recibir: false, elab: false },
     exito: null,
     extraSel: null,
     rutaPrev: ''
@@ -584,6 +665,7 @@
     pedido: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6"/></svg>',
     conteo: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11l2 2 4-4"/><path d="M9 17h6"/></svg>',
     recibir: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>',
+    elab: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 3c.6 2.8 3.6 4.3 3.6 7.6a3.6 3.6 0 0 1-7.2 0c0-1.3.5-2.3 1.3-3.1.2 1.1.7 1.8 1.4 2.2C10.8 7.9 10.9 5.2 12 3z"/><path d="M4 17h16"/><path d="M6 17v4M18 17v4"/><path d="M4 20h16"/></svg>',
     ok: '<svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
     volver: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M15 6l-6 6 6 6"/></svg>',
     mas: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>'
@@ -591,7 +673,7 @@
 
   /* ---------- ruteo ---------- */
 
-  var TABS = ['hoy', 'pedir', 'contar', 'recibir'];
+  var TABS = ['hoy', 'pedir', 'contar', 'elaborados', 'recibir'];
 
   function ruta() {
     var h = String(global.location.hash || '').replace(/^#\/?/, '');
@@ -612,8 +694,8 @@
     var cambioTab = S.rutaPrev.split('/')[0] !== r.tab;
     S.rutaPrev = clave;
     if (cambioTab) {
-      S.error.pedir = S.error.contar = S.error.recibir = null;
-      S.conflicto.pedir = S.conflicto.contar = S.conflicto.recibir = false;
+      S.error.pedir = S.error.contar = S.error.recibir = S.error.elab = null;
+      S.conflicto.pedir = S.conflicto.contar = S.conflicto.recibir = S.conflicto.elab = false;
     }
     entrarA(r.tab);
     render();
@@ -631,6 +713,7 @@
     if (!sesionLista()) return;
     if (tab === 'hoy') cargarHoy();
     if (tab === 'pedir' || tab === 'contar') cargarCatalogo(false);
+    if (tab === 'elaborados') cargarElaborados(false);
     if (tab === 'recibir') cargarPorRecibir();
   }
 
@@ -694,6 +777,34 @@
       if (dialogoExtraAbierto()) pintarExtraResultados();
       if (pantallaUsaCatalogo()) render();
     });
+  }
+
+  function cargarElaborados(forzar) {
+    if (!sesionLista()) return;
+    var local = S.sesion.local;
+    if (S.elabLocal !== local) { S.elab = null; S.elabLocal = local; S.elabTs = 0; }
+    if (S.elabCargando) return;
+    if (!forzar && S.elab && Date.now() - S.elabTs < CAT_TTL) return;
+    var habia = !!S.elab;
+    S.elabCargando = true; S.elabError = null;
+    if (!habia && pantallaElaborados()) render();
+    D.api.get('getElaborados', { local: local }).then(function (r) {
+      if (!S.sesion || S.sesion.local !== local) return;
+      S.elab = ordenarElaborados(r.productos || []); S.elabTs = Date.now(); S.elabCargando = false;
+      if (S.hoy && S.hoyLocal === local) S.hoy.elaborados_activos = S.elab.length;
+      if (!pantallaElaborados()) return;
+      if (habia) repintarListas(); else render();
+    }, function (e) {
+      if (!S.sesion || S.sesion.local !== local) return;
+      S.elabCargando = false;
+      if (habia) { D.toast('No se pudo actualizar la lista de elaborados. Seguís con la que tenías.', 'info'); return; }
+      S.elabError = e.message || 'No se pudo cargar la lista de elaborados.';
+      if (pantallaElaborados()) render();
+    });
+  }
+
+  function pantallaElaborados() {
+    return !S.login && ruta().tab === 'elaborados';
   }
 
   function dialogoExtraAbierto() {
@@ -812,9 +923,9 @@
     return '<button type="button" class="btn btn-primary btn-lg btn-block" data-act="' + act + '"' + (deshabilitado ? ' disabled' : '') + '>' + esc(texto) + '</button>';
   }
 
-  function tplToolbar(pantalla, conSugeridos) {
+  function tplToolbar(pantalla, conSugeridos, lista) {
     var f = S.filtro[pantalla];
-    var cats = categorias(S.cat);
+    var cats = categorias(lista || S.cat);
     var chips = '<button type="button" class="chip" data-act="cat" data-cat="" aria-pressed="' + (!f.cat) + '">Todas</button>';
     if (conSugeridos) {
       var ns = contarSugeridos(S.cat);
@@ -935,9 +1046,10 @@
     D.store.set('sesion', S.sesion);
     S.login = null;
     if (cambioLocal) {
-      S.error.pedir = S.error.contar = S.error.recibir = null;
+      S.error.pedir = S.error.contar = S.error.recibir = S.error.elab = null;
       S.filtro.pedir = { texto: '', cat: '' };
       S.filtro.contar = { texto: '', cat: '' };
+      S.filtro.elaborados = { texto: '', cat: '' };
     }
     if (ruta().tab === 'hoy' && ruta().sub === '') { entrarA('hoy'); render(); enfocarTitulo(); }
     else ir('#hoy');
@@ -965,6 +1077,7 @@
         : '';
       var filaConteo = fila('#contar', ICON.conteo, 'Último conteo', detConteo, textoHaceDias(dias),
         dias === null || dias >= DIAS_CONTEO ? 'warn' : 'ok');
+      var filaElab = filaElaborados(h);
       var filaRec = fila('#recibir', ICON.recibir, 'Por recibir',
         nRec ? 'Compras ya hizo la orden.' : '',
         nRec ? plural(nRec, 'orden', 'órdenes') : 'Nada', nRec ? 'info' : 'muted');
@@ -973,7 +1086,7 @@
         ? '<div class="accion"><p class="accion-motivo">' + esc(acc.motivo) + '</p><a class="btn btn-primary btn-lg btn-block" href="' + acc.hash + '">' + esc(acc.texto) + '</a></div>'
         : '<div class="accion"><div class="banner banner-ok" role="status"><div><strong>Todo al día.</strong><p>' + esc(acc.motivo) + '</p></div></div></div>';
       var bajo = Number(h.bajo_par) || 0;
-      cuerpo = '<ul class="list estado-list">' + filaPedido + filaConteo + filaRec + '</ul>' +
+      cuerpo = '<ul class="list estado-list">' + filaPedido + filaConteo + filaElab + filaRec + '</ul>' +
         (bajo > 0 ? '<p class="info-line">' + esc(plural(bajo, 'producto está', 'productos están')) + ' por debajo del par.</p>' : '') +
         accion +
         (S.hoyError ? '<p class="small muted aviso-viejo">No se pudo actualizar: ' + esc(S.hoyError) + ' <button type="button" class="btn btn-ghost btn-sm" data-act="reintentar-hoy">Reintentar</button></p>' : '') +
@@ -982,6 +1095,21 @@
     app.innerHTML = '<section class="screen">' +
       '<h1 class="screen-title" tabindex="-1">Hola, ' + esc(S.sesion.encargado) + '</h1>' +
       cuerpo + '</section>';
+  }
+
+  // Elaborados en Hoy: último conteo del local; si no hay productos cargados, invita a cargarlos.
+  function filaElaborados(h) {
+    var u = h.ultimo_elaborados;
+    if (u) {
+      var d = D.haceDias(u.fecha_hora);
+      var n = contar(u.productos);
+      return fila('#elaborados', ICON.elab, 'Elaborados que quedan',
+        D.fechaCorta(u.fecha_hora) + (n !== null ? ' · ' + plural(n, 'producto', 'productos') : '') + (u.encargado ? ' · ' + u.encargado : ''),
+        textoHaceDias(d), d === null || d > 1 ? 'warn' : 'ok');
+    }
+    var activos = Number(h.elaborados_activos) || 0;
+    if (activos > 0) return fila('#elaborados', ICON.elab, 'Elaborados que quedan', plural(activos, 'producto cargado', 'productos cargados'), 'Sin contar', 'warn');
+    return fila('#elaborados', ICON.elab, 'Elaborados que quedan', 'Cargá los productos que elaborás.', 'Sin productos', 'muted');
   }
 
   function fila(href, icono, titulo, detalle, estado, tono) {
@@ -1364,6 +1492,227 @@
     });
   }
 
+  /* ---------- pantalla: elaborados (qué queda) ---------- */
+
+  function borradorElab() { return leerBorrador('elab', S.sesion.local); }
+
+  function renderElaborados(app, r) {
+    var titulo = '<h1 class="screen-title" tabindex="-1">' + (r.sub === 'revisar' ? 'Revisá lo que queda' : 'Elaborados: qué queda') + '</h1>';
+    if (!S.elab) {
+      app.innerHTML = '<section class="screen">' + titulo + (S.elabError ? tplError(S.elabError, 'reintentar-elab') : tplCargando('Cargando elaborados…')) + '</section>';
+      return;
+    }
+    if (r.sub === 'revisar') { renderRevisarElab(app, titulo); return; }
+    var intro = S.elab.length
+      ? '<p class="muted subtitulo">Anotá cuánto quedó de cada producto al cerrar. Si cargás un producto, lo que dejes vacío vale 0.</p>' +
+        '<div class="elab-leyenda"><span><strong>Listo</strong> · para vender</span><span><strong>Marcado</strong> · sellado, falta terminar</span><span><strong>Crudo</strong> · sin cocinar</span></div>' +
+        tplToolbar('elaborados', false, S.elab)
+      : '';
+    app.innerHTML = '<section class="screen">' + titulo + intro + '<div id="lista-elab"></div>' +
+      '<button type="button" class="btn btn-block btn-libre" data-act="abrir-elab">' + ICON.mas + ' Agregar un elaborado a la lista</button></section>';
+    pintarListaElab();
+  }
+
+  function tplElabVacio() {
+    return '<div class="empty"><p><strong>Todavía no hay elaborados cargados para ' + esc(S.sesion.local) + '.</strong></p>' +
+      '<p>Cargá lo que producen acá (bondiola, pollo, salsas…) y después anotá cada día cuánto queda listo, marcado o crudo.</p></div>';
+  }
+
+  function pintarListaElab() {
+    var cont = byId('lista-elab');
+    if (!cont) return;
+    var f = S.filtro.elaborados;
+    var b = borradorElab();
+    var lista = filtrarProductos(S.elab, f.texto, f.cat);
+    var html;
+    if (!S.elab.length) html = tplElabVacio();
+    else if (!lista.length) html = tplVacioFiltro('elaborados');
+    else {
+      var agrupar = !f.cat && !f.texto;
+      var catActual = null;
+      html = '<div class="prod-list">';
+      lista.forEach(function (p) {
+        if (agrupar && categoriaDe(p) !== catActual) {
+          catActual = categoriaDe(p);
+          html += '<div class="prod-group" role="heading" aria-level="2">' + esc(catActual) + '</div>';
+        }
+        html += tplFilaElab(p, b.items[p.codigo]);
+      });
+      html += '</div>';
+    }
+    cont.innerHTML = html;
+    var res = byId('res-elaborados');
+    if (res) res.textContent = S.elab.length ? (lista.length ? plural(lista.length, 'producto', 'productos') : 'Sin resultados') : '';
+    barraElab();
+  }
+
+  function antesElab(p) {
+    if (p.total === null || p.total === undefined) return 'Nunca contado';
+    var partes = ESTADOS_ELAB.map(function (e) { return fmt(p[e[0]] === null || p[e[0]] === undefined ? 0 : p[e[0]]) + ' ' + e[1].toLowerCase(); });
+    var d = D.haceDias(p.ultimo_conteo);
+    return 'Antes: ' + partes.join(' · ') + (d === null ? '' : ' · ' + textoHaceDias(d).toLowerCase());
+  }
+
+  function tplFilaElab(p, it) {
+    var algo = false, invalido = false;
+    var inputs = ESTADOS_ELAB.map(function (e) {
+      var v = valorEstado(it, e[0]);
+      var q = v ? D.num.parse(v) : null;
+      var mal = v && (q === null || q < 0);
+      if (v && !mal) algo = true;
+      if (mal) invalido = true;
+      return '<label class="elab-f"><span>' + e[1] + '</span>' +
+        '<input type="text" inputmode="decimal" autocomplete="off" class="input input-num" data-act="elab" data-estado="' + e[0] + '" placeholder="0" ' +
+        'aria-label="' + e[1] + ' de ' + esc(p.producto) + ' en ' + esc(p.unidad) + '" value="' + esc(v) + '"' + (mal ? ' aria-invalid="true"' : '') + '></label>';
+    }).join('');
+    return '<div class="prod-row elab-row' + (algo && !invalido ? ' is-on' : '') + '" data-codigo="' + esc(p.codigo) + '">' +
+      '<div class="prod-info"><div class="prod-name">' + esc(p.producto) + ' <span class="prod-unit">' + esc(p.unidad) + '</span></div>' +
+      '<div class="prod-meta">' + esc(antesElab(p)) + '</div></div>' +
+      '<button type="button" class="btn elab-nada" data-act="elab-nada" aria-label="No queda nada de ' + esc(p.producto) + '">Nada</button>' +
+      '<div class="elab-ctl">' + inputs + '</div></div>';
+  }
+
+  function barraElab() {
+    var n = itemsElaborados(borradorElab(), S.elab || []).length;
+    setBarra('<div class="barra-fila"><span class="barra-cuenta" aria-live="polite">' + (n ? esc(plural(n, 'producto cargado', 'productos cargados')) : 'Ningún producto cargado') + '</span>' +
+      (n ? '<a class="btn btn-primary btn-lg" href="#elaborados/revisar">Revisar</a>' : '<button type="button" class="btn btn-primary btn-lg" disabled>Revisar</button>') + '</div>');
+  }
+
+  function onCantidadElab(input) {
+    var row = input.closest('.prod-row');
+    if (!row) return;
+    var cod = row.getAttribute('data-codigo');
+    var estado = input.getAttribute('data-estado');
+    var v = String(input.value || '').trim();
+    var b = borradorElab();
+    var it = b.items[cod] || {};
+    if (v) it[estado] = v; else delete it[estado];
+    if (Object.keys(it).length) b.items[cod] = it; else delete b.items[cod];
+    guardarBorrador('elab', S.sesion.local, b);
+    var q = D.num.parse(v);
+    if (v && (q === null || q < 0)) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+    var valido = itemsElaborados({ items: { x: it } }, null).length === 1;
+    row.classList.toggle('is-on', valido && !row.querySelector('[aria-invalid="true"]'));
+    barraElab();
+  }
+
+  function onElabNada(row) {
+    var inputs = row.querySelectorAll('input[data-act="elab"]');
+    for (var i = 0; i < inputs.length; i++) { inputs[i].value = '0'; onCantidadElab(inputs[i]); }
+  }
+
+  function renderRevisarElab(app, titulo) {
+    var b = borradorElab();
+    var items = itemsElaborados(b, S.elab);
+    var idx = indexarCatalogo(S.elab);
+    var volver = '<a class="btn btn-ghost volver" href="#elaborados">' + ICON.volver + ' Seguir cargando</a>';
+    setBarra(null);
+    if (!items.length) {
+      app.innerHTML = '<section class="screen">' + volver + titulo + '<div class="empty"><p>No cargaste ningún producto todavía.</p><a class="btn" href="#elaborados">Empezar a cargar</a></div></section>';
+      return;
+    }
+    var invalidos = elabInvalidos(b).filter(function (c) { return idx[c]; });
+    app.innerHTML = '<section class="screen">' + volver + titulo +
+      '<p class="lead">Vas a guardar <strong>' + esc(plural(items.length, 'producto', 'productos')) + '</strong>.</p>' +
+      '<p class="small muted">Los que dejaste sin tocar no se modifican.</p>' +
+      (invalidos.length ? '<div class="banner banner-warn">' + esc(plural(invalidos.length, 'cantidad no es un número', 'cantidades no son números')) + '. Volvé y corregilas.</div>' : '') +
+      '<ul class="list">' + items.map(function (it) {
+        var p = idx[it.codigo] || {};
+        var total = totalElab(it);
+        var estados = ESTADOS_ELAB.map(function (e) {
+          return it[e[0]] > 0 ? '<span>' + e[1] + ' <strong class="num">' + esc(fmt(it[e[0]])) + '</strong></span>' : '';
+        }).join('');
+        return '<li class="list-row rev-row"><span class="rev-prod">' + esc(p.producto || it.codigo) +
+          '<br><span class="rev-total">' + (total > 0 ? 'Total ' + esc(fmt(total, p.unidad)) : 'No queda nada') + '</span></span>' +
+          '<span class="rev-estados">' + (total > 0 ? estados : '<span class="badge badge-warn">No queda</span>') + '</span></li>';
+      }).join('') + '</ul>' +
+      tplErrorEnvio('elab', 'guardar-elab-nuevo', 'Guardar como conteo nuevo') +
+      tplBtnEnviar('guardar-elab', 'Guardar lo que queda', 'Guardando…', invalidos.length > 0) +
+      '</section>';
+  }
+
+  function onGuardarElab(nuevo) {
+    if (S.enviando || !S.elab) return;
+    if (nuevo) { var b = borradorElab(); b.id = null; guardarBorrador('elab', S.sesion.local, b); }
+    S.enviando = true; S.error.elab = null; S.conflicto.elab = false;
+    render();
+    var sesion = { local: S.sesion.local, encargado: S.sesion.encargado };
+    enviarElaborados(sesion, S.elab).then(function (r) {
+      S.enviando = false;
+      if (r.ok) {
+        if (S.hoy && S.hoyLocal === sesion.local) S.hoy.ultimo_elaborados = { id_conteo: r.id, fecha_hora: ahoraTexto(), productos: r.items, encargado: sesion.encargado };
+        S.elabTs = 0;
+        S.filtro.elaborados = { texto: '', cat: '' };
+        D.toast('Guardado: ' + plural(r.items, 'producto', 'productos') + '.', 'ok');
+        if (r.borradorConservado) D.toast('Lo que cambiaste mientras se guardaba quedó en el borrador.', 'info');
+        if (ruta().tab === 'elaborados') ir('#hoy'); else render();
+      } else {
+        S.error.elab = r.error; S.conflicto.elab = !!r.conflicto;
+        render();
+        var e = byId('error-elab');
+        if (e && e.scrollIntoView) e.scrollIntoView({ block: 'center' });
+      }
+    });
+  }
+
+  function abrirElab() {
+    var sel = byId('elab-unidad');
+    if (!sel.options.length) {
+      sel.innerHTML = D.UNIDADES.map(function (u) { return '<option value="' + esc(u) + '">' + esc(u) + '</option>'; }).join('');
+    }
+    byId('dl-elab-cat').innerHTML = categorias(S.elab).filter(function (c) { return c !== SIN_CATEGORIA; })
+      .map(function (c) { return '<option value="' + esc(c) + '"></option>'; }).join('');
+    byId('elab-nombre').value = S.filtro.elaborados.texto || '';
+    byId('elab-cat').value = S.filtro.elaborados.cat && S.filtro.elaborados.cat !== SIN_CATEGORIA ? S.filtro.elaborados.cat : '';
+    sel.value = 'unidad';
+    byId('elab-error').textContent = '';
+    byId('elab-guardar').disabled = false;
+    abrirDialogo(byId('dlg-elab'));
+    byId('elab-nombre').focus();
+  }
+
+  function onSubmitElab(e) {
+    e.preventDefault();
+    var nombre = limpiarNombre(byId('elab-nombre').value).slice(0, 80);
+    var unidad = byId('elab-unidad').value;
+    var categoria = limpiarNombre(byId('elab-cat').value);
+    var err = nombre.length < 2 ? 'Escribí el nombre del elaborado.' : D.UNIDADES.indexOf(unidad) < 0 ? 'Elegí una unidad.' : '';
+    if (err) { byId('elab-error').textContent = err; return; }
+    var btn = byId('elab-guardar');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    byId('elab-error').textContent = '';
+    var local = S.sesion.local;
+    var envio;
+    try { envio = D.api.post({ action: 'agregarElaborado', local: local, encargado: S.sesion.encargado, producto: nombre, unidad: unidad, categoria: categoria }); } catch (ex) { envio = Promise.reject(ex); }
+    Promise.resolve(envio).then(function (r) {
+      if (!S.sesion || S.sesion.local !== local) return;
+      var p = r && r.producto && typeof r.producto === 'object' ? r.producto : null;
+      if (!p) {
+        // Sin respuesta legible: se vuelve a leer la lista.
+        S.elabTs = 0;
+        cerrarDialogo(byId('dlg-elab'));
+        cargarElaborados(true);
+        D.toast('Enviado. Actualizando la lista…', 'info');
+        return;
+      }
+      var lista = (S.elab || []).filter(function (x) { return x.codigo !== p.codigo; });
+      lista.push(p);
+      S.elab = ordenarElaborados(lista);
+      if (S.hoy && S.hoyLocal === local) S.hoy.elaborados_activos = S.elab.length;
+      cerrarDialogo(byId('dlg-elab'));
+      S.filtro.elaborados = { texto: '', cat: '' };
+      render();
+      D.toast(r.existia ? p.producto + ' ya estaba en la lista.' : p.producto + ' agregado a la lista.', r.existia ? 'info' : 'ok');
+      var inp = doc.querySelector('.prod-row[data-codigo="' + p.codigo + '"] input[data-act="elab"]');
+      if (inp) { try { inp.scrollIntoView({ block: 'center' }); } catch (_e) { /* sin scroll */ } inp.focus(); }
+    }, function (ex) {
+      btn.disabled = false;
+      var msg = (ex && ex.message) || 'No se pudo agregar.';
+      byId('elab-error').textContent = ex && ex.server ? 'La planilla no lo aceptó: ' + msg : msg;
+    });
+  }
+
   /* ---------- pantalla: recibir ---------- */
 
   function borradorRecepcion() { return leerBorrador('recepcion', S.sesion.local); }
@@ -1591,6 +1940,7 @@
     if (S.login || !sesionLista()) { renderLogin(app); actualizarNav(r); return; }
     if (r.tab === 'pedir') renderPedir(app, r);
     else if (r.tab === 'contar') renderContar(app, r);
+    else if (r.tab === 'elaborados') renderElaborados(app, r);
     else if (r.tab === 'recibir') renderRecibir(app, r);
     else renderHoy(app);
   }
@@ -1602,6 +1952,7 @@
     if (nSug) nSug.textContent = String(contarSugeridos(S.cat));
     if (r.tab === 'pedir' && r.sub === '' && byId('lista-pedir')) pintarListaPedir();
     else if (r.tab === 'contar' && r.sub === '' && byId('lista-contar')) pintarListaContar();
+    else if (r.tab === 'elaborados' && r.sub === '' && byId('lista-elab')) pintarListaElab();
     else render();
     if (dialogoExtraAbierto()) pintarExtraResultados();
   }
@@ -1627,12 +1978,13 @@
       case 'reintentar-hoy': cargarHoy(); render(); break;
       case 'reintentar-cat': S.catError = null; cargarCatalogo(true); if (!dialogoExtraAbierto()) render(); else pintarExtraResultados(); break;
       case 'reintentar-rec': cargarPorRecibir(); render(); break;
+      case 'reintentar-elab': S.elabError = null; cargarElaborados(true); render(); break;
       case 'cat': {
         var pant = ruta().tab;
         S.filtro[pant].cat = el.getAttribute('data-cat');
         var chips = el.parentNode.querySelectorAll('.chip');
         for (var i = 0; i < chips.length; i++) chips[i].setAttribute('aria-pressed', String(chips[i] === el));
-        if (pant === 'pedir') pintarListaPedir(); else pintarListaContar();
+        pintarLista(pant);
         break;
       }
       case 'limpiar-filtro': {
@@ -1685,6 +2037,10 @@
       }
       case 'guardar-conteo': onGuardarConteo(false); break;
       case 'guardar-conteo-nuevo': onGuardarConteo(true); break;
+      case 'elab-nada': onElabNada(el.closest('.prod-row')); break;
+      case 'guardar-elab': onGuardarElab(false); break;
+      case 'guardar-elab-nuevo': onGuardarElab(true); break;
+      case 'abrir-elab': abrirElab(); break;
       case 'llego-todo': onLlegoTodo(el.closest('.orden')); break;
       case 'abrir-extra': abrirExtra(); break;
       case 'extra-elegir': {
@@ -1708,6 +2064,12 @@
     }
   }
 
+  function pintarLista(pantalla) {
+    if (pantalla === 'pedir') pintarListaPedir();
+    else if (pantalla === 'elaborados') pintarListaElab();
+    else pintarListaContar();
+  }
+
   function onInput(e) {
     var el = e.target;
     var act = el.getAttribute && el.getAttribute('data-act');
@@ -1716,9 +2078,10 @@
     if (act === 'buscar') {
       var pant = el.getAttribute('data-pantalla');
       S.filtro[pant].texto = el.value;
-      if (pant === 'pedir') pintarListaPedir(); else pintarListaContar();
+      pintarLista(pant);
     } else if (act === 'cant') onCantidadPedido(el);
     else if (act === 'contar') onCantidadConteo(el);
+    else if (act === 'elab') onCantidadElab(el);
     else if (act === 'rec-cant') {
       var row = el.closest('.rec-line');
       var b = borradorRecepcion();
@@ -1748,6 +2111,7 @@
     var f = e.target;
     if (f.id === 'form-libre') { onSubmitLibre(e); return; }
     if (f.id === 'form-extra') { onSubmitExtra(e); return; }
+    if (f.id === 'form-elab') { onSubmitElab(e); return; }
     if (f.getAttribute('data-form') === 'otro-nombre') {
       e.preventDefault();
       var nombre = limpiarNombre(byId('enc-otro').value);
@@ -1759,7 +2123,7 @@
   function onKeydown(e) {
     // Enter en una cantidad: cerrar el teclado en vez de enviar nada.
     var act = e.target.getAttribute && e.target.getAttribute('data-act');
-    if (e.key === 'Enter' && (act === 'cant' || act === 'contar' || act === 'rec-cant' || act === 'buscar')) {
+    if (e.key === 'Enter' && (act === 'cant' || act === 'contar' || act === 'elab' || act === 'rec-cant' || act === 'buscar')) {
       e.preventDefault();
       e.target.blur();
     }
@@ -1804,6 +2168,12 @@
     borrarBorrador: borrarBorrador,
     asegurarId: asegurarId,
     firmaBorrador: firmaBorrador,
+    ESTADOS_ELAB: ESTADOS_ELAB,
+    ordenarElaborados: ordenarElaborados,
+    itemsElaborados: itemsElaborados,
+    elabInvalidos: elabInvalidos,
+    totalElab: totalElab,
+    enviarElaborados: enviarElaborados,
     armarItemsPedido: armarItemsPedido,
     fueraDeCatalogo: fueraDeCatalogo,
     payloadPedido: payloadPedido,

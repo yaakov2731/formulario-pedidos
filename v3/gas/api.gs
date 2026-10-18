@@ -11,7 +11,8 @@ var V3_GET = {
   getConsolidado: function (p) { return getConsolidado_(p); },
   getOrdenes: function (p) { return getOrdenes_(p); },
   getFaltantes: function (p) { return getFaltantes_(p); },
-  getStockPanel: function (p) { return getStockPanel_(p); }
+  getStockPanel: function (p) { return getStockPanel_(p); },
+  getElaborados: function (p) { return getElaborados_(p); }
 };
 
 var V3_POST = {
@@ -24,6 +25,9 @@ var V3_POST = {
   saveProductosLote: function (b) { return saveProductosLote_(b); },
   saveProveedor: function (b) { return saveProveedor_(b); },
   saveLocal: function (b) { return saveLocal_(b); },
+  saveConteoElaborados: function (b) { return saveConteoElaborados_(b); },
+  saveElaborado: function (b) { return saveElaborado_(b); },
+  agregarElaborado: function (b) { return agregarElaborado_(b); },
   checkAdmin: function (b) { checkAdminKey_(b.admin_key); return { ok: true }; },
   reiniciarDatos: function (b) { return reiniciarDatos_(b); }
 };
@@ -66,7 +70,7 @@ function doPost(e) {
   }
   if (!body || typeof body !== 'object') return jsonOut_({ ok: false, error: 'No se pudo leer el pedido enviado.' });
   var action = String(body.action || '');
-  var ref = body.id_pedido || body.id_operacion || body.id_oc || body.codigo || body.proveedor || '';
+  var ref = body.id_pedido || body.id_operacion || body.id_conteo || body.id_oc || body.codigo || body.proveedor || '';
   var res;
   try {
     resetReq_();

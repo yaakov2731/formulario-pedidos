@@ -42,6 +42,34 @@ const step = (m) => console.log('·', m);
   await p.waitForFunction(() => location.hash.startsWith('#hoy') || /guardad/i.test(document.body.innerText), null, { timeout: 15000 });
   step('conteo guardado: ' + (await p.evaluate(() => location.hash)));
 
+  // Elaborados: qué queda (listo / marcado / crudo), alta desde el celular
+  await p.goto(BASE + '/#elaborados');
+  await p.getByLabel(/Listo de Bondiola en unidad/).fill('3');
+  await p.getByLabel(/Crudo de Bondiola en unidad/).fill('5');
+  await p.getByLabel(/No queda nada de Pollo deshuesado/).click();
+  await p.getByRole('button', { name: /Agregar un elaborado/ }).click();
+  await p.locator('#elab-nombre').fill('Vacío');
+  await p.locator('#elab-unidad').selectOption('kg');
+  await p.locator('#elab-cat').fill('Parrilla');
+  await p.locator('#elab-guardar').click();
+  await p.getByLabel(/Listo de Vacío en kg/).waitFor({ timeout: 15000 });
+  await p.getByLabel(/Listo de Vacío en kg/).fill('1,5');
+  await p.screenshot({ path: SHOTS + '/02b-elaborados.png', fullPage: true });
+  await p.getByRole('link', { name: 'Revisar' }).click();
+  await p.getByText(/Vas a guardar/).waitFor();
+  await p.screenshot({ path: SHOTS + '/02c-elaborados-revisar.png', fullPage: true });
+  await p.getByRole('button', { name: /Guardar lo que queda/ }).click();
+  await p.waitForFunction(() => location.hash.startsWith('#hoy'), null, { timeout: 15000 });
+  await p.getByText(/Elaborados que quedan/).waitFor();
+  await p.screenshot({ path: SHOTS + '/02d-hoy-elaborados.png', fullPage: true });
+  const elab = await (await fetch(BASE + '/api?action=getElaborados&local=Umo%20Grill')).json();
+  const eb = n => elab.productos.find(f => f.producto === n);
+  const resumenElab = ['Bondiola', 'Pollo deshuesado', 'Vacío', 'Chimichurri'].map(n => `${n}=${eb(n).listo}/${eb(n).marcado}/${eb(n).crudo}`).join(' · ');
+  step('elaborados guardados: ' + resumenElab);
+  if (!(eb('Bondiola').listo === 3 && eb('Bondiola').marcado === 0 && eb('Bondiola').crudo === 5 && eb('Pollo deshuesado').total === 0 && eb('Vacío').listo === 1.5 && eb('Chimichurri').total === null)) {
+    errors.push('elaborados: la planilla no refleja lo cargado (' + resumenElab + ')');
+  }
+
   // Pedir con sugeridos
   await p.goto(BASE + '/#pedir');
   await p.getByRole('button', { name: /Cargar sugerido/ }).first().waitFor();
@@ -114,6 +142,22 @@ const step = (m) => console.log('·', m);
   await c.goto(BASE + '/compras.html#stock');
   await c.getByText('Asado').first().waitFor({ timeout: 15000 });
   await c.screenshot({ path: SHOTS + '/11-stock.png', fullPage: true });
+  await c.goto(BASE + '/compras.html#elaborados');
+  await c.getByText('Bondiola').first().waitFor({ timeout: 15000 });
+  await c.screenshot({ path: SHOTS + '/12-elaborados.png', fullPage: true });
+  await c.getByRole('row', { name: /Editar Chimichurri/ }).click();
+  await c.locator('#fe-producto').waitFor({ state: 'visible' });
+  await c.locator('#fe-producto').fill('Chimichurri casero');
+  await c.locator('#fe-activo').selectOption('NO');
+  await c.screenshot({ path: SHOTS + '/13-elaborado-editar.png' });
+  await c.locator('#fe-guardar').click();
+  await c.locator('#dlg-elaborado').waitFor({ state: 'hidden', timeout: 15000 });
+  await c.locator('#cx-elab-filtro').selectOption('todos');
+  await c.getByText('Chimichurri casero').first().waitFor({ timeout: 15000 });
+  await c.screenshot({ path: SHOTS + '/14-elaborados-todos.png', fullPage: true });
+  step('elaborado editado desde Compras');
+  const elab2 = await (await fetch(BASE + '/api?action=getElaborados&local=Umo%20Grill')).json();
+  if (elab2.productos.some(x => /Chimichurri/.test(x.producto))) errors.push('el elaborado inactivo sigue apareciendo para el encargado');
 
   // ---------- Verificación en la "planilla" ----------
   const stock = await (await fetch(BASE + '/api?action=getStockPanel&local=Umo%20Grill')).json();

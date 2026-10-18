@@ -3,8 +3,8 @@
 var V3_FRASE_REINICIO = 'EMPEZAR DE CERO';
 
 /**
- * Deja la operación como nueva: borra pedidos, líneas, movimientos y órdenes, y deja el stock
- * del catálogo "sin contar" (vacío, no cero). Conserva catálogo, proveedores, locales, encargados,
+ * Deja la operación como nueva: borra pedidos, líneas, movimientos, órdenes y conteos de elaborados, y deja el stock
+ * del catálogo y de los elaborados "sin contar" (vacío, no cero). Conserva catálogo, elaborados, proveedores, locales, encargados,
  * TABLERO y LOG. Antes de borrar hace una copia completa de la planilla; si la copia falla, no borra nada.
  */
 function reiniciarDatos_(b) {
@@ -40,6 +40,19 @@ function reiniciarDatos_(b) {
       });
     }
 
+    var conteosElab = ss.getSheetByName(SH_CONTEO_ELAB) ? vaciarDatos_(ss.getSheetByName(SH_CONTEO_ELAB)) : 0;
+    var elaborados = 0;
+    var ela = ss.getSheetByName(SH_ELABORADOS);
+    if (ela && ela.getLastRow() > 1) {
+      var headE = ela.getRange(1, 1, 1, ela.getLastColumn()).getValues()[0].map(function (h) { return str_(h); });
+      var filasE = ela.getLastRow() - 1;
+      ela.getRange(2, 1, filasE, 1).getValues().forEach(function (r) { if (str_(r[0])) elaborados++; });
+      ['Listo', 'Marcado', 'Crudo', 'Ultimo_Conteo'].forEach(function (h) {
+        var c = headE.indexOf(h);
+        if (c > -1) ela.getRange(2, c + 1, filasE, 1).clearContent();
+      });
+    }
+
     var res = {
       ok: true,
       respaldo_nombre: nombre,
@@ -48,10 +61,13 @@ function reiniciarDatos_(b) {
       lineas: borrados[SH_LINEAS],
       movimientos: borrados[SH_MOVIMIENTOS],
       ordenes: borrados[SH_COMPRAS],
-      productos_sin_contar: productos
+      productos_sin_contar: productos,
+      conteos_elaborados: conteosElab,
+      elaborados_sin_contar: elaborados
     };
     log_('REINICIO', nombre, '', true, 'Pedidos ' + res.pedidos + ', líneas ' + res.lineas + ', movimientos ' +
-      res.movimientos + ', órdenes ' + res.ordenes + ', stock sin contar en ' + productos + ' productos. Respaldo: ' + res.respaldo_url);
+      res.movimientos + ', órdenes ' + res.ordenes + ', conteos de elaborados ' + conteosElab + ', stock sin contar en ' + productos +
+      ' productos y ' + elaborados + ' elaborados. Respaldo: ' + res.respaldo_url);
     return res;
   });
 }

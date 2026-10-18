@@ -42,6 +42,13 @@ async function post(body) {
   }
   console.log('OK lecturas de Hoy, Recibir, Compras, Órdenes, Faltantes y Stock');
 
+  // Elaborados (etapa 2): si el backend publicado es anterior, avisa qué falta en vez de fallar en seco.
+  const ela = await get('getElaborados', { local: 'Umo Grill' });
+  assert.equal(ela.ok, true, `getElaborados: ${ela.error}. Si dice "Acción desconocida", falta pegar el DocksV3.gs nuevo y publicar una versión nueva.`);
+  assert.ok(Array.isArray(ela.productos));
+  assert.ok('ultimo_elaborados' in (await get('getHoy', { local: 'Umo Grill' })), 'getHoy sin ultimo_elaborados: backend viejo');
+  console.log(`OK elaborados Umo Grill: ${ela.productos.length} productos`);
+
   const nf = await get('getPedido', { id: 'PED-20000101-000000-zzzz' });
   assert.equal(nf.ok, true); assert.equal(nf.found, false);
 

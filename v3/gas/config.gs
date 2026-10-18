@@ -14,10 +14,12 @@ var SH_PEDIDOS = 'PEDIDOS';
 var SH_LINEAS = 'PEDIDO_LINEAS';
 var SH_MOVIMIENTOS = 'MOVIMIENTOS';
 var SH_COMPRAS = 'COMPRAS';
+var SH_ELABORADOS = 'ELABORADOS';
+var SH_CONTEO_ELAB = 'CONTEO_ELABORADOS';
 var SH_TABLERO = 'TABLERO';
 var SH_LOG = 'LOG';
 
-var V3_SHEET_ORDER = ['CATALOGO', 'PROVEEDORES', 'LOCALES', 'PEDIDOS', 'PEDIDO_LINEAS', 'MOVIMIENTOS', 'COMPRAS', 'TABLERO', 'LOG'];
+var V3_SHEET_ORDER = ['CATALOGO', 'PROVEEDORES', 'LOCALES', 'PEDIDOS', 'PEDIDO_LINEAS', 'MOVIMIENTOS', 'COMPRAS', 'ELABORADOS', 'CONTEO_ELABORADOS', 'TABLERO', 'LOG'];
 
 var V3_HEADERS = {
   CATALOGO: ['Código', 'Producto', 'Local', 'Categoría', 'Unidad', 'Proveedor', 'Precio', 'Par', 'Stock_Actual', 'Ultimo_Conteo', 'Estado', 'Actualizado'],
@@ -27,6 +29,8 @@ var V3_HEADERS = {
   PEDIDO_LINEAS: ['ID_Linea', 'ID_Pedido', 'Fecha_Hora', 'Semana', 'Local', 'Código', 'Producto', 'Categoría', 'Unidad', 'Cantidad', 'Proveedor', 'Precio_Ref', 'Estado', 'ID_OC', 'Cantidad_Recibida', 'Fecha_Recepcion', 'ID_Recepcion', 'Observaciones'],
   MOVIMIENTOS: ['Fecha_Hora', 'ID_Operacion', 'Tipo', 'Local', 'Encargado', 'Código', 'Producto', 'Unidad', 'Cantidad', 'Saldo_Anterior', 'Saldo_Resultante', 'Costo_Unitario', 'Referencia', 'Observaciones'],
   COMPRAS: ['ID_OC', 'Fecha_Hora', 'Semana', 'Proveedor', 'Locales', 'Estado', 'Lineas', 'Total_Estimado', 'Responsable', 'Texto_WhatsApp', 'Observaciones'],
+  ELABORADOS: ['Código', 'Producto', 'Local', 'Categoría', 'Unidad', 'Listo', 'Marcado', 'Crudo', 'Ultimo_Conteo', 'Activo', 'Observaciones', 'Actualizado'],
+  CONTEO_ELABORADOS: ['Fecha_Hora', 'ID_Conteo', 'Local', 'Encargado', 'Código', 'Producto', 'Unidad', 'Listo', 'Marcado', 'Crudo', 'Total', 'Observaciones'],
   LOG: ['Fecha_Hora', 'Tipo', 'Referencia', 'Local', 'OK', 'Detalle']
 };
 
@@ -39,6 +43,8 @@ var V3_TEXT_COLUMNS = {
   PEDIDO_LINEAS: ['ID_Linea', 'ID_Pedido', 'Fecha_Hora', 'Semana', 'Código', 'ID_OC', 'Fecha_Recepcion', 'ID_Recepcion'],
   MOVIMIENTOS: ['Fecha_Hora', 'ID_Operacion', 'Código', 'Referencia'],
   COMPRAS: ['ID_OC', 'Fecha_Hora', 'Semana'],
+  ELABORADOS: ['Código', 'Ultimo_Conteo', 'Actualizado'],
+  CONTEO_ELABORADOS: ['Fecha_Hora', 'ID_Conteo', 'Código'],
   LOG: ['Fecha_Hora', 'Referencia']
 };
 
@@ -52,6 +58,8 @@ var EST_PEDIDO = ['Pendiente', 'En compra', 'Cerrado'];
 var EST_LINEA = ['Pendiente', 'Comprado', 'Entregado', 'Incompleto', 'Cancelado'];
 var TIPOS_MOV = ['CONTEO', 'RECEPCION', 'AJUSTE'];
 var EST_OC = ['Enviada', 'Recibida parcial', 'Recibida', 'Cancelada'];
+/* Estados de un elaborado: columna de la planilla y clave en la API. */
+var ESTADOS_ELAB = [['Listo', 'listo'], ['Marcado', 'marcado'], ['Crudo', 'crudo']];
 var DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 var V3_MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 

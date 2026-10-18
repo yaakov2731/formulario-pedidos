@@ -43,7 +43,9 @@ if (args.includes('--seed')) {
   ].map(([producto, categoria, unidad, proveedor, precio, par]) => ({ producto, categoria, unidad, proveedor, precio, par }));
   ['Umo Grill', 'Trento Café'].forEach(local =>
     post({ action: 'saveProductosLote', admin_key: ADMIN_KEY, local, filas }));
-  console.log('Datos de prueba cargados en memoria (Umo Grill y Trento Café).');
+  [['Bondiola', 'Parrilla', 'unidad'], ['Pollo deshuesado', 'Parrilla', 'unidad'], ['Chimichurri', 'Salsas', 'litro']].forEach(([producto, categoria, unidad]) =>
+    post({ action: 'saveElaborado', admin_key: ADMIN_KEY, local: 'Umo Grill', producto, categoria, unidad }));
+  console.log('Datos de prueba cargados en memoria (Umo Grill y Trento Café, con elaborados en Umo Grill).');
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json' };
