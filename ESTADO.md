@@ -1,6 +1,7 @@
 # Estado de continuidad · Pedidos Semanales
 
 Actualizado: 18 de octubre de 2026 (tarde). Coordinador: Claude Code. Rama: `claude/gallant-keller-fwqf4p`.
+PRs #10 (Elaborados) y #11 (URL del backend nuevo) mergeados y publicados.
 
 ## Objetivo y aceptación
 
@@ -25,6 +26,13 @@ una pestaña para anotar, por producto elaborado (p. ej. en la parrilla de Umo G
 - Gerencia (`v3/compras.html`, `compras.js`): sección **Elaborados** con tabla por local (Listo, Marcado,
   Crudo, Total, último conteo), filtros, alta y edición (nombre, grupo, unidad, activo, observaciones).
 - Contrato `docs/v3/CONTRATO.md` (D5, §3, §3.6, §4, §5), `docs/v3/DESPLIEGUE.md`, `README.md`.
+- Planilla real (con el conector de Sheets): creadas `ELABORADOS` y `CONTEO_ELABORADOS` con formatos, validaciones
+  y bloque 6 del TABLERO (la URL nueva del usuario no corría el código nuevo al principio; el LOG ya muestra
+  `agregarElaborado` y `saveConteoElaborados` funcionando). Cargados 69 elaborados desde el catálogo (Carnes y
+  Verdulería de Umo Grill, Trento Café y Brooklyn; no existe categoría Tortas en el catálogo).
+- Velocidad: copia local por local (`cache:*` en localStorage) de Hoy, catálogo, elaborados y por recibir, con
+  pintado instantáneo y actualización en segundo plano; precarga de catálogo y elaborados tras Hoy; fuentes de
+  Google sin bloquear el primer pintado.
 
 ## Verificaciones
 

@@ -291,6 +291,17 @@ const CATALOGO = [
   assert.equal(cntPosts.length, antes, 'cantidad inválida no se envía');
   E.borrarBorrador('conteo', 'Umo Grill');
 
+  /* ---------- copia local por local (pintado instantáneo) ---------- */
+  assert.equal(E.cacheLeer('cat', 'Umo Grill'), null);
+  E.cacheGuardar('cat', 'Umo Grill', [{ codigo: 'UMO001' }]);
+  assert.deepEqual(plain(E.cacheLeer('cat', 'Umo Grill').data), [{ codigo: 'UMO001' }]);
+  assert.ok(Date.now() - E.cacheLeer('cat', 'Umo Grill').ts < 5000);
+  assert.equal(E.cacheLeer('cat', 'Trento Café'), null, 'la copia es por local');
+  storage.set('docksv3:cache:elab:Umo Grill', JSON.stringify({ ts: Date.now() - 8 * 864e5, data: [] }));
+  assert.equal(E.cacheLeer('elab', 'Umo Grill'), null, 'una copia de más de una semana no se usa');
+  storage.set('docksv3:cache:hoy:Umo Grill', 'basura');
+  assert.equal(E.cacheLeer('hoy', 'Umo Grill'), null, 'contenido inválido no rompe');
+
   /* ---------- elaborados: lógica pura ---------- */
   const ELAB = [
     { codigo: 'UMO-E002', producto: 'Pollo deshuesado', categoria: 'Parrilla', unidad: 'unidad', listo: null, marcado: null, crudo: null, total: null, ultimo_conteo: '' },

@@ -721,6 +721,26 @@
 
   function sesionLista() { return !!(S.sesion && S.sesion.local && S.sesion.encargado); }
 
+  // Copia local de lo último que respondió la planilla, por local: la pantalla se pinta al instante
+  // con esa copia y se actualiza en segundo plano. Vence sola a la semana.
+  var CACHE_MAX = 7 * 864e5;
+  function cacheKey(tipo, local) { return 'cache:' + tipo + ':' + String(local || ''); }
+  function cacheLeer(tipo, local) {
+    var c = D.store.get(cacheKey(tipo, local), null);
+    if (!c || typeof c !== 'object' || !c.ts || !(Date.now() - c.ts < CACHE_MAX)) return null;
+    return c;
+  }
+  function cacheGuardar(tipo, local, data) { D.store.set(cacheKey(tipo, local), { ts: Date.now(), data: data }); }
+
+  // Con Hoy ya en pantalla, trae catálogo y elaborados para que las otras pestañas abran sin esperar.
+  function precargar() {
+    setTimeout(function () {
+      if (!sesionLista() || S.login) return;
+      cargarCatalogo(false);
+      cargarElaborados(false);
+    }, 400);
+  }
+
   function cargarBoot() {
     if (!D.api.configured() || S.bootCargando) return;
     S.bootCargando = true; S.bootError = null;
@@ -741,12 +761,16 @@
     if (!sesionLista()) return;
     var local = S.sesion.local;
     if (S.hoyLocal !== local) { S.hoy = null; S.hoyLocal = local; }
+    if (!S.hoy) { var ch = cacheLeer('hoy', local); if (ch) S.hoy = ch.data; }
+    if (S.hoyCargando) return;
     S.hoyCargando = true; S.hoyError = null;
     if (ruta().tab === 'hoy' && !S.hoy) render();
     D.api.get('getHoy', { local: local }).then(function (r) {
       if (!S.sesion || S.sesion.local !== local) return;
       S.hoy = r; S.hoyCargando = false;
+      cacheGuardar('hoy', local, r);
       if (ruta().tab === 'hoy' && !S.login) render(); else { actualizarNav(); actualizarHeader(); }
+      precargar();
     }, function (e) {
       if (!S.sesion || S.sesion.local !== local) return;
       S.hoyCargando = false; S.hoyError = e.message || 'No se pudo conectar con la planilla.';
@@ -758,6 +782,7 @@
     if (!sesionLista()) return;
     var local = S.sesion.local;
     if (S.catLocal !== local) { S.cat = null; S.catLocal = local; S.catTs = 0; }
+    if (!S.cat) { var cc = cacheLeer('cat', local); if (cc) { S.cat = ordenarCatalogo(cc.data); S.catTs = cc.ts; } }
     if (S.catCargando) return;
     if (!forzar && S.cat && Date.now() - S.catTs < CAT_TTL) return;
     var habia = !!S.cat;
@@ -766,6 +791,7 @@
     D.api.get('getCatalogo', { local: local }).then(function (r) {
       if (!S.sesion || S.sesion.local !== local) return;
       S.cat = ordenarCatalogo(r.productos || []); S.catTs = Date.now(); S.catCargando = false;
+      cacheGuardar('cat', local, r.productos || []);
       if (dialogoExtraAbierto()) pintarExtraResultados();
       if (!pantallaUsaCatalogo()) return;
       if (habia) repintarListas(); else render();
@@ -783,6 +809,7 @@
     if (!sesionLista()) return;
     var local = S.sesion.local;
     if (S.elabLocal !== local) { S.elab = null; S.elabLocal = local; S.elabTs = 0; }
+    if (!S.elab) { var ce = cacheLeer('elab', local); if (ce) { S.elab = ordenarElaborados(ce.data); S.elabTs = ce.ts; } }
     if (S.elabCargando) return;
     if (!forzar && S.elab && Date.now() - S.elabTs < CAT_TTL) return;
     var habia = !!S.elab;
@@ -791,6 +818,7 @@
     D.api.get('getElaborados', { local: local }).then(function (r) {
       if (!S.sesion || S.sesion.local !== local) return;
       S.elab = ordenarElaborados(r.productos || []); S.elabTs = Date.now(); S.elabCargando = false;
+      cacheGuardar('elab', local, r.productos || []);
       if (S.hoy && S.hoyLocal === local) S.hoy.elaborados_activos = S.elab.length;
       if (!pantallaElaborados()) return;
       if (habia) repintarListas(); else render();
@@ -821,12 +849,15 @@
     if (!sesionLista()) return;
     var local = S.sesion.local;
     if (S.recLocal !== local) { S.rec = null; S.recLocal = local; }
+    if (!S.rec) { var cr = cacheLeer('rec', local); if (cr) S.rec = cr.data; }
+    if (S.recCargando) return;
     S.recCargando = true; S.recError = null;
     if (ruta().tab === 'recibir' && !S.rec) render();
     D.api.get('getPorRecibir', { local: local }).then(function (r) {
       if (!S.sesion || S.sesion.local !== local) return;
       var habia = !!S.rec;
       S.rec = r.ordenes || []; S.recCargando = false;
+      cacheGuardar('rec', local, S.rec);
       if (S.hoy && S.hoyLocal === local) S.hoy.por_recibir = S.rec.length;
       actualizarNav();
       var rt = ruta();
@@ -2169,6 +2200,8 @@
     asegurarId: asegurarId,
     firmaBorrador: firmaBorrador,
     ESTADOS_ELAB: ESTADOS_ELAB,
+    cacheLeer: cacheLeer,
+    cacheGuardar: cacheGuardar,
     ordenarElaborados: ordenarElaborados,
     itemsElaborados: itemsElaborados,
     elabInvalidos: elabInvalidos,
