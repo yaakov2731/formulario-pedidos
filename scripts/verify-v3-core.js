@@ -29,6 +29,10 @@ function load(extra = {}) {
   assert.equal(Docks.num.parse('2 kg'), null);
   assert.equal(Docks.num.parse(Infinity), null);
   assert.equal(Docks.num.fmt(null), '—');
+  assert.equal(Docks.num.input(1234.5), '1234,5');
+  assert.equal(Docks.num.input(null), '');
+  assert.equal(Docks.num.input(0), '0');
+  for (const n of [0, 1.5, 1234.5, 12, 0.125]) assert.equal(Docks.num.parse(Docks.num.input(n)), n);
 
   // semana ISO
   assert.equal(Docks.semana.de(new Date(2026, 9, 18)).id, '2026-W42');

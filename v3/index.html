@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E1A2B">
+  <meta name="format-detection" content="telephone=no">
+  <title>Pedidos · Docks del Puerto</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@600;700&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="encargado.css">
+</head>
+<body class="sin-nav">
+  <a class="saltar" href="#app">Ir al contenido</a>
+
+  <header class="enc-header" id="hdr">
+    <button type="button" class="hdr-sesion" id="hdr-sesion" data-act="cambiar-sesion" aria-label="Cambiar local o encargado" hidden>
+      <span class="hdr-txt" id="hdr-txt"></span>
+      <svg class="hdr-chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <span class="hdr-marca" id="hdr-marca">Docks del Puerto</span>
+    <span class="hdr-semana" id="hdr-semana"></span>
+  </header>
+
+  <main id="app" tabindex="-1">
+    <div class="cargando" role="status"><span class="spinner" aria-hidden="true"></span> Cargando…</div>
+  </main>
+
+  <div class="enc-barra" id="barra" hidden></div>
+
+  <nav class="enc-nav" id="nav" aria-label="Secciones" hidden>
+    <a href="#hoy" data-tab="hoy">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+      <span>Hoy</span>
+    </a>
+    <a href="#pedir" data-tab="pedir">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6"/></svg>
+      <span>Pedir</span>
+    </a>
+    <a href="#contar" data-tab="contar">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11l2 2 4-4"/><path d="M9 17h6"/></svg>
+      <span>Contar</span>
+    </a>
+    <a href="#recibir" data-tab="recibir">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+      <span>Recibir</span>
+      <span class="nav-badge" id="nav-badge" aria-hidden="true" hidden></span>
+      <span class="sr-only" id="nav-badge-sr"></span>
+    </a>
+  </nav>
+
+  <dialog id="dlg-libre" aria-labelledby="dlg-libre-tit">
+    <form id="form-libre" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-libre-tit">Producto que no está en la lista</h2>
+        <div class="field">
+          <label for="libre-nombre">Nombre del producto</label>
+          <input id="libre-nombre" class="input" type="text" maxlength="80" autocomplete="off" autocapitalize="sentences">
+        </div>
+        <div class="field-par">
+          <div class="field">
+            <label for="libre-unidad">Unidad</label>
+            <select id="libre-unidad" class="input"></select>
+          </div>
+          <div class="field">
+            <label for="libre-cant">Cantidad</label>
+            <input id="libre-cant" class="input input-num" type="text" inputmode="decimal" autocomplete="off">
+          </div>
+        </div>
+        <p class="field-error" id="libre-error" role="alert"></p>
+        <p class="small muted">Va al pedido sin proveedor. Compras lo asigna.</p>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="btn" data-act="cerrar-dlg">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Agregar al pedido</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-extra" aria-labelledby="dlg-extra-tit">
+    <form id="form-extra" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-extra-tit">Llegó algo que no estaba en la orden</h2>
+        <div class="field">
+          <label for="extra-buscar">Buscá el producto</label>
+          <input id="extra-buscar" class="input" type="search" autocomplete="off" placeholder="Ej.: tomate">
+        </div>
+        <div class="extra-res" id="extra-res" role="group" aria-label="Resultados"></div>
+        <p class="small muted" id="extra-res-sr" aria-live="polite"></p>
+        <div class="field">
+          <label for="extra-cant" id="extra-cant-label">Cantidad que llegó</label>
+          <input id="extra-cant" class="input input-num" type="text" inputmode="decimal" autocomplete="off">
+        </div>
+        <p class="field-error" id="extra-error" role="alert"></p>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="btn" data-act="cerrar-dlg">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Agregar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <noscript><p class="screen">Esta página necesita JavaScript activado.</p></noscript>
+
+  <script src="config.js"></script>
+  <script src="core.js"></script>
+  <script src="encargado.js"></script>
+</body>
+</html>

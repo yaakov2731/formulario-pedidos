@@ -46,6 +46,10 @@
     var n = Number(s);
     return isFinite(n) ? n : null;
   }
+  function inputNum(n) {
+    if (n === null || n === undefined || n === '' || !isFinite(Number(n))) return '';
+    return String(Math.round(Number(n) * 1000) / 1000).replace('.', ',');
+  }
   function fmtNum(n, unidad) {
     if (n === null || n === undefined || n === '' || !isFinite(Number(n))) return '—';
     var txt = Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
@@ -252,7 +256,7 @@
     api: api,
     ids: { nuevo: nuevoId },
     semana: { de: semanaDe },
-    num: { parse: parseNum, fmt: fmtNum },
+    num: { parse: parseNum, fmt: fmtNum, input: inputNum },
     sugerido: sugerido,
     store: store,
     norm: norm,

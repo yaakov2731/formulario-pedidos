@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compras · Docks del Puerto</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Familjen+Grotesk:wght@600;700&display=swap">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="compras.css">
+</head>
+<body>
+
+  <!-- Acceso -->
+  <main id="cx-acceso" class="cx-acceso">
+    <form id="cx-login" class="panel cx-login" novalidate>
+      <p class="cx-marca">Docks del Puerto</p>
+      <h1>Compras</h1>
+      <p class="muted">Pedidos de los locales, órdenes a proveedores, stock y catálogo.</p>
+      <div id="cx-sin-api" class="banner banner-warn" role="alert" hidden>
+        <div>
+          <strong>Falta configurar el backend.</strong>
+          <p class="small">Completá <code>API_URL</code> en <code>v3/config.js</code> con la URL de la aplicación web de Apps Script (termina en <code>/exec</code>), o abrí esta página con <code>?api=URL</code>.</p>
+        </div>
+      </div>
+      <div class="field">
+        <label for="cx-clave">Clave de administración</label>
+        <input id="cx-clave" class="input" type="password" autocomplete="current-password" required>
+      </div>
+      <p id="cx-login-error" class="field-error" role="alert" hidden></p>
+      <button id="cx-entrar" class="btn btn-primary btn-block btn-lg" type="submit">Entrar</button>
+    </form>
+  </main>
+
+  <!-- Aplicación -->
+  <div id="cx-app" class="cx-app" hidden>
+    <nav class="cx-nav" aria-label="Secciones">
+      <div class="cx-nav-head">
+        <span class="cx-marca">Docks del Puerto</span>
+        <strong>Compras</strong>
+      </div>
+      <ul class="cx-nav-list">
+        <li><a href="#compras" data-nav="compras">Compras <span class="cx-count" data-count="compras"></span></a></li>
+        <li><a href="#ordenes" data-nav="ordenes">Órdenes <span class="cx-count" data-count="ordenes"></span></a></li>
+        <li><a href="#faltantes" data-nav="faltantes">Faltantes <span class="cx-count" data-count="faltantes"></span></a></li>
+        <li><a href="#stock" data-nav="stock">Stock <span class="cx-count" data-count="stock"></span></a></li>
+        <li><a href="#catalogo" data-nav="catalogo">Catálogo <span class="cx-count" data-count="catalogo"></span></a></li>
+        <li><a href="#proveedores" data-nav="proveedores">Proveedores <span class="cx-count" data-count="proveedores"></span></a></li>
+        <li><a href="#locales" data-nav="locales">Locales <span class="cx-count" data-count="locales"></span></a></li>
+      </ul>
+      <div class="cx-nav-foot">
+        <button id="cx-salir" class="btn btn-sm cx-btn-nav" type="button">Salir</button>
+      </div>
+    </nav>
+
+    <main id="cx-main" class="cx-main">
+
+      <!-- COMPRAS -->
+      <section id="sec-compras" class="cx-sec" data-sec="compras" hidden aria-labelledby="h-compras">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-compras" tabindex="-1">Compras</h1>
+            <p class="muted small" id="cx-cons-resumen">Lo que pidieron los locales, agrupado por proveedor.</p>
+          </div>
+          <div class="cx-tools">
+            <div class="field cx-field-inline">
+              <label for="cx-semana">Semana</label>
+              <select id="cx-semana" class="input"></select>
+            </div>
+            <div class="field cx-field-inline">
+              <label for="cx-responsable">Quién compra</label>
+              <input id="cx-responsable" class="input" type="text" autocomplete="name" placeholder="Tu nombre">
+            </div>
+            <button class="btn" type="button" data-act="recargar" data-sec="compras">Actualizar</button>
+          </div>
+        </header>
+        <div id="cx-compras-body" aria-live="polite"></div>
+      </section>
+
+      <!-- ÓRDENES -->
+      <section id="sec-ordenes" class="cx-sec" data-sec="ordenes" hidden aria-labelledby="h-ordenes">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-ordenes" tabindex="-1">Órdenes</h1>
+            <p class="muted small">Órdenes enviadas a proveedores, más recientes primero.</p>
+          </div>
+          <div class="cx-tools">
+            <div class="field cx-field-inline">
+              <label for="cx-ord-estado">Estado</label>
+              <select id="cx-ord-estado" class="input">
+                <option value="">Todas</option>
+                <option>Enviada</option>
+                <option>Recibida parcial</option>
+                <option>Recibida</option>
+                <option>Cancelada</option>
+              </select>
+            </div>
+            <button class="btn" type="button" data-act="recargar" data-sec="ordenes">Actualizar</button>
+          </div>
+        </header>
+        <div id="cx-ordenes-body" aria-live="polite"></div>
+      </section>
+
+      <!-- FALTANTES -->
+      <section id="sec-faltantes" class="cx-sec" data-sec="faltantes" hidden aria-labelledby="h-faltantes">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-faltantes" tabindex="-1">Faltantes</h1>
+            <p class="muted small">Líneas que llegaron incompletas: para reclamar al proveedor o volver a pedir.</p>
+          </div>
+          <div class="cx-tools">
+            <div class="field cx-field-inline">
+              <label for="cx-falt-dias">Período</label>
+              <select id="cx-falt-dias" class="input">
+                <option value="7">Últimos 7 días</option>
+                <option value="14" selected>Últimos 14 días</option>
+                <option value="30">Últimos 30 días</option>
+                <option value="60">Últimos 60 días</option>
+              </select>
+            </div>
+            <button class="btn" type="button" data-act="copiar-reclamo">Copiar reclamo</button>
+            <button class="btn" type="button" data-act="recargar" data-sec="faltantes">Actualizar</button>
+          </div>
+        </header>
+        <div id="cx-faltantes-body" aria-live="polite"></div>
+      </section>
+
+      <!-- STOCK -->
+      <section id="sec-stock" class="cx-sec" data-sec="stock" hidden aria-labelledby="h-stock">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-stock" tabindex="-1">Stock</h1>
+            <p class="muted small">Stock contado contra el par de cada local. Lo más grave primero.</p>
+          </div>
+          <div class="cx-tools">
+            <div class="field cx-field-inline">
+              <label for="cx-stock-local">Local</label>
+              <select id="cx-stock-local" class="input"></select>
+            </div>
+            <div class="field cx-field-inline">
+              <label for="cx-stock-estado">Estado</label>
+              <select id="cx-stock-estado" class="input">
+                <option value="">Todos</option>
+                <option value="SIN_STOCK">Sin stock</option>
+                <option value="BAJO">Bajo par</option>
+                <option value="SIN_CONTEO">Sin conteo</option>
+                <option value="SIN_PAR">Sin par</option>
+                <option value="OK">OK</option>
+              </select>
+            </div>
+            <div class="field cx-field-inline">
+              <label for="cx-stock-buscar">Buscar</label>
+              <input id="cx-stock-buscar" class="input" type="search" placeholder="Producto o categoría">
+            </div>
+            <button class="btn" type="button" data-act="recargar" data-sec="stock">Actualizar</button>
+          </div>
+        </header>
+        <div id="cx-stock-body" aria-live="polite"></div>
+      </section>
+
+      <!-- CATÁLOGO -->
+      <section id="sec-catalogo" class="cx-sec" data-sec="catalogo" hidden aria-labelledby="h-catalogo">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-catalogo" tabindex="-1">Catálogo</h1>
+            <p class="muted small">Productos de cada local. Hacé clic en una fila para editarla.</p>
+          </div>
+          <div class="cx-tools">
+            <button class="btn" type="button" data-act="pegar" data-tipo="productos">Pegar desde Excel</button>
+            <button class="btn btn-primary" type="button" data-act="nuevo-producto">Nuevo producto</button>
+          </div>
+        </header>
+        <div class="cx-filtros">
+          <div class="field cx-field-inline">
+            <label for="cx-cat-local">Local</label>
+            <select id="cx-cat-local" class="input"></select>
+          </div>
+          <div class="field cx-field-inline">
+            <label for="cx-cat-filtro">Mostrar</label>
+            <select id="cx-cat-filtro" class="input">
+              <option value="">Todos</option>
+              <option value="Activo">Activos</option>
+              <option value="Inactivo">Inactivos</option>
+              <option value="sin_proveedor">Sin proveedor</option>
+            </select>
+          </div>
+          <div class="field cx-field-inline cx-grow">
+            <label for="cx-cat-buscar">Buscar</label>
+            <input id="cx-cat-buscar" class="input" type="search" placeholder="Código, producto, categoría o proveedor">
+          </div>
+          <button class="btn" type="button" data-act="recargar" data-sec="catalogo">Actualizar</button>
+        </div>
+        <div id="cx-catalogo-body" aria-live="polite"></div>
+      </section>
+
+      <!-- PROVEEDORES -->
+      <section id="sec-proveedores" class="cx-sec" data-sec="proveedores" hidden aria-labelledby="h-proveedores">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-proveedores" tabindex="-1">Proveedores</h1>
+            <p class="muted small">A quién se le compra y cómo se le manda la orden.</p>
+          </div>
+          <div class="cx-tools">
+            <button class="btn" type="button" data-act="pegar" data-tipo="proveedores">Pegar desde Excel</button>
+            <button class="btn btn-primary" type="button" data-act="nuevo-proveedor">Nuevo proveedor</button>
+          </div>
+        </header>
+        <div class="cx-filtros">
+          <div class="field cx-field-inline cx-grow">
+            <label for="cx-prov-buscar">Buscar</label>
+            <input id="cx-prov-buscar" class="input" type="search" placeholder="Nombre o contacto">
+          </div>
+          <button class="btn" type="button" data-act="recargar" data-sec="proveedores">Actualizar</button>
+        </div>
+        <div id="cx-proveedores-body" aria-live="polite"></div>
+      </section>
+
+      <!-- LOCALES -->
+      <section id="sec-locales" class="cx-sec" data-sec="locales" hidden aria-labelledby="h-locales">
+        <header class="cx-head">
+          <div>
+            <h1 id="h-locales" tabindex="-1">Locales</h1>
+            <p class="muted small">Encargados, día de pedido y hora de corte de cada local.</p>
+          </div>
+          <div class="cx-tools">
+            <button class="btn" type="button" data-act="recargar" data-sec="locales">Actualizar</button>
+          </div>
+        </header>
+        <div id="cx-locales-body" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Diálogo: mensaje de WhatsApp -->
+  <dialog id="dlg-wa" class="dlg-wide" aria-labelledby="dlg-wa-titulo">
+    <div class="dialog-body">
+      <p id="dlg-wa-cola" class="muted small" hidden></p>
+      <h2 id="dlg-wa-titulo">Orden lista</h2>
+      <p id="dlg-wa-sub" class="muted small"></p>
+      <div id="dlg-wa-aviso" class="banner banner-info small" hidden></div>
+      <div class="field">
+        <label for="dlg-wa-texto">Mensaje para el proveedor</label>
+        <textarea id="dlg-wa-texto" class="input cx-wa-texto" rows="14" readonly></textarea>
+      </div>
+    </div>
+    <div class="dialog-actions cx-actions-wrap">
+      <button id="dlg-wa-copiar" class="btn" type="button">Copiar texto</button>
+      <a id="dlg-wa-abrir" class="btn btn-primary" href="#" target="_blank" rel="noopener">Abrir WhatsApp</a>
+      <button id="dlg-wa-listo" class="btn" type="button">Listo</button>
+    </div>
+  </dialog>
+
+  <!-- Diálogo: cancelar líneas -->
+  <dialog id="dlg-cancelar" aria-labelledby="dlg-cancelar-titulo">
+    <form id="form-cancelar" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-cancelar-titulo">Cancelar líneas</h2>
+        <p id="dlg-cancelar-resumen"></p>
+        <ul id="dlg-cancelar-lista" class="cx-lista-corta small"></ul>
+        <div class="field">
+          <label for="dlg-cancelar-motivo">Motivo (obligatorio)</label>
+          <textarea id="dlg-cancelar-motivo" class="input" rows="3" required placeholder="Ej.: el proveedor no tiene, se pidió por error"></textarea>
+        </div>
+        <p id="dlg-cancelar-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" data-cerrar>Volver</button>
+        <button id="dlg-cancelar-ok" class="btn btn-danger" type="submit">Cancelar líneas</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: producto -->
+  <dialog id="dlg-producto" aria-labelledby="dlg-producto-titulo">
+    <form id="form-producto" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-producto-titulo">Nuevo producto</h2>
+        <p id="dlg-producto-codigo" class="muted small" hidden></p>
+        <div class="field">
+          <label for="fp-local">Local</label>
+          <select id="fp-local" class="input" required></select>
+        </div>
+        <div class="field">
+          <label for="fp-producto">Producto</label>
+          <input id="fp-producto" class="input" type="text" required autocomplete="off">
+        </div>
+        <div class="cx-grid2">
+          <div class="field">
+            <label for="fp-categoria">Categoría</label>
+            <input id="fp-categoria" class="input" type="text" list="dl-categorias" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fp-unidad">Unidad</label>
+            <select id="fp-unidad" class="input" required></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fp-proveedor">Proveedor</label>
+          <input id="fp-proveedor" class="input" type="text" list="dl-proveedores" autocomplete="off">
+          <p id="fp-proveedor-aviso" class="small cx-aviso-warn" hidden>Este proveedor no está cargado. Cargalo en Proveedores para tener su WhatsApp.</p>
+        </div>
+        <div class="cx-grid3">
+          <div class="field">
+            <label for="fp-precio">Precio ref. ($)</label>
+            <input id="fp-precio" class="input input-num" type="text" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fp-par">Par</label>
+            <input id="fp-par" class="input input-num" type="text" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fp-estado">Estado</label>
+            <select id="fp-estado" class="input">
+              <option>Activo</option>
+              <option>Inactivo</option>
+            </select>
+          </div>
+        </div>
+        <p id="fp-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" data-cerrar>Cancelar</button>
+        <button id="fp-guardar" class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: proveedor -->
+  <dialog id="dlg-proveedor" aria-labelledby="dlg-proveedor-titulo">
+    <form id="form-proveedor" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-proveedor-titulo">Nuevo proveedor</h2>
+        <div class="field">
+          <label for="fv-proveedor">Nombre</label>
+          <input id="fv-proveedor" class="input" type="text" required autocomplete="off">
+        </div>
+        <div class="cx-grid2">
+          <div class="field">
+            <label for="fv-contacto">Contacto</label>
+            <input id="fv-contacto" class="input" type="text" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fv-whatsapp">WhatsApp</label>
+            <input id="fv-whatsapp" class="input" type="tel" inputmode="tel" autocomplete="off" aria-describedby="fv-whatsapp-ayuda">
+            <p id="fv-whatsapp-ayuda" class="small muted">Con código de país, ej. 5491112345678</p>
+          </div>
+        </div>
+        <div class="cx-grid2">
+          <div class="field">
+            <label for="fv-email">Email</label>
+            <input id="fv-email" class="input" type="email" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fv-dias">Días de entrega</label>
+            <input id="fv-dias" class="input" type="text" autocomplete="off" placeholder="Ej.: martes y viernes">
+          </div>
+        </div>
+        <div class="cx-grid2">
+          <div class="field">
+            <label for="fv-minimo">Pedido mínimo ($)</label>
+            <input id="fv-minimo" class="input input-num" type="text" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="field cx-check-field">
+            <label class="cx-check"><input id="fv-activo" type="checkbox" checked> Activo</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fv-obs">Observaciones</label>
+          <textarea id="fv-obs" class="input" rows="2"></textarea>
+        </div>
+        <p id="fv-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" data-cerrar>Cancelar</button>
+        <button id="fv-guardar" class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: local -->
+  <dialog id="dlg-local" aria-labelledby="dlg-local-titulo">
+    <form id="form-local" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-local-titulo">Local</h2>
+        <div class="field cx-check-field">
+          <label class="cx-check"><input id="fl-activo" type="checkbox"> Activo (puede hacer pedidos)</label>
+        </div>
+        <div class="field">
+          <span class="label" id="fl-enc-label">Encargados</span>
+          <ul id="fl-encargados" class="cx-chips" aria-labelledby="fl-enc-label"></ul>
+          <div class="cx-add">
+            <label for="fl-enc-nuevo" class="sr-only">Nuevo encargado</label>
+            <input id="fl-enc-nuevo" class="input" type="text" autocomplete="off" placeholder="Nombre del encargado">
+            <button id="fl-enc-agregar" class="btn" type="button">Agregar</button>
+          </div>
+        </div>
+        <div class="cx-grid2">
+          <div class="field">
+            <label for="fl-dia">Día de pedido</label>
+            <select id="fl-dia" class="input">
+              <option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option>
+              <option>Viernes</option><option>Sábado</option><option>Domingo</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fl-hora">Hora de corte</label>
+            <input id="fl-hora" class="input" type="time" step="900">
+          </div>
+        </div>
+        <p id="fl-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" data-cerrar>Cancelar</button>
+        <button id="fl-guardar" class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: pegar desde Excel -->
+  <dialog id="dlg-pegar" class="dlg-wide" aria-labelledby="dlg-pegar-titulo">
+    <form id="form-pegar" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-pegar-titulo">Pegar desde Excel</h2>
+        <div id="dlg-pegar-ayuda" class="banner banner-info small"></div>
+        <div class="field" id="dlg-pegar-local-field">
+          <label for="dlg-pegar-local">Local donde se cargan</label>
+          <select id="dlg-pegar-local" class="input"></select>
+        </div>
+        <div class="field">
+          <label for="dlg-pegar-texto">Rango copiado de la planilla</label>
+          <textarea id="dlg-pegar-texto" class="input cx-pegar-texto" rows="6" spellcheck="false" placeholder="Seleccioná las celdas en Excel o Google Sheets, copiá y pegá acá"></textarea>
+        </div>
+        <div id="dlg-pegar-preview" aria-live="polite"></div>
+        <div id="dlg-pegar-resultado" role="status"></div>
+        <p id="dlg-pegar-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" data-cerrar>Cerrar</button>
+        <button id="dlg-pegar-ok" class="btn btn-primary" type="submit" disabled>Cargar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <datalist id="dl-proveedores"></datalist>
+  <datalist id="dl-categorias"></datalist>
+
+  <script src="config.js"></script>
+  <script src="core.js"></script>
+  <script src="compras.js"></script>
+</body>
+</html>

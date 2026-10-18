@@ -117,6 +117,8 @@ Al cerrar líneas, el servidor recalcula PEDIDOS.Estado y COMPRAS.Estado.
 
 Transporte: GET por JSONP (`?action=...&callback=fn`), POST con `fetch` y `Content-Type: text/plain;charset=utf-8`,
 cuerpo JSON con `action`. Toda respuesta: `{ok:true, ...}` o `{ok:false, error:"mensaje para mostrar"}`.
+`semana` es siempre el objeto `{id,label,inicio,fin}`. En respuestas de escritura, `lineas`, `items`,
+`entregadas`, `incompletas`, `extras`, `creados`, `actualizados` y `canceladas` son números (cantidades), no arreglos.
 `version` = `"v3"`.
 
 ### 4.1 Lecturas (GET)
@@ -124,11 +126,11 @@ cuerpo JSON con `action`. Toda respuesta: `{ok:true, ...}` o `{ok:false, error:"
 | Acción | Parámetros | Respuesta (además de `ok`) |
 | --- | --- | --- |
 | `ping` | — | `version`, `hora` |
-| `getBootstrap` | — | `version`, `semana:{id,label,inicio,fin}`, `locales:[{local,activo,encargados:[],dia_pedido,hora_corte,prefijo}]`, `proveedores:[{proveedor,contacto,whatsapp,email,dias_entrega,pedido_minimo,activo}]` |
+| `getBootstrap` | — | `version`, `semana:{id,label,inicio,fin}`, `locales:[{local,activo,encargados:[],dia_pedido,hora_corte,prefijo}]`, `proveedores:[{proveedor,contacto,whatsapp,email,dias_entrega,pedido_minimo,activo,observaciones}]` |
 | `getCatalogo` | `local` (opcional; sin él, todos) | `productos:[{codigo,producto,local,categoria,unidad,proveedor,precio,par,stock_actual,ultimo_conteo,estado,pedido_abierto,sugerido,motivo}]`. Números como number o `null` si vacío. Con `local`, sólo Estado Activo. |
 | `getHoy` | `local` | `semana`, `pedido_semana:{id_pedido,fecha_hora,estado,lineas}` o `null` (el último de la semana), `pedidos_semana` (cantidad), `ultimo_conteo:{id_operacion,fecha_hora,productos}` o `null`, `por_recibir` (órdenes con líneas Comprado del local), `bajo_par` (cantidad) |
 | `getPedido` | `id` | `pedido:{id_pedido,fecha_hora,semana,local,encargado,prioridad,fecha_entrega,notas,lineas,estado}`, `lineas:[{id_linea,codigo,producto,unidad,cantidad,proveedor,estado,id_oc}]`; si no existe: `ok:true, found:false` |
-| `getOperacion` | `id` | `found`, `tipo` (CONTEO / RECEPCION / OC), `local`, `fecha_hora`, `items` |
+| `getOperacion` | `id` | `found`, `tipo` (CONTEO / RECEPCION / OC), `local`, `fecha_hora`, `items`; si es OC, además `proveedor`, `texto_whatsapp`, `whatsapp_url` |
 | `getPorRecibir` | `local` | `ordenes:[{id_oc,proveedor,fecha_hora,lineas:[{id_linea,id_pedido,codigo,producto,unidad,cantidad,precio_ref}]}]` (líneas Comprado del local, agrupadas por ID_OC) |
 | `getConsolidado` | `semana` (opcional; sin ella, todas las Pendiente) | `grupos:[{proveedor, whatsapp, pedido_minimo, total_estimado, lineas:[{id_linea,id_pedido,fecha_hora,local,codigo,producto,unidad,cantidad,precio_ref,prioridad}]}]`. Las líneas sin proveedor van en un grupo con `proveedor:""`. |
 | `getOrdenes` | `estado` (opcional) | `ordenes:[{id_oc,fecha_hora,semana,proveedor,locales,estado,lineas,total_estimado,texto_whatsapp,whatsapp_url}]`, más recientes primero, máximo 200 |
@@ -151,6 +153,10 @@ cuerpo JSON con `action`. Toda respuesta: `{ok:true, ...}` o `{ok:false, error:"
 | `checkAdmin` | `admin_key` | Valida la clave. | — |
 
 `admin_key` inválida o `ADMIN_KEY` sin configurar → `ok:false` con mensaje claro.
+
+Reglas de edición: en `saveProducto`, `saveProveedor` y `saveLocal`, un campo ausente no modifica lo guardado y un
+texto vacío lo vacía. `activo` acepta `SÍ`/`NO`/`SI`/booleano y se guarda como `SÍ`/`NO`.
+`saveProductosLote.errores[].fila` es la posición en `filas`, empezando en 1.
 
 ### 4.3 Texto de WhatsApp de una orden
 
@@ -197,7 +203,8 @@ incompletas. Un fallo de Telegram se registra en LOG y nunca hace fallar la escr
 | `Docks.ids.nuevo(prefijo)` | `PED-20261018-143000-ab12`. Prefijos: PED (pedido), CNT (conteo), REC (recepción), OC (orden). |
 | `Docks.semana.de(fecha?)` | `{id, label, inicio, fin}` con la misma regla que el servidor |
 | `Docks.num.parse(texto)` | Acepta `1,5` y `1.5`; vacío o inválido → `null` |
-| `Docks.num.fmt(n, unidad?)` | `1,5 kg`; `null` → `—` |
+| `Docks.num.fmt(n, unidad?)` | Para mostrar: `1,5 kg`, `1.234 kg`; `null` → `—` |
+| `Docks.num.input(n)` | Para el `value` de un input: `1234,5` sin separador de miles; `null` → `''`. Ida y vuelta exacta con `parse`. |
 | `Docks.sugerido({par, stock_actual, pedido_abierto, unidad})` | `{cantidad, motivo}` con la regla 3.5 |
 | `Docks.UNIDADES`, `Docks.CONTABLES` | Listas de 3.1 |
 | `Docks.store.get(k, def)` / `set(k, v)` / `del(k)` | localStorage con prefijo `docksv3:` y try/catch |
