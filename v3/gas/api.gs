@@ -24,7 +24,8 @@ var V3_POST = {
   saveProductosLote: function (b) { return saveProductosLote_(b); },
   saveProveedor: function (b) { return saveProveedor_(b); },
   saveLocal: function (b) { return saveLocal_(b); },
-  checkAdmin: function (b) { checkAdminKey_(b.admin_key); return { ok: true }; }
+  checkAdmin: function (b) { checkAdminKey_(b.admin_key); return { ok: true }; },
+  reiniciarDatos: function (b) { return reiniciarDatos_(b); }
 };
 
 function errorRespuesta_(err, accion, ref, local, escritura) {

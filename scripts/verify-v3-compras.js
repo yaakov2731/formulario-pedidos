@@ -232,6 +232,16 @@ assert.equal(C.horaHHMM('9:30:00'), '09:30');
 const reclamo = C.textoReclamo([{ proveedor: 'Florida', producto: 'Asado', unidad: 'kg', cantidad: 12, cantidad_recibida: 10, local: 'Umo Grill', id_oc: 'OC-20261018-143000-ab12' }]);
 assert.match(reclamo, /\*Florida\*\n• Asado — pedido 12 kg, llegó 10 kg \(faltan 2 kg\) · Umo Grill · OC-ab12/);
 
+// ---------- empezar de cero ----------
+assert.equal(C.fraseReinicioOk('EMPEZAR DE CERO'), true);
+assert.equal(C.fraseReinicioOk('  empezar de cero '), true);
+assert.equal(C.fraseReinicioOk('empezar'), false);
+assert.equal(C.fraseReinicioOk(''), false);
+assert.deepEqual(plain(C.resumenReinicio({ pedidos: 3, lineas: 12, ordenes: 2, movimientos: 40, productos_sin_contar: 473 })), [
+  '3 pedidos y 12 líneas borrados', '2 órdenes de compra borradas', '40 conteos y recepciones borrados', '473 productos quedan sin contar']);
+assert.deepEqual(plain(C.resumenReinicio({ pedidos: 1, lineas: 1, ordenes: 1, movimientos: 1, productos_sin_contar: 1 })), [
+  '1 pedido y 1 línea borrados', '1 orden de compra borrada', '1 conteo o recepción borrado', '1 producto queda sin contar']);
+
 // ---------- página: orden de carga y archivos ----------
 const html = fs.readFileSync(path.join(root, 'v3/compras.html'), 'utf8');
 const orden = ['fonts.googleapis.com/css2', 'base.css', 'compras.css', 'config.js', 'core.js', 'compras.js'].map(s => html.indexOf(s));
@@ -241,6 +251,8 @@ assert.match(html, /<title>Compras · Docks del Puerto<\/title>/);
 assert.match(html, /href="\.\.\/favicon\.svg"/);
 assert.match(html, /<label for="cx-clave">Clave de administración<\/label>/);
 assert.match(html, /id="cx-clave" class="input" type="password"/);
+assert.match(html, /id="cx-reiniciar"[^>]*>Empezar de cero</);
+assert.match(html, /<label for="dlg-reinicio-frase">/);
 const js = fs.readFileSync(path.join(root, 'v3/compras.js'), 'utf8');
 assert.ok(!/localStorage/.test(js), 'la clave no va a localStorage (y el resto usa Docks.store)');
 assert.ok(!/<script[^>]+src="http/.test(html), 'sin JS externo');

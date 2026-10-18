@@ -151,6 +151,7 @@ cuerpo JSON con `action`. Toda respuesta: `{ok:true, ...}` o `{ok:false, error:"
 | `saveProveedor` | `admin_key, proveedor, contacto, whatsapp, email, dias_entrega, pedido_minimo, activo, observaciones` | Alta o edición por nombre (sin distinguir mayúsculas ni acentos). | `proveedor` |
 | `saveLocal` | `admin_key, local, activo, encargados (array), dia_pedido, hora_corte` | Edición de un local existente. | `local` |
 | `checkAdmin` | `admin_key` | Valida la clave. | — |
+| `reiniciarDatos` | `admin_key, confirmacion` (= `EMPEZAR DE CERO`, sin distinguir mayúsculas) | Copia completa de la planilla (`Spreadsheet.copy`); si falla, no borra nada. Vacía PEDIDOS, PEDIDO_LINEAS, MOVIMIENTOS y COMPRAS (conserva encabezados, formato y validaciones) y deja vacíos `Stock_Actual` y `Ultimo_Conteo` del catálogo (sin contar, no cero). Conserva catálogo, proveedores, locales, encargados, TABLERO y LOG; registra REINICIO en LOG. | `respaldo_nombre, respaldo_url, pedidos, lineas, movimientos, ordenes, productos_sin_contar` |
 
 `admin_key` inválida o `ADMIN_KEY` sin configurar → `ok:false` con mensaje claro.
 

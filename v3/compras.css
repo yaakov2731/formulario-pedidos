@@ -26,6 +26,9 @@
 .cx-nav-foot{margin-top:auto;padding:14px 20px;border-top:1px solid var(--nav-line)}
 .cx-btn-nav{background:transparent;color:var(--nav-ink);border-color:var(--nav-line)}
 .cx-btn-nav:hover{background:var(--nav-active);color:var(--surface)}
+.cx-nav-foot .cx-btn-peligro{margin-bottom:8px}
+.cx-btn-peligro{color:var(--bad-tint);border-color:var(--bad)}
+.cx-btn-peligro:hover{background:var(--bad);color:var(--surface)}
 
 .cx-main{padding:24px 28px 120px;min-width:0}
 .cx-sec h1:focus{outline:none}

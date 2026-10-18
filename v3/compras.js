@@ -398,6 +398,8 @@
     textoReclamo: textoReclamo,
     listaEncargados: listaEncargados,
     horaHHMM: horaHHMM,
+    fraseReinicioOk: fraseReinicioOk,
+    resumenReinicio: resumenReinicio,
     COLUMNAS: COLUMNAS
   };
 
@@ -1682,6 +1684,57 @@
     });
   }
 
+  /* ---------- empezar de cero ---------- */
+  var FRASE_REINICIO = 'EMPEZAR DE CERO';
+  function fraseReinicioOk(t) { return texto(t).toUpperCase() === FRASE_REINICIO; }
+
+  function abrirReinicio() {
+    $('dlg-reinicio-frase').value = '';
+    setError($('dlg-reinicio-error'), '');
+    $('dlg-reinicio-pregunta').hidden = false;
+    $('dlg-reinicio-listo').hidden = true;
+    $('dlg-reinicio-ok').hidden = false;
+    $('dlg-reinicio-volver').textContent = 'Volver';
+    abrirDialogo($('dlg-reinicio'), $('dlg-reinicio-frase'));
+  }
+
+  function enviarReinicio(e) {
+    e.preventDefault();
+    var errEl = $('dlg-reinicio-error');
+    var frase = $('dlg-reinicio-frase').value;
+    if (!fraseReinicioOk(frase)) { setError(errEl, 'Escribí exactamente: ' + FRASE_REINICIO + '.'); $('dlg-reinicio-frase').focus(); return; }
+    setError(errEl, '');
+    ocupado($('dlg-reinicio-ok'), 'Guardando respaldo y borrando…', function () {
+      return Docks.api.post({ action: 'reiniciarDatos', admin_key: S.key, confirmacion: FRASE_REINICIO }, { timeout: 120000 }).then(function (r) {
+        S.data = {}; S.ts = {}; S.errores = {}; S.desel = {}; S.intentos = {}; S.errGrupo = {}; S.asignar = {};
+        if (!r) {
+          cerrarDialogo($('dlg-reinicio'));
+          Docks.toast('No pudimos confirmar el reinicio. Revisá Compras y Stock: si siguen los datos, probá de nuevo.', 'info');
+        } else {
+          $('dlg-reinicio-pregunta').hidden = true;
+          $('dlg-reinicio-listo').hidden = false;
+          $('dlg-reinicio-ok').hidden = true;
+          $('dlg-reinicio-volver').textContent = 'Cerrar';
+          $('dlg-reinicio-resumen').innerHTML = resumenReinicio(r).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('');
+          $('dlg-reinicio-respaldo').href = r.respaldo_url || '#';
+          $('dlg-reinicio-respaldo').textContent = r.respaldo_nombre || 'abrir la copia';
+          $('dlg-reinicio-volver').focus();
+        }
+        rutear(true);
+      }, function (err) { setError(errEl, mensaje(err)); });
+    });
+  }
+
+  function resumenReinicio(r) {
+    var n = function (v, uno, varios) { v = Number(v) || 0; return v + ' ' + (v === 1 ? uno : varios); };
+    return [
+      n(r.pedidos, 'pedido', 'pedidos') + ' y ' + n(r.lineas, 'línea', 'líneas') + ' borrados',
+      n(r.ordenes, 'orden de compra borrada', 'órdenes de compra borradas'),
+      n(r.movimientos, 'conteo o recepción borrado', 'conteos y recepciones borrados'),
+      n(r.productos_sin_contar, 'producto queda sin contar', 'productos quedan sin contar')
+    ];
+  }
+
   function salir() {
     sesionDel();
     S.key = '';
@@ -1744,6 +1797,8 @@
 
     $('cx-login').addEventListener('submit', login);
     $('cx-salir').addEventListener('click', salir);
+    $('cx-reiniciar').addEventListener('click', abrirReinicio);
+    $('form-reinicio').addEventListener('submit', enviarReinicio);
 
     $('cx-semana').addEventListener('change', function () { S.semanaFiltro = this.value; S.data.consolidado = null; S.desel = {}; cargar('consolidado'); renderCompras(); });
     $('cx-responsable').addEventListener('change', function () { Docks.store.set('responsable', texto(this.value)); });

@@ -51,6 +51,7 @@
         <li><a href="#locales" data-nav="locales">Locales <span class="cx-count" data-count="locales"></span></a></li>
       </ul>
       <div class="cx-nav-foot">
+        <button id="cx-reiniciar" class="btn btn-sm cx-btn-nav cx-btn-peligro" type="button">Empezar de cero</button>
         <button id="cx-salir" class="btn btn-sm cx-btn-nav" type="button">Salir</button>
       </div>
     </nav>
@@ -268,6 +269,36 @@
       <div class="dialog-actions">
         <button class="btn" type="button" data-cerrar>Volver</button>
         <button id="dlg-cancelar-ok" class="btn btn-danger" type="submit">Cancelar líneas</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: empezar de cero -->
+  <dialog id="dlg-reinicio" aria-labelledby="dlg-reinicio-titulo">
+    <form id="form-reinicio" novalidate>
+      <div class="dialog-body">
+        <h2 id="dlg-reinicio-titulo">Empezar de cero</h2>
+        <div id="dlg-reinicio-pregunta">
+          <div class="banner banner-warn"><div>
+            <strong>Se borran todos los pedidos, órdenes de compra, conteos y recepciones de todos los locales.</strong>
+            El stock de cada producto queda <strong>sin contar</strong>: cada encargado tiene que hacer su primer conteo.
+          </div></div>
+          <p class="small">Se conservan el catálogo, los proveedores, los locales y los encargados. Antes de borrar se guarda una copia completa de la planilla en tu Drive.</p>
+          <div class="field">
+            <label for="dlg-reinicio-frase">Para confirmar, escribí <strong>EMPEZAR DE CERO</strong></label>
+            <input id="dlg-reinicio-frase" class="input" type="text" autocomplete="off" spellcheck="false">
+          </div>
+          <p id="dlg-reinicio-error" class="field-error" role="alert" hidden></p>
+        </div>
+        <div id="dlg-reinicio-listo" hidden>
+          <div class="banner banner-ok" role="status"><div><strong>Listo: la operación quedó en cero.</strong></div></div>
+          <ul id="dlg-reinicio-resumen" class="cx-lista-corta small"></ul>
+          <p class="small">Respaldo: <a id="dlg-reinicio-respaldo" href="#" target="_blank" rel="noopener">abrir la copia</a></p>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button id="dlg-reinicio-volver" class="btn" type="button" data-cerrar>Volver</button>
+        <button id="dlg-reinicio-ok" class="btn btn-danger" type="submit">Borrar y empezar de cero</button>
       </div>
     </form>
   </dialog>

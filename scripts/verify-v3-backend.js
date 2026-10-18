@@ -877,4 +877,67 @@ const REC1 = nid('REC');
   assert.ok(t1 - t0 < 15000, 'escrituras demasiado lentas: ' + (t1 - t0) + ' ms');
 }
 
+/* ================= reiniciarDatos: empezar de cero ================= */
+{
+  const rt = mk();
+  rt.call('setupV3');
+  ok(post(rt, { action: 'saveProveedor', admin_key: KEY, proveedor: 'Florida', whatsapp: '5491100000001', activo: 'SÍ' }));
+  ok(post(rt, { action: 'saveProductosLote', admin_key: KEY, local: 'Umo Grill', filas: [
+    { producto: 'Asado', categoria: 'Carnes', unidad: 'kg', proveedor: 'Florida', precio: 8500, par: 10 },
+    { producto: 'Tomate', categoria: 'Verdulería', unidad: 'kg', proveedor: 'Florida', precio: 1800, par: 6 }] }));
+  const cod = get(rt, 'getCatalogo', { local: 'Umo Grill' }).productos.find(x => x.producto === 'Asado').codigo;
+  ok(post(rt, { action: 'saveConteo', id_operacion: nid('CNT'), local: 'Umo Grill', encargado: 'Ana', items: [{ codigo: cod, cantidad: 3 }] }));
+  const ped = nid('PED');
+  ok(post(rt, { action: 'savePedido', id_pedido: ped, local: 'Umo Grill', encargado: 'Beto', prioridad: 'Normal', items: [{ codigo: cod, cantidad: 7 }] }));
+  const lineas = get(rt, 'getConsolidado', {}).grupos.flatMap(g => g.lineas).map(l => l.id_linea);
+  ok(post(rt, { action: 'crearOrden', admin_key: KEY, id_oc: nid('OC'), id_lineas: lineas, proveedor: 'Florida', responsable: 'Gerencia' }));
+
+  const antes = { ped: rows(rt, 'PEDIDOS').length, lin: rows(rt, 'PEDIDO_LINEAS').length, mov: rows(rt, 'MOVIMIENTOS').length, oc: rows(rt, 'COMPRAS').length };
+  assert.deepEqual(antes, { ped: 1, lin: 1, mov: 1, oc: 1 });
+
+  // Sin clave, con clave mala o sin la frase exacta: no se borra nada.
+  bad(post(rt, { action: 'reiniciarDatos', confirmacion: 'EMPEZAR DE CERO' }));
+  bad(post(rt, { action: 'reiniciarDatos', admin_key: 'mala', confirmacion: 'EMPEZAR DE CERO' }));
+  bad(post(rt, { action: 'reiniciarDatos', admin_key: KEY, confirmacion: 'empezar' }), /EMPEZAR DE CERO/);
+  // Si falla el respaldo, tampoco se borra nada.
+  rt.spreadsheet._copyError = 'Sin permiso de Drive';
+  bad(post(rt, { action: 'reiniciarDatos', admin_key: KEY, confirmacion: 'EMPEZAR DE CERO' }), /respaldo.*no se borró nada/);
+  delete rt.spreadsheet._copyError;
+  assert.equal(rows(rt, 'PEDIDOS').length, 1);
+  assert.equal(rows(rt, 'MOVIMIENTOS').length, 1);
+
+  // La frase se acepta sin distinguir mayúsculas.
+  const r = ok(post(rt, { action: 'reiniciarDatos', admin_key: KEY, confirmacion: 'empezar de cero' }));
+  assert.equal(r.pedidos, 1); assert.equal(r.lineas, 1); assert.equal(r.movimientos, 1); assert.equal(r.ordenes, 1);
+  assert.equal(r.productos_sin_contar, 2);
+  assert.match(r.respaldo_nombre, /^RESPALDO V3 antes de reiniciar /);
+  assert.match(r.respaldo_url, /^https:\/\/docs\.google\.com\/spreadsheets\/d\//);
+
+  // Respaldo: copia completa con los datos de antes.
+  const copia = rt.spreadsheet._copiasHechas[0];
+  assert.equal(copia.getName(), r.respaldo_nombre);
+  assert.equal(copia.getSheetByName('PEDIDOS').getDataRange().getValues().filter(x => x.some(v => v !== '')).length, 2);
+
+  // Transacciones vacías, encabezados intactos.
+  for (const h of ['PEDIDOS', 'PEDIDO_LINEAS', 'MOVIMIENTOS', 'COMPRAS']) {
+    assert.equal(rows(rt, h).length, 0, h + ' debería quedar vacía');
+    assert.deepEqual(rt.sheet(h)[0].slice(0, HEADERS[h].length), HEADERS[h]);
+  }
+  // Catálogo, proveedores y locales se conservan; el stock queda sin contar (vacío, no cero).
+  const cat = rows(rt, 'CATALOGO');
+  assert.equal(cat.length, 2);
+  cat.forEach(x => { assert.equal(x.Stock_Actual, ''); assert.equal(x.Ultimo_Conteo, ''); assert.equal(x.Precio !== '', true); });
+  assert.equal(rows(rt, 'PROVEEDORES').length, 1);
+  assert.match(String(rows(rt, 'LOCALES').find(x => x.Local === 'Umo Grill').Encargados), /Beto/);
+  assert.ok(rows(rt, 'LOG').some(x => x.Tipo === 'REINICIO' && x.OK === 'SÍ'));
+
+  // La app arranca limpia y sigue funcionando.
+  const hoy = ok(get(rt, 'getHoy', { local: 'Umo Grill' }));
+  assert.equal(hoy.pedido_semana, null); assert.equal(hoy.ultimo_conteo, null); assert.equal(hoy.por_recibir, 0);
+  get(rt, 'getCatalogo', { local: 'Umo Grill' }).productos.forEach(x => { assert.equal(x.stock_actual, null); assert.equal(x.motivo, 'SIN_CONTEO'); assert.equal(x.pedido_abierto, 0); });
+  assert.equal(get(rt, 'getConsolidado', {}).grupos.length, 0);
+  ok(post(rt, { action: 'savePedido', id_pedido: nid('PED'), local: 'Umo Grill', encargado: 'Beto', prioridad: 'Normal', items: [{ codigo: cod, cantidad: 2 }] }));
+  assert.equal(rows(rt, 'PEDIDOS').length, 1);
+}
+
 console.log('V3 backend verification passed.');
