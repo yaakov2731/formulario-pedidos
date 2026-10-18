@@ -6,6 +6,12 @@ Estado: **plan, sin implementar**. Nada de lo descrito está hecho todavía.
 
 ---
 
+> **Cambio de alcance, 18/10/2026 (pedido del usuario): sistema nuevo desde cero, sin migración.**
+> Catálogo, proveedores y encargados se cargan de cero. La app y la planilla actuales siguen
+> funcionando hasta el corte. V3 vive en `v3/` (frontend) y `v3/gas/` (backend) con su propia
+> planilla. Las secciones de migración (2.5, adaptadores de la fase 1) quedan sin efecto.
+> El contrato vigente es `docs/v3/CONTRATO.md` (versión 2) y prevalece sobre este plan.
+
 ## 0. Conclusión anticipada
 
 La estructura actual es correcta en la base (catálogo por local, pedido con

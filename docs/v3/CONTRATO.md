@@ -27,7 +27,7 @@ Si este archivo y `PLAN-V3.md` difieren, vale este archivo. Sólo el coordinador
 
 | Dueño | Archivos |
 | --- | --- |
-| Coordinador | `docs/v3/*`, `v3/config.js`, `v3/core.js`, `v3/base.css`, `scripts/verify-v3-core.js`, `scripts/v3-dev-server.js`, `scripts/v3-bundle-gas.js`, `.github/workflows/deploy.yml`, `ESTADO.md`, `PLAN-V3.md`, `README.md` |
+| Coordinador | `docs/v3/*`, `v3/config.js`, `v3/core.js`, `v3/base.css`, `scripts/verify-v3-core.js`, `scripts/v3-dev-server.js`, `scripts/v3-bundle-gas.js`, `v3/apps-script/*` (generado), `.github/workflows/deploy.yml`, `ESTADO.md`, `PLAN-V3.md`, `README.md` |
 | Agente A · backend | `v3/gas/*`, `scripts/v3/fake-gas.js`, `scripts/verify-v3-backend.js` |
 | Agente B · encargado | `v3/index.html`, `v3/encargado.js`, `v3/encargado.css`, `scripts/verify-v3-encargado.js` |
 | Agente C · compras | `v3/compras.html`, `v3/compras.js`, `v3/compras.css`, `scripts/verify-v3-compras.js` |

@@ -6,7 +6,7 @@ Fecha: 18 de octubre de 2026.
 
 | Ítem | Estado | Evidencia |
 | --- | --- | --- |
-| Respaldo de la planilla de producción | Hecho | Copia en Drive con las 38 pestañas; ID en `CONTRATO.md` §0.1 |
+| Respaldo de la planilla de producción | Hecho | Copia en Drive con las 38 pestañas; ID en `CONTRATO.md` §0.1. Sin migración: queda sólo como respaldo |
 | Planilla destino V3 de pruebas | Hecho, vacía | ID en `CONTRATO.md` §0.1 |
 | Contrato de datos y API para agentes | Hecho | `docs/v3/CONTRATO.md` |
 | Respuestas asumidas de `PLAN-V3.md` §5 | Adoptadas | `CONTRATO.md` §0 |
@@ -33,7 +33,7 @@ En `CLAUDE.md`, debajo de la línea que empieza con "- Si delegás, ejecutá pla
 - Excepción proyecto V3: al ejecutar `PLAN-V3.md` se permiten hasta 3 subagentes en paralelo con propiedad de archivos disjunta (ver `AGENTS.md` y `docs/v3/CONTRATO.md`). Ningún agente edita archivos de otro; el coordinador integra `index.html`.
 ```
 
-## Siguiente: Fase 1 (Agente A, backend)
+## Siguiente
 
-Prompt en `PLAN-V3.md` §4.2. Al terminar, el usuario ejecuta `setupV3()` y
-`migrateV3()` desde el editor de Apps Script sobre las planillas de pruebas.
+El usuario pidió sistema nuevo sin migración. Construcción en curso con tres agentes en paralelo
+(backend, encargado, compras) según `CONTRATO.md` versión 2. Despliegue: `docs/v3/DESPLIEGUE.md`.
