@@ -50,9 +50,16 @@ de encabezados y celdas de resumen. Los conteos citados salen de INICIO
 OPERATIVO al 16/10/2026 y de las dimensiones de las pestañas; no se recontaron
 filas una por una.
 
+## Fase 0 (18/10/2026, coordinador)
+
+Hecha con las respuestas asumidas de `PLAN-V3.md` §5, por pedido del usuario.
+Respaldo de producción y planilla V3 de pruebas creados en Drive; IDs en
+`docs/v3/CONTRATO.md` §0.1. Contrato en `docs/v3/CONTRATO.md`. Bloqueado: la
+edición de `AGENTS.md`/`CLAUDE.md` para agentes en paralelo fue rechazada por el
+control de permisos; el texto listo está en `docs/v3/FASE-0.md`. Producción no se tocó.
+
 ## Próximo paso
 
-El usuario responde las preguntas de `PLAN-V3.md` §5 y hace una copia de la
-planilla en Drive. Luego abre una sesión con Opus 5.5 en la rama `v3` y pega el
-prompt del coordinador (§4.1). La Fase 0 crea `docs/v3/CONTRATO.md` y ajusta
-las reglas de paralelismo antes de lanzar el Agente A.
+Fase 1: lanzar el Agente A con el prompt de `PLAN-V3.md` §4.2. Si el usuario
+agrega la excepción de paralelismo, las fases 2 a 4 corren en paralelo; si no,
+en secuencia.

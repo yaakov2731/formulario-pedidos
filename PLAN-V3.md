@@ -260,8 +260,8 @@ Calendario estimado: 2 días de desarrollo con agentes + 1 semana de espejo.
 
 ## 4. Prompts listos para Opus 5.5
 
-Copiar cada bloque tal cual. Reemplazar `<ID_COPIA>` por el ID de la copia de la
-planilla hecha en la Fase 0.
+Copiar cada bloque tal cual. Planillas creadas en la Fase 0 (ver `docs/v3/CONTRATO.md` §0.1):
+origen de migración = RESPALDO 2026-10-18; destino de pruebas = Docks · Abastecimiento V3 (pruebas).
 
 ### 4.1 Coordinador
 
@@ -275,7 +275,7 @@ Fase 0, hacelo vos:
    los agentes.
 2. Editá AGENTS.md y CLAUDE.md: permitir hasta 3 subagentes en paralelo cuando cada uno
    sea dueño de archivos distintos. Mantener la regla de no editar el mismo archivo.
-3. Trabajá en la rama v3. Commits cortos e imperativos.
+3. Trabajá en la rama asignada a la sesión (no pushear a main). Commits cortos e imperativos.
 
 Luego lanzá el Agente A (prompt 4.2). Cuando termine la fase 1 y pase su aceptación,
 lanzá en paralelo A (fase 4, prompt 4.5), B (4.3) y C (4.4). Cuando cualquiera
@@ -427,5 +427,5 @@ Responder estas ocho preguntas antes de la Fase 1 evita retrabajo en el esquema.
 1. El usuario responde las preguntas de §5 (10 minutos) y hace una **copia de la
    planilla en Drive** (Archivo → Hacer una copia) con nombre
    `Docks · Abastecimiento V3 (pruebas)`; anota el ID.
-2. Abrir una sesión nueva de Claude Code con Opus 5.5 en la rama `v3` y pegar el
+2. Abrir una sesión nueva de Claude Code con Opus 5.5 en la rama de trabajo y pegar el
    prompt 4.1.
