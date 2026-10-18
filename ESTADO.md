@@ -1,62 +1,58 @@
 # Estado de continuidad · Pedidos Semanales
 
-Actualizado: 16 de octubre de 2026. Responsable de esta etapa: Codex.
+Actualizado: 18 de octubre de 2026. Responsable de esta etapa: Fable 5.1 (plan).
 
 ## Objetivo y aceptación
 
-Instalar el protocolo aprobado de consumo, continuidad y selección de modelos.
-El usuario agregó planificación con un modelo potente y ejecución delegada a
-otro. El alcance sigue siendo este repositorio, sin despliegues de producto ni
-compras. Las decisiones de enrutamiento son instrucciones del agente, no un
-clasificador determinista ni una garantía de ahorro.
+El usuario pidió un rediseño profesional de la app y de la planilla: la app es
+confusa para los empleados, la planilla tiene demasiadas pestañas y lo único que
+funciona bien es la carga de pedidos por encargado. Pidió un plan estructurado,
+con instrucciones y agentes, para que Opus 5.5 lo ejecute. Esta etapa entrega
+sólo el plan: `PLAN-V3.md`. No se implementó código ni se tocó la planilla.
 
 ## Contexto comprobado
 
-El frontend está en `index.html`, con administración en `admin.js`; el backend
-actual es modular, en `gas/*.gs`, conectado a Google Sheets. No hay bundler.
-`README.md` enumera nueve verificaciones locales. `DEPLOY-V2.md` describe la
-publicación de Apps Script y Pages mediante el workflow al actualizar `main`.
-El checkout estaba en `main`, último commit observado `417918e`.
+Planilla real (`SHEET_ID` de `gas/utils.gs`, leída con el conector de Sheets):
+38 pestañas. 9 transaccionales, 2 maestras, 16 vistas por local, 10 vistas o
+dashboards (RESUMEN POR PROVEEDOR muestra `#ERROR!`) y LOG TELEGRAM. INICIO
+OPERATIVO informa 1.303 líneas de pedido abiertas, 245 conteos, 37 recepciones,
+0 partes de producción y 137 productos con stock cero. `Comprado` y `Entregado`
+en PEDIDOS_DETALLE nunca cambian de NO. CONFIGURACIÓN usa nombres viejos de
+locales (Parrilla, Heladería, Cafetería) que `normalizeLocalName_` traduce.
 
-Antes de esta tarea existían sin seguimiento `ACCEPTANCE.md`,
-`PAGOS-PROVEEDORES.md`, `evidence/` y `graphify-out/`. Son trabajo previo:
-no eliminarlos, publicarlos ni incorporarlos como parte de este cambio.
+App: `index.html` con 7 pestañas (Inicio, Pedido, Stock real, Recepción,
+Producción, Elaborados, Reportes) más Administración en `admin.js`. Backend
+`gas/web_api.gs` expone 9 acciones GET y 8 POST; `scripts/patch_admin_backend.py`
+agrega las administrativas en el deploy.
 
-## Decisiones y archivos propios
+## Decisiones del plan
 
-`AGENTS.md` conserva las reglas existentes, corrige referencias al backend
-antiguo y añade continuidad, búsquedas acotadas y manejo de cuota. `CLAUDE.md`
-remite a esas reglas y define preferencias de Sonnet y conservación de contexto.
-`USO-IA.md` contiene el procedimiento y la plantilla de encargo. `.gitignore`
-excluye `.uso-ia/`, que contiene registro, presupuesto y revisión semanal privados.
-`.codex/config.toml` añade coordinador Sol y roles Astra para planificar, Sol
-para ejecutar y Luna para cambios mecánicos. Usa `agents.max_threads` y roles
-con `config_file`, compatibles con CLI 0.144.4. Un subagente activo por vez.
-`.claude/settings.json` usa `opusplan`; agentes Opus y Sonnet cubren delegación
-secuencial. No duplicar planificador cuando ya está activo modo Plan nativo.
-Los cambios se cargan en sesiones nuevas; no cambian el modelo del turno actual.
-
-Una herramienta implementa cada tarea. No repetir el mismo enfoque fallido más
-de dos veces sin nueva evidencia. Actualizar este estado al cerrar o transferir,
-preservando restricciones y resultados reales. No saltar controles obligatorios.
+- Encargado: tres acciones (Pedir, Contar, Recibir) más Hoy; Producción y
+  Elaborados sólo si el local los tiene habilitados.
+- Gerencia: módulo Compras en escritorio (consolidado, orden de compra por
+  proveedor, texto para WhatsApp, marcar Comprado). Cierra el ciclo del pedido:
+  Pendiente → Comprado → Entregado.
+- Planilla nueva de 9 pestañas (CATALOGO, PROVEEDORES, CONFIG, PEDIDOS,
+  PEDIDO_LINEAS, MOVIMIENTOS, COMPRAS, TABLERO, LOG) con migración idempotente
+  y archivo viejo como histórico. Corte por constante `SHEET_ID`.
+- Ejecución con Opus 5.5 coordinador y hasta 3 agentes en paralelo con
+  propiedad de archivos disjunta. Requiere relajar en `AGENTS.md` y `CLAUDE.md`
+  la regla de un solo subagente; eso queda para la Fase 0, no se hizo aquí.
+- Prompts listos por agente en `PLAN-V3.md` §4. Ocho preguntas abiertas con
+  respuesta asumida en §5.
 
 ## Verificaciones y límites
 
-Se inspeccionaron estado Git, estructura, instrucciones y documentación local.
-En la primera etapa pasaron `verify-v2.js`, lectura CSV y exclusión Git privada.
-En esta etapa pasaron parseo de cuatro TOML, resolución de roles/modelos,
-validación JSON, `claude plugin validate .claude/agents` y `git diff --check`.
-`codex doctor` confirmó carga correcta de configuración; tiene avisos independientes
-de PATH/npm y terminal no interactiva. No actualizar instalaciones por esta tarea.
-Se delegó realmente la preparación de Claude a un agente Luna y terminó bien.
-No se probó aún el circuito automático completo desde una sesión nueva de cada
-cliente. No se publicó la app ni se ejecutaron pruebas live. Facturas, cuota
-de Claude y ahorro semanal siguen pendientes. No se cambiaron suscripciones.
+Sólo cambios de documentación (`PLAN-V3.md`, este archivo). `node
+scripts/verify-v2.js` se corrió como control de que el repo sigue íntegro. No se
+ejecutó nada en Apps Script ni se escribió en la planilla; las lecturas fueron
+de encabezados y celdas de resumen. Los conteos citados salen de INICIO
+OPERATIVO al 16/10/2026 y de las dimensiones de las pestañas; no se recontaron
+filas una por una.
 
 ## Próximo paso
 
-Abrir una sesión nueva aquí y dar un encargo real. Comprobar modelo efectivo
-en actividad de agentes, aceptación y ausencia de edición simultánea. Registrar
-cuota inicial/final y resultado, marcar D1 y evaluar al cerrar D7. Si el cliente
-no carga roles, informar y usar delegación explícita disponible, sin inventar
-éxitos. Conciliar facturas antes de compras. Ver `USO-IA.md` bajo demanda.
+El usuario responde las preguntas de `PLAN-V3.md` §5 y hace una copia de la
+planilla en Drive. Luego abre una sesión con Opus 5.5 en la rama `v3` y pega el
+prompt del coordinador (§4.1). La Fase 0 crea `docs/v3/CONTRATO.md` y ajusta
+las reglas de paralelismo antes de lanzar el Agente A.
