@@ -21,6 +21,8 @@ de cero. La app actual (`index.html`, `gas/`) y su planilla siguen en uso, sin c
 - Workflow: corre los checks V3, publica `v3/` en Pages y tiene `deploy-gas-v3`, que se saltea
   sin los secretos `GAS_V3_SCRIPT_ID` y `GAS_V3_DEPLOYMENT_ID`.
 - Corrección del coordinador: el contador del chip Sugeridos no se actualizaba al refrescar el catálogo.
+- Skills "Replica" (Jakeschincariol/replica-skill v1.0.0, MIT) instalados en `.claude/skills/replica-*`
+  a pedido del usuario; 57 tests del paquete pasan en Python 3.13. Sin uso aún en el producto.
 
 ## Verificaciones
 
