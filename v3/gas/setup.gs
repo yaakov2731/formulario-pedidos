@@ -41,6 +41,26 @@ function setupV3() {
   }
 }
 
+/**
+ * Instalación en un paso: crea o corrige las pestañas y, si no existe, genera la clave de gerencia.
+ * La clave se muestra sólo en el registro de ejecución de quien corre la función.
+ */
+function instalarV3() {
+  setupV3();
+  var props = PropertiesService.getScriptProperties();
+  var clave = props.getProperty('ADMIN_KEY');
+  if (!clave) {
+    clave = Utilities.getUuid().replace(/-/g, '').slice(0, 10);
+    props.setProperty('ADMIN_KEY', clave);
+    Logger.log('Clave de administración creada: ' + clave);
+    Logger.log('Guardala. Se cambia en Configuración del proyecto → Propiedades de la secuencia de comandos (ADMIN_KEY).');
+  } else {
+    Logger.log('Ya había una clave de administración (ADMIN_KEY). No se cambió.');
+  }
+  Logger.log('Planilla V3: ' + ss_().getUrl());
+  return { ok: true, admin_key_nueva: !props.getProperty('ADMIN_KEY') ? false : true };
+}
+
 function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu('Docks V3').addItem('Preparar o reparar planilla', 'setupV3').addToUi();

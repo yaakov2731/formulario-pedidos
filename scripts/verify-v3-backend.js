@@ -188,8 +188,20 @@ const rt = mk();
   const r = mk({ SHEET_ID: 'abc123' }, { standalone: true });
   assert.equal(plain(r.call('setupV3')).ok, true);
   ok(get(r, 'getBootstrap'));
+  // Sin SHEET_ID usa la planilla V3 por defecto (V3_SHEET_ID_DEFAULT).
   const r2 = mk({}, { standalone: true });
-  bad(get(r2, 'getBootstrap'), /SHEET_ID/);
+  bad(get(r2, 'getBootstrap'), /1Jro4Ynb6n7otyaNsFWAi3QznYsWHuHf8EBPazY-_BpE/);
+  const r3 = mk({}, { standalone: true, spreadsheetId: '1Jro4Ynb6n7otyaNsFWAi3QznYsWHuHf8EBPazY-_BpE' });
+  bad(get(r3, 'getBootstrap'), /setupV3/);
+  // instalarV3: crea pestañas y una sola clave de gerencia; no la pisa al repetir.
+  r3.deleteProperty('ADMIN_KEY');
+  r3.call('instalarV3');
+  ok(get(r3, 'getBootstrap'));
+  const clave = r3.getProperty('ADMIN_KEY');
+  assert.match(clave, /^[0-9a-f]{10}$/);
+  r3.call('instalarV3');
+  assert.equal(r3.getProperty('ADMIN_KEY'), clave);
+  assert.equal(JSON.parse(r3.doPost({ postData: { contents: JSON.stringify({ action: 'checkAdmin', admin_key: clave }) } }).text).ok, true);
 }
 
 /* ================= ping, bootstrap, JSONP ================= */

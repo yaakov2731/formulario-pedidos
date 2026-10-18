@@ -2,6 +2,8 @@
  * Sólo literales a nivel superior: los archivos se cargan en cualquier orden. */
 
 var V3_VERSION = 'v3';
+// Planilla V3 usada cuando el script no está vinculado a una planilla y no hay propiedad SHEET_ID.
+var V3_SHEET_ID_DEFAULT = '1Jro4Ynb6n7otyaNsFWAi3QznYsWHuHf8EBPazY-_BpE';
 var V3_TZ = 'America/Argentina/Buenos_Aires';
 var V3_LOCK_MS = 20000;
 

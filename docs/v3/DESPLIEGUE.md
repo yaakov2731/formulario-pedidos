@@ -2,25 +2,22 @@
 
 La V3 es independiente de la app actual. Publicarla no cambia nada de lo que usan hoy los encargados.
 
-## 1. Backend (una sola vez, unos 15 minutos)
+## 1. Backend (una sola vez, unos 5 minutos)
 
 1. Abrir la planilla **Docks · Abastecimiento V3 (pruebas)** (ID en `CONTRATO.md` §0.1). Se puede renombrar.
 2. Menú **Extensiones → Apps Script**. Se abre un proyecto vinculado a esa planilla.
-3. Borrar el contenido de `Código.gs` y pegar el archivo completo `v3/apps-script/DocksV3.gs` del repositorio.
-4. Engranaje **Configuración del proyecto**: tildar "Mostrar el archivo de manifiesto appsscript.json",
-   volver al editor y reemplazar `appsscript.json` por `v3/apps-script/appsscript.json`.
-5. En **Configuración del proyecto → Propiedades de la secuencia de comandos**, agregar:
+3. Borrar el contenido de `Código.gs` y pegar el archivo completo `v3/apps-script/DocksV3.gs`
+   (en GitHub: abrir el archivo y usar el botón **Copy raw file**). Guardar con Ctrl+S.
+4. Elegir la función **`instalarV3`** en la barra superior y tocar **Ejecutar**. Aceptar los permisos
+   (Google avisa "app no verificada": Configuración avanzada → Ir a … → Permitir; es tu propio script).
+   Crea las 9 pestañas, carga los locales y genera la **clave de gerencia**, que aparece en el
+   **Registro de ejecución**. Guardarla. Se puede ejecutar de nuevo sin perder datos ni cambiar la clave.
+5. **Implementar → Nueva implementación →** engranaje **Aplicación web**. Ejecutar como: *yo*.
+   Quién tiene acceso: *cualquier persona*. **Implementar** y copiar la URL que termina en `/exec`.
 
-   | Propiedad | Valor |
-   | --- | --- |
-   | `ADMIN_KEY` | una clave para gerencia (no compartirla con encargados) |
-   | `TELEGRAM_BOT_TOKEN` | opcional |
-   | `TELEGRAM_CHAT_ID` | opcional |
-
-6. En el editor, elegir la función `setupV3` y **Ejecutar**. Aceptar los permisos. La planilla queda con 9 pestañas
-   y los locales cargados. Se puede ejecutar de nuevo sin perder datos.
-7. **Implementar → Nueva implementación → Aplicación web**. Ejecutar como: *yo*. Acceso: *cualquier persona*.
-   Copiar la URL que termina en `/exec`.
+Opcional, en **Configuración del proyecto → Propiedades de la secuencia de comandos**:
+`TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` para avisos. La clave `ADMIN_KEY` también se cambia ahí.
+El manifiesto `appsscript.json` no hace falta tocarlo: el acceso se elige en el paso 5.
 
 ## 2. Frontend
 

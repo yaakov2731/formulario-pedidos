@@ -18,7 +18,7 @@ function ss_() {
   var ss = null;
   try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { ss = null; }
   if (ss) return ss;
-  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID') || V3_SHEET_ID_DEFAULT;
   if (!id) fail_('El script no está vinculado a una planilla y falta la propiedad SHEET_ID.');
   return SpreadsheetApp.openById(id);
 }
