@@ -53,6 +53,24 @@ Consultar [DEPLOY-V2.md](DEPLOY-V2.md) para las comprobaciones de cierre,
 [PRODUCT.md](PRODUCT.md) para los flujos y [DESIGN.md](DESIGN.md) para el diseño.
 No incluir planillas privadas, capturas operativas ni credenciales en Git.
 
+## V3 · sistema nuevo (en construcción, no reemplaza todavía a la app actual)
+
+Pedidos, conteo, recepción y compras con planilla propia de 9 pestañas. Contrato en
+[docs/v3/CONTRATO.md](docs/v3/CONTRATO.md), despliegue en [docs/v3/DESPLIEGUE.md](docs/v3/DESPLIEGUE.md).
+
+- `v3/index.html`: encargados (celular) · Hoy, Pedir, Contar, Recibir.
+- `v3/compras.html`: gerencia (escritorio) · Compras, Órdenes, Faltantes, Stock, Catálogo, Proveedores, Locales.
+- `v3/gas/`: backend Apps Script. `v3/apps-script/DocksV3.gs` es el mismo código en un archivo para pegar.
+
+```powershell
+node .\scripts\verify-v3-core.js
+node .\scripts\verify-v3-backend.js
+node .\scripts\verify-v3-encargado.js
+node .\scripts\verify-v3-compras.js
+node .\scripts\v3-bundle-gas.js --check
+node .\scripts\v3-dev-server.js --seed   # prueba local en memoria: http://localhost:8787/?api=/api
+```
+
 ## Continuidad con herramientas de IA
 
 Leer `ESTADO.md` al retomar trabajo. [USO-IA.md](USO-IA.md) explica el protocolo

@@ -610,3 +610,245 @@ const OC_VER = nid('OC');
   assert.equal(hoy.bajo_par, 4, 'Asado 4<10, Lechuga 2,5<10, Tomate 0,33<6, Servilletas 0<6');
   assert.deepEqual(Object.keys(hoy.semana), ['id', 'label', 'inicio', 'fin']);
 }
+
+/* ================= recepción ================= */
+const PED_UMO2 = nid('PED');
+const REC1 = nid('REC');
+{
+  ok(post(rt, { action: 'savePedido', id_pedido: PED_UMO2, local: 'Umo Grill', encargado: 'Carla', items: [{ codigo: prod['Umo Grill|Asado'], cantidad: 2 }, { codigo: prod['Umo Grill|Lechuga'], cantidad: 4 }] }));
+  const lAsado = lineaDe(PED_UMO, 'Asado');
+  const lChorizo = lineaDe(PED_UMO, 'Chorizo');
+  const b = { action: 'saveRecepcion', local: 'Umo Grill', encargado: 'Ana' };
+  bad(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [{ id_linea: lineaDe(PED_TRE, 'Tomate', 'kg'), cantidad_recibida: 1 }] })), /es de Trento Café, no de Umo Grill/);
+  bad(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [{ id_linea: lineaDe(PED_UMO2, 'Asado'), cantidad_recibida: 1 }] })), /no está comprada \(estado: Pendiente\)/);
+  bad(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [{ id_linea: lAsado, cantidad_recibida: '' }] })), /Falta la cantidad de Asado/);
+  bad(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [{ id_linea: lAsado, cantidad_recibida: -3 }] })), /Cantidad inválida en Asado/);
+  bad(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [] })), /no tiene productos/);
+  bad(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [{ id_linea: 'X-1', cantidad_recibida: 1 }] })), /no existe/);
+
+  const r = ok(post(rt, Object.assign({}, b, {
+    id_operacion: REC1, observaciones: 'Llegó tarde',
+    items: [{ id_linea: lAsado, cantidad_recibida: 12 }, { id_linea: lChorizo, cantidad_recibida: '5' }],
+    extras: [{ codigo: prod['Umo Grill|Lechuga'], cantidad: 1 }]
+  })));
+  assert.deepEqual([r.entregadas, r.incompletas, r.extras], [1, 1, 1]);
+  const L = rows(rt, 'PEDIDO_LINEAS');
+  const asado = L.find(x => x.ID_Linea === lAsado);
+  const chorizo = L.find(x => x.ID_Linea === lChorizo);
+  assert.equal(asado.Estado, 'Entregado');
+  assert.equal(asado.Cantidad_Recibida, 12);
+  assert.equal(asado.ID_Recepcion, REC1);
+  assert.match(asado.Fecha_Recepcion, FECHA_RE);
+  assert.equal(chorizo.Estado, 'Incompleto');
+  assert.equal(chorizo.Cantidad_Recibida, 5);
+  const movs = rows(rt, 'MOVIMIENTOS').filter(x => x.ID_Operacion === REC1);
+  assert.equal(movs.length, 3);
+  const mA = movs.find(m => m.Producto === 'Asado');
+  assert.deepEqual([mA.Tipo, mA.Cantidad, mA.Saldo_Anterior, mA.Saldo_Resultante, mA.Referencia, mA.Costo_Unitario, mA.Observaciones], ['RECEPCION', 12, 4, 16, OC_FLO, 9100, 'Llegó tarde']);
+  const mC = movs.find(m => m.Producto === 'Chorizo');
+  assert.deepEqual([mC.Saldo_Anterior, mC.Saldo_Resultante], ['', ''], 'stock desconocido queda vacío');
+  const mL = movs.find(m => m.Producto === 'Lechuga');
+  assert.deepEqual([mL.Referencia, mL.Saldo_Anterior, mL.Saldo_Resultante], ['SIN PEDIDO', 2.5, 3.5]);
+  const cat = rows(rt, 'CATALOGO');
+  assert.equal(cat.find(x => x['Código'] === prod['Umo Grill|Asado']).Stock_Actual, 16);
+  assert.equal(cat.find(x => x['Código'] === prod['Umo Grill|Chorizo']).Stock_Actual, '');
+  assert.equal(cat.find(x => x['Código'] === prod['Umo Grill|Lechuga']).Stock_Actual, 3.5);
+  assert.equal(rows(rt, 'COMPRAS').find(x => x.ID_OC === OC_FLO).Estado, 'Recibida parcial');
+  // idempotente
+  const dup = ok(post(rt, Object.assign({}, b, { id_operacion: REC1, items: [{ id_linea: lAsado, cantidad_recibida: 12 }] })));
+  assert.equal(dup.duplicado, true);
+  assert.deepEqual([dup.entregadas, dup.incompletas, dup.extras], [1, 1, 1]);
+  assert.equal(rows(rt, 'CATALOGO').find(x => x['Código'] === prod['Umo Grill|Asado']).Stock_Actual, 16);
+  assert.equal(rows(rt, 'MOVIMIENTOS').filter(x => x.ID_Operacion === REC1).length, 3);
+  // línea ya entregada
+  bad(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [{ id_linea: lAsado, cantidad_recibida: 1 }] })), /no está comprada \(estado: Entregado\)/);
+
+  // Verdulería: Umo recibe todo; la orden queda parcial hasta que recibe Trento
+  ok(post(rt, Object.assign({}, b, { id_operacion: nid('REC'), items: [{ id_linea: lineaDe(PED_UMO, 'Tomate'), cantidad_recibida: 5 }, { id_linea: lineaDe(PED_UMO, 'Carbón'), cantidad_recibida: 4 }] })));
+  assert.equal(rows(rt, 'COMPRAS').find(x => x.ID_OC === OC_VER).Estado, 'Recibida parcial');
+  assert.equal(rows(rt, 'PEDIDOS').find(x => x.ID_Pedido === PED_UMO).Estado, 'Cerrado');
+  const rt2 = ok(post(rt, { action: 'saveRecepcion', id_operacion: nid('REC'), local: 'Trento Café', encargado: 'Beto', items: [{ id_linea: lineaDe(PED_TRE, 'Tomate', 'kg'), cantidad_recibida: 10 }, { id_linea: lineaDe(PED_TRE, 'Tomate', 'caja'), cantidad_recibida: 2 }] }));
+  assert.deepEqual([rt2.entregadas, rt2.incompletas, rt2.extras], [2, 0, 0]);
+  assert.equal(rows(rt, 'COMPRAS').find(x => x.ID_OC === OC_VER).Estado, 'Recibida');
+  assert.equal(rows(rt, 'CATALOGO').find(x => x['Código'] === prod['Trento Café|Tomate']).Stock_Actual, '', 'Trento sin conteo: sigue vacío');
+  // cero recibido → Incompleto sin movimiento
+  const hielo = rows(rt, 'PEDIDO_LINEAS').find(x => x.Producto === 'Hielo' && x.Estado === 'Comprado');
+  const REC0 = nid('REC');
+  const r0 = ok(post(rt, { action: 'saveRecepcion', id_operacion: REC0, local: 'Trento Café', encargado: 'Beto', items: [{ id_linea: hielo.ID_Linea, cantidad_recibida: 0 }] }));
+  assert.deepEqual([r0.entregadas, r0.incompletas], [0, 1]);
+  assert.equal(rows(rt, 'MOVIMIENTOS').filter(x => x.ID_Operacion === REC0).length, 0);
+  assert.equal(ok(post(rt, { action: 'saveRecepcion', id_operacion: REC0, local: 'Trento Café', encargado: 'Beto', items: [{ id_linea: hielo.ID_Linea, cantidad_recibida: 0 }] })).duplicado, true);
+  assert.equal(rows(rt, 'COMPRAS').find(x => x.ID_OC === hielo.ID_OC).Estado, 'Recibida parcial');
+  assert.equal(ok(get(rt, 'getPorRecibir', { local: 'Umo Grill' })).ordenes.length, 0);
+  assert.equal(ok(get(rt, 'getOrdenes', { estado: 'Recibida' })).ordenes.length, 1);
+
+  // getOperacion
+  const oc = ok(get(rt, 'getOperacion', { id: CNT1 }));
+  assert.deepEqual([oc.found, oc.tipo, oc.local, oc.items], [true, 'CONTEO', 'Umo Grill', 5]);
+  assert.match(oc.fecha_hora, FECHA_RE);
+  const orc = ok(get(rt, 'getOperacion', { id: REC1 }));
+  assert.deepEqual([orc.found, orc.tipo, orc.local, orc.items, orc.entregadas, orc.incompletas, orc.extras], [true, 'RECEPCION', 'Umo Grill', 3, 1, 1, 1]);
+  const or0 = ok(get(rt, 'getOperacion', { id: REC0 }));
+  assert.deepEqual([or0.tipo, or0.items, or0.local], ['RECEPCION', 1, 'Trento Café']);
+  const ooc = ok(get(rt, 'getOperacion', { id: OC_FLO }));
+  assert.deepEqual([ooc.found, ooc.tipo, ooc.local, ooc.items, ooc.proveedor], [true, 'OC', 'Umo Grill', 2, 'Distribuidora Florida']);
+  assert.match(ooc.texto_whatsapp, /^\*Pedido Docks del Puerto\* · OC-/);
+  assert.ok(ooc.whatsapp_url.startsWith('https://wa.me/5491155550001?text='));
+  assert.equal(ok(get(rt, 'getOperacion', { id: 'REC-20200101-000000-zzzz' })).found, false);
+  assert.equal(ok(get(rt, 'getOperacion', { id: PED_UMO })).items, 4);
+}
+
+/* ================= faltantes ================= */
+{
+  const f = ok(get(rt, 'getFaltantes'));
+  assert.deepEqual(f.lineas.map(l => l.producto).sort(), ['Chorizo', 'Hielo']);
+  const ch = f.lineas.find(l => l.producto === 'Chorizo');
+  assert.deepEqual([ch.local, ch.proveedor, ch.unidad, ch.cantidad, ch.cantidad_recibida, ch.id_oc], ['Umo Grill', 'Distribuidora Florida', 'kg', 8, 5, OC_FLO]);
+  assert.match(ch.fecha_recepcion, FECHA_RE);
+  setCell(rt, 'PEDIDO_LINEAS', x => x.Producto === 'Chorizo' && x.Estado === 'Incompleto', 'Fecha_Recepcion', fmtFecha(rt, new Date(Date.now() - 30 * 864e5)));
+  assert.deepEqual(ok(get(rt, 'getFaltantes')).lineas.map(l => l.producto), ['Hielo']);
+  assert.equal(ok(get(rt, 'getFaltantes', { dias: '60' })).lineas.length, 2);
+}
+
+/* ================= cancelar ================= */
+{
+  const lA = lineaDe(PED_UMO2, 'Asado');
+  const lL = lineaDe(PED_UMO2, 'Lechuga');
+  bad(post(rt, { action: 'cancelarLineas', admin_key: 'mala', id_lineas: [lA], motivo: 'x' }), /incorrecta/);
+  bad(post(rt, { action: 'cancelarLineas', admin_key: KEY, id_lineas: [lineaDe(PED_UMO, 'Asado')], motivo: 'x' }), /no se puede cancelar: está Entregado/);
+  const c = ok(post(rt, { action: 'cancelarLineas', admin_key: KEY, id_lineas: [lA], motivo: 'Sobra stock' }));
+  assert.equal(c.canceladas, 1);
+  const la = rows(rt, 'PEDIDO_LINEAS').find(x => x.ID_Linea === lA);
+  assert.equal(la.Estado, 'Cancelado');
+  assert.match(la.Observaciones, /Sobra stock/);
+  assert.equal(rows(rt, 'PEDIDOS').find(x => x.ID_Pedido === PED_UMO2).Estado, 'Pendiente');
+  const again = ok(post(rt, { action: 'cancelarLineas', admin_key: KEY, id_lineas: [lA, lL], motivo: 'Cambio de menú' }));
+  assert.deepEqual([again.canceladas, again.ya_canceladas], [1, 1]);
+  assert.equal(rows(rt, 'PEDIDOS').find(x => x.ID_Pedido === PED_UMO2).Estado, 'Cerrado');
+  // orden con todas las líneas canceladas → Cancelada
+  const P3 = nid('PED');
+  ok(post(rt, { action: 'savePedido', id_pedido: P3, local: 'Umo Grill', encargado: 'Ana', items: [{ codigo: prod['Umo Grill|Servilletas'], cantidad: 6 }] }));
+  const lS = lineaDe(P3, 'Servilletas');
+  assert.equal(ok(get(rt, 'getCatalogo', { local: 'Umo Grill' })).productos.find(p => p.producto === 'Servilletas').pedido_abierto, 6);
+  const OC_S = nid('OC');
+  ok(post(rt, { action: 'crearOrden', admin_key: KEY, id_oc: OC_S, id_lineas: [lS], proveedor: 'Distribuidora Florida', responsable: 'Gerencia' }));
+  assert.equal(rows(rt, 'PEDIDOS').find(x => x.ID_Pedido === P3).Estado, 'En compra');
+  ok(post(rt, { action: 'cancelarLineas', admin_key: KEY, id_lineas: [lS], motivo: 'Proveedor sin stock' }));
+  assert.equal(rows(rt, 'COMPRAS').find(x => x.ID_OC === OC_S).Estado, 'Cancelada');
+  assert.equal(rows(rt, 'PEDIDOS').find(x => x.ID_Pedido === P3).Estado, 'Cerrado');
+  assert.equal(ok(get(rt, 'getCatalogo', { local: 'Umo Grill' })).productos.find(p => p.producto === 'Servilletas').pedido_abierto, 0);
+}
+
+/* ================= panel de stock ================= */
+{
+  setCell(rt, 'CATALOGO', x => x['Código'] === prod['Umo Grill|Asado'], 'Ultimo_Conteo', fmtFecha(rt, new Date(Date.now() - 10 * 864e5)));
+  const p = ok(get(rt, 'getStockPanel', { local: 'Umo Grill' }));
+  const E = n => p.filas.find(f => f.producto === n);
+  assert.equal(E('Asado').estado, 'OK');
+  assert.equal(E('Asado').dias_sin_contar, 10);
+  assert.equal(E('Chorizo').estado, 'SIN_CONTEO');
+  assert.equal(E('Chorizo').dias_sin_contar, null);
+  assert.equal(E('Servilletas').estado, 'SIN_STOCK');
+  assert.equal(E('Lechuga').estado, 'BAJO');
+  assert.equal(E('Lechuga').dias_sin_contar, 0);
+  assert.equal(E('Sal').estado, 'SIN_PAR');
+  assert.equal(E('Tomate').estado, 'BAJO');
+  assert.equal(E('Hielo'), undefined, 'inactivos fuera del panel');
+  assert.deepEqual(Object.keys(E('Asado')), ['local', 'codigo', 'producto', 'categoria', 'unidad', 'proveedor', 'par', 'stock_actual', 'pedido_abierto', 'sugerido', 'ultimo_conteo', 'dias_sin_contar', 'estado']);
+  const todos = ok(get(rt, 'getStockPanel'));
+  assert.ok(todos.filas.some(f => f.local === 'Trento Café' && f.estado === 'SIN_CONTEO'));
+  bad(get(rt, 'getStockPanel', { local: 'Narnia' }), /no existe/);
+}
+
+/* ================= locales ================= */
+{
+  const r = ok(post(rt, { action: 'saveLocal', admin_key: KEY, local: 'umo grill', encargados: ['Ana', 'Carla', 'ana'], dia_pedido: 'martes', hora_corte: '9:30' }));
+  assert.deepEqual(r.local, { local: 'Umo Grill', activo: true, encargados: ['Ana', 'Carla'], dia_pedido: 'Martes', hora_corte: '09:30', prefijo: 'UMO' });
+  ok(post(rt, { action: 'saveLocal', admin_key: KEY, local: 'Umo Grill', activo: false }));
+  assert.equal(rows(rt, 'LOCALES')[0].Activo, 'NO');
+  assert.equal(rows(rt, 'LOCALES')[0].Dia_Pedido, 'Martes', 'campo ausente no se toca');
+  bad(post(rt, { action: 'savePedido', id_pedido: nid('PED'), local: 'Umo Grill', encargado: 'Ana', items: [{ producto: 'X', unidad: 'kg', cantidad: 1 }] }), /inactivo/);
+  ok(post(rt, { action: 'saveLocal', admin_key: KEY, local: 'Umo Grill', activo: 'si' }));
+  assert.equal(rows(rt, 'LOCALES')[0].Activo, 'SÍ');
+  ok(post(rt, { action: 'saveLocal', admin_key: KEY, local: 'Umo Grill', dia_pedido: '' }));
+  assert.equal(rows(rt, 'LOCALES')[0].Dia_Pedido, '', 'texto vacío vacía');
+  bad(post(rt, { action: 'saveLocal', admin_key: KEY, local: 'Umo Grill', dia_pedido: 'Feriado' }), /Día de pedido inválido/);
+  bad(post(rt, { action: 'saveLocal', admin_key: KEY, local: 'Umo Grill', hora_corte: '25:00' }), /Hora de corte inválida/);
+  bad(post(rt, { action: 'saveLocal', admin_key: KEY, local: 'Narnia' }), /no existe/);
+  // proveedor: activo como booleano y edición parcial con vacío
+  ok(post(rt, { action: 'saveProveedor', admin_key: KEY, proveedor: 'Hielos Sur', activo: false, observaciones: 'Sólo verano' }));
+  let hs = rows(rt, 'PROVEEDORES').find(x => x.Proveedor === 'Hielos Sur');
+  assert.deepEqual([hs.Activo, hs.Observaciones], ['NO', 'Sólo verano']);
+  ok(post(rt, { action: 'saveProveedor', admin_key: KEY, proveedor: 'Hielos Sur', observaciones: '' }));
+  hs = rows(rt, 'PROVEEDORES').find(x => x.Proveedor === 'Hielos Sur');
+  assert.deepEqual([hs.Activo, hs.Observaciones], ['NO', '']);
+  assert.equal(ok(get(rt, 'getBootstrap')).proveedores.find(x => x.proveedor === 'Hielos Sur').activo, false);
+  // producto: edición parcial con vacío
+  const pr = ok(post(rt, { action: 'saveProducto', admin_key: KEY, local: 'Umo Grill', codigo: prod['Umo Grill|Tomate'], par: '' }));
+  assert.equal(pr.producto.par, null);
+  assert.equal(pr.producto.precio, 1800, 'campo ausente no se toca');
+  assert.equal(pr.producto.motivo, 'SIN_PAR');
+}
+
+/* ================= POST de lectura, lock ocupado ================= */
+{
+  ok(post(rt, { action: 'ping' }));
+  rt.setLockBusy(true);
+  bad(post(rt, { action: 'savePedido', id_pedido: nid('PED'), local: 'Trento Café', encargado: 'Beto', items: [{ producto: 'X', unidad: 'kg', cantidad: 1 }] }), /ocupada/);
+  rt.setLockBusy(false);
+  ok(get(rt, 'getBootstrap'));
+}
+
+/* ================= Telegram ================= */
+{
+  const r = mk({ TELEGRAM_BOT_TOKEN: '123:abc', TELEGRAM_CHAT_ID: '-100' });
+  r.call('setupV3');
+  r.setUrlFetchHandler(() => { throw new Error('sin red'); });
+  const P = nid('PED');
+  ok(post(r, { action: 'savePedido', id_pedido: P, local: 'Brooklyn', encargado: 'Dani', items: [{ producto: 'Pan', unidad: 'unidad', cantidad: 30 }] }));
+  assert.equal(ok(get(r, 'getPedido', { id: P })).found, true);
+  assert.equal(r.urlFetchCalls.length, 1);
+  assert.equal(r.urlFetchCalls[0].url, 'https://api.telegram.org/bot123:abc/sendMessage');
+  assert.match(JSON.parse(r.urlFetchCalls[0].params.payload).text, /Pedido nuevo · Brooklyn/);
+  const lg = rows(r, 'LOG').filter(x => x.Tipo === 'TELEGRAM');
+  assert.equal(lg.length, 1);
+  assert.equal(lg[0].OK, 'NO');
+  assert.match(lg[0].Detalle, /sin red/);
+  r.setUrlFetchHandler(() => ({ code: 500, body: 'error' }));
+  ok(post(r, { action: 'savePedido', id_pedido: nid('PED'), local: 'Brooklyn', encargado: 'Dani', items: [{ producto: 'Pan', unidad: 'unidad', cantidad: 30 }] }));
+  assert.match(rows(r, 'LOG').filter(x => x.Tipo === 'TELEGRAM')[1].Detalle, /500/);
+  r.setUrlFetchHandler(null);
+  ok(post(r, { action: 'savePedido', id_pedido: nid('PED'), local: 'Brooklyn', encargado: 'Dani', items: [{ producto: 'Pan', unidad: 'unidad', cantidad: 30 }] }));
+  assert.equal(rows(r, 'LOG').filter(x => x.Tipo === 'TELEGRAM').length, 2);
+  assert.equal(r.urlFetchCalls.length, 3);
+  assert.equal(rt.urlFetchCalls.length, 0, 'sin propiedades de Telegram no se llama a la red');
+}
+
+/* ================= volumen ================= */
+{
+  const r = mk();
+  r.call('setupV3');
+  const t0 = Date.now();
+  const filas = Array.from({ length: 2000 }, (_, k) => ({ producto: 'Insumo ' + k, categoria: 'Cat ' + (k % 20), unidad: k % 2 ? 'kg' : 'unidad', proveedor: 'Prov ' + (k % 15), precio: 100 + k, par: 10 }));
+  const lote = ok(post(r, { action: 'saveProductosLote', admin_key: KEY, local: 'Depósito', filas }));
+  assert.equal(lote.creados, 2000);
+  const codigos = rows(r, 'CATALOGO').map(x => x['Código']);
+  assert.equal(codigos[1999], 'DEP-2000');
+  for (let k = 0; k < 10; k++) {
+    ok(post(r, { action: 'savePedido', id_pedido: nid('PED'), local: 'Depósito', encargado: 'Eva', items: codigos.slice(k * 150, k * 150 + 150).map(c => ({ codigo: c, cantidad: 2 })) }));
+  }
+  ok(post(r, { action: 'saveConteo', id_operacion: nid('CNT'), local: 'Depósito', encargado: 'Eva', items: codigos.slice(0, 500).map(c => ({ codigo: c, cantidad: 3 })) }));
+  const t1 = Date.now();
+  const cat = ok(get(r, 'getCatalogo', { local: 'Depósito' }));
+  ok(get(r, 'getStockPanel'));
+  ok(get(r, 'getConsolidado'));
+  const t2 = Date.now();
+  assert.equal(cat.productos.length, 2000);
+  assert.equal(cat.productos[0].pedido_abierto, 2);
+  assert.equal(cat.productos[0].sugerido, 5);
+  assert.equal(rows(r, 'PEDIDO_LINEAS').length, 1500);
+  assert.ok(t2 - t1 < 3000, 'lecturas con miles de filas demasiado lentas: ' + (t2 - t1) + ' ms');
+  assert.ok(t1 - t0 < 15000, 'escrituras demasiado lentas: ' + (t1 - t0) + ' ms');
+}
+
+console.log('V3 backend verification passed.');

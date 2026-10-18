@@ -1,65 +1,43 @@
 # Estado de continuidad · Pedidos Semanales
 
-Actualizado: 18 de octubre de 2026. Responsable de esta etapa: Fable 5.1 (plan).
+Actualizado: 18 de octubre de 2026. Coordinador: Opus 5.5. PR: yaakov2731/formulario-pedidos#7.
 
 ## Objetivo y aceptación
 
-El usuario pidió un rediseño profesional de la app y de la planilla: la app es
-confusa para los empleados, la planilla tiene demasiadas pestañas y lo único que
-funciona bien es la carga de pedidos por encargado. Pidió un plan estructurado,
-con instrucciones y agentes, para que Opus 5.5 lo ejecute. Esta etapa entrega
-sólo el plan: `PLAN-V3.md`. No se implementó código ni se tocó la planilla.
+Rediseño profesional de la app y la planilla (38 pestañas, confusas para los encargados).
+El usuario pidió **sistema nuevo desde cero, sin migración**; proveedores y catálogo se cargan
+de cero. La app actual (`index.html`, `gas/`) y su planilla siguen en uso, sin cambios.
 
-## Contexto comprobado
+## Hecho
 
-Planilla real (`SHEET_ID` de `gas/utils.gs`, leída con el conector de Sheets):
-38 pestañas. 9 transaccionales, 2 maestras, 16 vistas por local, 10 vistas o
-dashboards (RESUMEN POR PROVEEDOR muestra `#ERROR!`) y LOG TELEGRAM. INICIO
-OPERATIVO informa 1.303 líneas de pedido abiertas, 245 conteos, 37 recepciones,
-0 partes de producción y 137 productos con stock cero. `Comprado` y `Entregado`
-en PEDIDOS_DETALLE nunca cambian de NO. CONFIGURACIÓN usa nombres viejos de
-locales (Parrilla, Heladería, Cafetería) que `normalizeLocalName_` traduce.
+- Plan (`PLAN-V3.md`) y contrato vigente (`docs/v3/CONTRATO.md`, versión 2, prevalece).
+- Drive: respaldo de producción y planilla V3 vacía (IDs en el contrato §0.1).
+- V3 construida con tres agentes en paralelo, archivos disjuntos:
+  backend `v3/gas/` (9 pestañas, `setupV3`, API completa, Telegram opcional),
+  encargado `v3/index.html` (Hoy, Pedir, Contar, Recibir), gerencia `v3/compras.html`
+  (Compras con orden por WhatsApp, Órdenes, Faltantes, Stock, Catálogo con pegado desde Excel,
+  Proveedores, Locales). Base compartida `v3/core.js` y `v3/base.css` del coordinador.
+- `v3/apps-script/DocksV3.gs`: backend en un archivo para pegar. Guía `docs/v3/DESPLIEGUE.md`.
+- Workflow: corre los checks V3, publica `v3/` en Pages y tiene `deploy-gas-v3`, que se saltea
+  sin los secretos `GAS_V3_SCRIPT_ID` y `GAS_V3_DEPLOYMENT_ID`.
+- Corrección del coordinador: el contador del chip Sugeridos no se actualizaba al refrescar el catálogo.
 
-App: `index.html` con 7 pestañas (Inicio, Pedido, Stock real, Recepción,
-Producción, Elaborados, Reportes) más Administración en `admin.js`. Backend
-`gas/web_api.gs` expone 9 acciones GET y 8 POST; `scripts/patch_admin_backend.py`
-agrega las administrativas en el deploy.
+## Verificaciones
 
-## Decisiones del plan
+Pasan las 5 verificaciones V3 (core, backend, encargado, compras, paquete) y las 10 del V2.
+`scripts/e2e-v3.js` en Chromium contra la planilla en memoria: login, conteo, pedido con
+sugeridos, segundo local, clave incorrecta, orden por proveedor con texto WhatsApp, recepción
+con faltante, faltantes y stock; sin errores de JS ni scroll horizontal. Saldos coherentes.
 
-- Encargado: tres acciones (Pedir, Contar, Recibir) más Hoy; Producción y
-  Elaborados sólo si el local los tiene habilitados.
-- Gerencia: módulo Compras en escritorio (consolidado, orden de compra por
-  proveedor, texto para WhatsApp, marcar Comprado). Cierra el ciclo del pedido:
-  Pendiente → Comprado → Entregado.
-- Planilla nueva de 9 pestañas (CATALOGO, PROVEEDORES, CONFIG, PEDIDOS,
-  PEDIDO_LINEAS, MOVIMIENTOS, COMPRAS, TABLERO, LOG) con migración idempotente
-  y archivo viejo como histórico. Corte por constante `SHEET_ID`.
-- Ejecución con Opus 5.5 coordinador y hasta 3 agentes en paralelo con
-  propiedad de archivos disjunta. Requiere relajar en `AGENTS.md` y `CLAUDE.md`
-  la regla de un solo subagente; eso queda para la Fase 0, no se hizo aquí.
-- Prompts listos por agente en `PLAN-V3.md` §4. Ocho preguntas abiertas con
-  respuesta asumida en §5.
+## Límites
 
-## Verificaciones y límites
-
-Sólo cambios de documentación (`PLAN-V3.md`, este archivo). `node
-scripts/verify-v2.js` se corrió como control de que el repo sigue íntegro. No se
-ejecutó nada en Apps Script ni se escribió en la planilla; las lecturas fueron
-de encabezados y celdas de resumen. Los conteos citados salen de INICIO
-OPERATIVO al 16/10/2026 y de las dimensiones de las pestañas; no se recontaron
-filas una por una.
-
-## Fase 0 (18/10/2026, coordinador)
-
-Hecha con las respuestas asumidas de `PLAN-V3.md` §5, por pedido del usuario.
-Respaldo de producción y planilla V3 de pruebas creados en Drive; IDs en
-`docs/v3/CONTRATO.md` §0.1. Contrato en `docs/v3/CONTRATO.md`. Bloqueado: la
-edición de `AGENTS.md`/`CLAUDE.md` para agentes en paralelo fue rechazada por el
-control de permisos; el texto listo está en `docs/v3/FASE-0.md`. Producción no se tocó.
+No se probó contra Google Sheets real: fórmulas QUERY de TABLERO, validaciones, protecciones,
+formato texto, LockService y Telegram reales quedan para la primera instalación. No se publicó
+nada. `AGENTS.md`/`CLAUDE.md` no se cambiaron (edición bloqueada por permisos; texto en
+`docs/v3/FASE-0.md`).
 
 ## Próximo paso
 
-Fase 1: lanzar el Agente A con el prompt de `PLAN-V3.md` §4.2. Si el usuario
-agrega la excepción de paralelismo, las fases 2 a 4 corren en paralelo; si no,
-en secuencia.
+Usuario: seguir `docs/v3/DESPLIEGUE.md` §1 (pegar backend, `ADMIN_KEY`, `setupV3`, publicar)
+y pasar la URL `/exec`. Coordinador: ponerla en `v3/config.js`, revisar TABLERO en la planilla
+real y hacer un recorrido con datos reales antes del merge a `main`.

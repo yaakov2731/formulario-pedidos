@@ -158,6 +158,19 @@ Reglas de edición: en `saveProducto`, `saveProveedor` y `saveLocal`, un campo a
 texto vacío lo vacía. `activo` acepta `SÍ`/`NO`/`SI`/booleano y se guarda como `SÍ`/`NO`.
 `saveProductosLote.errores[].fila` es la posición en `filas`, empezando en 1.
 
+### 4.5 Decisiones de implementación (Agente A, aceptadas por el coordinador)
+
+- En la API `activo` es booleano; en la planilla queda `SÍ`/`NO`.
+- Códigos autogenerados con guion: `UMO-001`, `UMO-002`…
+- `getOrdenes.locales` es un arreglo. `getHoy.por_recibir` es la cantidad de órdenes.
+- COMPRAS.Estado: Enviada (nada recibido), Recibida (todas las líneas no canceladas Entregado),
+  Recibida parcial (llegó algo y queda alguna Comprado o Incompleto), Cancelada (todas canceladas).
+- Un código repetido en un pedido se suma en una línea; en un conteo se rechaza. Producto Inactivo se rechaza.
+- Recibir 0 deja la línea Incompleto y no genera movimiento.
+- Producto + Unidad repetido en el mismo local se rechaza en `saveProducto` sin código, indicando el código existente.
+- Fechas, IDs, semana, WhatsApp y hora de corte se guardan con formato texto. Un texto que empieza con `=`, `+` o `-`
+  se guarda con apóstrofo para que la planilla no lo interprete como fórmula.
+
 ### 4.3 Texto de WhatsApp de una orden
 
 ```

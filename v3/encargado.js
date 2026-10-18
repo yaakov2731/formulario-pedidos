@@ -1597,6 +1597,9 @@
 
   function repintarListas() {
     var r = ruta();
+    // La barra de filtros no se redibuja (conserva el foco del buscador): sólo se actualiza el contador.
+    var nSug = document.querySelector('.chip-sugeridos .chip-n');
+    if (nSug) nSug.textContent = String(contarSugeridos(S.cat));
     if (r.tab === 'pedir' && r.sub === '' && byId('lista-pedir')) pintarListaPedir();
     else if (r.tab === 'contar' && r.sub === '' && byId('lista-contar')) pintarListaContar();
     else render();
