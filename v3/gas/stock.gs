@@ -302,7 +302,8 @@ function getOperacion_(p) {
       ok: true, found: true, id: id, tipo: 'CONTEO',
       local: tstr_(tMov, movs[0], 'Local'), fecha_hora: tstr_(tMov, movs[0], 'Fecha_Hora'),
       encargado: tstr_(tMov, movs[0], 'Encargado'),
-      items: movs.map(function (i) {
+      items: movs.length,
+      detalle: movs.map(function (i) {
         return {
           codigo: tstr_(tMov, i, 'Código'), producto: tstr_(tMov, i, 'Producto'), unidad: tstr_(tMov, i, 'Unidad'),
           cantidad: tnum_(tMov, i, 'Cantidad'), saldo_anterior: tnum_(tMov, i, 'Saldo_Anterior'),
@@ -327,22 +328,29 @@ function getOperacion_(p) {
       });
     });
     var ref = movs.length ? { t: tMov, i: movs[0], f: 'Fecha_Hora' } : { t: tLin, i: lineasRec[0], f: 'Fecha_Recepcion' };
+    var resumen = resumenRecepcion_(id);
     return {
       ok: true, found: true, id: id, tipo: 'RECEPCION',
       local: tstr_(ref.t, ref.i, 'Local'), fecha_hora: tstr_(ref.t, ref.i, ref.f),
       encargado: movs.length ? tstr_(tMov, movs[0], 'Encargado') : '',
-      items: items
+      items: items.length,
+      entregadas: resumen.entregadas, incompletas: resumen.incompletas, extras: resumen.extras,
+      detalle: items
     };
   }
   var tOc = table_(SH_COMPRAS);
   var oc = tfind_(tOc, 'ID_OC', id);
   if (oc.length) {
     var j = oc[0];
+    var orden = ordenRespuesta_(tOc, j);
+    var lineasOc = tfind_(tLin, 'ID_OC', id);
     return {
       ok: true, found: true, id: id, tipo: 'OC',
-      local: tstr_(tOc, j, 'Locales'), fecha_hora: tstr_(tOc, j, 'Fecha_Hora'),
-      proveedor: tstr_(tOc, j, 'Proveedor'), estado: tstr_(tOc, j, 'Estado'),
-      items: tfind_(tLin, 'ID_OC', id).map(function (i) {
+      local: tstr_(tOc, j, 'Locales'), fecha_hora: orden.fecha_hora,
+      proveedor: orden.proveedor, estado: orden.estado,
+      texto_whatsapp: orden.texto_whatsapp, whatsapp_url: orden.whatsapp_url,
+      items: lineasOc.length,
+      detalle: lineasOc.map(function (i) {
         return {
           id_linea: tstr_(tLin, i, 'ID_Linea'), local: tstr_(tLin, i, 'Local'), codigo: tstr_(tLin, i, 'Código'),
           producto: tstr_(tLin, i, 'Producto'), unidad: tstr_(tLin, i, 'Unidad'), cantidad: tnum_(tLin, i, 'Cantidad'),
@@ -354,10 +362,12 @@ function getOperacion_(p) {
   var tPed = table_(SH_PEDIDOS);
   var ped = tfind_(tPed, 'ID_Pedido', id);
   if (ped.length) {
+    var lineasPed = tfind_(tLin, 'ID_Pedido', id);
     return {
       ok: true, found: true, id: id, tipo: 'PEDIDO',
       local: tstr_(tPed, ped[0], 'Local'), fecha_hora: tstr_(tPed, ped[0], 'Fecha_Hora'),
-      items: tfind_(tLin, 'ID_Pedido', id).map(function (i) {
+      items: lineasPed.length,
+      detalle: lineasPed.map(function (i) {
         return {
           id_linea: tstr_(tLin, i, 'ID_Linea'), codigo: tstr_(tLin, i, 'Código'), producto: tstr_(tLin, i, 'Producto'),
           unidad: tstr_(tLin, i, 'Unidad'), cantidad: tnum_(tLin, i, 'Cantidad'), estado: tstr_(tLin, i, 'Estado')

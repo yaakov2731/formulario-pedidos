@@ -80,7 +80,7 @@ function saveLocal_(b) {
     var loc = resolverLocal_(b.local);
     var t = table_(SH_LOCALES);
     var i = loc.i;
-    if (b.activo !== undefined) {
+    if (b.activo !== undefined && b.activo !== null && b.activo !== '') {
       var a = siNo_(b.activo, null);
       if (!a) fail_('Valor de Activo inválido para ' + loc.local + ': usá SÍ o NO.');
       tset_(t, i, 'Activo', a);
@@ -128,7 +128,8 @@ function proveedorObj_(t, i) {
     email: tstr_(t, i, 'Email'),
     dias_entrega: tstr_(t, i, 'Dias_Entrega'),
     pedido_minimo: tnum_(t, i, 'Pedido_Minimo'),
-    activo: esSi_(tget_(t, i, 'Activo'))
+    activo: esSi_(tget_(t, i, 'Activo')),
+    observaciones: tstr_(t, i, 'Observaciones')
   };
 }
 
@@ -171,7 +172,6 @@ function saveProveedor_(b) {
     if (nuevo) {
       i = tadd_(t, { Proveedor: nombre, Activo: activo });
     } else {
-      tset_(t, i, 'Proveedor', nombre);
       if (activo !== undefined) tset_(t, i, 'Activo', activo);
     }
     var campos = { contacto: 'Contacto', whatsapp: 'WhatsApp', email: 'Email', dias_entrega: 'Dias_Entrega', observaciones: 'Observaciones' };
@@ -335,7 +335,7 @@ function saveProducto_(b) {
       if (!codigo) {
         var dup = buscarPorNombreUnidad_(loc.local, campos['Producto'], campos['Unidad']);
         if (dup > -1) {
-          fail_('Ya existe ' + campos['Producto'] + ' (' + campos['Unidad'] + ') en ' + loc.local + ' con el código ' + tstr_(t, dup, 'Código') + '.');
+          fail_('Ya existe ' + tstr_(t, dup, 'Producto') + ' (' + campos['Unidad'] + ') en ' + loc.local + ' con el código ' + tstr_(t, dup, 'Código') + '.');
         }
         codigo = siguienteCodigo_(loc.prefijo);
       }
