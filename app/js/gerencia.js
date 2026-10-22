@@ -120,3 +120,34 @@ export function hojaWhatsApp({ titulo, texto: txt, url, extra }) {
 }
 
 export { esc };
+
+// Empezar de cero: vacía pedidos, líneas, movimientos, órdenes y conteos de elaborados (con copia previa).
+export function reiniciarMetricas(ctx) {
+  const conf = input({ placeholder: 'EMPEZAR DE CERO', autocapitalize: 'characters' });
+  const err = h('p', { class: 'field-error', role: 'alert' });
+  const s = sheet({
+    title: 'Reiniciar métricas',
+    body: [
+      banner('Hace una copia completa de la planilla y después vacía pedidos, líneas, movimientos, órdenes y conteos de elaborados. El catálogo, proveedores, locales y elaborados quedan; el stock vuelve a “sin conteo”.', 'warn', { icon: 'alert' }),
+      h('div', { class: 'mt12' }, field('Escribí EMPEZAR DE CERO para confirmar', conf)),
+      err
+    ],
+    actions: [btn('Cancelar', { onClick: () => s.close() }), btn('Reiniciar métricas', { kind: 'danger-fill', onClick: async () => {
+      if (conf.value.trim().toUpperCase() !== 'EMPEZAR DE CERO') { err.textContent = 'El texto no coincide.'; return; }
+      err.textContent = '';
+      const b = s.el.querySelector('.btn-danger-fill'); b.disabled = true;
+      try {
+        const r = await postAdmin(ctx, { action: 'reiniciarDatos', confirmacion: 'EMPEZAR DE CERO' });
+        api.invalidar();
+        s.close();
+        haptic('success');
+        sheet({ title: 'Métricas reiniciadas', body: [
+          h('p', { class: 'sub', style: 'color:var(--text)', text: `Se borraron ${r.pedidos} pedidos, ${r.lineas} líneas, ${r.movimientos} movimientos y ${r.ordenes} órdenes. ${r.productos_sin_contar} productos quedaron sin conteo.` }),
+          r.respaldo_url ? h('p', { class: 'mt12' }, h('a', { href: r.respaldo_url, target: '_blank', rel: 'noopener', text: `Copia de respaldo: ${r.respaldo_nombre}` })) : null
+        ], actions: [btn('Listo', { kind: 'primary', onClick: () => ctx.go(ctx.screen || 'compras', true) })] });
+      } catch (e) { if (!manejarError(ctx, e)) { err.textContent = e.message; b.disabled = false; } }
+    } })]
+  });
+  setTimeout(() => conf.focus(), 350);
+  return s;
+}

@@ -8,7 +8,8 @@ export default async function ordenes(ctx) {
   const root = h('div');
   const refresh = h('button', { class: 'topbar-btn', type: 'button', 'aria-label': 'Actualizar', onClick: () => cargar(true) }, icon('refresh', 24));
   ctx.topbarSet({ right: refresh });
-  root.append(largeTitle({ title: 'Órdenes', sub: 'Lo que ya se mandó a comprar', topbar: ctx.topbar }));
+  const hdr = largeTitle({ title: 'Órdenes', sub: 'Lo que ya se mandó a comprar', topbar: ctx.topbar });
+  root.append(hdr);
   const filtro = { q: '', estado: '' };
   const search = buscador({ placeholder: 'Buscar proveedor o local', onInput: (v) => { filtro.q = v; pintar(); } });
   const chips = h('div', { class: 'chips' });
@@ -41,7 +42,7 @@ export default async function ordenes(ctx) {
     const c = api.cached('getOrdenes', {}, { maxAge: force ? 0 : 30000 });
     if (c.data) { ordenes = c.data.ordenes || []; pintarChips(); pintar(); } else { ordenes = null; pintarChips(); pintar(); }
     if (force) refresh.classList.add('is-busy');
-    c.fresh.then(d => { ordenes = d.ordenes || []; pintarChips(); pintar(); if (aviso) { aviso.remove(); aviso = null; } })
+    c.fresh.then(d => { ordenes = d.ordenes || []; pintarChips(); pintar(); hdr.stampNow(); if (aviso) { aviso.remove(); aviso = null; } })
       .catch(e => { if (!ordenes) { ordenes = []; pintar(); } if (aviso) aviso.remove(); aviso = banner(e.message, 'warn', { icon: 'offline', action: btn('Reintentar', { kind: 'tinted', size: 'sm', onClick: () => cargar(true) }) }); root.insertBefore(aviso, lista); })
       .finally(() => refresh.classList.remove('is-busy'));
   }

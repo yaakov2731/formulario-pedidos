@@ -11,12 +11,15 @@ export default async function hoy(ctx) {
   const gear = h('a', { class: 'topbar-btn', href: '#ajustes', 'aria-label': 'Ajustes' }, icon('gear', 24));
   const refresh = h('button', { class: 'topbar-btn', type: 'button', 'aria-label': 'Actualizar', onClick: () => { haptic(); cargar(true); } }, icon('refresh', 24));
   ctx.topbarSet({ right: [refresh, gear] });
-  root.append(largeTitle({ title: 'Hoy', sub: sem.label, topbar: ctx.topbar }));
+  const hdr = largeTitle({ title: 'Hoy', sub: sem.label, topbar: ctx.topbar });
+  root.append(hdr);
 
   const hero = h('div', { class: 'hero' });
+  const heroWrap = h('div', { class: 'hero-wrap' }, hero);
   const kpis = h('div', { class: 'kpis' });
   const extra = h('div');
-  root.append(hero, kpis, extra);
+  root.append(heroWrap, kpis, extra);
+  tilt3d(hero);
 
   const nombre = S.sesion.encargado ? S.sesion.encargado.split(' ')[0] : '';
   let datos = null;
@@ -38,9 +41,9 @@ export default async function hoy(ctx) {
     fill(extra);
     if (d && (d.pedido_semana || d.ultimo_conteo || d.ultimo_elaborados)) {
       const celdas = [];
-      if (d.pedido_semana) celdas.push(cell({ title: 'Último pedido', sub: `${fechaRelativa(d.pedido_semana.fecha_hora)} · ${d.pedido_semana.lineas} ${plural(d.pedido_semana.lineas, 'producto', 'productos')}`, lead: 'cart', chevron: true, onClick: () => verPedido(d.pedido_semana.id_pedido) }));
-      if (d.ultimo_conteo) celdas.push(cell({ title: 'Último conteo', sub: `${fechaRelativa(d.ultimo_conteo.fecha_hora)} · ${d.ultimo_conteo.productos} ${plural(d.ultimo_conteo.productos, 'producto', 'productos')}`, lead: 'clipboard', chevron: true, onClick: () => verOperacion(d.ultimo_conteo.id_operacion) }));
-      if (d.ultimo_elaborados) celdas.push(cell({ title: 'Último conteo de elaborados', sub: `${fechaRelativa(d.ultimo_elaborados.fecha_hora)} · ${d.ultimo_elaborados.encargado || ''}`.replace(/ · $/, ''), lead: 'flame', leadKind: 'warn', chevron: true, onClick: () => verOperacion(d.ultimo_elaborados.id_conteo) }));
+      if (d.pedido_semana) celdas.push(cell({ title: 'Último pedido', sub: `${fechaRelativa(d.pedido_semana.fecha_hora)} · ${d.pedido_semana.lineas} ${plural(d.pedido_semana.lineas, 'producto', 'productos')}`, lead: 'cart', leadKind: 'plain', chevron: true, onClick: () => verPedido(d.pedido_semana.id_pedido) }));
+      if (d.ultimo_conteo) celdas.push(cell({ title: 'Último conteo', sub: `${fechaRelativa(d.ultimo_conteo.fecha_hora)} · ${d.ultimo_conteo.productos} ${plural(d.ultimo_conteo.productos, 'producto', 'productos')}`, lead: 'clipboard', leadKind: 'plain', chevron: true, onClick: () => verOperacion(d.ultimo_conteo.id_operacion) }));
+      if (d.ultimo_elaborados) celdas.push(cell({ title: 'Último conteo de elaborados', sub: `${fechaRelativa(d.ultimo_elaborados.fecha_hora)} · ${d.ultimo_elaborados.encargado || ''}`.replace(/ · $/, ''), lead: 'flame', leadKind: 'plain', chevron: true, onClick: () => verOperacion(d.ultimo_elaborados.id_conteo) }));
       extra.append(group('Historial', celdas));
     }
     ctx.setBadge('recibir', d ? d.por_recibir : 0);
@@ -88,9 +91,9 @@ export default async function hoy(ctx) {
   let aviso = null;
   function cargar(force) {
     const c = api.cached('getHoy', { local: S.sesion.local }, { maxAge: force ? 0 : 45000 });
-    if (c.data) { datos = c.data; pintar(); } else { datos = null; pintar(); }
+    if (c.data) { datos = c.data; pintar(); hdr.setStamp(c.stale ? 'Guardado en el equipo, actualizando…' : ''); } else { datos = null; pintar(); }
     if (force) refresh.classList.add('is-busy');
-    c.fresh.then(d => { datos = d; pintar(); if (aviso) { aviso.remove(); aviso = null; } })
+    c.fresh.then(d => { datos = d; pintar(); hdr.stampNow(); if (aviso) { aviso.remove(); aviso = null; } })
       .catch(e => {
         if (aviso) aviso.remove();
         aviso = banner(datos ? 'Mostrando datos guardados. ' + e.message : e.message, 'warn', { icon: 'offline', action: btn('Reintentar', { kind: 'tinted', size: 'sm', onClick: () => cargar(true) }) });
@@ -100,8 +103,30 @@ export default async function hoy(ctx) {
       .finally(() => refresh.classList.remove('is-busy'));
   }
   cargar(false);
+  if (!aviso && datos) hdr.stampNow();
   ctx.bootstrap();
   // precarga del catálogo para que Pedir y Contar abran al instante
   api.cached('getCatalogo', { local: S.sesion.local }, { maxAge: 120000 }).fresh.catch(() => {});
   return root;
+}
+
+// Inclinación 3D sutil de la tarjeta según el dedo o el puntero (sólo transform; respeta reduced-motion).
+function tilt3d(el) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const MAX = 4;
+  let raf = 0;
+  const mover = (x, y) => {
+    const r = el.getBoundingClientRect();
+    const px = (x - r.left) / r.width - 0.5;
+    const py = (y - r.top) / r.height - 0.5;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => { el.classList.add('is-tilting'); el.style.transform = `rotateX(${(-py * MAX).toFixed(2)}deg) rotateY(${(px * MAX).toFixed(2)}deg) translateZ(0)`; });
+  };
+  const soltar = () => { cancelAnimationFrame(raf); el.classList.remove('is-tilting'); el.style.transform = ''; };
+  el.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || e.pointerType === 'pen') mover(e.clientX, e.clientY); });
+  el.addEventListener('pointerleave', soltar);
+  el.addEventListener('touchstart', (e) => { if (e.touches.length === 1) mover(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  el.addEventListener('touchmove', (e) => { if (e.touches.length === 1) mover(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  el.addEventListener('touchend', soltar);
+  el.addEventListener('touchcancel', soltar);
 }

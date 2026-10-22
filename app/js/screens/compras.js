@@ -11,7 +11,8 @@ export default async function compras(ctx) {
   const root = h('div');
   const refresh = h('button', { class: 'topbar-btn', type: 'button', 'aria-label': 'Actualizar', onClick: () => cargar(true) }, icon('refresh', 24));
   ctx.topbarSet({ right: refresh });
-  root.append(largeTitle({ title: 'Compras', sub: 'Pendiente de comprar, por proveedor', topbar: ctx.topbar }));
+  const hdr = largeTitle({ title: 'Compras', sub: 'Pendiente de comprar, por proveedor', topbar: ctx.topbar });
+  root.append(hdr);
 
   const filtro = { q: '', semana: '' , local: '' };
   const seg = segmented([{ value: '', label: 'Todo lo pendiente' }, { value: semanaDe().id, label: 'Esta semana' }], '', (v) => { filtro.semana = v; cargar(true); }, 'Semana');
@@ -117,7 +118,7 @@ export default async function compras(ctx) {
     const c = api.cached('getConsolidado', params, { maxAge: force ? 0 : 30000 });
     if (c.data) { grupos = c.data.grupos || []; pintar(); } else { grupos = null; pintar(); }
     if (force) refresh.classList.add('is-busy');
-    c.fresh.then(d => { grupos = d.grupos || []; pintar(); if (aviso) { aviso.remove(); aviso = null; } })
+    c.fresh.then(d => { grupos = d.grupos || []; pintar(); hdr.stampNow(); if (aviso) { aviso.remove(); aviso = null; } })
       .catch(e => { if (!grupos) { grupos = []; pintar(); } if (aviso) aviso.remove(); aviso = banner(e.message, 'warn', { icon: 'offline', action: btn('Reintentar', { kind: 'tinted', size: 'sm', onClick: () => cargar(true) }) }); root.insertBefore(aviso, resumen); })
       .finally(() => refresh.classList.remove('is-busy'));
   }

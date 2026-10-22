@@ -212,6 +212,26 @@ async function route() {
 }
 window.addEventListener('hashchange', route);
 
+/* ---------- acceso por URL: ?local=Umo%20Grill&nombre=Ayelén  |  ?clave=… (gerencia, sólo en memoria) ---------- */
+(function accesoPorUrl() {
+  let qs;
+  try { qs = new URLSearchParams(location.search); } catch (_e) { return; }
+  if (!qs.has('local') && !qs.has('clave')) return;
+  api.apiUrl(); // fija ?api= antes de limpiar la dirección
+  if (qs.has('clave') && qs.get('clave').trim()) {
+    S.adminKey = qs.get('clave').trim();
+    guardarSesion({ rol: 'gerencia' });
+  } else if (qs.has('local')) {
+    const local = qs.get('local').trim();
+    const nombre = (qs.get('nombre') || '').trim();
+    if (local && nombre) guardarSesion({ rol: 'encargado', local, encargado: nombre });
+    else if (local) { guardarSesion(null); store.set('ultimo_local', local); }
+  }
+  for (const k of ['local', 'nombre', 'clave', 'api']) qs.delete(k);
+  const limpia = location.pathname + (qs.toString() ? '?' + qs.toString() : '') + location.hash;
+  history.replaceState(null, '', limpia);
+})();
+
 /* ---------- arranque ---------- */
 if (S.sesion && S.sesion.rol === 'gerencia' && !S.adminKey) guardarSesion(null);
 if (api.configured() && S.sesion) bootstrap();

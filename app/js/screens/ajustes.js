@@ -1,6 +1,7 @@
 // Ajustes: sesión, apariencia, backend, envíos pendientes, y (gerencia) empezar de cero.
 import { h, largeTitle, cell, group, segmented, btn, toast, confirmar, prompt, sheet, banner, haptic, input, field, fill } from '../ui.js';
 import { store, fechaRelativa, plural } from '../util.js';
+import { reiniciarMetricas } from '../gerencia.js';
 import * as api from '../api.js';
 
 export default async function ajustes(ctx) {
@@ -54,8 +55,8 @@ export default async function ajustes(ctx) {
 
   // gerencia: empezar de cero
   if (esGer) {
-    root.append(group('Planilla', [
-      cell({ title: 'Empezar de cero', sub: 'Vacía pedidos, movimientos y órdenes. Hace una copia antes.', lead: 'trash', leadKind: 'bad', chevron: true, onClick: () => reiniciar(ctx) })
+    root.append(group('Métricas y datos', [
+      cell({ title: 'Reiniciar métricas', sub: 'Vacía pedidos, movimientos, órdenes y conteos. Hace una copia antes.', lead: 'trash', leadKind: 'bad', chevron: true, onClick: () => reiniciarMetricas(ctx) })
     ]));
   }
 
@@ -75,32 +76,4 @@ export default async function ajustes(ctx) {
   ], `Docks app ${ctx.version}`));
 
   return root;
-}
-
-async function reiniciar(ctx) {
-  const conf = input({ placeholder: 'EMPEZAR DE CERO', autocapitalize: 'characters' });
-  const err = h('p', { class: 'field-error', role: 'alert' });
-  const s = sheet({
-    title: 'Empezar de cero',
-    body: [
-      banner('Hace una copia completa de la planilla y después vacía pedidos, líneas, movimientos, órdenes y conteos de elaborados. El catálogo, proveedores, locales y elaborados quedan.', 'warn', { icon: 'alert' }),
-      h('div', { class: 'mt12' }, field('Escribí EMPEZAR DE CERO para confirmar', conf)),
-      err
-    ],
-    actions: [btn('Cancelar', { onClick: () => s.close() }), btn('Vaciar la planilla', { kind: 'danger-fill', onClick: async () => {
-      if (conf.value.trim().toUpperCase() !== 'EMPEZAR DE CERO') { err.textContent = 'El texto no coincide.'; return; }
-      err.textContent = '';
-      const b = s.el.querySelector('.btn-danger-fill'); b.disabled = true;
-      try {
-        const r = await api.post({ action: 'reiniciarDatos', admin_key: ctx.S.adminKey, confirmacion: 'EMPEZAR DE CERO' });
-        api.invalidar();
-        s.close();
-        haptic('success');
-        sheet({ title: 'Planilla vacía', body: [
-          h('p', { class: 'sub', style: 'color:var(--text)', text: `Se borraron ${r.pedidos} pedidos, ${r.lineas} líneas, ${r.movimientos} movimientos y ${r.ordenes} órdenes.` }),
-          r.respaldo_url ? h('p', { class: 'mt12' }, h('a', { href: r.respaldo_url, target: '_blank', rel: 'noopener', text: `Copia de respaldo: ${r.respaldo_nombre}` })) : null
-        ] });
-      } catch (e) { err.textContent = e.message; b.disabled = false; }
-    } })]
-  });
 }
