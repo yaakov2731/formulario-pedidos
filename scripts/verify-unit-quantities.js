@@ -65,6 +65,8 @@ const productionUi=vm.createContext({console,Date,Number,JSON,$:productionField,
   clearProdDrafts:()=>{},renderProduccionModule:()=>{},renderStockIntelligence:()=>{},
   renderDashboard:()=>{},renderWorkspaceStats:()=>{},queueBootstrapRefresh:()=>{},syncWriteAvailability:()=>{}
 });
+const fechaStart=html.indexOf('function fechaHoraAR(');
+vm.runInContext(html.slice(fechaStart,html.indexOf('\n}\n',fechaStart)+3),productionUi);
 const productionUiRun=code=>vm.runInContext(code,productionUi);
 const reviewStart=html.indexOf('function productionQuantity('),reviewEnd=html.indexOf('function renderElaboradosModule(',reviewStart);
 vm.runInContext(html.slice(reviewStart,reviewEnd),productionUi);
