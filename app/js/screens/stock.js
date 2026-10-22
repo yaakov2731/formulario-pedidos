@@ -1,7 +1,7 @@
 // Stock: panel por local con estado (sin stock, bajo par, sin conteo, sin par, ok).
 import { h, icon, largeTitle, buscador, chip, empty, skeleton, banner, btn, badge, fill } from '../ui.js';
 import { fmtNum, fechaRelativa, norm, plural, ordenarTexto } from '../util.js';
-import { selectLocal, tabla } from '../gerencia.js';
+import { selectLocal, tabla, reiniciarMetricas } from '../gerencia.js';
 import * as api from '../api.js';
 
 export const wide = true;
@@ -12,7 +12,8 @@ export default async function stock(ctx) {
   const root = h('div');
   const refresh = h('button', { class: 'topbar-btn', type: 'button', 'aria-label': 'Actualizar', onClick: () => cargar(true) }, icon('refresh', 24));
   ctx.topbarSet({ right: refresh });
-  root.append(largeTitle({ title: 'Stock', sub: 'Último conteo y sugerido por producto', topbar: ctx.topbar }));
+  const hdr = largeTitle({ title: 'Stock', sub: 'Último conteo y sugerido por producto', topbar: ctx.topbar, actions: [btn('Reiniciar métricas', { kind: 'danger', size: 'sm', icon: 'trash', onClick: () => reiniciarMetricas(ctx) })] });
+  root.append(hdr);
   await ctx.bootstrap().fresh.catch(() => {});
   const filtro = { local: '', estado: '', q: '' };
   const sel = selectLocal(ctx, '', { todos: 'Todos los locales', onChange: (v) => { filtro.local = v; cargar(true); } });
@@ -59,7 +60,7 @@ export default async function stock(ctx) {
     const c = api.cached('getStockPanel', params, { maxAge: force ? 0 : 45000 });
     if (c.data) { filas = c.data.filas || []; pintarChips(); pintar(); } else { filas = null; pintarChips(); pintar(); }
     if (force) refresh.classList.add('is-busy');
-    c.fresh.then(d => { filas = d.filas || []; pintarChips(); pintar(); if (aviso) { aviso.remove(); aviso = null; } })
+    c.fresh.then(d => { filas = d.filas || []; pintarChips(); pintar(); hdr.stampNow(); if (aviso) { aviso.remove(); aviso = null; } })
       .catch(e => { if (!filas) { filas = []; pintar(); } if (aviso) aviso.remove(); aviso = banner(e.message, 'warn', { icon: 'offline', action: btn('Reintentar', { kind: 'tinted', size: 'sm', onClick: () => cargar(true) }) }); root.insertBefore(aviso, kpis); })
       .finally(() => refresh.classList.remove('is-busy'));
   }

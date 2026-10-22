@@ -1,6 +1,6 @@
 # Estado de continuidad · Pedidos Semanales
 
-Actualizado: 22 de octubre de 2026 (tarde). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
+Actualizado: 22 de octubre de 2026 (tarde, pase de diseño). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
 
 ## Objetivo y aceptación
 
@@ -29,6 +29,18 @@ La app original `…/formulario-pedidos/` sí conecta: escribe en `Sistema_Pedid
 - `scripts/v3-dev-server.js` sirve también `/app/`. `scripts/verify-app.js` (CI) y `scripts/e2e-app.js` (manual).
 - `.github/workflows/deploy.yml`: `verify-app` en el job verify; `app/` se copia a `site/app/` con versión del SW.
 - `app/config.js` apunta al mismo `/exec` que `v3/config.js` (verificado por `verify-app`).
+
+## Pase de diseño (PR 17, rama `claude/upbeat-faraday-v6k36x`)
+
+- Skill `design-taste-frontend` instalado y versionado en `.claude/skills/` (`skills-lock.json`). Decisión del usuario:
+  opción A, mantener el look iOS y aplicar lo compatible.
+- Aplicado: sin degradados (flecha del select en SVG, esqueleto por pulso), contraste 4,5:1 en textos sobre tintes
+  (tokens `--*-ink`), acento `#0A7C78`, naranja de aviso `#F28C0A` (no terracota), etiquetas de la tab bar 11 px,
+  íconos neutros en Historial, sello "Actualizado HH:MM" en Hoy, Compras, Órdenes y Stock, inclinación 3D de la
+  tarjeta de Hoy (transform, respeta reduced-motion), giro 3D de la tilde de éxito, botón **Reiniciar métricas** en
+  Stock y en Ajustes (misma hoja, `reiniciarMetricas` en `gerencia.js`), acceso por URL `?local&nombre` / `?clave`.
+- Inspector `--app` con permisos iOS (glass, shadow, blur, button-fx, app-title-size): Compras y Stock 0 FAIL;
+  Hoy 0 FAIL tras neutralizar los íconos. Pendiente opcional: tabla de Stock como lista de dos líneas en el celular.
 
 ## Verificaciones
 

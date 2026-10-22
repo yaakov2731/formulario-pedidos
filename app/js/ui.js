@@ -315,7 +315,13 @@ export function prompt({ title, text, label, value = '', placeholder, ok = 'Guar
 
 /* ---------- encabezado grande con barra compacta ---------- */
 export function largeTitle({ title, sub, actions, topbar }) {
-  const header = h('header', { class: 'lt' }, h('div', null, h('h1', { text: title }), sub ? h('p', { class: 'lt-sub', text: sub }) : null), actions ? h('div', { class: 'lt-actions' }, ...[].concat(actions)) : null);
+  const subEl = h('p', { class: 'lt-sub', text: sub || '', hidden: !sub });
+  const stampEl = h('p', { class: 'lt-stamp', hidden: true });
+  const header = h('header', { class: 'lt' }, h('div', null, h('h1', { text: title }), subEl, stampEl), actions ? h('div', { class: 'lt-actions' }, ...[].concat(actions)) : null);
+  header.setSub = (t) => { subEl.textContent = t || ''; subEl.hidden = !t; };
+  // Sello de frescura: "Actualizado 14:32" (o "Guardado en el equipo" mientras se refresca)
+  header.setStamp = (t) => { stampEl.textContent = t || ''; stampEl.hidden = !t; };
+  header.stampNow = () => { const d = new Date(); header.setStamp(`Actualizado ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); };
   if (topbar) {
     const t = topbar.querySelector('.topbar-title');
     if (t) t.textContent = title;

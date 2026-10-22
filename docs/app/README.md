@@ -42,6 +42,27 @@ tablet aparece la barra lateral con Compras, Órdenes, Faltantes, Stock, Catálo
 - **Backend**: `app/config.js` tiene la misma `API_URL` que `v3/config.js`. En un equipo se puede fijar otra con
   `?api=URL` (se borra con `?api=` vacío o desde Ajustes → Conexión).
 
+## Acceso directo por URL
+
+- `…/app/?local=Umo%20Grill&nombre=Ayelén` entra como encargado de ese local (sirve para compartir un link a un local).
+- `…/app/?local=Umo%20Grill` deja el local preseleccionado y pide el nombre.
+- `…/app/?clave=…` entra como gerencia sólo para esa visita (la clave no se guarda y se borra de la dirección).
+
+## Auditoría de diseño (taste-skill)
+
+El skill `design-taste-frontend` (en `.claude/skills/`) se usa como auditor manteniendo el lenguaje iOS. Con el dev
+server corriendo y Chromium disponible:
+
+```
+CHROME_PATH=<chromium> node .claude/skills/design-taste-frontend/scripts/lint.mjs --app app
+CHROME_PATH=<chromium> node .claude/skills/design-taste-frontend/scripts/inspect.mjs \
+  "http://localhost:8787/app/?api=/api&local=Umo%20Grill&nombre=Ayelén#hoy" --app --allow glass,shadow,blur,button-fx,app-title-size
+```
+
+Permisos declarados por el estilo iOS: barras translúcidas (`glass`, `blur`), sombras en lo que flota y en el
+control segmentado (`shadow`, `button-fx`) y título grande de 34 px en el celular (`app-title-size`). Lo demás se
+corrige. Las salidas quedan en `.taste-skill/` (ignorado por git).
+
 ## Desarrollo y verificación
 
 ```
