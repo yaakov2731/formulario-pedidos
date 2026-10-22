@@ -69,3 +69,14 @@ La app original `…/formulario-pedidos/` sí conecta: escribe en `Sistema_Pedid
 Usuario: tras el merge, abrir `https://yaakov2731.github.io/formulario-pedidos/app/` en el celular, “Agregar a
 inicio”, entrar como encargado y mandar un pedido de prueba; en PC entrar como gerencia y crear la orden. Si algo
 falla, Ajustes → Probar conexión y la pestaña `LOG` de la planilla V3. Coordinador: recibir feedback visual y ajustar.
+
+## Diseño "Comanda" en la app (rama `claude/project-thread-qxoi6l`)
+
+- Jacobo eligió la dirección A del mockup https://claude.ai/artifact/De5orrXuCDpjiBqExrkLDK: la misma identidad que la app vieja.
+- `app/css/app.css`: tokens nuevos (porcelana #F2F4F6, tinta #0E1A2B, pimentón #C9441F; oscuro con #E8603A), Familjen Grotesk
+  (títulos), Public Sans (texto), IBM Plex Mono (cantidades). Todo centrado: títulos, filas de producto, pasos de Hoy, KPIs,
+  Entrar. Stepper con pedido en pimentón; píldora "Revisar" como barra tinta a lo ancho sobre la tab bar.
+- Textos sin "par" para el encargado: "Quedan N", "Sin contar · unidad", sugerido como "Pedir N", KPI "por agotarse". Gerencia
+  conserva la columna Par (es donde se configura) pero "Bajo par" pasa a "Por agotarse".
+- Ícono: fondo tinta, muelle blanco, agua pimentón (`node scripts/app-icons.js`).
+- Checks: verify-app 15/15, verify-v2 y e2e-app en verde; capturas en /mnt/project-files/app-docks/comanda/.

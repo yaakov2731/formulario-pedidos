@@ -17,7 +17,7 @@ const svg = fs.readFileSync(path.join(DIR, 'icon.svg'), 'utf8');
     const inner = maskable ? Math.round(size * 0.8) : size;
     const off = Math.round((size - inner) / 2);
     const body = maskable
-      ? `<div style="width:${size}px;height:${size}px;background:#0E8C87;position:relative"><div style="position:absolute;left:${off}px;top:${off}px;width:${inner}px;height:${inner}px">${svg.replace('width="512" height="512"', `width="${inner}" height="${inner}"`)}</div></div>`
+      ? `<div style="width:${size}px;height:${size}px;background:#0E1A2B;position:relative"><div style="position:absolute;left:${off}px;top:${off}px;width:${inner}px;height:${inner}px">${svg.replace('width="512" height="512"', `width="${inner}" height="${inner}"`)}</div></div>`
       : svg.replace('width="512" height="512"', `width="${size}" height="${size}"`);
     await page.setContent(`<!doctype html><html><body style="margin:0;background:transparent">${body}</body></html>`);
     await page.screenshot({ path: path.join(DIR, file), omitBackground: !maskable, clip: { x: 0, y: 0, width: size, height: size } });

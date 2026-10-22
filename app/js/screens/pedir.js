@@ -58,13 +58,12 @@ export default async function pedir(ctx) {
     const q = cantidadDe(pr.codigo);
     const st = stepper({ value: q, unidad: pr.unidad, label: `${pr.producto} en ${pr.unidad}`, onChange: (v) => { if (v === null || v <= 0) delete b.items[pr.codigo]; else b.items[pr.codigo] = v; guardar(); sugBtn && sugBtn.classList.toggle('is-applied', v !== null && v === pr.sugerido); } });
     const metaPartes = [];
-    if (pr.stock_actual !== null && pr.stock_actual !== undefined) metaPartes.push(h('span', { class: 'num', text: `Stock ${fmtNum(pr.stock_actual)}${pr.par !== null && pr.par !== undefined ? ` de ${fmtNum(pr.par)}` : ''} ${pr.unidad}` }));
-    else if (pr.par !== null && pr.par !== undefined) metaPartes.push(h('span', { class: 'num', text: `Par ${fmtNum(pr.par, pr.unidad)}, sin conteo` }));
-    else metaPartes.push(h('span', { text: pr.unidad }));
+    if (pr.stock_actual !== null && pr.stock_actual !== undefined) metaPartes.push(h('span', { class: 'num', text: `Quedan ${fmtNum(pr.stock_actual, pr.unidad)}` }));
+    else metaPartes.push(h('span', { text: `Sin contar · ${pr.unidad}` }));
     if (pr.pedido_abierto > 0) metaPartes.push(h('span', { class: 'num', text: `${fmtNum(pr.pedido_abierto)} en camino` }));
     let sugBtn = null;
     if (pr.sugerido > 0) {
-      sugBtn = h('button', { class: `prod-sug${q === pr.sugerido ? ' is-applied' : ''}`, type: 'button', 'aria-label': `Aplicar sugerido ${fmtNum(pr.sugerido, pr.unidad)} de ${pr.producto}` }, icon('sparkle', 14), h('span', { text: `Sugerido ${fmtNum(pr.sugerido, pr.unidad)}` }));
+      sugBtn = h('button', { class: `prod-sug${q === pr.sugerido ? ' is-applied' : ''}`, type: 'button', 'aria-label': `Aplicar sugerido ${fmtNum(pr.sugerido, pr.unidad)} de ${pr.producto}` }, icon('sparkle', 14), h('span', { text: `Pedir ${fmtNum(pr.sugerido, pr.unidad)}` }));
       sugBtn.addEventListener('click', () => { haptic(); st.setValue(pr.sugerido); });
       metaPartes.unshift(sugBtn);
     }
