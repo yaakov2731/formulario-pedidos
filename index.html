@@ -1332,6 +1332,14 @@ function ensureOcrEngine(){
 }
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxN9Vm1N3FlPE0zYpg4JAkSR9VEGzc6YAXTUF3JmEI_4RuJMotjMY0fyPZXv9FQ27lX/exec";
 
+/* Fecha y hora para la planilla, siempre "d/m/aaaa, H:mm:ss" en 24 h.
+   toLocaleString("es-AR") depende del celular: algunos escriben "9:35:18" sin "p. m."
+   y el pedido de las 21:35 quedaba como de la mañana. El backend ordena con este formato. */
+function fechaHoraAR(d=new Date()){
+  const p2=n=>String(n).padStart(2,"0");
+  return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}, ${d.getHours()}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+}
+
 /* ---- Locales operativos reales ---- */
 const LOCALES = [
   { id:"Umo Grill", accent:"var(--brand)" },
@@ -2756,7 +2764,7 @@ async function submit(){
   const pendingId=readPendingPedidoSend(state.local,draftFingerprint);
   const payload={
     id_pedido:pendingId||"PED-"+ahora.getTime()+"-"+(typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)),
-    fecha_hora:ahora.toLocaleString("es-AR"),
+    fecha_hora:fechaHoraAR(ahora),
     local:state.local,
     encargado:$("#encargado").value.trim(),
     semana_pedido:formatSemana($("#semana").value),
@@ -3413,7 +3421,7 @@ async function saveReception(){
   const payload={
     action:"saveReception",
     id_recepcion:"REC"+Date.now().toString().slice(-6),
-    fecha_hora:new Date().toLocaleString("es-AR"),
+    fecha_hora:fechaHoraAR(),
     local:state.local,
     rebuild_views:false,
     encargado:$("#recepEncargado").value.trim() || $("#encargado").value.trim(),
@@ -3526,7 +3534,7 @@ async function saveProduction(){
   const payload={
     action:"saveProduction",
     id_produccion:"PROD"+Date.now().toString()+"-"+Math.random().toString(36).slice(2,10),
-    fecha_hora:new Date().toLocaleString("es-AR"),
+    fecha_hora:fechaHoraAR(),
     local:state.local,
     rebuild_views:false,
     encargado:$("#prodEncargado").value.trim() || $("#encargado").value.trim(),
@@ -3605,7 +3613,7 @@ async function saveElaborados(){
   const payload={
     action:"saveElaborados",
     id_conteo:"ELA"+Date.now().toString().slice(-6),
-    fecha_hora:new Date().toLocaleString("es-AR"),
+    fecha_hora:fechaHoraAR(),
     local:state.local,
     rebuild_views:false,
     encargado:$("#elabEncargado").value.trim() || $("#encargado").value.trim(),
@@ -4553,7 +4561,7 @@ function applyReceptionOptimistic(local, items){
   summary.movimientos += 1;
   summary.cantidad += items.reduce((sum,it)=>sum+(num(it.cantidad_recibida)||0),0);
   RECEPCIONES.byLocal[local]=summary;
-  const now=new Date().toLocaleString("es-AR");
+  const now=fechaHoraAR();
   items.slice(0,3).reverse().forEach(it=>{
     RECEPCIONES.latest.unshift({
       local, producto:it.producto, proveedor:it.proveedor||"", unidad:it.unidad||"unidad",
@@ -4579,7 +4587,7 @@ function applyProductionOptimistic(local, payload){
   summary.cantidad_usada += items.reduce((sum,it)=>sum+(num(it.cantidad_usada)||0),0);
   summary.cantidad_producida += (num(payload.cantidad_producida)||0);
   PRODUCCION.byLocal[local]=summary;
-  const now=new Date().toLocaleString("es-AR");
+  const now=fechaHoraAR();
   items.slice(0,3).reverse().forEach(it=>{
     PRODUCCION.latest.unshift({
       local, producto_elaborado:payload.producto_elaborado||"", insumo:it.insumo, unidad:it.unidad||"unidad",
@@ -4597,7 +4605,7 @@ function applyElabOptimistic(local, payload){
   summary.movimientos += 1;
   summary.cantidad += items.reduce((sum,it)=>sum+(num(it.cantidad)||0),0);
   ELABORADOS.byLocal[local]=summary;
-  const now=new Date().toLocaleString("es-AR");
+  const now=fechaHoraAR();
   items.slice(0,3).reverse().forEach(it=>{
     ELABORADOS.latest.unshift({
       local,
@@ -4805,7 +4813,7 @@ async function saveStock(){
   const payload={
     action:"saveStock",
     id_stock:"STK"+Date.now().toString().slice(-6),
-    fecha_hora:new Date().toLocaleString("es-AR"),
+    fecha_hora:fechaHoraAR(),
     local,
     rebuild_views:false,
     tipo_conteo:$("#stockType").value,
