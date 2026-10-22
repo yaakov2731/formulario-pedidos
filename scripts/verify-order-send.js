@@ -3,6 +3,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync('index.html', 'utf8');
 const sendCode = html.slice(html.indexOf('const OPAQUE_POST_HEADERS'), html.indexOf('function resetForm(', html.indexOf('const OPAQUE_POST_HEADERS')));
+const fechaCode = html.slice(html.indexOf('function fechaHoraAR('), html.indexOf('\n}\n', html.indexOf('function fechaHoraAR(')) + 3);
 const confirmCode = html.slice(html.indexOf('async function confirmPedidoPersisted('), html.indexOf('async function confirmOperationPersisted('));
 
 function fixture() {
@@ -29,6 +30,7 @@ function fixture() {
     confirmPedidoPersisted:async(id)=>{ confirms.push(id); return {ok:false,telegramOk:false}; },
     recordCatalogUsage:(local,items)=>usage.push({local,items}),resetForm:local=>resets.push(local),syncSend:()=>{}
   });
+  vm.runInContext(fechaCode,ctx);
   vm.runInContext(sendCode,ctx);
   return {ctx,fields,posts,resets,usage,confirms,store,toasts,release};
 }
@@ -40,6 +42,8 @@ function fixture() {
   assert.equal(f.posts.length,1,'Concurrent clicks issue one POST');
   assert.equal(vm.runInContext('pedidoSendBusy',f.ctx),true);
   assert.match(f.posts[0].id_pedido,/^PED-\d{13}-fixture-uuid$/);
+  assert.match(f.posts[0].fecha_hora,/^\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2}:\d{2}$/,'fecha_hora en 24 h, sin a. m./p. m.');
+  assert.equal(vm.runInContext('fechaHoraAR(new Date(2026,9,21,21,35,8))',f.ctx),'21/10/2026, 21:35:08');
   f.ctx.state.items[0].qty=9;
   f.release(); await first;
   assert.equal(f.posts[0].items[0].cantidad,2,'Sent payload is immutable');

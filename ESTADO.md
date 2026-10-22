@@ -29,9 +29,21 @@ del lado del frontend que se encontró. La app actual no se tocó.
 - `docs/v3/DESPLIEGUE.md`: sección "Si la app dice No se pudo conectar" con el árbol de diagnóstico por respuesta del `ping`.
   `docs/v3/CONTRATO.md` §5.1 actualizado.
 
+## Segunda parte · app original (la que el usuario quiere usar)
+
+El usuario aclaró que usa `https://yaakov2731.github.io/formulario-pedidos/` (`index.html` + `gas/`). Esa app **sí conecta**:
+`PEDIDOS RECIBIDOS`, `PEDIDOS_DETALLE`, `CONTROL STOCK` y `LOG TELEGRAM` tienen registros hasta el 21/10/2026 21:35, y el job
+`deploy-gas` del 18/10 hizo `clasp push` y `clasp deploy` sobre la misma URL `AKfycbxN9…`.
+Defecto encontrado: `fecha_hora` salía de `toLocaleString("es-AR")`, que en Chrome/ICU actual da 12 h sin "p. m."
+(21:35 → "09:35:08"). Los pedidos de la tarde quedaban como de la mañana y `comparableDateTime_` los ordenaba mal.
+Arreglo: `fechaHoraAR()` en `index.html` (formato fijo "d/m/aaaa, H:mm:ss", 24 h) en pedido, recepción, producción,
+elaborados y stock; `verify-order-send.js` lo comprueba. Los respaldos `toLocaleString('es-AR')` de `gas/*.gs` no se
+tocaron (sólo se usan si la app no manda la hora, y los tests cargan esos archivos sin `Utilities`). Las filas ya
+guardadas con hora ambigua no se corrigen solas.
+
 ## Verificaciones
 
-Pasan `verify-v3-core`, `verify-v3-encargado`, `verify-v3-compras` y `v3-bundle-gas.js --check`. La API en vivo no se probó.
+Pasan las 14 verificaciones del job `verify` del workflow y `v3-bundle-gas.js --check`. La API en vivo no se probó desde aquí; el usuario confirmó `ping` OK en V3.
 
 ## Próximo paso
 
