@@ -46,7 +46,9 @@ if (args.includes('--seed')) {
     post({ action: 'saveProductosLote', admin_key: ADMIN_KEY, local, filas }));
   [['Bondiola', 'Parrilla', 'unidad'], ['Pollo deshuesado', 'Parrilla', 'unidad'], ['Chimichurri', 'Salsas', 'litro']].forEach(([producto, categoria, unidad]) =>
     post({ action: 'saveElaborado', admin_key: ADMIN_KEY, local: 'Umo Grill', producto, categoria, unidad }));
-  console.log('Datos de prueba cargados en memoria (Umo Grill y Trento Café, con elaborados en Umo Grill).');
+  [['Umo Grill', ['Ayelén Ruiz', 'Martín Gómez']], ['Trento Café', ['Lucía Paz', 'Diego Sosa']]].forEach(([local, encargados]) =>
+    post({ action: 'saveLocal', admin_key: ADMIN_KEY, local, activo: 'SÍ', encargados }));
+  console.log('Datos de prueba cargados en memoria (Umo Grill y Trento Café, con elaborados en Umo Grill; encargados en los dos locales).');
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };

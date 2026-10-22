@@ -254,7 +254,8 @@ function getConsolidado_(p) {
       id_linea: tstr_(tLin, i, 'ID_Linea'), id_pedido: idp, fecha_hora: tstr_(tLin, i, 'Fecha_Hora'),
       local: tstr_(tLin, i, 'Local'), codigo: tstr_(tLin, i, 'Código'), producto: tstr_(tLin, i, 'Producto'),
       unidad: tstr_(tLin, i, 'Unidad'), cantidad: q, precio_ref: pr,
-      prioridad: fp !== undefined ? (tstr_(tPed, fp, 'Prioridad') || 'Normal') : 'Normal'
+      prioridad: fp !== undefined ? (tstr_(tPed, fp, 'Prioridad') || 'Normal') : 'Normal',
+      encargado: fp !== undefined ? tstr_(tPed, fp, 'Encargado') : ''
     });
   });
   var lista = claves.map(function (k) {

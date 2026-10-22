@@ -28,7 +28,7 @@ export default async function hoy(ctx) {
     const d = datos;
     fill(hero, 
       h('div', { class: 'hero-top' },
-        h('div', null, h('div', { class: 'hero-week', text: nombre ? `Hola, ${nombre}` : 'Hola' }), h('button', { class: 'hero-local', type: 'button', 'aria-label': `Local: ${S.sesion.local}. Cambiar de local`, onClick: ctx.elegirLocal }, h('span', { text: S.sesion.local }), icon('down', 18))),
+        h('div', null, h('button', { class: 'hero-quien', type: 'button', 'aria-label': `${S.sesion.encargado ? 'Carga ' + S.sesion.encargado : 'Sin nombre'}. Cambiar encargado`, onClick: () => ctx.elegirEncargado() }, h('span', { text: nombre ? `Hola, ${nombre}` : 'Elegí quién carga' }), icon('down', 14)), h('button', { class: 'hero-local', type: 'button', 'aria-label': `Local: ${S.sesion.local}. Cambiar de local`, onClick: ctx.elegirLocal }, h('span', { text: S.sesion.local }), icon('down', 18))),
         d && d.pedido_semana ? badgeEstado(d.pedido_semana.estado) : null),
       h('div', { class: 'steps' }, pasoContar(d), pasoPedir(d), pasoRecibir(d))
     );
@@ -41,8 +41,8 @@ export default async function hoy(ctx) {
     fill(extra);
     if (d && (d.pedido_semana || d.ultimo_conteo || d.ultimo_elaborados)) {
       const celdas = [];
-      if (d.pedido_semana) celdas.push(cell({ title: 'Último pedido', sub: `${fechaRelativa(d.pedido_semana.fecha_hora)} · ${d.pedido_semana.lineas} ${plural(d.pedido_semana.lineas, 'producto', 'productos')}`, lead: 'cart', leadKind: 'plain', chevron: true, onClick: () => verPedido(d.pedido_semana.id_pedido) }));
-      if (d.ultimo_conteo) celdas.push(cell({ title: 'Último conteo', sub: `${fechaRelativa(d.ultimo_conteo.fecha_hora)} · ${d.ultimo_conteo.productos} ${plural(d.ultimo_conteo.productos, 'producto', 'productos')}`, lead: 'clipboard', leadKind: 'plain', chevron: true, onClick: () => verOperacion(d.ultimo_conteo.id_operacion) }));
+      if (d.pedido_semana) celdas.push(cell({ title: 'Último pedido', sub: `${fechaRelativa(d.pedido_semana.fecha_hora)} · ${d.pedido_semana.lineas} ${plural(d.pedido_semana.lineas, 'producto', 'productos')}${d.pedido_semana.encargado ? ' · ' + d.pedido_semana.encargado : ''}`, lead: 'cart', leadKind: 'plain', chevron: true, onClick: () => verPedido(d.pedido_semana.id_pedido) }));
+      if (d.ultimo_conteo) celdas.push(cell({ title: 'Último conteo', sub: `${fechaRelativa(d.ultimo_conteo.fecha_hora)} · ${d.ultimo_conteo.productos} ${plural(d.ultimo_conteo.productos, 'producto', 'productos')}${d.ultimo_conteo.encargado ? ' · ' + d.ultimo_conteo.encargado : ''}`, lead: 'clipboard', leadKind: 'plain', chevron: true, onClick: () => verOperacion(d.ultimo_conteo.id_operacion) }));
       if (d.ultimo_elaborados) celdas.push(cell({ title: 'Último conteo de elaborados', sub: `${fechaRelativa(d.ultimo_elaborados.fecha_hora)} · ${d.ultimo_elaborados.encargado || ''}`.replace(/ · $/, ''), lead: 'flame', leadKind: 'plain', chevron: true, onClick: () => verOperacion(d.ultimo_elaborados.id_conteo) }));
       extra.append(group('Historial', celdas));
     }

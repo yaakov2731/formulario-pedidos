@@ -1,7 +1,7 @@
 // Recibir: órdenes con líneas Comprado del local. Recibido = pedido con un toque; parcial; extras sin pedido.
 import { h, icon, largeTitle, stepper, btn, sheet, empty, skeleton, banner, haptic, buscador, badge, cell, fill } from '../ui.js';
 import { fmtNum, nuevoId, plural, fechaRelativa, parseNum, norm, texto } from '../util.js';
-import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal } from '../flujo.js';
+import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal, quienCarga } from '../flujo.js';
 import { verOperacion } from '../detalles.js';
 import * as api from '../api.js';
 
@@ -108,7 +108,7 @@ export default async function recibir(ctx) {
       filas.length ? h('div', { class: 'list' }, ...filas) : null,
       extras.length ? h('section', { class: 'group' }, h('h2', { class: 'group-title', text: 'Llegó sin pedido' }), h('div', { class: 'list' }, ...extras)) : null,
       incompletas ? banner(`${incompletas} ${plural(incompletas, 'línea incompleta', 'líneas incompletas')}: Compras ve el faltante. Lo que no controlaste sigue pendiente.`, 'warn', { icon: 'alert' }) : h('p', { class: 'note mt8', text: 'Lo que no controlaste sigue pendiente de recibir.' }),
-      h('div', { class: 'field mt12' }, h('label', { text: 'Observaciones (opcional)' }), obs), err
+      h('div', { class: 'field mt12' }, h('label', { text: 'Observaciones (opcional)' }), obs), quienCarga(ctx), err
     ], actions: [enviarBtn] });
     async function enviar() {
       const id = b.id && /^REC-/.test(b.id) ? b.id : nuevoId('REC');

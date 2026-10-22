@@ -1,5 +1,5 @@
 // Piezas comunes de los flujos del encargado: catálogo con caché, borradores, píldora, envío y pantalla final.
-import { h, btn, doneScreen, haptic, toast, banner, fill } from './ui.js';
+import { h, btn, icon, doneScreen, haptic, toast, banner, fill } from './ui.js';
 import { store, plural } from './util.js';
 import * as api from './api.js';
 
@@ -43,6 +43,16 @@ export function pill({ label, onClick }) {
     remove() { el.remove(); document.body.classList.remove('has-pill'); },
     button: b
   };
+}
+
+/* ---------- quién carga (en la hoja de Revisar, antes de enviar) ---------- */
+export function quienCarga(ctx) {
+  const nombre = h('strong');
+  const pintar = () => { nombre.textContent = ctx.S.sesion.encargado || 'Sin nombre'; };
+  pintar();
+  return h('div', { class: 'quien-carga' }, icon('people', 18),
+    h('div', { class: 'grow' }, 'Lo carga ', nombre),
+    btn('Cambiar', { kind: 'plain', size: 'sm', onClick: () => ctx.elegirEncargado({ onElegido: pintar }) }));
 }
 
 /* ---------- envío con confirmación y pantalla final ---------- */

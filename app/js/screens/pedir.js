@@ -1,7 +1,7 @@
 // Pedir: catálogo del local con sugerido, stepper por producto, líneas libres, revisión y envío.
 import { h, icon, largeTitle, buscador, chip, stepper, btn, sheet, empty, skeleton, banner, toast, segmented, input, select, field, haptic, cell, group, badge, fill } from '../ui.js';
 import { norm, fmtNum, fmtMoney, nuevoId, texto, parseNum, UNIDADES, agrupar, ordenarTexto, plural, isoDia, inputNum } from '../util.js';
-import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal } from '../flujo.js';
+import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal, quienCarga } from '../flujo.js';
 import { verPedido } from '../detalles.js';
 import * as api from '../api.js';
 
@@ -159,6 +159,7 @@ export default async function pedir(ctx) {
         h('section', { class: 'group' }, h('h2', { class: 'group-title', text: 'Prioridad' }), prio),
         h('div', { class: 'mt12' }, field('Fecha de entrega (opcional)', fecha)),
         h('div', { class: 'mt12' }, field('Notas para Compras (opcional)', notas)),
+        quienCarga(ctx),
         err],
       actions: [enviarBtn]
     });

@@ -37,7 +37,10 @@ async function apiGet(q) { const r = await fetch(BASE + '/api?' + new URLSearchP
   await p.waitForSelector('.local-btn');
   await shot(p, '00-entrar', false);
   await p.getByRole('radio', { name: 'Umo Grill' }).click();
-  await p.getByLabel('Nombre').fill('Ayelén');
+  await p.waitForSelector('.names .chip');
+  await shot(p, '00b-entrar-encargados', false);
+  await p.getByRole('button', { name: 'Otro', exact: true }).click();
+  await p.getByLabel('Tu nombre').fill('Ayelén');
   await p.getByRole('button', { name: 'Entrar' }).click();
   await p.waitForSelector('.hero-local');
   step('entrar como encargado');
@@ -127,6 +130,30 @@ async function apiGet(q) { const r = await fetch(BASE + '/api?' + new URLSearchP
   await shot(p, '52-recibir-ok');
   await p.goto(BASE + '/app/#ajustes'); await p.waitForSelector('.list .cell'); await p.waitForTimeout(200);
   await shot(p, '53-ajustes');
+
+  // Cambiar de local pide quién carga en el local nuevo; el nombre queda en el conteo.
+  await p.goto(BASE + '/app/#hoy'); await p.waitForSelector('.hero-local');
+  await p.locator('.hero-local').click(); await sheetOpen(p);
+  await p.getByRole('button', { name: /Trento Café/ }).click();
+  await p.waitForSelector('.sheet-root.is-open .sheet-head h2:has-text("Trento Café")', { timeout: 10000 }); await p.waitForTimeout(350);
+  await shot(p, '55-quien-carga', false);
+  await p.getByRole('button', { name: /Lucía Paz/ }).click(); await sheetClosed(p);
+  await p.waitForSelector('.hero-quien:has-text("Lucía")');
+  step('cambio de local pide encargado');
+  await shot(p, '56-hoy-lucia', false);
+  await p.goto(BASE + '/app/#contar'); await p.waitForSelector('.prod');
+  await p.getByRole('textbox', { name: 'Asado en kg' }).fill('2');
+  await p.getByRole('button', { name: 'Revisar' }).click(); await sheetOpen(p); await p.waitForTimeout(350);
+  await shot(p, '57-contar-revisar-quien', false);
+  await p.locator('.quien-carga').getByRole('button', { name: 'Cambiar' }).click();
+  await p.waitForSelector('.sheet-root.is-open .sheet-head h2:has-text("¿Quién carga")'); await p.waitForTimeout(350);
+  await p.getByRole('button', { name: /Diego Sosa/ }).click();
+  await p.waitForSelector('.quien-carga strong:has-text("Diego Sosa")');
+  await p.getByRole('button', { name: 'Guardar conteo' }).click();
+  await p.waitForSelector('.done', { timeout: 15000 });
+  const hoyT = await apiGet({ action: 'getHoy', local: 'Trento Café' });
+  if (!hoyT.ultimo_conteo || hoyT.ultimo_conteo.encargado !== 'Diego Sosa') throw new Error('el conteo no guardó el encargado elegido: ' + JSON.stringify(hoyT.ultimo_conteo));
+  step('conteo firmado por el encargado elegido');
   await enc.close();
 
   /* ---------- Gerencia · escritorio ---------- */

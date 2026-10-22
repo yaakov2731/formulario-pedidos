@@ -41,7 +41,7 @@ export default async function compras(ctx) {
     const chk = checkEl(on, l.producto);
     const row = h('button', { class: `line${on ? '' : ' is-off'}`, type: 'button', 'aria-pressed': on ? 'true' : 'false' },
       chk,
-      h('span', { class: 'line-body' }, h('span', { class: 'line-name', text: l.producto }), h('span', { class: 'line-meta', text: `${l.local} · ${fechaRelativa(l.fecha_hora)}${l.precio_ref ? ` · ${fmtMoney(l.precio_ref)} ${l.unidad}` : ''}` })),
+      h('span', { class: 'line-body' }, h('span', { class: 'line-name', text: l.producto }), h('span', { class: 'line-meta', text: `${l.local}${l.encargado ? ' · ' + l.encargado : ''} · ${fechaRelativa(l.fecha_hora)}${l.precio_ref ? ` · ${fmtMoney(l.precio_ref)} ${l.unidad}` : ''}` })),
       l.prioridad === 'Urgente' ? badge('Urgente', 'warn') : null,
       h('span', { class: 'line-qty', text: fmtNum(l.cantidad, l.unidad) }),
       h('button', { class: 'btn btn-plain btn-xs', type: 'button', 'aria-label': `Ver pedido de ${l.local}`, onClick: (e) => { e.stopPropagation(); verPedido(l.id_pedido); } }, icon('arrow', 16)));
