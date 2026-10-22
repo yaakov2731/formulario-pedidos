@@ -253,7 +253,7 @@ incompletas. Un fallo de Telegram se registra en LOG y nunca hace fallar la escr
 
 `node scripts/v3-dev-server.js` sirve `v3/` en `http://localhost:8787/` y responde la API en `/api` ejecutando
 `v3/gas/*.gs` sobre la planilla en memoria de `scripts/v3/fake-gas.js`. Abrir `http://localhost:8787/?api=/api`.
-`?api=` se guarda en el equipo; `?api=` vacío lo borra.
+`?api=` se guarda en el equipo junto con la `API_URL` de `config.js` vigente en ese momento; `?api=` vacío lo borra. Si después `config.js` cambia de `API_URL`, la URL fijada se descarta sola y vuelve a mandar `config.js` (así un celular que probó un backend viejo no queda pegado a él).
 
 ### 5.3 Interfaz de `scripts/v3/fake-gas.js` (del Agente A, la usa el coordinador)
 

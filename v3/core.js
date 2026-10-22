@@ -123,15 +123,20 @@
 
   /* ---------- api ---------- */
   function apiUrl() {
+    var cfg = (global.DOCKS_V3_CONFIG && global.DOCKS_V3_CONFIG.API_URL) || '';
     try {
       var qs = new URLSearchParams(global.location.search);
       if (qs.has('api')) {
         var v = qs.get('api').trim();
-        if (v) store.set('api_url', v); else store.del('api_url');
+        if (v) { store.set('api_url', v); store.set('api_url_cfg', cfg); } else { store.del('api_url'); store.del('api_url_cfg'); }
       }
     } catch (_e) { /* sin location */ }
-    var cfg = (global.DOCKS_V3_CONFIG && global.DOCKS_V3_CONFIG.API_URL) || '';
-    return store.get('api_url', '') || cfg;
+    var fijada = store.get('api_url', '');
+    if (!fijada) return cfg;
+    // Una URL fijada con ?api= sólo vale mientras config.js siga igual que cuando se fijó.
+    // Si gerencia publicó otro backend (API_URL nueva), la fijada queda vieja y se descarta.
+    if (store.get('api_url_cfg', '') !== cfg) { store.del('api_url'); store.del('api_url_cfg'); return cfg; }
+    return fijada;
   }
   function absUrl(u) {
     try { return new URL(u, global.location.href); } catch (_e) { return new URL(u); }

@@ -37,6 +37,27 @@ Debe terminar con `Live V3 verification passed.`.
    `ELABORADOS` y `CONTEO_ELABORADOS` se crean solas la primera vez que alguien abre la pestaña Elaborados.
    También se pueden crear a mano ejecutando `setupV3` (o el menú **Docks V3 → Preparar o reparar planilla**).
 
+### Si la app dice "No se pudo conectar con la planilla"
+
+Probar en orden, desde cualquier navegador (sin iniciar sesión hace falta nada):
+
+1. Abrir la `API_URL` de `v3/config.js` agregando `?action=ping`. Debe mostrar `{"ok":true,"version":"v3","hora":"…"}`.
+   - Si aparece una pantalla de **inicio de sesión de Google** o "No tienes permiso": la implementación quedó con
+     *Quién tiene acceso: Solo yo*. En **Implementar → Gestionar implementaciones → lápiz**, cambiar a *Cualquier persona*
+     e implementar de nuevo (misma URL).
+   - Si dice **"No se encontró la secuencia de comandos"** o "página no encontrada": esa implementación se borró o archivó.
+     Crear o reactivar una y pegar su URL `/exec` en `v3/config.js` (merge a `main`).
+   - Si dice **"Se requiere autorización"** o un error de permisos: abrir el editor, ejecutar `instalarV3` una vez y aceptar
+     los permisos; después **Nueva versión** sobre la misma implementación.
+   - Si devuelve `{"ok":false,"error":"Falta la pestaña …"}`: el script quedó apuntando a otra planilla. Debe estar vinculado
+     a la planilla V3 (Extensiones → Apps Script desde esa planilla) o tener la propiedad `SHEET_ID` con su ID.
+2. Si el `ping` responde bien pero un celular sigue sin conectar: ese equipo tenía fijada una URL vieja con `?api=`.
+   Abrir la app una vez con `?api=` (vacío) para borrarla, o simplemente recargar: desde el 22/10/2026 la app descarta
+   sola la URL fijada cuando `config.js` cambió de backend.
+3. Desde una PC con Node: `node scripts/verify-live-v3.js` recorre todas las lecturas y dice exactamente qué falla.
+4. La pestaña `LOG` de la planilla V3 registra sólo escrituras (conteos, pedidos, órdenes). Si la última fila es vieja,
+   nadie pudo guardar desde esa fecha; las lecturas fallidas no quedan registradas ahí.
+
 ## 2. Frontend
 
 - Pegar la URL `/exec` en `v3/config.js` (`API_URL`) y hacer merge a `main`: el workflow publica

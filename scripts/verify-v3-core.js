@@ -70,6 +70,19 @@ function load(extra = {}) {
   assert.equal(Docks.api.url(), '/api');
   win.location.search = '';
   assert.equal(Docks.api.configured(), true);
+  // si config.js cambia de backend, la URL fijada en el equipo deja de valer
+  win.DOCKS_V3_CONFIG = { API_URL: 'https://script.google.com/macros/s/NUEVA/exec' };
+  assert.equal(Docks.api.url(), 'https://script.google.com/macros/s/NUEVA/exec', 'descarta ?api= viejo al cambiar config.js');
+  assert.equal(win.localStorage.getItem('docksv3:api_url'), null);
+  win.location.search = '?api=/api';
+  assert.equal(Docks.api.url(), '/api', 'un ?api= nuevo vuelve a mandar');
+  win.location.search = '';
+  assert.equal(Docks.api.url(), '/api', 'y se mantiene mientras config.js no cambie');
+  delete win.DOCKS_V3_CONFIG;
+  assert.equal(Docks.api.url(), '', 'config.js cambió otra vez: la fijada también se descarta');
+  win.location.search = '?api=/api';
+  assert.equal(Docks.api.url(), '/api');
+  win.location.search = '';
 
   // post: JSON legible, ok:false y respuesta ilegible
   const calls = [];
