@@ -5,11 +5,15 @@ reportes. Borradores por local y catálogos guiados por sus propios pedidos.
 
 [Abrir la app](https://yaakov2731.github.io/formulario-pedidos/).
 
+**App nueva (planilla V3)**: [abrir](https://yaakov2731.github.io/formulario-pedidos/app/). Instalable en iPhone,
+tablet y PC; guía en `docs/app/README.md`, plan en `docs/app/PLAN.md`.
+
 ## Arquitectura real
 
 - `index.html`: frontend sin bundler, publicado en GitHub Pages.
 - `admin.js`: superficie administrativa existente.
 - `gas/*.gs`: backend modular de Apps Script, conectado a Google Sheets.
+- `app/`: app nueva (PWA, ES modules, sin bundler) sobre la planilla V3 y el backend `v3/gas/`.
 - `scripts/`: verificaciones estructurales y de comportamiento. Los tests locales
   usan funciones reales con almacenamiento y planillas en memoria, sin escrituras
   operativas. La verificación live consulta el backend y el estado de Telegram;

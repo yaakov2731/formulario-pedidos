@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#15A39D"/>
+      <stop offset="1" stop-color="#087E7A"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="114" fill="url(#g)"/>
+  <!-- muelle: tablón y tres pilotes -->
+  <rect x="96" y="176" width="320" height="44" rx="14" fill="#FFFFFF"/>
+  <rect x="132" y="220" width="36" height="108" rx="10" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="238" y="220" width="36" height="128" rx="10" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="344" y="220" width="36" height="108" rx="10" fill="#FFFFFF" opacity="0.95"/>
+  <!-- agua -->
+  <path d="M84 388c28-22 56-22 84 0s56 22 84 0 56-22 84 0 56 22 92 0" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" opacity="0.92"/>
+</svg>

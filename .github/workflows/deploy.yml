@@ -32,6 +32,7 @@ jobs:
           node scripts/verify-v3-encargado.js
           node scripts/verify-v3-compras.js
           node scripts/v3-bundle-gas.js --check
+          node scripts/verify-app.js
 
   deploy-gas:
     needs: verify
@@ -131,6 +132,9 @@ jobs:
           cp favicon.svg site/ 2>/dev/null || true
           mkdir -p site/v3
           cp v3/*.html v3/*.js v3/*.css site/v3/
+          mkdir -p site/app
+          cp -r app/. site/app/
+          sed -i "s/const VERSION = 'docks-app-v1';/const VERSION = 'docks-app-${GITHUB_SHA::7}';/" site/app/sw.js
           python3 - <<'PY'
           from pathlib import Path
           p=Path('site/index.html')
