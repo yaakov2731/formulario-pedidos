@@ -161,9 +161,6 @@ svg { display: block; }
   }
   .sb-brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -0.2px; }
   .sb-brand img.sb-logo { width: 150px; height: auto; border-radius: 0; }
-  .sb-local { padding: 4px 10px 8px; }
-  .sb-local .local-pick { max-width: 100%; width: 100%; justify-content: flex-start; }
-  .sb-local .local-pick-name { flex: 1; text-align: left; }
   .sb-sec { color: var(--text-2); font-size: 13px; font-weight: 600; padding: 14px 10px 6px; }
   .sb-item { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 10px; color: var(--text); font-size: 15px; font-weight: 500; text-align: left; width: 100%; }
   .sb-item svg { width: 22px; height: 22px; color: var(--accent); }
@@ -172,10 +169,6 @@ svg { display: block; }
   .sb-item.is-active svg { color: var(--accent); }
   .sb-item .tab-badge { position: static; margin-left: auto; }
   .sb-foot { margin-top: auto; padding: 10px; color: var(--text-2); font-size: 13px; line-height: 18px; }
-  .sb-quien { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; margin-bottom: 6px; padding: 0 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--sep); color: var(--text); font-size: 15px; font-weight: 600; text-align: left; }
-  .sb-quien svg { width: 16px; height: 16px; flex-shrink: 0; }
-  .sb-quien svg:first-child { color: var(--accent); }
-  .sb-quien span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tabbar { display: none; }
   .main { padding-bottom: 48px; }
   .topbar { height: 52px; }
@@ -351,14 +344,9 @@ select.input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://ww
 
 /* ---------- marca y selector de local ---------- */
 .brand-logo { display: block; width: 132px; height: auto; margin: 10px auto 4px; }
-.local-pick { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; max-width: 46vw; padding: 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--sep); color: var(--text); font-size: 15px; font-weight: 600; }
-.local-pick svg { width: 16px; height: 16px; flex-shrink: 0; }
-.local-pick svg:first-child { color: var(--accent); }
-.local-pick-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.local-pick:active { transform: scale(.97); }
 .hero-local svg { width: 18px; height: 18px; color: var(--accent); }
 .hero-local:active { opacity: .6; }
-@media (min-width: 820px) { .topbar .local-pick, .brand-logo { display: none; } }
+@media (min-width: 820px) { .brand-logo { display: none; } }
 
 /* ---------- píldora flotante ---------- */
 .pill {
@@ -459,15 +447,21 @@ body.has-pill .main { padding-bottom: calc(var(--tabbar-h) + var(--sab) + 96px);
 .hero { background: var(--surface); border: 1px solid var(--sep); border-radius: var(--r-card); padding: 16px var(--gutter) 6px; text-align: center; margin-top: 12px; transform-style: preserve-3d; will-change: transform; transition: transform .25s var(--ease), box-shadow .25s var(--ease); }
 .hero-wrap { perspective: 900px; }
 .hero.is-tilting { transition: transform .05s linear; box-shadow: 0 18px 40px -24px rgba(0, 0, 0, .35); }
-.hero-top { display: grid; justify-items: center; gap: 6px; padding-bottom: 12px; border-bottom: 1px dashed var(--sep); }
-.hero-week { font-size: 13px; line-height: 18px; color: var(--text-2); }
-.hero-quien { display: flex; width: fit-content; align-items: center; gap: 4px; min-height: 28px; margin: -4px auto 0; color: var(--text-2); font-size: 13px; line-height: 18px; }
-.hero-quien svg { width: 14px; height: 14px; color: var(--accent); }
-.hero-quien:active { opacity: .6; }
+.hero-top { display: grid; gap: 10px; padding-bottom: 12px; border-bottom: 1px dashed var(--sep); }
+.hero-sel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid var(--sep); border-radius: 12px; background: var(--surface-2); overflow: hidden; text-align: left; }
+.hero-pick { display: grid; gap: 2px; min-width: 0; min-height: 64px; padding: 10px 12px; color: var(--text); text-align: left; }
+.hero-pick + .hero-pick { border-left: 1px dashed var(--sep); }
+.hero-pick:active { background: var(--fill); }
+.hero-pick-label { display: flex; align-items: center; gap: 5px; color: var(--text-3); font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.hero-pick-label svg { width: 14px; height: 14px; color: var(--accent); }
+.hero-pick-value { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.hero-pick-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display); font-size: 19px; line-height: 24px; font-weight: 700; letter-spacing: -0.2px; }
+.hero-quien .hero-pick-name { font-size: 17px; }
+.hero-pick-value svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
+.hero-week { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; line-height: 18px; color: var(--text-2); }
 .quien-carga { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2, var(--surface)); border: 1px solid var(--sep); }
 .quien-carga svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
 .quien-carga .grow { font-size: 15px; line-height: 20px; }
-.hero-local { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-family: var(--font-display); font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.3px; }
 .steps { margin-top: 2px; }
 .step { display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 56px; width: 100%; text-align: center; position: relative; padding: 12px 0; color: var(--text); }
 .step + .step::before { content: ""; position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed var(--sep); }

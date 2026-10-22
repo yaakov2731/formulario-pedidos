@@ -21,15 +21,16 @@ export default async function hoy(ctx) {
   root.append(heroWrap, kpis, extra);
   tilt3d(hero);
 
-  const nombre = S.sesion.encargado ? S.sesion.encargado.split(' ')[0] : '';
   let datos = null;
 
   function pintar() {
     const d = datos;
     fill(hero, 
       h('div', { class: 'hero-top' },
-        h('div', null, h('button', { class: 'hero-quien', type: 'button', 'aria-label': `${S.sesion.encargado ? 'Carga ' + S.sesion.encargado : 'Sin nombre'}. Cambiar encargado`, onClick: () => ctx.elegirEncargado() }, h('span', { text: nombre ? `Hola, ${nombre}` : 'Elegí quién carga' }), icon('down', 14)), h('button', { class: 'hero-local', type: 'button', 'aria-label': `Local: ${S.sesion.local}. Cambiar de local`, onClick: ctx.elegirLocal }, h('span', { text: S.sesion.local }), icon('down', 18))),
-        d && d.pedido_semana ? badgeEstado(d.pedido_semana.estado) : null),
+        h('div', { class: 'hero-sel' },
+          selector('Local', S.sesion.local, 'store', `Local: ${S.sesion.local}. Cambiar de local`, ctx.elegirLocal, 'hero-local'),
+          selector('Encargado', S.sesion.encargado || 'Elegí quién carga', 'people', `Encargado: ${S.sesion.encargado || 'sin elegir'}. Cambiar encargado`, () => ctx.elegirEncargado(), 'hero-quien')),
+        d && d.pedido_semana ? h('div', { class: 'hero-week' }, h('span', { text: 'Pedido de la semana' }), badgeEstado(d.pedido_semana.estado)) : null),
       h('div', { class: 'steps' }, pasoContar(d), pasoPedir(d), pasoRecibir(d))
     );
     fill(kpis, 
@@ -47,6 +48,13 @@ export default async function hoy(ctx) {
       extra.append(group('Historial', celdas));
     }
     ctx.setBadge('recibir', d ? d.por_recibir : 0);
+  }
+
+  // Selector del encabezado de la tarjeta: rótulo chico arriba, valor grande abajo (local o encargado).
+  function selector(rotulo, valor, ic, aria, onClick, cls) {
+    return h('button', { class: `hero-pick ${cls}`, type: 'button', 'aria-label': aria, onClick },
+      h('span', { class: 'hero-pick-label' }, icon(ic, 14), h('span', { text: rotulo })),
+      h('span', { class: 'hero-pick-value' }, h('span', { class: 'hero-pick-name', text: valor }), icon('down', 16)));
   }
 
   function kpi(n, label, kind, destino) {
