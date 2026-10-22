@@ -102,8 +102,9 @@ function renderNav(active) {
     tabbar.append(h('button', { class: `tab${masActivo ? ' is-active' : ''}`, type: 'button', onClick: abrirMas }, icon('list', 26), h('span', { text: 'Más' })));
   }
   // barra lateral (tablet / PC)
-  sidebar.append(h('div', { class: 'sb-brand' }, h('img', { src: 'icons/icon.svg', alt: '' }), h('span', { text: 'Docks' })));
-  sidebar.append(h('div', { class: 'sb-sec', text: rol() === 'gerencia' ? 'Gerencia' : (S.sesion.local || 'Encargado') }));
+  sidebar.append(h('div', { class: 'sb-brand' }, h('img', { class: 'sb-logo', src: 'icons/logo-docks.svg', alt: 'Docks del Puerto' })));
+  if (rol() === 'encargado') sidebar.append(h('div', { class: 'sb-local' }, localBtn()));
+  else sidebar.append(h('div', { class: 'sb-sec', text: 'Gerencia' }));
   for (const it of items) {
     sidebar.append(h('a', { class: `sb-item${it.id === active ? ' is-active' : ''}`, href: `#${it.id}`, dataset: { nav: it.id } }, icon(it.icon, 22), h('span', { class: 'grow', text: it.label }),
       h('span', { class: 'tab-badge', hidden: !S.badges[it.id], text: String(S.badges[it.id] || '') })));
@@ -125,10 +126,37 @@ function abrirMas() {
   });
 }
 
+/* ---------- selector de local (encargado) ---------- */
+function localesActivos() {
+  return ((S.boot && S.boot.locales) || []).filter(l => l.activo !== false && l.activo !== 'NO').map(l => l.local).sort((a, b) => a.localeCompare(b, 'es'));
+}
+export function localBtn() {
+  return h('button', { class: 'local-pick', type: 'button', 'aria-label': `Local: ${S.sesion.local}. Cambiar de local`, onClick: elegirLocal },
+    icon('store', 18), h('span', { class: 'local-pick-name', text: S.sesion.local }), icon('down', 16));
+}
+export function elegirLocal() {
+  haptic();
+  const pintar = (lista) => group(null, lista.length
+    ? lista.map(l => cell({ title: l, lead: 'store', leadKind: l === S.sesion.local ? '' : 'plain', value: l === S.sesion.local ? 'Actual' : '', onClick: () => cambiarLocal(l, s) }))
+    : [cell({ title: 'Cargando locales…', leadKind: 'plain' })]);
+  const s = sheet({ title: 'Cambiar de local', body: pintar(localesActivos()) });
+  if (!localesActivos().length) bootstrap().fresh.then(() => { clear(s.body); s.body.append(pintar(localesActivos())); }).catch(() => {});
+}
+function cambiarLocal(local, s) {
+  s.close();
+  if (!S.sesion || local === S.sesion.local) return;
+  guardarSesion({ ...S.sesion, local });
+  store.set('ultimo_local', local);
+  haptic('success');
+  toast(`Ahora estás en ${local}`, 'ok');
+  route();
+}
+
 /* ---------- barra superior ---------- */
 export function topbarSet({ left, right, visible = true } = {}) {
   topbar.hidden = !visible;
   clear($('topbar-left')); clear($('topbar-right'));
+  if (!left && rol() === 'encargado' && S.sesion.local) left = localBtn();
   if (left) $('topbar-left').append(left);
   if (right) $('topbar-right').append(...[].concat(right));
 }
@@ -169,7 +197,7 @@ api.onCola(() => actualizarRed());
 
 /* ---------- ruteo ---------- */
 export const ctx = {
-  S, go, setBadge, topbar, topbarSet, backBtn, bootstrap, localActual, view, toast,
+  S, go, setBadge, topbar, topbarSet, backBtn, bootstrap, localActual, view, toast, elegirLocal,
   guardarSesion, guardarAdminKey, api, version: VERSION,
   onLeave(fn) { if (actual) actual.leave.push(fn); },
   salir() { guardarSesion(null); guardarAdminKey('', false); S.boot = null; api.invalidar(); go('entrar', true); }

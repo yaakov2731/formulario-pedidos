@@ -12,7 +12,7 @@ export default async function hoy(ctx) {
   const refresh = h('button', { class: 'topbar-btn', type: 'button', 'aria-label': 'Actualizar', onClick: () => { haptic(); cargar(true); } }, icon('refresh', 24));
   ctx.topbarSet({ right: [refresh, gear] });
   const hdr = largeTitle({ title: 'Hoy', sub: sem.label, topbar: ctx.topbar });
-  root.append(hdr);
+  root.append(h('img', { class: 'brand-logo', src: 'icons/logo-docks.svg', alt: 'Docks del Puerto' }), hdr);
 
   const hero = h('div', { class: 'hero' });
   const heroWrap = h('div', { class: 'hero-wrap' }, hero);
@@ -28,7 +28,7 @@ export default async function hoy(ctx) {
     const d = datos;
     fill(hero, 
       h('div', { class: 'hero-top' },
-        h('div', null, h('div', { class: 'hero-week', text: nombre ? `Hola, ${nombre}` : 'Hola' }), h('div', { class: 'hero-local', text: S.sesion.local })),
+        h('div', null, h('div', { class: 'hero-week', text: nombre ? `Hola, ${nombre}` : 'Hola' }), h('button', { class: 'hero-local', type: 'button', 'aria-label': `Local: ${S.sesion.local}. Cambiar de local`, onClick: ctx.elegirLocal }, h('span', { text: S.sesion.local }), icon('down', 18))),
         d && d.pedido_semana ? badgeEstado(d.pedido_semana.estado) : null),
       h('div', { class: 'steps' }, pasoContar(d), pasoPedir(d), pasoRecibir(d))
     );
