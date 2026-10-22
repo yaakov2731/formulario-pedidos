@@ -103,18 +103,14 @@ function renderNav(active) {
   }
   // barra lateral (tablet / PC)
   sidebar.append(h('div', { class: 'sb-brand' }, h('img', { class: 'sb-logo', src: 'icons/logo-docks.svg', alt: 'Docks del Puerto' })));
-  if (rol() === 'encargado') sidebar.append(h('div', { class: 'sb-local' }, localBtn()));
-  else sidebar.append(h('div', { class: 'sb-sec', text: 'Gerencia' }));
+  sidebar.append(h('div', { class: 'sb-sec', text: rol() === 'encargado' ? S.sesion.local : 'Gerencia' }));
   for (const it of items) {
     sidebar.append(h('a', { class: `sb-item${it.id === active ? ' is-active' : ''}`, href: `#${it.id}`, dataset: { nav: it.id } }, icon(it.icon, 22), h('span', { class: 'grow', text: it.label }),
       h('span', { class: 'tab-badge', hidden: !S.badges[it.id], text: String(S.badges[it.id] || '') })));
   }
   sidebar.append(h('div', { class: 'sb-sec', text: 'General' }));
   sidebar.append(h('a', { class: `sb-item${active === 'ajustes' ? ' is-active' : ''}`, href: '#ajustes', dataset: { nav: 'ajustes' } }, icon('gear', 22), h('span', { class: 'grow', text: 'Ajustes' })));
-  const quien = rol() === 'encargado'
-    ? h('button', { class: 'sb-quien', type: 'button', 'aria-label': `Carga: ${S.sesion.encargado || 'sin nombre'}. Cambiar encargado`, onClick: () => elegirEncargado() }, icon('people', 18), h('span', { class: 'grow', text: S.sesion.encargado || 'Elegí quién carga' }), icon('down', 16))
-    : h('div', { text: 'Gerencia' });
-  sidebar.append(h('div', { class: 'sb-foot' }, quien, h('div', { text: semanaDe().label })));
+  sidebar.append(h('div', { class: 'sb-foot' }, h('div', { text: rol() === 'encargado' ? (S.sesion.encargado || 'Sin encargado') : 'Gerencia' }), h('div', { text: semanaDe().label })));
 }
 
 function abrirMas() {
@@ -132,10 +128,6 @@ function abrirMas() {
 /* ---------- selector de local (encargado) ---------- */
 function localesActivos() {
   return ((S.boot && S.boot.locales) || []).filter(l => l.activo !== false && l.activo !== 'NO').map(l => l.local).sort((a, b) => a.localeCompare(b, 'es'));
-}
-export function localBtn() {
-  return h('button', { class: 'local-pick', type: 'button', 'aria-label': `Local: ${S.sesion.local}. Cambiar de local`, onClick: elegirLocal },
-    icon('store', 18), h('span', { class: 'local-pick-name', text: S.sesion.local }), icon('down', 16));
 }
 export function elegirLocal() {
   haptic();
@@ -217,7 +209,6 @@ export function elegirEncargado({ alCambiarLocal, onElegido } = {}) {
 export function topbarSet({ left, right, visible = true } = {}) {
   topbar.hidden = !visible;
   clear($('topbar-left')); clear($('topbar-right'));
-  if (!left && rol() === 'encargado' && S.sesion.local) left = localBtn();
   if (left) $('topbar-left').append(left);
   if (right) $('topbar-right').append(...[].concat(right));
 }

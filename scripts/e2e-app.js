@@ -45,6 +45,7 @@ async function apiGet(q) { const r = await fetch(BASE + '/api?' + new URLSearchP
   await p.waitForSelector('.hero-local');
   step('entrar como encargado');
   await shot(p, '01-hoy');
+  await shot(p, '01b-hoy-tarjeta', false);
 
   await p.goto(BASE + '/app/#contar');
   await p.waitForSelector('.prod');
@@ -138,7 +139,7 @@ async function apiGet(q) { const r = await fetch(BASE + '/api?' + new URLSearchP
   await p.waitForSelector('.sheet-root.is-open .sheet-head h2:has-text("Trento Café")', { timeout: 10000 }); await p.waitForTimeout(350);
   await shot(p, '55-quien-carga', false);
   await p.getByRole('button', { name: /Lucía Paz/ }).click(); await sheetClosed(p);
-  await p.waitForSelector('.hero-quien:has-text("Lucía")');
+  await p.waitForSelector('.hero-quien:has-text("Lucía Paz")');
   step('cambio de local pide encargado');
   await shot(p, '56-hoy-lucia', false);
   await p.goto(BASE + '/app/#contar'); await p.waitForSelector('.prod');
@@ -154,6 +155,9 @@ async function apiGet(q) { const r = await fetch(BASE + '/api?' + new URLSearchP
   const hoyT = await apiGet({ action: 'getHoy', local: 'Trento Café' });
   if (!hoyT.ultimo_conteo || hoyT.ultimo_conteo.encargado !== 'Diego Sosa') throw new Error('el conteo no guardó el encargado elegido: ' + JSON.stringify(hoyT.ultimo_conteo));
   step('conteo firmado por el encargado elegido');
+  await p.setViewportSize({ width: 1280, height: 800 });
+  await p.goto(BASE + '/app/#hoy'); await p.waitForSelector('.hero-quien:has-text("Diego Sosa")'); await p.waitForTimeout(400);
+  await shot(p, '58-hoy-escritorio', false);
   await enc.close();
 
   /* ---------- Gerencia · escritorio ---------- */

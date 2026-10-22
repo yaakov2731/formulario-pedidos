@@ -90,3 +90,5 @@ falla, Ajustes → Probar conexión y la pestaña `LOG` de la planilla V3. Coord
 - Backend V3: `getConsolidado` devuelve `encargado` por línea (Compras lo muestra) y `getHoy` en `pedido_semana` y
   `ultimo_conteo`. Requiere publicar el Apps Script V3 (workflow con secretos V3, o pegar `v3/apps-script/DocksV3.gs`).
 - Verificado: verify-app, verify-v2, verify-v3-backend y e2e-app claro/oscuro (paso nuevo: conteo firmado por el encargado elegido).
+
+- PR siguiente: local y encargado salen de la barra de arriba (y de la barra lateral) y pasan al encabezado de la tarjeta de Hoy (`.hero-sel`, dos casillas LOCAL / ENCARGADO). Las demás pantallas muestran el local en el subtítulo.
