@@ -1,0 +1,56 @@
+# Docks app · guía de uso y desarrollo
+
+App nueva para encargados y gerencia sobre la planilla **Docks · Abastecimiento V3**. Vive en `app/` y se publica en
+`https://yaakov2731.github.io/formulario-pedidos/app/`. Usa el backend Apps Script V3 (`v3/gas/`, contrato en
+`docs/v3/CONTRATO.md`) sin cambios. El plan y las decisiones de diseño están en `PLAN.md`.
+
+## Instalar en el celular o la tablet
+
+1. Abrir el link en Safari (iPhone/iPad) o Chrome (Android).
+2. **Compartir → Agregar a inicio** (iPhone) o **Instalar app** (Android). Queda como una app más, a pantalla completa.
+3. Entrar: elegir el local y escribir el nombre. Queda guardado; no hay que volver a hacerlo.
+
+Gerencia entra desde **¿Sos de gerencia? Entrar con clave** con la clave `ADMIN_KEY` del Apps Script. En una PC o
+tablet aparece la barra lateral con Compras, Órdenes, Faltantes, Stock, Catálogo, Proveedores, Locales y Elaborados.
+
+## Qué hace cada pantalla
+
+| Rol | Pantalla | Qué hace |
+| --- | --- | --- |
+| Encargado | Hoy | Ritmo de la semana (contar → pedir → recibir), bajo par, órdenes por recibir, historial. |
+| | Pedir | Catálogo del local con sugerido, stepper, productos sueltos, prioridad, fecha, notas. Confirma por ID. |
+| | Contar | Stock por producto; “No queda” en cero; lo que no se toca no cambia. |
+| | Recibir | Órdenes por recibir; “Llegó todo”, parciales, extras sin pedido, observaciones. |
+| | Elaborados | Listo / marcado / crudo por producto; alta desde el celular. |
+| Gerencia | Compras | Pendientes por proveedor, selección de líneas, crear orden con texto de WhatsApp, cancelar. |
+| | Órdenes | Lista por estado, detalle con texto y link de WhatsApp. |
+| | Faltantes | Líneas incompletas por proveedor con texto de reclamo. |
+| | Stock | Panel por local: stock, par, en camino, sugerido, último conteo, estado. |
+| | Catálogo | Alta/edición, baja lógica, pegar desde Excel. |
+| | Proveedores | Alta/edición, pegar desde Excel. |
+| | Locales | Activo, día de pedido, hora de corte, encargados. |
+| | Elaborados | Alta/edición por local. |
+| Ambos | Ajustes | Cambiar rol, apariencia, envíos pendientes, conexión; gerencia: empezar de cero. |
+
+## Cómo funciona por dentro
+
+- **Sin conexión**: lo que se envía queda en cola en el equipo y se manda solo al volver la señal; Ajustes lo muestra.
+  Los borradores (pedido, conteo, recepción, elaborados) se guardan por local al escribir.
+- **Nunca duplica**: cada escritura lleva un ID generado en el cliente; si la respuesta no se pudo leer, la app
+  confirma leyendo ese ID antes de decir “enviado”.
+- **Rápida**: catálogo y lecturas se guardan en el equipo y se muestran al instante mientras se refrescan.
+- **Backend**: `app/config.js` tiene la misma `API_URL` que `v3/config.js`. En un equipo se puede fijar otra con
+  `?api=URL` (se borra con `?api=` vacío o desde Ajustes → Conexión).
+
+## Desarrollo y verificación
+
+```
+node scripts/v3-dev-server.js --seed          # http://localhost:8787/app/?api=/api  (clave de gerencia: dev)
+node scripts/verify-app.js                    # estructura, módulos, lógica pura (corre en CI)
+node scripts/e2e-app.js capturas [--dark]     # recorrido completo en Chromium con capturas (manual)
+node scripts/app-icons.js                     # regenera los PNG de app/icons desde icon.svg
+```
+
+Archivos: `app/index.html` (shell), `css/app.css` (tokens y componentes), `js/main.js` (sesión y ruteo),
+`js/api.js` (transporte, caché, cola), `js/ui.js` (piezas), `js/flujo.js` y `js/gerencia.js` (helpers de cada rol),
+`js/screens/*.js` (una pantalla por archivo), `sw.js` (service worker, red primero), `manifest.webmanifest`.

@@ -11,6 +11,7 @@ const { createGasRuntime } = require('./v3/fake-gas');
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1]) || 8787;
 const ROOT = path.resolve(__dirname, '..', 'v3');
+const APP_ROOT = path.resolve(__dirname, '..', 'app'); // app nueva: http://localhost:8787/app/?api=/api
 const FAVICON = path.resolve(__dirname, '..', 'favicon.svg');
 const ADMIN_KEY = 'dev';
 
@@ -48,7 +49,7 @@ if (args.includes('--seed')) {
   console.log('Datos de prueba cargados en memoria (Umo Grill y Trento Café, con elaborados en Umo Grill).');
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
 
 function send(res, status, type, body) {
   res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store' });
@@ -83,6 +84,13 @@ const server = http.createServer((req, res) => {
     }
   }
   if (url.pathname === '/favicon.svg' || url.pathname === '/../favicon.svg') return send(res, 200, TYPES['.svg'], fs.readFileSync(FAVICON));
+  if (url.pathname === '/app' ) { res.writeHead(302, { Location: '/app/' + url.search }); return res.end(); }
+  if (url.pathname.startsWith('/app/')) {
+    const relApp = url.pathname === '/app/' ? 'index.html' : decodeURIComponent(url.pathname.slice(5));
+    const fileApp = path.resolve(APP_ROOT, relApp);
+    if (!fileApp.startsWith(APP_ROOT + path.sep) || !fs.existsSync(fileApp) || !fs.statSync(fileApp).isFile()) return send(res, 404, 'text/plain; charset=utf-8', 'No encontrado');
+    return send(res, 200, TYPES[path.extname(fileApp)] || 'application/octet-stream', fs.readFileSync(fileApp));
+  }
   const rel = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
   const file = path.resolve(ROOT, rel);
   if (!file.startsWith(ROOT + path.sep) || file.includes(path.sep + 'gas' + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -94,5 +102,6 @@ const server = http.createServer((req, res) => {
 server.listen(port, () => {
   console.log(`V3 dev server: http://localhost:${port}/?api=/api`);
   console.log(`Compras:       http://localhost:${port}/compras.html?api=/api  (clave: ${ADMIN_KEY})`);
+  console.log(`App nueva:     http://localhost:${port}/app/?api=/api`);
 });
 module.exports = { server, rt };
