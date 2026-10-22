@@ -72,7 +72,15 @@ export default async function ajustes(ctx) {
     cell({ title: 'Probar conexión', lead: 'bolt', leadKind: 'plain', chevron: true, onClick: async () => {
       try { const r = await api.get('ping'); toast(`Conectado · ${r.version} · ${r.hora}`, 'ok'); } catch (e) { toast(e.message, 'error'); }
     } }),
-    cell({ title: 'Borrar datos guardados en el equipo', sub: 'Caché de catálogo y lecturas. No borra borradores ni la sesión.', lead: 'refresh', leadKind: 'plain', chevron: true, onClick: () => { api.invalidar(); toast('Listo', 'ok'); } })
+    cell({ title: 'Borrar datos guardados en el equipo', sub: 'Caché de catálogo y lecturas. No borra borradores ni la sesión.', lead: 'refresh', leadKind: 'plain', chevron: true, onClick: () => { api.invalidar(); toast('Listo', 'ok'); } }),
+    cell({ title: 'Buscar actualización de la app', sub: `Versión instalada: ${ctx.version}`, lead: 'arrow', leadKind: 'plain', chevron: true, onClick: async () => {
+      toast('Buscando versión nueva…', 'info');
+      try {
+        if ('caches' in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+        if (navigator.serviceWorker) { const r = await navigator.serviceWorker.getRegistration(); if (r) await r.update(); }
+      } catch (_e) { /* sin service worker */ }
+      setTimeout(() => location.reload(), 800);
+    } })
   ], `Docks app ${ctx.version}`));
 
   return root;

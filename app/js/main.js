@@ -239,5 +239,20 @@ route();
 api.vaciarCola();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/localhost|127\.0\.0\.1/.test(location.hostname)) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      // Buscar versión nueva al abrir y cada vez que la app vuelve al frente (iOS no lo hace solo).
+      const buscar = () => { try { reg.update(); } catch (_e) { /* nada */ } };
+      buscar();
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') buscar(); });
+      setInterval(buscar, 30 * 60000);
+    }).catch(() => {});
+    // Cuando el service worker nuevo toma el control, hay una versión nueva publicada: recargar una sola vez.
+    let teniaControl = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!teniaControl) { teniaControl = true; return; }
+      toast('Actualizando a la versión nueva…', 'info');
+      setTimeout(() => location.reload(), 600);
+    });
+  });
 }

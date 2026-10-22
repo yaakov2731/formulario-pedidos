@@ -42,6 +42,15 @@ La app original `…/formulario-pedidos/` sí conecta: escribe en `Sistema_Pedid
 - Inspector `--app` con permisos iOS (glass, shadow, blur, button-fx, app-title-size): Compras y Stock 0 FAIL;
   Hoy 0 FAIL tras neutralizar los íconos. Pendiente opcional: tabla de Stock como lista de dos líneas en el celular.
 
+## Actualización de versión (PR 18)
+
+- El usuario seguía viendo la versión anterior tras publicar: el service worker servía desde la caché HTTP de GitHub
+  Pages (max-age 600) y iOS no busca actualizaciones del SW al abrir la app instalada.
+- `app/sw.js`: `fetch(..., { cache: 'no-cache' })` (navegaciones por URL) para revalidar siempre con ETag.
+  `app/js/main.js`: `reg.update()` al abrir, al volver al frente y cada 30 min; al cambiar el controlador recarga una
+  vez con aviso. Ajustes → "Buscar actualización de la app" borra cachés, actualiza el SW y recarga. El workflow
+  estampa el SHA también en `config.js` (`VERSION`), visible en Ajustes como `2026.10.22b · <sha>`.
+
 ## Verificaciones
 
 - `node scripts/verify-app.js`: 15 checks en verde. `node scripts/verify-v2.js`: en verde.

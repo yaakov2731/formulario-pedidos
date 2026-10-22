@@ -135,6 +135,8 @@ jobs:
           mkdir -p site/app
           cp -r app/. site/app/
           sed -i "s/const VERSION = 'docks-app-v1';/const VERSION = 'docks-app-${GITHUB_SHA::7}';/" site/app/sw.js
+          sed -i "s/VERSION: \"\([^\"]*\)\"/VERSION: \"\1 · ${GITHUB_SHA::7}\"/" site/app/config.js
+          grep -n "VERSION" site/app/sw.js site/app/config.js
           python3 - <<'PY'
           from pathlib import Path
           p=Path('site/index.html')
