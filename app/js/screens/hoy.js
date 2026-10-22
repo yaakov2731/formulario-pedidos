@@ -33,7 +33,7 @@ export default async function hoy(ctx) {
       h('div', { class: 'steps' }, pasoContar(d), pasoPedir(d), pasoRecibir(d))
     );
     fill(kpis, 
-      kpi(d ? d.bajo_par : null, 'bajo par', d && d.bajo_par > 0 ? 'amber' : '', 'contar'),
+      kpi(d ? d.bajo_par : null, 'por agotarse', d && d.bajo_par > 0 ? 'amber' : '', 'contar'),
       kpi(d ? d.por_recibir : null, plural(d ? d.por_recibir : 0, 'orden por recibir', 'órdenes por recibir'), d && d.por_recibir > 0 ? 'warn' : '', 'recibir'),
       kpi(d ? d.pedidos_semana : null, plural(d ? d.pedidos_semana : 0, 'pedido esta semana', 'pedidos esta semana'), '', 'pedir'),
       kpi(d ? d.elaborados_activos : null, 'elaborados', '', 'elaborados')

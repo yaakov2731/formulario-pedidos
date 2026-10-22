@@ -54,9 +54,8 @@ export default async function contar(ctx) {
     cero = h('button', { class: `prod-zero${v === 0 ? ' is-on' : ''}`, type: 'button', 'aria-label': `No queda ${pr.producto}`, text: 'No queda' });
     cero.addEventListener('click', () => { haptic(); if (valor(pr.codigo) === 0) { st.setValue(null); } else { st.setValue(0); } });
     const meta = [];
-    if (pr.stock_actual !== null && pr.stock_actual !== undefined) meta.push(h('span', { class: 'num', text: `Último: ${fmtNum(pr.stock_actual, pr.unidad)} ${fechaRelativa(pr.ultimo_conteo)}` }));
-    else meta.push(h('span', { text: `Nunca contado (${pr.unidad})` }));
-    if (pr.par !== null && pr.par !== undefined) meta.push(h('span', { class: 'num', text: `Par ${fmtNum(pr.par)}` }));
+    if (pr.stock_actual !== null && pr.stock_actual !== undefined) meta.push(h('span', { class: 'num', text: `Quedaban ${fmtNum(pr.stock_actual, pr.unidad)} · ${fechaRelativa(pr.ultimo_conteo)}` }));
+    else meta.push(h('span', { text: `Sin contar · ${pr.unidad}` }));
     return h('div', { class: 'prod' },
       h('div', { class: 'prod-body' }, h('div', { class: 'prod-name', text: pr.producto }), h('div', { class: 'prod-meta' }, ...meta)),
       h('div', { class: 'prod-control' }, cero, st));

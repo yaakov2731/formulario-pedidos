@@ -6,7 +6,7 @@ import * as api from '../api.js';
 
 export const wide = true;
 const KIND = { SIN_STOCK: 'bad', BAJO: 'amber', SIN_CONTEO: 'plain', SIN_PAR: 'plain', OK: 'ok' };
-const LABEL = { SIN_STOCK: 'Sin stock', BAJO: 'Bajo par', SIN_CONTEO: 'Sin conteo', SIN_PAR: 'Sin par', OK: 'OK' };
+const LABEL = { SIN_STOCK: 'Sin stock', BAJO: 'Por agotarse', SIN_CONTEO: 'Sin conteo', SIN_PAR: 'Sin par', OK: 'OK' };
 
 export default async function stock(ctx) {
   const root = h('div');
@@ -27,14 +27,14 @@ export default async function stock(ctx) {
   function pintarChips() {
     fill(chips);
     const n = k => filas ? filas.filter(f => !k || f.estado === k).length : 0;
-    for (const [v, l] of [['', 'Todos'], ['SIN_STOCK', 'Sin stock'], ['BAJO', 'Bajo par'], ['SIN_CONTEO', 'Sin conteo'], ['SIN_PAR', 'Sin par'], ['OK', 'OK']]) chips.append(chip(v ? `${l} (${n(v)})` : l, { on: filtro.estado === v, onClick: () => { filtro.estado = v; pintarChips(); pintar(); } }));
+    for (const [v, l] of [['', 'Todos'], ['SIN_STOCK', 'Sin stock'], ['BAJO', 'Por agotarse'], ['SIN_CONTEO', 'Sin conteo'], ['SIN_PAR', 'Sin par'], ['OK', 'OK']]) chips.append(chip(v ? `${l} (${n(v)})` : l, { on: filtro.estado === v, onClick: () => { filtro.estado = v; pintarChips(); pintar(); } }));
   }
   function pintar() {
     fill(lista); fill(kpis);
     if (!filas) { lista.append(skeleton(6)); return; }
     const kpi = (n, l, k = '') => h('div', { class: `kpi${k ? ' ' + k : ''}` }, h('div', { class: 'kpi-n', text: String(n) }), h('div', { class: 'kpi-l', text: l }));
     const c = k => filas.filter(f => f.estado === k).length;
-    kpis.append(kpi(c('SIN_STOCK'), 'sin stock', c('SIN_STOCK') ? 'bad' : ''), kpi(c('BAJO'), 'bajo par', c('BAJO') ? 'warn' : ''), kpi(c('SIN_CONTEO'), 'sin conteo'), kpi(filas.filter(f => f.sugerido > 0).length, 'con sugerido'));
+    kpis.append(kpi(c('SIN_STOCK'), 'sin stock', c('SIN_STOCK') ? 'bad' : ''), kpi(c('BAJO'), 'por agotarse', c('BAJO') ? 'warn' : ''), kpi(c('SIN_CONTEO'), 'sin conteo'), kpi(filas.filter(f => f.sugerido > 0).length, 'con sugerido'));
     const q = norm(filtro.q);
     const vis = filas.filter(f => (!filtro.estado || f.estado === filtro.estado) && (!q || norm(f.producto).includes(q) || norm(f.proveedor).includes(q) || norm(f.local).includes(q)))
       .sort((a, b) => ordenarTexto(a.local, b.local) || ordenarTexto(a.categoria, b.categoria) || ordenarTexto(a.producto, b.producto));
