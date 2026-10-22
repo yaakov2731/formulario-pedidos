@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 462 130" width="462" height="130" role="img" aria-label="Docks del Puerto">
+  <!-- cuatro locales con su puerta; colores de la marca Docks del Puerto -->
+  <rect x="7" y="0" width="98" height="102" rx="4" fill="#EB4537"/>
+  <rect x="42" y="36" width="28" height="54" rx="3" fill="#FFFFFF"/>
+  <rect x="123" y="0" width="98" height="102" rx="4" fill="#F4842A"/>
+  <rect x="158" y="36" width="28" height="54" rx="3" fill="#FFFFFF"/>
+  <rect x="240" y="0" width="98" height="102" rx="4" fill="#F8B600"/>
+  <rect x="275" y="36" width="28" height="54" rx="3" fill="#FFFFFF"/>
+  <rect x="357" y="0" width="98" height="102" rx="4" fill="#4688F4"/>
+  <rect x="392" y="36" width="28" height="54" rx="3" fill="#FFFFFF"/>
+  <rect x="0" y="126" width="462" height="2.5" fill="#A3A3A3"/>
+</svg>

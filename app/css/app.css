@@ -471,10 +471,11 @@ body.has-pill .main { padding-bottom: calc(var(--tabbar-h) + var(--sab) + 96px);
 /* ---------- entrar ---------- */
 .entrar { min-height: calc(100dvh - 40px); display: grid; align-content: center; padding: 24px var(--gutter) 40px; max-width: 480px; margin: 0 auto; }
 .entrar-brand { display: grid; justify-items: center; text-align: center; gap: 14px; margin-bottom: 28px; }
-.entrar-brand img { width: 64px; height: 64px; border-radius: 16px; }
-.entrar-brand h1 { font-family: var(--font-display); font-size: 34px; line-height: 40px; font-weight: 700; letter-spacing: -0.5px; }
-.entrar-brand p { color: var(--text-2); font-size: 17px; }
 .locales { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.entrar-logo { width: min(230px, 64vw); height: auto; }
+.entrar-marca { font-family: var(--font); font-weight: 500; font-size: clamp(22px, 7vw, 34px); line-height: 1.1; letter-spacing: .01em; white-space: nowrap; text-transform: uppercase; color: var(--text); }
+.entrar-rubros { color: var(--text-3); font-size: clamp(10px, 2.9vw, 12px); line-height: 16px; letter-spacing: .02em; white-space: nowrap; text-transform: uppercase; }
+.entrar-modo { color: var(--text-2); font-size: 16px; margin-top: 14px; }
 .local-btn { min-height: 64px; padding: 12px 14px; border-radius: var(--r-card); background: var(--surface); color: var(--text); text-align: center; font-size: 17px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--sep); transition: border-color .15s var(--ease), transform .12s var(--ease); }
 .local-btn:active { transform: scale(.98); }
 .local-btn.is-on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }

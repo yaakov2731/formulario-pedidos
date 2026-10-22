@@ -7,8 +7,12 @@ export default async function entrar(ctx) {
   const modo = ctx.params[0] === 'gerencia' ? 'gerencia' : 'encargado';
   const root = h('div', { class: 'entrar' });
   const brand = h('div', { class: 'entrar-brand' },
-    h('img', { src: 'icons/icon.svg', alt: '' }),
-    h('div', null, h('h1', { text: 'Docks' }), h('p', { text: modo === 'gerencia' ? 'Gerencia y compras' : 'Pedidos y stock de tu local' })));
+    h('img', { class: 'entrar-logo', src: 'icons/logo-docks.svg', alt: '' }),
+    h('div', null,
+      h('h1', { class: 'entrar-marca', text: 'Docks del Puerto' }),
+      h('p', { class: 'entrar-rubros', text: 'Locales comerciales • Gastronomía • Diversión' }),
+      h('p', { class: 'entrar-rubros', text: 'Tigre' }),
+      h('p', { class: 'entrar-modo', text: modo === 'gerencia' ? 'Gerencia y compras' : 'Pedidos y stock de tu local' })));
   root.append(brand);
 
   if (!api.configured()) {
