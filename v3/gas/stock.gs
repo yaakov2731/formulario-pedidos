@@ -259,7 +259,7 @@ function getHoy_(p) {
   var ultimoConteo = null;
   if (conteo !== null) {
     var idc = tstr_(tMov, conteo, 'ID_Operacion');
-    ultimoConteo = { id_operacion: idc, fecha_hora: tstr_(tMov, conteo, 'Fecha_Hora'), productos: tfind_(tMov, 'ID_Operacion', idc).length };
+    ultimoConteo = { id_operacion: idc, fecha_hora: tstr_(tMov, conteo, 'Fecha_Hora'), encargado: tstr_(tMov, conteo, 'Encargado'), productos: tfind_(tMov, 'ID_Operacion', idc).length };
   }
 
   var tCat = table_(SH_CATALOGO);
@@ -279,6 +279,7 @@ function getHoy_(p) {
       id_pedido: tstr_(tPed, ultimo, 'ID_Pedido'),
       fecha_hora: tstr_(tPed, ultimo, 'Fecha_Hora'),
       estado: tstr_(tPed, ultimo, 'Estado'),
+      encargado: tstr_(tPed, ultimo, 'Encargado'),
       lineas: tnum_(tPed, ultimo, 'Lineas')
     },
     pedidos_semana: deSemana.length,

@@ -80,3 +80,13 @@ falla, Ajustes → Probar conexión y la pestaña `LOG` de la planilla V3. Coord
   conserva la columna Par (es donde se configura) pero "Bajo par" pasa a "Por agotarse".
 - Ícono: fondo tinta, muelle blanco, agua pimentón (`node scripts/app-icons.js`).
 - Checks: verify-app 15/15, verify-v2 y e2e-app en verde; capturas en /mnt/project-files/app-docks/comanda/.
+
+## Encargado por local (rama `claude/project-thread-33mr9g`)
+
+- Entrar: al elegir local muestra los encargados del local (hoja LOCALES, columna Encargados, editable en gerencia → Locales)
+  como botones + "Otro" para escribir; preselecciona el último que cargó en ese equipo.
+- Cambiar de local abre "¿Quién carga en …?". El nombre se cambia también desde "Hola, X" en Hoy, la barra lateral y
+  la línea "Lo carga X · Cambiar" en cada hoja Revisar (pedido, conteo, recepción, elaborados).
+- Backend V3: `getConsolidado` devuelve `encargado` por línea (Compras lo muestra) y `getHoy` en `pedido_semana` y
+  `ultimo_conteo`. Requiere publicar el Apps Script V3 (workflow con secretos V3, o pegar `v3/apps-script/DocksV3.gs`).
+- Verificado: verify-app, verify-v2, verify-v3-backend y e2e-app claro/oscuro (paso nuevo: conteo firmado por el encargado elegido).

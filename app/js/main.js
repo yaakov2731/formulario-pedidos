@@ -1,7 +1,7 @@
 // Docks app · arranque, sesión, navegación y armado de la pantalla.
-import { store, semanaDe } from './util.js';
+import { store, semanaDe, texto } from './util.js';
 import * as api from './api.js';
-import { h, icon, toast, clear, banner, sheet, cell, group, haptic } from './ui.js';
+import { h, icon, toast, clear, banner, sheet, cell, group, haptic, input, btn } from './ui.js';
 
 const VERSION = (window.DOCKS_APP_CONFIG && window.DOCKS_APP_CONFIG.VERSION) || 'dev';
 
@@ -111,7 +111,10 @@ function renderNav(active) {
   }
   sidebar.append(h('div', { class: 'sb-sec', text: 'General' }));
   sidebar.append(h('a', { class: `sb-item${active === 'ajustes' ? ' is-active' : ''}`, href: '#ajustes', dataset: { nav: 'ajustes' } }, icon('gear', 22), h('span', { class: 'grow', text: 'Ajustes' })));
-  sidebar.append(h('div', { class: 'sb-foot' }, h('div', { text: S.sesion.encargado ? S.sesion.encargado : 'Gerencia' }), h('div', { text: semanaDe().label })));
+  const quien = rol() === 'encargado'
+    ? h('button', { class: 'sb-quien', type: 'button', 'aria-label': `Carga: ${S.sesion.encargado || 'sin nombre'}. Cambiar encargado`, onClick: () => elegirEncargado() }, icon('people', 18), h('span', { class: 'grow', text: S.sesion.encargado || 'Elegí quién carga' }), icon('down', 16))
+    : h('div', { text: 'Gerencia' });
+  sidebar.append(h('div', { class: 'sb-foot' }, quien, h('div', { text: semanaDe().label })));
 }
 
 function abrirMas() {
@@ -148,8 +151,66 @@ function cambiarLocal(local, s) {
   guardarSesion({ ...S.sesion, local });
   store.set('ultimo_local', local);
   haptic('success');
-  toast(`Ahora estás en ${local}`, 'ok');
   route();
+  // Cada local tiene sus encargados: preguntar quién carga en el local nuevo.
+  setTimeout(() => elegirEncargado({ alCambiarLocal: true }), 320);
+}
+
+/* ---------- encargado que carga (queda en cada pedido, conteo, recepción y elaborado) ---------- */
+export function nombresDe(local) {
+  const loc = ((S.boot && S.boot.locales) || []).find(l => l.local === local);
+  const previos = store.get('nombres:' + local, []);
+  return [...new Set([...(loc && loc.encargados ? loc.encargados : []), ...previos])].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+}
+export function recordarNombre(local, nombre) {
+  const previos = store.get('nombres:' + local, []);
+  store.set('nombres:' + local, [...new Set([nombre, ...previos])].slice(0, 12));
+}
+export function elegirEncargado({ alCambiarLocal, onElegido } = {}) {
+  if (!S.sesion || rol() !== 'encargado') return;
+  haptic();
+  const local = S.sesion.local;
+  const actualNombre = S.sesion.encargado || '';
+  const nombreInp = input({ placeholder: 'Nombre y apellido', autocapitalize: 'words', autocomplete: 'name', enterkeyhint: 'done', maxlength: 60, 'aria-label': 'Otro nombre' });
+  const err = h('p', { class: 'field-error', role: 'alert' });
+  const otro = h('div', { class: 'stack mt12', hidden: true },
+    h('div', { class: 'field' }, h('label', { text: 'Otro nombre' }), nombreInp, err),
+    btn('Usar este nombre', { kind: 'primary', full: true, onClick: () => usarOtro() }));
+  const lista = h('div');
+  const s = sheet({
+    title: `¿Quién carga en ${local}?`,
+    body: [h('p', { class: 'sub', style: 'padding-bottom:10px', text: alCambiarLocal ? 'Cambiaste de local. Elegí tu nombre: queda en cada pedido y conteo.' : 'Tu nombre queda en cada pedido, conteo, recepción y elaborado.' }), lista, otro]
+  });
+  const pintar = () => {
+    clear(lista);
+    const nombres = nombresDe(local);
+    lista.append(group(null, [
+      ...nombres.map(n => cell({ title: n, lead: 'people', leadKind: n === actualNombre ? '' : 'plain', value: n === actualNombre ? 'Actual' : '', onClick: () => elegir(n) })),
+      cell({ title: nombres.length ? 'Otro nombre…' : 'Escribir mi nombre', lead: 'edit', leadKind: 'plain', chevron: true, onClick: () => { otro.hidden = false; nombreInp.value = nombres.includes(actualNombre) ? '' : actualNombre; setTimeout(() => nombreInp.focus(), 50); } })
+    ]));
+    if (!nombres.length) { otro.hidden = false; }
+  };
+  function elegir(n) {
+    s.close();
+    recordarNombre(local, n);
+    if (n !== actualNombre) {
+      guardarSesion({ ...S.sesion, encargado: n });
+      toast(`Carga ${n}`, 'ok');
+      haptic('success');
+      renderNav(actual ? actual.screen : '');
+      if (onElegido) onElegido(n); else route();
+    } else if (onElegido) onElegido(n);
+  }
+  function usarOtro() {
+    const n = texto(nombreInp.value, 60);
+    if (!n) { err.textContent = 'Escribí tu nombre.'; nombreInp.classList.add('is-invalid'); nombreInp.focus(); return; }
+    elegir(n);
+  }
+  nombreInp.addEventListener('input', () => { err.textContent = ''; nombreInp.classList.remove('is-invalid'); });
+  nombreInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); usarOtro(); } });
+  pintar();
+  bootstrap().fresh.then(pintar).catch(() => {});
+  return s;
 }
 
 /* ---------- barra superior ---------- */
@@ -197,7 +258,7 @@ api.onCola(() => actualizarRed());
 
 /* ---------- ruteo ---------- */
 export const ctx = {
-  S, go, setBadge, topbar, topbarSet, backBtn, bootstrap, localActual, view, toast, elegirLocal,
+  S, go, setBadge, topbar, topbarSet, backBtn, bootstrap, localActual, view, toast, elegirLocal, elegirEncargado,
   guardarSesion, guardarAdminKey, api, version: VERSION,
   onLeave(fn) { if (actual) actual.leave.push(fn); },
   salir() { guardarSesion(null); guardarAdminKey('', false); S.boot = null; api.invalidar(); go('entrar', true); }

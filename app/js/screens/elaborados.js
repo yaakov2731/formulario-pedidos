@@ -1,7 +1,7 @@
 // Elaborados: qué queda de lo que produce el local (listo, marcado, crudo). Alta desde el celular.
 import { h, icon, largeTitle, btn, sheet, empty, skeleton, banner, haptic, input, select, field, toast, fill } from '../ui.js';
 import { fmtNum, nuevoId, plural, fechaRelativa, parseNum, inputNum, texto, UNIDADES, ordenarTexto } from '../util.js';
-import { borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal } from '../flujo.js';
+import { borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal, quienCarga } from '../flujo.js';
 import { verOperacion } from '../detalles.js';
 import * as api from '../api.js';
 
@@ -89,7 +89,7 @@ export default async function elaborados(ctx) {
     const filas = ids.map(c => { const pr = productos.find(x => x.codigo === c) || { producto: c, unidad: '' }; const it = b.items[c]; const tot = ESTADOS.reduce((a, [k]) => a + (it[k] || 0), 0); return h('div', { class: 'cell' }, h('div', { class: 'cell-body' }, h('div', { class: 'cell-title', text: pr.producto }), h('div', { class: 'cell-sub small num', text: ESTADOS.map(([k, l]) => `${l} ${fmtNum(it[k] || 0)}`).join(' · ') })), h('div', { class: 'cell-value strong num', text: fmtNum(tot, pr.unidad) })); });
     const err = h('div');
     const enviarBtn = btn('Guardar conteo', { kind: 'primary', icon: 'check', onClick: enviar });
-    const s = sheet({ title: 'Revisar elaborados', body: [h('div', { class: 'list' }, ...filas), h('p', { class: 'note mt8', text: 'En cada producto incluido, un estado vacío cuenta como 0. Lo que no tocaste no cambia.' }), err], actions: [enviarBtn] });
+    const s = sheet({ title: 'Revisar elaborados', body: [h('div', { class: 'list' }, ...filas), h('p', { class: 'note mt8', text: 'En cada producto incluido, un estado vacío cuenta como 0. Lo que no tocaste no cambia.' }), quienCarga(ctx), err], actions: [enviarBtn] });
     async function enviar() {
       const id = b.id && /^ELB-/.test(b.id) ? b.id : nuevoId('ELB');
       b.id = id; guardar();

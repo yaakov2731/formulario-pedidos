@@ -526,7 +526,7 @@ const CNT1 = nid('CNT');
   assert.equal(flo.total_estimado, 12 * 9100 + 8 * 6200);
   assert.deepEqual(flo.lineas.map(l => l.producto), ['Asado', 'Chorizo']);
   assert.equal(flo.lineas[0].prioridad, 'Urgente');
-  assert.deepEqual(Object.keys(flo.lineas[0]), ['id_linea', 'id_pedido', 'fecha_hora', 'local', 'codigo', 'producto', 'unidad', 'cantidad', 'precio_ref', 'prioridad']);
+  assert.deepEqual(Object.keys(flo.lineas[0]), ['id_linea', 'id_pedido', 'fecha_hora', 'local', 'codigo', 'producto', 'unidad', 'cantidad', 'precio_ref', 'prioridad', 'encargado']);
   const verd = c.grupos[1];
   assert.deepEqual(verd.lineas.map(l => l.local + ' ' + l.cantidad), ['Trento Café 10', 'Umo Grill 5']);
   const sin = c.grupos[2];

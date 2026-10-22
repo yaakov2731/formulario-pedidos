@@ -1,7 +1,7 @@
 // Contar: stock actual por producto. Cero es un valor válido; lo que no se toca no cambia.
 import { h, icon, largeTitle, buscador, chip, stepper, btn, sheet, empty, skeleton, banner, haptic, fill } from '../ui.js';
 import { norm, fmtNum, nuevoId, agrupar, ordenarTexto, plural, fechaRelativa, haceDias } from '../util.js';
-import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal } from '../flujo.js';
+import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal, quienCarga } from '../flujo.js';
 import { verOperacion } from '../detalles.js';
 import * as api from '../api.js';
 
@@ -88,7 +88,7 @@ export default async function contar(ctx) {
     }));
     const err = h('div');
     const enviarBtn = btn('Guardar conteo', { kind: 'primary', icon: 'check', onClick: enviar });
-    const s = sheet({ title: `Revisar conteo`, body: [lineas, h('p', { class: 'note mt8', text: `${ids.length} ${plural(ids.length, 'producto', 'productos')}. Lo que no contaste no cambia.` }), err], actions: [enviarBtn] });
+    const s = sheet({ title: `Revisar conteo`, body: [lineas, h('p', { class: 'note mt8', text: `${ids.length} ${plural(ids.length, 'producto', 'productos')}. Lo que no contaste no cambia.` }), quienCarga(ctx), err], actions: [enviarBtn] });
     async function enviar() {
       const id = b.id && /^CNT-/.test(b.id) ? b.id : nuevoId('CNT');
       b.id = id; guardar();

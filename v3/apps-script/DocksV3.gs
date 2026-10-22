@@ -344,7 +344,8 @@ function getConsolidado_(p) {
       id_linea: tstr_(tLin, i, 'ID_Linea'), id_pedido: idp, fecha_hora: tstr_(tLin, i, 'Fecha_Hora'),
       local: tstr_(tLin, i, 'Local'), codigo: tstr_(tLin, i, 'Código'), producto: tstr_(tLin, i, 'Producto'),
       unidad: tstr_(tLin, i, 'Unidad'), cantidad: q, precio_ref: pr,
-      prioridad: fp !== undefined ? (tstr_(tPed, fp, 'Prioridad') || 'Normal') : 'Normal'
+      prioridad: fp !== undefined ? (tstr_(tPed, fp, 'Prioridad') || 'Normal') : 'Normal',
+      encargado: fp !== undefined ? tstr_(tPed, fp, 'Encargado') : ''
     });
   });
   var lista = claves.map(function (k) {
@@ -2029,7 +2030,7 @@ function getHoy_(p) {
   var ultimoConteo = null;
   if (conteo !== null) {
     var idc = tstr_(tMov, conteo, 'ID_Operacion');
-    ultimoConteo = { id_operacion: idc, fecha_hora: tstr_(tMov, conteo, 'Fecha_Hora'), productos: tfind_(tMov, 'ID_Operacion', idc).length };
+    ultimoConteo = { id_operacion: idc, fecha_hora: tstr_(tMov, conteo, 'Fecha_Hora'), encargado: tstr_(tMov, conteo, 'Encargado'), productos: tfind_(tMov, 'ID_Operacion', idc).length };
   }
 
   var tCat = table_(SH_CATALOGO);
@@ -2049,6 +2050,7 @@ function getHoy_(p) {
       id_pedido: tstr_(tPed, ultimo, 'ID_Pedido'),
       fecha_hora: tstr_(tPed, ultimo, 'Fecha_Hora'),
       estado: tstr_(tPed, ultimo, 'Estado'),
+      encargado: tstr_(tPed, ultimo, 'Encargado'),
       lineas: tnum_(tPed, ultimo, 'Lineas')
     },
     pedidos_semana: deSemana.length,
