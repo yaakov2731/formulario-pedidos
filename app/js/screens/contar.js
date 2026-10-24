@@ -1,6 +1,6 @@
 // Contar: stock actual por producto. Cero es un valor válido; lo que no se toca no cambia.
 import { h, icon, largeTitle, buscador, chip, stepper, btn, sheet, empty, skeleton, banner, haptic, fill } from '../ui.js';
-import { norm, fmtNum, nuevoId, agrupar, ordenarTexto, plural, fechaRelativa, haceDias } from '../util.js';
+import { norm, fmtNum, nuevoId, agrupar, ordenarTexto, plural, fechaRelativa, haceDias, conteoSospechoso } from '../util.js';
 import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal, quienCarga } from '../flujo.js';
 import { verOperacion } from '../detalles.js';
 import * as api from '../api.js';
@@ -82,13 +82,17 @@ export default async function contar(ctx) {
   function revisar() {
     const ids = contados();
     if (!ids.length) return;
+    let raros = 0;
     const lineas = h('div', { class: 'list' }, ...ids.map(c => {
       const pr = productos.find(x => x.codigo === c) || { producto: c, unidad: '' };
-      return h('div', { class: 'cell' }, h('div', { class: 'cell-body' }, h('div', { class: 'cell-title', text: pr.producto }), pr.stock_actual !== null && pr.stock_actual !== undefined ? h('div', { class: 'cell-sub small num', text: `Antes ${fmtNum(pr.stock_actual, pr.unidad)}` }) : null), h('div', { class: `cell-value strong num${valor(c) === 0 ? ' danger' : ''}`, text: valor(c) === 0 ? 'No queda' : fmtNum(valor(c), pr.unidad) }));
+      const raro = conteoSospechoso(valor(c), pr);
+      if (raro) raros++;
+      return h('div', { class: `cell${raro ? ' is-suspect' : ''}` }, h('div', { class: 'cell-body' }, h('div', { class: 'cell-title', text: pr.producto }), pr.stock_actual !== null && pr.stock_actual !== undefined ? h('div', { class: 'cell-sub small num', text: `Antes ${fmtNum(pr.stock_actual, pr.unidad)}` }) : null, raro ? h('div', { class: 'cell-sub small suspect-note', text: `Revisá: ${raro}` }) : null), h('div', { class: `cell-value strong num${valor(c) === 0 ? ' danger' : ''}`, text: valor(c) === 0 ? 'No queda' : fmtNum(valor(c), pr.unidad) }));
     }));
+    const alerta = raros ? banner(`${raros} ${plural(raros, 'cantidad parece', 'cantidades parecen')} mal cargada${raros === 1 ? '' : 's'}. Revisá la unidad antes de guardar.`, 'warn', { icon: 'alert' }) : null;
     const err = h('div');
-    const enviarBtn = btn('Guardar conteo', { kind: 'primary', icon: 'check', onClick: enviar });
-    const s = sheet({ title: `Revisar conteo`, body: [lineas, h('p', { class: 'note mt8', text: `${ids.length} ${plural(ids.length, 'producto', 'productos')}. Lo que no contaste no cambia.` }), quienCarga(ctx), err], actions: [enviarBtn] });
+    const enviarBtn = btn(raros ? 'Guardar igual' : 'Guardar conteo', { kind: 'primary', icon: 'check', onClick: enviar });
+    const s = sheet({ title: `Revisar conteo`, body: [alerta, lineas, h('p', { class: 'note mt8', text: `${ids.length} ${plural(ids.length, 'producto', 'productos')}. Lo que no contaste no cambia.` }), quienCarga(ctx), err], actions: [enviarBtn] });
     async function enviar() {
       const id = b.id && /^CNT-/.test(b.id) ? b.id : nuevoId('CNT');
       b.id = id; guardar();

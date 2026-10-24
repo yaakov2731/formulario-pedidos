@@ -6,7 +6,7 @@ const SHELL = [
   './js/main.js', './js/util.js', './js/api.js', './js/ui.js',
   './js/screens/entrar.js', './js/screens/hoy.js', './js/screens/pedir.js', './js/screens/contar.js',
   './js/screens/recibir.js', './js/screens/elaborados.js', './js/screens/compras.js', './js/screens/ordenes.js',
-  './js/screens/faltantes.js', './js/screens/stock.js', './js/screens/catalogo.js', './js/screens/proveedores.js',
+  './js/screens/faltantes.js', './js/screens/stock.js', './js/screens/catalogo.js', './js/screens/datos.js', './js/screens/proveedores.js',
   './js/screens/locales.js', './js/screens/elaborados-admin.js', './js/screens/ajustes.js',
   './icons/icon.svg', './icons/logo-docks.svg', './icons/icon-180.png', './icons/icon-192.png'
 ];

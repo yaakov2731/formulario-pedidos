@@ -432,6 +432,8 @@ body.has-pill .main { padding-bottom: calc(var(--tabbar-h) + var(--sab) + 96px);
 .banner.tint { background: var(--accent-soft); color: var(--accent); }
 .banner.plain { background: var(--surface); color: var(--text-2); }
 .banner .btn { margin-left: auto; }
+.cell.is-suspect { box-shadow: inset 3px 0 0 var(--warn); }
+.suspect-note { color: var(--warn-ink); font-weight: 600; }
 
 /* ---------- éxito ---------- */
 .done { text-align: center; padding: 48px 24px 24px; }
@@ -553,3 +555,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 15px; line-height
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 @media print { .tabbar, .topbar, .sidebar, .pill { display: none !important; } }
+
+/* Datos pendientes: una tarjeta por local con barras de avance */
+.datos-resumen { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+.datos-card { background: var(--surface); border-radius: var(--r-card); padding: 14px 16px; display: grid; gap: 8px; }
+.datos-local { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.datos-fila { display: grid; grid-template-columns: 104px 1fr 44px; align-items: center; gap: 8px; font-size: 14px; }
+.datos-k { color: var(--text-2); }
+.datos-bar { height: 8px; border-radius: 4px; background: var(--fill-2); overflow: hidden; }
+.datos-bar span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.datos-pct { text-align: right; font-size: 13px; }
