@@ -30,6 +30,7 @@ const NAV_GER = [
   { id: 'faltantes', label: 'Faltantes', icon: 'alert' },
   { id: 'stock', label: 'Stock', icon: 'chart' },
   { id: 'catalogo', label: 'Catálogo', icon: 'book' },
+  { id: 'datos', label: 'Datos pendientes', icon: 'list' },
   { id: 'proveedores', label: 'Proveedores', icon: 'people' },
   { id: 'locales', label: 'Locales', icon: 'store' },
   { id: 'elaborados-admin', label: 'Elaborados', icon: 'flame' }
@@ -48,12 +49,13 @@ const SCREENS = {
   faltantes: () => import('./screens/faltantes.js'),
   stock: () => import('./screens/stock.js'),
   catalogo: () => import('./screens/catalogo.js'),
+  datos: () => import('./screens/datos.js'),
   proveedores: () => import('./screens/proveedores.js'),
   locales: () => import('./screens/locales.js'),
   'elaborados-admin': () => import('./screens/elaborados-admin.js'),
   ajustes: () => import('./screens/ajustes.js')
 };
-const GER_ONLY = new Set(['compras', 'ordenes', 'faltantes', 'stock', 'catalogo', 'proveedores', 'locales', 'elaborados-admin']);
+const GER_ONLY = new Set(['compras', 'ordenes', 'faltantes', 'stock', 'catalogo', 'datos', 'proveedores', 'locales', 'elaborados-admin']);
 const ENC_ONLY = new Set(['hoy', 'pedir', 'contar', 'recibir', 'elaborados']);
 
 export function go(hash, replace) {

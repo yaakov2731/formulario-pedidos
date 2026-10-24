@@ -1,6 +1,6 @@
 // Hoy: el ritmo de la semana del local (contar → pedir → recibir) y accesos.
 import { h, icon, largeTitle, cell, group, banner, btn, skeleton, haptic, fill } from '../ui.js';
-import { semanaDe, fechaRelativa, haceDias, plural, fmtNum } from '../util.js';
+import { semanaDe, fechaRelativa, haceDias, plural, fmtNum, avisoCierre } from '../util.js';
 import { verPedido, verOperacion, badgeEstado } from '../detalles.js';
 import * as api from '../api.js';
 
@@ -18,7 +18,8 @@ export default async function hoy(ctx) {
   const heroWrap = h('div', { class: 'hero-wrap' }, hero);
   const kpis = h('div', { class: 'kpis' });
   const extra = h('div');
-  root.append(heroWrap, kpis, extra);
+  const cierre = h('div');
+  root.append(cierre, heroWrap, kpis, extra);
   tilt3d(hero);
 
   let datos = null;
@@ -33,6 +34,8 @@ export default async function hoy(ctx) {
         d && d.pedido_semana ? h('div', { class: 'hero-week' }, h('span', { text: 'Pedido de la semana' }), badgeEstado(d.pedido_semana.estado)) : null),
       h('div', { class: 'steps' }, pasoContar(d), pasoPedir(d), pasoRecibir(d))
     );
+    const ac = d ? avisoCierre(new Date(), { yaPidio: !!d.pedido_semana }) : null;
+    fill(cierre, ac ? banner(ac.texto, ac.kind, { icon: 'clock', action: ac.kind === 'warn' ? btn('Pedir', { kind: 'tinted', size: 'sm', onClick: () => ctx.go('pedir') }) : null }) : null);
     fill(kpis, 
       kpi(d ? d.bajo_par : null, 'por agotarse', d && d.bajo_par > 0 ? 'amber' : '', 'contar'),
       kpi(d ? d.por_recibir : null, plural(d ? d.por_recibir : 0, 'orden por recibir', 'órdenes por recibir'), d && d.por_recibir > 0 ? 'warn' : '', 'recibir'),
@@ -105,7 +108,7 @@ export default async function hoy(ctx) {
       .catch(e => {
         if (aviso) aviso.remove();
         aviso = banner(datos ? 'Mostrando datos guardados. ' + e.message : e.message, 'warn', { icon: 'offline', action: btn('Reintentar', { kind: 'tinted', size: 'sm', onClick: () => cargar(true) }) });
-        root.insertBefore(aviso, hero);
+        root.insertBefore(aviso, cierre);
         if (!datos) { datos = { bajo_par: 0, por_recibir: 0, pedidos_semana: 0, elaborados_activos: 0 }; pintar(); }
       })
       .finally(() => refresh.classList.remove('is-busy'));

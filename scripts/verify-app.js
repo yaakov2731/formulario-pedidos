@@ -16,7 +16,7 @@ const ok = (m) => { pasos++; console.log('·', m); };
 const requeridos = ['app/index.html', 'app/config.js', 'app/manifest.webmanifest', 'app/sw.js', 'app/css/app.css',
   'app/icons/icon.svg', 'app/icons/icon-180.png', 'app/icons/icon-192.png', 'app/icons/icon-512.png', 'app/icons/icon-maskable-512.png',
   'app/js/main.js', 'app/js/util.js', 'app/js/api.js', 'app/js/ui.js', 'app/js/flujo.js', 'app/js/gerencia.js', 'app/js/detalles.js'];
-const pantallas = ['entrar', 'hoy', 'pedir', 'contar', 'recibir', 'elaborados', 'compras', 'ordenes', 'faltantes', 'stock', 'catalogo', 'proveedores', 'locales', 'elaborados-admin', 'ajustes'];
+const pantallas = ['entrar', 'hoy', 'pedir', 'contar', 'recibir', 'elaborados', 'compras', 'ordenes', 'faltantes', 'stock', 'catalogo', 'datos', 'proveedores', 'locales', 'elaborados-admin', 'ajustes'];
 for (const f of requeridos) assert.ok(fs.existsSync(path.join(ROOT, f)), `falta ${f}`);
 for (const p of pantallas) assert.ok(fs.existsSync(path.join(APP, 'js/screens', p + '.js')), `falta la pantalla ${p}`);
 ok('archivos requeridos presentes');
@@ -43,7 +43,8 @@ ok('main.js rutea todas las pantallas');
 
 /* ---------- sintaxis e importaciones ---------- */
 const modulos = [...fs.readdirSync(path.join(APP, 'js')).filter(f => f.endsWith('.js')).map(f => 'app/js/' + f), ...fs.readdirSync(path.join(APP, 'js/screens')).map(f => 'app/js/screens/' + f)];
-for (const m of modulos) execFileSync(process.execPath, ['--check', path.join(ROOT, m)], { stdio: 'pipe' });
+// --check sobre el archivo no valida módulos ES en Node 22; por stdin con --input-type=module sí.
+for (const m of modulos) execFileSync(process.execPath, ['--input-type=module', '--check'], { input: read(m), stdio: ['pipe', 'pipe', 'pipe'] });
 ok(`sintaxis válida en ${modulos.length} módulos`);
 const exportsOf = {};
 for (const f of modulos) {
@@ -87,6 +88,26 @@ ok('sin replaceChildren con posibles null');
   assert.deepEqual(u.sugerido({ par: 4, stock_actual: null }), { cantidad: null, motivo: 'SIN_CONTEO' });
   assert.equal(u.estadoStock(10, 0), 'SIN_STOCK'); assert.equal(u.estadoStock(10, 4), 'BAJO'); assert.equal(u.estadoStock(10, 12), 'OK'); assert.equal(u.estadoStock(null, 3), 'SIN_PAR'); assert.equal(u.estadoStock(3, null), 'SIN_CONTEO');
   ok('sugerido y estado de stock (contrato §3.5)');
+  assert.ok(u.conteoSospechoso(3050, { par: 5, unidad: 'kg' }), 'chinchulín 3050 kg con par 5');
+  assert.ok(u.conteoSospechoso(3050, { unidad: 'kg' }), 'kg sin referencia');
+  assert.equal(u.conteoSospechoso(3, { par: 5, unidad: 'kg' }), null);
+  assert.equal(u.conteoSospechoso(12, { stock_actual: 1, unidad: 'unidad' }), null, 'diferencia chica no avisa');
+  assert.ok(u.conteoSospechoso(40, { stock_actual: 2, unidad: 'unidad' }));
+  assert.equal(u.conteoSospechoso(0, { par: 5 }), null);
+  assert.equal(u.conteoSospechoso(500, { unidad: 'unidad' }), null);
+  ok('aviso de conteo sospechoso');
+  const dia = n => new Date(2026, 9, 25 + n, 10); // 25/10/2026 es domingo
+  assert.equal(u.avisoCierre(dia(1)), null, 'lunes sin aviso');
+  assert.equal(u.avisoCierre(dia(3)).kind, 'warn', 'miércoles último día');
+  assert.equal(u.avisoCierre(dia(3), { yaPidio: true }), null);
+  assert.equal(u.avisoCierre(dia(4)).kind, 'plain', 'jueves cerrado');
+  assert.ok(u.avisoCierre(dia(5)).texto.includes('Florida'));
+  assert.equal(u.avisoCierre(dia(6)), null, 'sábado sin aviso');
+  ok('aviso de cierre de pedidos');
+  assert.deepEqual(u.faltasProducto({ proveedor: '', precio: null, stock_actual: 0 }), ['proveedor', 'precio']);
+  const rd = u.resumenDatos([{ local: 'A', proveedor: 'X', precio: 10, stock_actual: 1 }, { local: 'A', proveedor: 'X', precio: null, stock_actual: null }, { local: 'A', estado: 'Inactivo' }]);
+  assert.equal(rd.length, 1); assert.equal(rd[0].total, 2); assert.deepEqual(rd[0].pct, { proveedor: 100, precio: 50, conteo: 50 });
+  ok('resumen de datos pendientes');
   const s42 = u.semanaDe('2026-10-14');
   assert.equal(s42.id, '2026-W42'); assert.equal(s42.inicio, '2026-10-12'); assert.equal(s42.fin, '2026-10-18');
   assert.equal(s42.label, 'Semana 42, 12 al 18 de octubre');

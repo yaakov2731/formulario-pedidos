@@ -91,8 +91,33 @@ export function estadoStock(par, stock) {
   return 'OK';
 }
 
+/* Conteo que parece mal cargado: 10 veces o más el último conteo o el par, o, sin referencia,
+   200 o más en kg/litro (casi siempre son gramos o mililitros). Devuelve el motivo o null. */
+export function conteoSospechoso(cantidad, p = {}) {
+  const q = parseNum(cantidad);
+  if (q === null || q <= 0) return null;
+  const refs = [parseNum(p.stock_actual), parseNum(p.par)].filter(x => x !== null && x > 0);
+  if (refs.length) {
+    const ref = Math.max(...refs);
+    return q >= ref * 10 && q - ref >= 20 ? `Es mucho más que lo habitual (${fmtNum(ref, p.unidad)}).` : null;
+  }
+  if ((p.unidad === 'kg' || p.unidad === 'litro') && q >= 200) return `¿No serán ${p.unidad === 'kg' ? 'gramos' : 'mililitros'}?`;
+  return null;
+}
+
+/* Cierre semanal de pedidos: se pide antes del jueves; Distribuidora Florida acepta el viernes para el sábado. */
+export const CIERRE_PEDIDOS = { dia: 4, excepcion: 'Distribuidora Florida', diaExcepcion: 5 };
+export function avisoCierre(ahora = new Date(), { yaPidio = false } = {}) {
+  const d = ahora.getDay();
+  const { excepcion } = CIERRE_PEDIDOS;
+  if (yaPidio) return null;
+  if (d === CIERRE_PEDIDOS.dia - 1) return { kind: 'warn', texto: `Hoy es el último día para pedir. A ${excepcion} se le puede pedir hasta el viernes.` };
+  if (d === CIERRE_PEDIDOS.dia || d === CIERRE_PEDIDOS.diaExcepcion) return { kind: 'plain', texto: `Los pedidos de la semana ya cerraron. Solo ${excepcion} recibe pedidos hasta el viernes para el sábado.` };
+  return null;
+}
+
 /* ---------- fechas ---------- */
-const pad = (n, w = 2) => String(n).padStart(w, '0');
+const pad =(n, w = 2) => String(n).padStart(w, '0');
 
 export function parseFecha(v) {
   if (!v) return null;
@@ -231,4 +256,27 @@ export function parsearTabla(textoPegado) {
   return String(textoPegado || '').replace(/\r/g, '').split('\n')
     .map(r => r.split('\t').map(c => texto(c, 500)))
     .filter(r => r.some(c => c !== ''));
+}
+
+/* ---------- datos pendientes del catálogo ---------- */
+export const FALTAS = { proveedor: 'Sin proveedor', precio: 'Sin precio', conteo: 'Nunca contado' };
+export function faltasProducto(p = {}) {
+  const f = [];
+  if (!String(p.proveedor || '').trim()) f.push('proveedor');
+  if (parseNum(p.precio) === null) f.push('precio');
+  if (parseNum(p.stock_actual) === null) f.push('conteo');
+  return f;
+}
+/* Resumen por local: total y % completo de cada dato, sólo productos activos. */
+export function resumenDatos(productos = []) {
+  const por = new Map();
+  for (const p of productos) {
+    if ((p.estado || 'Activo') !== 'Activo') continue;
+    const r = por.get(p.local) || { local: p.local, total: 0, proveedor: 0, precio: 0, conteo: 0 };
+    r.total++;
+    const f = faltasProducto(p);
+    for (const k of Object.keys(FALTAS)) if (!f.includes(k)) r[k]++;
+    por.set(p.local, r);
+  }
+  return [...por.values()].map(r => ({ ...r, pct: Object.fromEntries(Object.keys(FALTAS).map(k => [k, r.total ? Math.round(r[k] * 100 / r.total) : 0])) }));
 }

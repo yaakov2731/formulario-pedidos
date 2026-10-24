@@ -1,6 +1,6 @@
 // Pedir: catálogo del local con sugerido, stepper por producto, líneas libres, revisión y envío.
 import { h, icon, largeTitle, buscador, chip, stepper, btn, sheet, empty, skeleton, banner, toast, segmented, input, select, field, haptic, cell, group, badge, fill } from '../ui.js';
-import { norm, fmtNum, fmtMoney, nuevoId, texto, parseNum, UNIDADES, agrupar, ordenarTexto, plural, isoDia, inputNum } from '../util.js';
+import { norm, fmtNum, nuevoId, texto, parseNum, UNIDADES, agrupar, ordenarTexto, plural, isoDia, inputNum } from '../util.js';
 import { catalogoLocal, borrador, pill, pantallaFinal, errorEnvio, invalidarLecturasLocal, quienCarga } from '../flujo.js';
 import { verPedido } from '../detalles.js';
 import * as api from '../api.js';
@@ -30,16 +30,9 @@ export default async function pedir(ctx) {
   function guardar() { draft.guardar(b); actualizarPill(); }
   function cantidadDe(codigo) { const v = b.items[codigo]; return v === undefined || v === null ? null : v; }
   function totalLineas() { return Object.values(b.items).filter(v => v !== null && v > 0).length + b.libres.length; }
-  function totalEstimado() {
-    if (!productos) return null;
-    let t = 0, hay = false;
-    for (const pr of productos) { const q = cantidadDe(pr.codigo); if (q && pr.precio !== null && pr.precio !== undefined) { t += q * Number(pr.precio); hay = true; } }
-    return hay ? t : null;
-  }
   function actualizarPill() {
     const n = totalLineas();
-    const t = totalEstimado();
-    p.set(`${n} ${plural(n, 'producto', 'productos')}`, t ? `${fmtMoney(t)} estimado` : (b.prioridad === 'Urgente' ? 'Urgente' : ''));
+    p.set(`${n} ${plural(n, 'producto', 'productos')}`, b.prioridad === 'Urgente' ? 'Urgente' : '');
     p.show(n > 0);
   }
 
@@ -131,7 +124,7 @@ export default async function pedir(ctx) {
       fill(lineas);
       for (const pr of productos.filter(x => cantidadDe(x.codigo) > 0)) {
         lineas.append(h('div', { class: 'prod' },
-          h('div', { class: 'prod-body' }, h('div', { class: 'prod-name', text: pr.producto }), h('div', { class: 'prod-meta' }, h('span', { text: pr.proveedor || 'Sin proveedor' }), pr.precio ? h('span', { class: 'num', text: fmtMoney(pr.precio * cantidadDe(pr.codigo)) }) : null)),
+          h('div', { class: 'prod-body' }, h('div', { class: 'prod-name', text: pr.producto }), h('div', { class: 'prod-meta' }, h('span', { text: pr.proveedor || 'Sin proveedor' }))),
           h('div', { class: 'prod-control' }, h('span', { class: 'prod-unit', text: pr.unidad }), stepper({ value: cantidadDe(pr.codigo), unidad: pr.unidad, label: pr.producto, onChange: (v) => { if (v === null || v <= 0) { delete b.items[pr.codigo]; guardar(); pintarLineas(); pintarLista(); } else { b.items[pr.codigo] = v; guardar(); } actualizarTotales(); } }))));
       }
       for (const [i, l] of b.libres.entries()) {
@@ -143,7 +136,7 @@ export default async function pedir(ctx) {
     };
     pintarLineas();
     const totalEl = h('p', { class: 'note right mt8' });
-    const actualizarTotales = () => { const t = totalEstimado(); const k = totalLineas(); totalEl.textContent = `${k} ${plural(k, 'producto', 'productos')}${t ? `, ${fmtMoney(t)} estimado a precio de lista` : ''}`; };
+    const actualizarTotales = () => { const k = totalLineas(); totalEl.textContent = `${k} ${plural(k, 'producto', 'productos')}`; };
     actualizarTotales();
     const prio = segmented([{ value: 'Normal', label: 'Normal' }, { value: 'Urgente', label: 'Urgente' }], b.prioridad || 'Normal', (v) => { b.prioridad = v; guardar(); }, 'Prioridad');
     const fecha = input({ type: 'date', value: b.fecha_entrega || '', min: isoDia(new Date()) });
