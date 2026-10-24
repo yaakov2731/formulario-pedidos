@@ -43,7 +43,8 @@ ok('main.js rutea todas las pantallas');
 
 /* ---------- sintaxis e importaciones ---------- */
 const modulos = [...fs.readdirSync(path.join(APP, 'js')).filter(f => f.endsWith('.js')).map(f => 'app/js/' + f), ...fs.readdirSync(path.join(APP, 'js/screens')).map(f => 'app/js/screens/' + f)];
-for (const m of modulos) execFileSync(process.execPath, ['--check', path.join(ROOT, m)], { stdio: 'pipe' });
+// --check sobre el archivo no valida módulos ES en Node 22; por stdin con --input-type=module sí.
+for (const m of modulos) execFileSync(process.execPath, ['--input-type=module', '--check'], { input: read(m), stdio: ['pipe', 'pipe', 'pipe'] });
 ok(`sintaxis válida en ${modulos.length} módulos`);
 const exportsOf = {};
 for (const f of modulos) {

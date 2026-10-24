@@ -512,6 +512,9 @@ const CNT1 = nid('CNT');
   const todos = ok(get(rt, 'getCatalogo'));
   assert.ok(todos.productos.some(p => p.producto === 'Hielo' && p.estado === 'Inactivo'));
   assert.ok(todos.productos.some(p => p.local === 'Trento Café'));
+  // los precios los ve sólo gerencia: la lectura por local (encargado) no los trae
+  assert.ok(todos.productos.some(p => p.precio !== null), 'el catálogo completo trae precios');
+  assert.ok(ok(get(rt, 'getCatalogo', { local: 'Umo Grill' })).productos.every(p => p.precio === null), 'el encargado no ve precios');
   bad(post(rt, { action: 'savePedido', id_pedido: nid('PED'), local: 'Umo Grill', encargado: 'Ana', items: [{ codigo: prod['Umo Grill|Hielo'], cantidad: 1 }] }), /inactivo/);
 }
 

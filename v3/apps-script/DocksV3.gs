@@ -1212,7 +1212,10 @@ function getCatalogo_(p) {
       if (norm_(tget_(t, i, 'Local')) !== norm_(local)) return;
       if (estadoProducto_(t, i) !== 'Activo') return;
     }
-    productos.push(productoObj_(t, i, abiertos));
+    var pr = productoObj_(t, i, abiertos);
+    // Con local es la lectura del encargado: los precios los ve sólo gerencia (catálogo completo).
+    if (local !== null) pr.precio = null;
+    productos.push(pr);
   });
   return { ok: true, productos: productos };
 }
