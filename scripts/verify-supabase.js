@@ -114,7 +114,7 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     const pb = await tryq('select * from proveedores_basico');
     check('encargado: proveedores_basico muestra nombre sin datos sensibles',
       pb.rows && pb.rows.length >= 1 && !('cuit' in pb.rows[0]) && !('whatsapp' in pb.rows[0]) && !('alias_cbu' in pb.rows[0]));
-    for (const t of ['pagos', 'facturas_proveedor', 'pago_facturas', 'cuenta_corriente', 'ventas_import', 'ventas_items']) {
+    for (const t of ['pagos', 'facturas_proveedor', 'pago_facturas', 'cuenta_corriente', 'ventas_import', 'ventas_items', 'ventas_pedidos', 'ventas_pedido_pagos']) {
       const r = await tryq('select * from ' + t);
       check('encargado: ' + t + ' sin filas', r.err ? true : r.rows.length === 0);
     }

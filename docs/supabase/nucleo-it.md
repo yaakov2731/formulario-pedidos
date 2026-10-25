@@ -12,3 +12,17 @@ Muestra recibida el 25/10/2026: Umo Grill, sábado 24/10/2026 (`Pedidos_por_prod
 Mapeo a la base: cada fila va a `ventas_items` (`codigo_origen`, `nombre_origen`, `cantidad`, `importe`).
 Se asocia a `productos` por `producto_alias` con origen `nucleo` (clave: el código de Núcleo).
 Los platos (COC, SAN) descuentan insumos a través de `recetas`; las bebidas suelen ser 1 a 1 con el producto comprado.
+
+## Reporte "Formas de pago de pedidos"
+
+Muestra recibida el 25/10/2026: Umo Grill, sábado 24/10/2026.
+
+- Una hoja, mismo armado: título en la fila 2, `Exportado:` en la fila 3, encabezados en la fila 5.
+- Encabezados: `N° de pedido | Fecha | Cliente | Total $ | Forma de pago | Monto $`. `Fecha` trae fecha y hora.
+- Si un pedido se paga con dos medios, aparecen dos filas con el mismo número (en la muestra no pasó).
+- No trae mozo, mesa ni productos por pedido.
+
+Mapeo: `ventas_pedidos` (número, fecha y hora, cliente, total) y `ventas_pedido_pagos` (forma, monto).
+
+Lo que mostró la muestra: 24 pedidos por $2.130.670, contra $2.082.870 del reporte por producto
+(diferencia $47.800, sin explicar todavía). Falta el pedido 3132 en la numeración (3125 a 3149).

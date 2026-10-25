@@ -203,6 +203,26 @@ create table if not exists public.ventas_items (
 );
 create index if not exists ventas_items_import_idx on public.ventas_items(import_id);
 
+-- Pedidos (tickets) de Núcleo IT: reporte "Formas de pago de pedidos". Un pedido puede pagarse con varios medios.
+create table if not exists public.ventas_pedidos (
+  id          uuid primary key default gen_random_uuid(),
+  import_id   uuid not null references public.ventas_import(id) on delete cascade,
+  local_id    uuid not null references public.locales(id),
+  numero      bigint not null,               -- "N° de pedido"
+  fecha_hora  timestamptz not null,
+  cliente     text,
+  mozo        text,                          -- aún no viene en el reporte
+  mesa        text,
+  total       numeric(14,2) not null,
+  unique (local_id, numero)
+);
+create table if not exists public.ventas_pedido_pagos (
+  pedido_id   uuid not null references public.ventas_pedidos(id) on delete cascade,
+  forma_pago  text not null,                 -- Efectivo, Mercado Pago QR, Tarjeta de crédito/débito…
+  monto       numeric(14,2) not null,
+  primary key (pedido_id, forma_pago)
+);
+
 -- ============ Facturas y pagos ============
 create table if not exists public.facturas_proveedor (
   id           uuid primary key default gen_random_uuid(),
@@ -302,6 +322,8 @@ alter table public.orden_items        enable row level security;
 alter table public.orden_item_precios enable row level security;
 alter table public.ventas_import      enable row level security;
 alter table public.ventas_items       enable row level security;
+alter table public.ventas_pedidos     enable row level security;
+alter table public.ventas_pedido_pagos enable row level security;
 alter table public.facturas_proveedor enable row level security;
 alter table public.pagos              enable row level security;
 alter table public.pago_facturas      enable row level security;
@@ -312,7 +334,7 @@ declare t text;
 begin
   foreach t in array array['locales','perfiles','proveedores','productos','producto_alias','precios','recetas','receta_items',
     'movimientos','ordenes_compra','orden_items','orden_item_precios','ventas_import','ventas_items',
-    'facturas_proveedor','pagos','pago_facturas'] loop
+    'ventas_pedidos','ventas_pedido_pagos','facturas_proveedor','pagos','pago_facturas'] loop
     execute format('drop policy if exists gerencia_todo on public.%I', t);
     execute format('create policy gerencia_todo on public.%I for all to authenticated using (public.mi_rol() = ''gerencia'') with check (public.mi_rol() = ''gerencia'')', t);
   end loop;
@@ -407,6 +429,10 @@ drop policy if exists vi_contadora on public.ventas_import;
 create policy vi_contadora on public.ventas_import for select to authenticated using (public.mi_rol() = 'contadora');
 drop policy if exists vit_contadora on public.ventas_items;
 create policy vit_contadora on public.ventas_items for select to authenticated using (public.mi_rol() = 'contadora');
+drop policy if exists vp_contadora on public.ventas_pedidos;
+create policy vp_contadora on public.ventas_pedidos for select to authenticated using (public.mi_rol() = 'contadora');
+drop policy if exists vpp_contadora on public.ventas_pedido_pagos;
+create policy vpp_contadora on public.ventas_pedido_pagos for select to authenticated using (public.mi_rol() = 'contadora');
 
 -- Facturas y pagos: contadora lee y escribe; encargado nada.
 do $$
