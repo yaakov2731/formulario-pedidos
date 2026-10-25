@@ -9,7 +9,7 @@ const SHELL = [
   './js/nucleo.js', './js/analisis.js', './js/g-ventas.js', './js/g-analisis.js', './js/g-merma.js', './js/g-recetas.js', './js/g-produccion.js',
   './js/g-tablero.js', './js/g-cuentas.js', './js/g-facturas.js', './js/g-historial.js', './js/g-cargar-pago.js', './js/g-proveedores.js',
   './js/aviso.js', './js/pagos-util.js', './js/comprobante.js', './js/pdf-texto.js',
-  './icons/icon.svg', './icons/icon-180.png', './icons/icon-192.png'
+  './icons/icon.svg', './icons/logo-docks.svg', './icons/icon-180.png', './icons/icon-192.png'
 ];
 
 self.addEventListener('install', (e) => {

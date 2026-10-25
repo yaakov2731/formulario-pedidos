@@ -69,7 +69,7 @@ function construirShell(c) {
   const enlace = (it, clase) => h('a', { class: clase, href: '#/' + it.id, 'data-nav': it.id }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
   const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
   $side.replaceChildren(
-    h('div', { class: 'side-brand' }, h('img', { src: 'icons/icon-192.png', alt: '', width: 36, height: 36 }), h('div', {}, h('b', { text: 'Docks' }), h('small', { text: c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local')) }))),
+    h('div', { class: 'side-brand' }, h('img', { src: 'icons/icon-192.png', alt: '', width: 36, height: 36 }), h('div', {}, h('b', { text: 'Docks del Puerto' }), h('small', { text: c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local')) }))),
     h('nav', { class: 'side-nav' }, items.map(it => enlace(it, 'side-link')), salirBtn('side-link side-out'))
   );
   $tab.replaceChildren(...items.map(it => enlace(it, 'tab')), salirBtn('tab'));
