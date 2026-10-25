@@ -1,0 +1,5 @@
+# Vendor
+
+- `supabase.js`: `@supabase/supabase-js` 2.118.0 (build UMD, `dist/umd/supabase.js`), obtenido con `npm pack @supabase/supabase-js@2`. Expone `window.supabase`. Licencia MIT.
+- `xlsx.full.min.js`: SheetJS Community Edition (`xlsx`) 0.18.5 (build `dist/xlsx.full.min.js`), obtenido con `npm pack xlsx`. Lee los Excel de Núcleo IT en el navegador (solo gerencia, se carga al abrir Ventas). Expone `window.XLSX`. Licencia Apache-2.0. Es la última versión publicada en npm; la serie 0.19+ solo se distribuye desde cdn.sheetjs.com (los archivos que se leen son los exports propios de Núcleo, no archivos de terceros).
+- `pdf.min.mjs` y `pdf.worker.min.mjs`: PDF.js (`pdfjs-dist`) 4.10.38 (carpeta `build/`, módulos ES), obtenidos con `npm pack pdfjs-dist@4`. Leen el texto de los comprobantes de pago en el navegador (Pagos → Cargar pago; se cargan solo en esa pantalla, `stock/js/pdf-texto.js`). Licencia Apache-2.0. Para actualizar: `npm pack pdfjs-dist@4`, copiar los dos archivos de `package/build/` y probar con `node scripts/verify-stock.js` y `node scripts/e2e-stock.js`.

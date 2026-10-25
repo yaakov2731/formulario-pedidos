@@ -1,0 +1,259 @@
+// Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
+import { mount, h, norm, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, sugerido, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
+import { swr, cargarCatalogo, cargarStock, cargarSugerido, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
+import { icon, stepper, esqueleto, vacio, banner, toast, campo } from './ui.js';
+
+const S = { lid: null, local: null, prods: [], stock: new Map(), sug: null, provs: new Map(), draft: {}, listo: false, offline: false };
+const SIN_PROV = '__sin__';
+
+function cargarBorrador() {
+  const d = lsGet('draft:' + S.lid);
+  const hoy = Date.now();
+  S.draft = d && d.t && hoy - d.t < 5 * 864e5 ? d.q : {};
+}
+const guardarBorrador = () => lsSet('draft:' + S.lid, { t: Date.now(), q: S.draft });
+// Lo sugerido sale del servidor (consumo de las últimas 4 semanas); sin esa función, se cae al cálculo anterior.
+const sugeridoDe = (p) => (S.sug ? (S.sug.get(p.id) || 0) : (sugerido(p, S.stock.get(p.id)) || 0));
+const cantidad = (p) => (p.id in S.draft ? S.draft[p.id] : sugeridoDe(p));
+const quedan = (p) => S.stock.get(p.id) || 0;
+const pedidoActual = () => S.prods.filter(p => p.activo !== false && !esCarta(p) && cantidad(p) > 0);
+
+async function cargar(ctx, alActualizar) {
+  const lid = ctx.perfil.local_id;
+  if (S.lid !== lid) { Object.assign(S, { lid, prods: [], stock: new Map(), sug: null, jsug: null, provs: new Map(), listo: false }); cargarBorrador(); }
+  const pon = (clave, fn) => (d, _cache, err) => { const j = JSON.stringify(d); if (j === (S['j' + clave])) return; S['j' + clave] = j; fn(d); S.offline = !!err; alActualizar(); };
+  const tareas = [
+    swr('cat:' + lid, () => cargarCatalogo(lid), pon('cat', d => { S.prods = d; })),
+    swr('stk:' + lid, () => cargarStock(lid), pon('stk', d => { S.stock = new Map(d.map(r => [r.producto_id, Number(r.stock)])); })),
+    swr('provb', cargarProveedoresBasico, pon('prv', d => { S.provs = new Map(d.map(p => [p.id, p])); })),
+    swr('locales', cargarLocales, pon('loc', d => { S.local = d.find(l => l.id === lid) || d[0] || null; }))
+  ];
+  // Si el servidor todavía no tiene el sugerido por consumo, no es un error de conexión: se usa el cálculo anterior.
+  const sug = swr('sug:' + lid, () => cargarSugerido(lid), pon('sug', d => { S.sug = new Map(d.map(r => [r.producto_id, Number(r.sugerido) || 0])); })).catch(() => {});
+  const res = await Promise.allSettled([...tareas, sug]);
+  S.listo = true;
+  const fallo = res.find(r => r.status === 'rejected');
+  if (fallo && !S.prods.length) throw fallo.reason;
+  if (fallo) S.offline = true;
+  alActualizar();
+}
+
+// ---------- render principal ----------
+export async function render(root, ctx, id) {
+  if (id === 'mis-pedidos') return renderMis(root, ctx);
+  let pinta;
+  const act = rafOnce(() => pinta && pinta());
+  const pre = lsGet('c:cat:' + ctx.perfil.local_id);
+  if (S.lid !== ctx.perfil.local_id) { S.lid = null; }
+  if (id === 'revisar') pinta = () => pintarRevisar(root, ctx);
+  else pinta = () => pintarPedir(root, ctx);
+  if (pre) { /* hay caché: se pinta apenas llegan los datos cacheados */ }
+  const p = cargar(ctx, () => { if (ctx.alive()) act(); });
+  try { await p; } catch (e) { if (!S.prods.length) throw e; }
+  if (ctx.alive()) pinta();
+  return () => {};
+}
+
+function rafOnce(fn) { let q = false; return () => { if (q) return; q = true; requestAnimationFrame(() => { q = false; fn(); }); }; }
+
+function cabecera(titulo, sub) {
+  return h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }), sub ? h('p', { class: 'sub', text: sub }) : null);
+}
+
+// ---------- Pedir ----------
+let filtro = { q: '', cat: 'todas' };
+let extraIds = null; // ids que devolvió la búsqueda del servidor
+
+function pintarPedir(root, ctx) {
+  const nombreLocal = S.local ? S.local.nombre : '';
+  const aviso = avisoCierre();
+  const activos = S.prods.filter(p => p.activo !== false && !esCarta(p));
+  const cats = [...new Set(activos.map(p => p.categoria || 'Sin categoría'))].sort(porTexto);
+
+  const lista = h('div', { class: 'lista', id: 'lista-prod' });
+  const pill = h('button', { class: 'pill', type: 'button', hidden: true, on: { click: () => ctx.ir('revisar') } });
+
+  const actualizarPill = () => {
+    const n = pedidoActual().length;
+    pill.hidden = n === 0;
+    pill.replaceChildren(icon('pedir', 20), h('span', { text: `Revisar pedido · ${n} ${n === 1 ? 'ítem' : 'ítems'}` }));
+  };
+
+  const fila = (p) => {
+    const q = cantidad(p);
+    const st = stepper({ value: q, label: `Pedir ${p.nombre}`, onChange: (v) => {
+      S.draft[p.id] = v; guardarBorrador(); actualizarPill();
+      row.classList.toggle('is-on', v > 0);
+    } });
+    const row = h('article', { class: 'prod' + (q > 0 ? ' is-on' : ''), 'data-id': p.id },
+      h('h3', { class: 'prod-n', text: p.nombre }),
+      h('p', { class: 'prod-m' }, p.unidad_compra ? h('span', { class: 'prod-u', text: p.unidad_compra }) : null, h('span', { class: 'quedan' }, 'Quedan ', h('b', { class: 'num', text: fmtNum(quedan(p), 2) || '0' }))),
+      h('div', { class: 'prod-p' }, h('span', { class: 'prod-pl', text: 'Pedir' }), st.el));
+    return row;
+  };
+
+  const pintarLista = () => {
+    const q = norm(filtro.q);
+    let vis = activos;
+    if (filtro.cat !== 'todas') vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
+    if (q) {
+      const toks = q.split(' ');
+      const local = vis.filter(p => { const t = norm(p.nombre + ' ' + p.codigo); return toks.every(k => t.includes(k)); });
+      const ids = new Set(local.map(p => p.id));
+      const extra = extraIds ? vis.filter(p => extraIds.has(p.id) && !ids.has(p.id)) : [];
+      vis = [...local, ...extra];
+    }
+    if (!S.listo && !activos.length) { lista.replaceChildren(esqueleto(6)); return; }
+    if (!vis.length) { lista.replaceChildren(vacio(q ? 'No encontramos ese producto' : 'Sin productos', q ? 'Probá con otra palabra.' : 'Todavía no hay productos cargados para este local.')); return; }
+    if (q) { lista.replaceChildren(...vis.map(fila)); return; }
+    const g = groupBy(vis, p => p.categoria || 'Sin categoría');
+    const frag = [];
+    for (const k of [...g.keys()].sort(porTexto)) {
+      frag.push(h('h2', { class: 'cat-t', text: k }), ...g.get(k).map(fila));
+    }
+    lista.replaceChildren(...frag);
+  };
+
+  const buscarRemoto = debounce(async (q) => {
+    if (norm(q).length < 3) { extraIds = null; return; }
+    try {
+      const r = await buscarServidor(q, ctx.perfil.local_id);
+      if (norm(filtro.q) !== norm(q)) return;
+      extraIds = new Set(r.map(x => x.id)); pintarLista();
+    } catch (_e) { /* la búsqueda local alcanza */ }
+  }, 300);
+
+  const buscador = h('input', { class: 'input input-search', type: 'search', id: 'buscar', placeholder: 'Buscar producto', autocomplete: 'off', 'aria-label': 'Buscar producto', value: filtro.q,
+    on: { input: (e) => { filtro.q = e.target.value; extraIds = null; pintarLista(); buscarRemoto(filtro.q); } } });
+
+  const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categorías' },
+    ['todas', ...cats].map(c => h('button', { class: 'chip' + (filtro.cat === c ? ' is-on' : ''), type: 'button', 'aria-pressed': filtro.cat === c ? 'true' : 'false', text: c === 'todas' ? 'Todas' : c,
+      on: { click: () => { filtro.cat = c; chips.querySelectorAll('.chip').forEach(b => { const on = b.textContent === (c === 'todas' ? 'Todas' : c); b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }); pintarLista(); } } })));
+
+  mount(root, 
+    cabecera('Pedir', nombreLocal),
+    S.offline ? banner('Sin conexión: mostrando lo último que guardamos.', 'warn') : null,
+    aviso.tipo === 'ok' ? h('p', { class: 'aviso-ok', text: aviso.texto }) : banner(aviso.texto, aviso.tipo === 'warn' ? 'warn' : 'info'),
+    h('div', { class: 'toolbar' }, buscador, chips),
+    lista, pill);
+  pintarLista(); actualizarPill();
+}
+
+// ---------- Revisar ----------
+function gruposDePedido() {
+  const g = groupBy(pedidoActual(), p => p.proveedor_id || SIN_PROV);
+  const out = [];
+  for (const [k, items] of g) {
+    const prov = k === SIN_PROV ? null : S.provs.get(k);
+    out.push({ key: k, prov, nombre: k === SIN_PROV ? 'Sin proveedor' : (prov ? prov.nombre : 'Proveedor'), items: items.sort((a, b) => porTexto(a.nombre, b.nombre)) });
+  }
+  return out.sort((a, b) => (a.key === SIN_PROV) - (b.key === SIN_PROV) || porTexto(a.nombre, b.nombre));
+}
+
+let enviado = { ordenes: {}, hechos: new Set() };
+function pintarRevisar(root, ctx) {
+  const grupos = gruposDePedido();
+  const aviso = avisoCierre();
+  let nombre = lsGet('nombre') || ctx.perfil.nombre || '';
+  let nota = '';
+  const volver = h('a', { class: 'volver', href: '#/pedir', text: '‹ Seguir pidiendo' });
+  if (!grupos.length) {
+    mount(root, volver, cabecera('Revisar pedido'), vacio('No hay nada para pedir', 'Volvé y sumá productos.'), h('a', { class: 'btn btn-primary', href: '#/pedir', text: 'Ir a pedir' }));
+    return;
+  }
+  const err = h('div', { class: 'form-err', 'aria-live': 'polite' });
+  const btn = h('button', { class: 'btn btn-primary btn-block btn-lg', type: 'button', text: 'Enviar pedido' });
+
+  const cardGrupo = (g) => {
+    const notas = [];
+    if (g.key === SIN_PROV) notas.push(['warn', 'Estos productos no tienen proveedor: gerencia lo asigna antes de pedirlos.']);
+    else {
+      if (g.prov && g.prov.dias_entrega) notas.push(['info', 'Entrega: ' + g.prov.dias_entrega]);
+      if (g.prov && g.prov.corte) notas.push(['info', 'Corte: ' + g.prov.corte]);
+      if (g.prov && (g.prov.tiene_minimo || esMartin(g.nombre))) notas.push(['warn', 'Tiene pedido mínimo, gerencia lo revisa.']);
+      if (esMartin(g.nombre)) notas.push(['info', 'Corte: 12 h del día hábil anterior a la entrega.']);
+      if (aviso.soloFlorida && !esFlorida(g.nombre)) notas.push(['warn', 'Fuera de fecha: hoy solo se pide a Distribuidora Florida. Gerencia decide.']);
+    }
+    return h('section', { class: 'grupo-prov' + (g.key === SIN_PROV ? ' sin-prov' : '') , 'data-prov': g.nombre },
+      h('header', { class: 'gp-head' }, h('h2', { class: 'gp-t', text: g.nombre }), h('span', { class: 'gp-c', text: `${g.items.length} ${g.items.length === 1 ? 'ítem' : 'ítems'}` })),
+      notas.length ? h('ul', { class: 'gp-notas' }, notas.map(([t, x]) => h('li', { class: 'gp-nota gp-' + t, text: x }))) : null,
+      g.items.map(p => {
+        const st = stepper({ value: cantidad(p), label: `Pedir ${p.nombre}`, onChange: (v) => { S.draft[p.id] = v; guardarBorrador(); if (v === 0) pintarRevisar(root, ctx); } });
+        return h('article', { class: 'prod is-on prod-rev' },
+          h('h3', { class: 'prod-n', text: p.nombre }),
+          h('p', { class: 'prod-m' }, p.unidad_compra ? h('span', { class: 'prod-u', text: p.unidad_compra }) : null),
+          h('div', { class: 'prod-p' }, h('span', { class: 'prod-pl', text: 'Pedir' }), st.el));
+      }));
+  };
+
+  const inpNombre = h('input', { class: 'input', type: 'text', id: 'rev-nombre', autocomplete: 'name', value: nombre, 'aria-label': 'Tu nombre', placeholder: 'Tu nombre', on: { input: (e) => { nombre = e.target.value; } } });
+  const inpNota = h('textarea', { class: 'input', id: 'rev-nota', rows: 2, placeholder: 'Ej.: entregar antes de las 10', 'aria-label': 'Nota para gerencia', on: { input: (e) => { nota = e.target.value; } } });
+
+  btn.addEventListener('click', async () => {
+    err.replaceChildren();
+    if (!nombre.trim()) return err.replaceChildren(banner('Poné tu nombre para enviar.', 'error'));
+    const enviables = grupos;
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    lsSet('nombre', nombre.trim());
+    let fallos = 0, ok = 0;
+    for (const g of enviables) {
+      if (enviado.hechos.has(g.key)) continue;
+      try {
+        let oid = enviado.ordenes[g.key];
+        if (!oid) {
+          oid = await crearOrdenSolo({ local_id: S.lid, proveedor_id: g.key === SIN_PROV ? null : g.key, estado: 'borrador', cargado_por_nombre: nombre.trim(), nota: nota.trim() || null });
+          enviado.ordenes[g.key] = oid;
+        }
+        await agregarItems(oid, g.items.map(p => ({ producto_id: p.id, cantidad: cantidad(p) })));
+        g.items.forEach(p => { S.draft[p.id] = 0; });
+        enviado.hechos.add(g.key); ok++;
+      } catch (e) { fallos++; err.append(banner(`${g.nombre}: ${mensajeError(e)}`, 'error')); }
+    }
+    guardarBorrador();
+    if (!fallos) {
+      enviado = { ordenes: {}, hechos: new Set() };
+      toast('Pedido enviado. Gerencia lo revisa.', 'ok');
+      ctx.ir('mis-pedidos');
+    } else {
+      btn.disabled = false; btn.textContent = ok ? 'Reintentar lo que falta' : 'Enviar pedido';
+    }
+  });
+
+  mount(root, 
+    volver, cabecera('Revisar pedido', S.local ? S.local.nombre : ''),
+    aviso.tipo === 'warn' ? banner(aviso.texto, 'warn') : null,
+    ...grupos.map(cardGrupo),
+    h('div', { class: 'form form-rev' }, campo('Tu nombre', inpNombre), campo('Nota para gerencia (opcional)', inpNota)),
+    err, btn);
+}
+
+// ---------- Mis pedidos ----------
+async function renderMis(root, ctx) {
+  const lid = ctx.perfil.local_id;
+  mount(root, cabecera('Mis pedidos'), esqueleto(4));
+  let provs = new Map(), prods = new Map();
+  const pintar = (ordenes, err) => {
+    if (!ctx.alive()) return;
+    const cab = cabecera('Mis pedidos', S.local ? S.local.nombre : '');
+    if (!ordenes.length) { mount(root, cab, err ? banner(err, 'warn') : null, vacio('Todavía no enviaste pedidos', 'Cuando envíes uno, lo ves acá.'), h('a', { class: 'btn btn-primary', href: '#/pedir', text: 'Hacer un pedido' })); return; }
+    mount(root, cab, err ? banner(err, 'warn') : null, h('div', { class: 'ped-lista' }, ordenes.map(o => {
+      const items = o.orden_items || [];
+      const det = h('ul', { class: 'ped-items', hidden: true }, items.map(i => { const p = prods.get(i.producto_id); return h('li', {}, h('span', { text: p ? p.nombre : 'Producto' }), h('b', { class: 'num', text: fmtNum(i.cantidad_pedida, 3) + (p && p.unidad_compra ? ' ' + p.unidad_compra : '') })); }));
+      const prov = provs.get(o.proveedor_id);
+      return h('article', { class: 'ped' },
+        h('button', { class: 'ped-b', type: 'button', 'aria-expanded': 'false', on: { click: (e) => { const b = e.currentTarget; det.hidden = !det.hidden; b.setAttribute('aria-expanded', String(!det.hidden)); } } },
+          h('span', { class: 'ped-prov', text: prov ? prov.nombre : (o.proveedor_id ? 'Proveedor' : 'Sin proveedor') }),
+          h('span', { class: 'estado estado-' + o.estado, text: ESTADOS[o.estado] || o.estado }),
+          h('span', { class: 'ped-meta', text: `${fechaCorta(o.creado_en)} · ${items.length} ${items.length === 1 ? 'ítem' : 'ítems'}${o.cargado_por_nombre ? ' · ' + o.cargado_por_nombre : ''}` })),
+        det, o.nota ? h('p', { class: 'ped-nota', text: 'Nota: ' + o.nota }) : null);
+    })));
+  };
+  try {
+    await Promise.allSettled([
+      swr('provb', cargarProveedoresBasico, (d) => { provs = new Map(d.map(p => [p.id, p])); }),
+      swr('cat:' + lid, () => cargarCatalogo(lid), (d) => { prods = new Map(d.map(p => [p.id, p])); }),
+      swr('locales', cargarLocales, (d) => { S.local = d.find(l => l.id === lid) || d[0] || null; })
+    ]);
+    await swr('ord:' + lid, () => misOrdenes(lid), (d, esCache, e) => pintar(d, e ? 'Sin conexión: mostrando lo último que guardamos.' : null));
+  } catch (e) { if (ctx.alive()) mount(root, cabecera('Mis pedidos'), banner(mensajeError(e), 'error')); }
+}

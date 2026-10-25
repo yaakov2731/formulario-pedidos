@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F4F6">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1320">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Pedidos">
+  <meta name="description" content="Pedidos a proveedores y stock de los locales de Docks del Puerto.">
+  <title>Docks · Pedidos</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preconnect" href="https://zunyzlpzofbyqplgiupl.supabase.co">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/stock.css">
+  <script src="config.js"></script>
+  <script src="vendor/supabase.js"></script>
+</head>
+<body>
+  <div id="app" class="app no-nav">
+    <aside id="sidebar" class="sidebar" aria-label="Secciones"></aside>
+    <div class="main">
+      <header id="topbar" class="topbar" hidden></header>
+      <main id="view" class="wrap" aria-live="polite"></main>
+    </div>
+    <nav id="tabbar" class="tabbar" aria-label="Secciones" hidden></nav>
+  </div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <noscript><p style="padding:24px;font-family:sans-serif">La app necesita JavaScript.</p></noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
