@@ -2,7 +2,7 @@
 import { mount, h, norm, fmtNum, fmtMoney, parseNum, porTexto, esCarta } from './util.js';
 import { cargarRecetas, guardarReceta, platosSinReceta, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
-import { esqueleto, vacio, toast, hoja, campo, subnav, icon, SUBNAV_COCINA } from './ui.js';
+import { esqueleto, vacio, toast, hoja, campo, subnav, icon, banner, SUBNAV_COCINA } from './ui.js';
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recetas' }), h('p', { class: 'sub', text: 'Qué lleva cada plato y cada elaborado' }));
@@ -44,7 +44,10 @@ export async function render(root, ctx) {
       const filas = r.items.map((it, i) => {
         const ins = G.prods.get(it.insumo_id) || { nombre: 'Insumo' };
         const inp = h('input', { class: 'input num inp-num', type: 'text', inputmode: 'decimal', value: fmtNum(it.cantidad, 4), 'aria-label': `Cantidad de ${ins.nombre}`, on: { change: (e) => { const n = parseNum(e.target.value); if (n && n > 0) it.cantidad = n; e.target.value = fmtNum(it.cantidad, 4); } } });
-        return h('div', { class: 'ins' }, h('span', { class: 'ins-n', text: ins.nombre }),
+        const gramos = h('span', { class: 'mute ins-g' });
+        const verG = () => { gramos.textContent = /^(kg|litro|l)$/i.test(ins.unidad_uso || '') ? `= ${fmtNum(it.cantidad * 1000, 0)} ${/^kg$/i.test(ins.unidad_uso) ? 'g' : 'cc'}` : ''; };
+        inp.addEventListener('change', verG); verG();
+        return h('div', { class: 'ins' }, h('span', { class: 'ins-n' }, ins.nombre, gramos),
           h('div', { class: 'ins-c' }, inp, h('span', { class: 'mute', text: ins.unidad_uso || 'unidad' }),
             h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Quitar ${ins.nombre}`, on: { click: () => { r.items.splice(i, 1); vistaEditor(); } } }, icon('cerrar', 18))));
       });
@@ -56,12 +59,13 @@ export async function render(root, ctx) {
         btn.disabled = true; btn.textContent = 'Guardando…';
         try {
           await guardarReceta(p.id, r.rinde, r.items.map(i => ({ insumo_id: i.insumo_id, cantidad: i.cantidad })), null);
-          recetas.set(p.id, { ...(previa || {}), producto_id: p.id, rinde: r.rinde, receta_items: r.items.map(i => ({ insumo_id: i.insumo_id, cantidad: i.cantidad })) });
+          recetas.set(p.id, { ...(previa || {}), estimada: false, producto_id: p.id, rinde: r.rinde, receta_items: r.items.map(i => ({ insumo_id: i.insumo_id, cantidad: i.cantidad })) });
           sinReceta = sinReceta.filter(x => x.producto_id !== p.id);
           toast('Receta guardada', 'ok'); cerrar(); pintar();
         } catch (e) { err.replaceChildren(document.createTextNode(mensajeError(e))); btn.disabled = false; btn.textContent = 'Guardar receta'; }
       });
       cuerpo.replaceChildren(
+        previa && previa.estimada ? banner('Receta estándar estimada con pesos típicos. Ajustá las cantidades a lo que sirve el local y guardá: deja de ser estimada.', 'warn') : null,
         campo(`Rinde (${unidad(p)})`, inRinde, 'Cuántas unidades salen con estas cantidades.'),
         h('div', { class: 'ins-lista' }, ...(filas.length ? filas : [h('p', { class: 'mute centro', text: 'Todavía no tiene insumos.' })])),
         h('button', { class: 'btn btn-ghost', type: 'button', text: 'Agregar insumo', on: { click: vistaPicker } }),
@@ -90,16 +94,16 @@ export async function render(root, ctx) {
     const n = nItems(p); const r = recetas.get(p.id);
     return h('button', { class: 'prod prod-cat', type: 'button', 'data-id': p.id, 'aria-label': `Receta de ${p.nombre}`, on: { click: () => editar(p) } },
       h('span', { class: 'prod-n', text: p.nombre }),
-      h('span', { class: 'prod-m' }, h('span', { text: esCarta(p) ? 'Plato' : 'Elaborado' }), n ? h('span', { text: `${n} ${n === 1 ? 'insumo' : 'insumos'} · rinde ${fmtNum(r.rinde, 3)}` }) : h('span', { class: 'chip-aviso', text: 'Sin receta' })));
+      h('span', { class: 'prod-m' }, h('span', { text: esCarta(p) ? 'Plato' : 'Elaborado' }), r && r.estimada ? h('span', { class: 'chip-aviso', text: 'Estimada' }) : null, n ? h('span', { text: `${n} ${n === 1 ? 'insumo' : 'insumos'} · rinde ${fmtNum(r.rinde, 3)}` }) : h('span', { class: 'chip-aviso', text: 'Sin receta' })));
   }
 
   function pintar() {
     if (!ctx.alive()) return;
     const tk = norm(q).split(' ').filter(Boolean);
     let vis = [...G.prods.values()].filter(p => p.local_id === chips.get() && p.es_elaborado && p.activo !== false && tk.every(k => norm(p.nombre + ' ' + p.codigo).includes(k)));
-    if (filtro === 'platos') vis = vis.filter(esCarta); else if (filtro === 'elaborados') vis = vis.filter(p => !esCarta(p)); else if (filtro === 'sin') vis = vis.filter(p => !nItems(p));
+    if (filtro === 'platos') vis = vis.filter(esCarta); else if (filtro === 'elaborados') vis = vis.filter(p => !esCarta(p)); else if (filtro === 'sin') vis = vis.filter(p => !nItems(p)); else if (filtro === 'estimadas') vis = vis.filter(p => (recetas.get(p.id) || {}).estimada);
     vis.sort((a, b) => porTexto(a.nombre, b.nombre));
-    const filtros = h('div', { class: 'chips', role: 'group', 'aria-label': 'Filtrar' }, [['todos', 'Todos'], ['platos', 'Platos'], ['elaborados', 'Elaborados'], ['sin', 'Sin receta']].map(([id, t]) =>
+    const filtros = h('div', { class: 'chips', role: 'group', 'aria-label': 'Filtrar' }, [['todos', 'Todos'], ['platos', 'Platos'], ['elaborados', 'Elaborados'], ['sin', 'Sin receta'], ['estimadas', 'Estimadas']].map(([id, t]) =>
       h('button', { class: 'chip' + (filtro === id ? ' is-on' : ''), type: 'button', text: t, 'aria-pressed': filtro === id ? 'true' : 'false', on: { click: () => { filtro = id; pintar(); } } })));
     const buscador = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar plato o elaborado', 'aria-label': 'Buscar plato o elaborado', autocomplete: 'off', value: q, on: { input: (e) => { q = e.target.value; pintarLista(); } } });
     const lista = h('div', { class: 'lista', id: 'lista-rec' });

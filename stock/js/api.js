@@ -177,7 +177,12 @@ export const ventasPedidosRango = (localId, desde, hasta) => todo(() => sb.from(
 export const ventasItemsRango = (localId, desde, hasta) => todo(() => sb.from('ventas_items')
   .select('id,pedido_numero,fecha,fecha_hora,codigo_origen,nombre_origen,cantidad,importe,rubro,subrubro,tipo_pedido,sector,producto_id')
   .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('id'));
-export const cargarRecetas = () => todo(() => sb.from('recetas').select('id,producto_id,rinde,notas,receta_items(insumo_id,cantidad)').order('id'));
+// Salidas de stock de un local desde una fecha (ventas, producción y merma), para las métricas de Stock.
+export const movimientosLocal = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,creado_en')
+  .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma']).order('creado_en'));
+export const ultimaVentaSubida = async (localId) => (await ok(await sb.from('ventas_import').select('fecha_desde,creado_en')
+  .eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
+export const cargarRecetas = () => todo(() => sb.from('recetas').select('*,receta_items(insumo_id,cantidad)').order('id'));
 export const guardarReceta = async (productoId, rinde, items, notas) =>
   ok(await sb.rpc('guardar_receta', { p_producto: productoId, p_rinde: rinde, p_items: items, p_notas: notas || null }));
 export const platosSinReceta = async (localId) => ok(await sb.from('platos_sin_receta').select('producto_id,codigo,nombre,vendidos,ultima_venta').eq('local_id', localId).order('vendidos', { ascending: false }));
