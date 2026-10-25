@@ -34,6 +34,7 @@ jobs:
           node scripts/verify-v3-compras.js
           node scripts/v3-bundle-gas.js --check
           node scripts/verify-app.js
+          node scripts/verify-stock.js
 
   deploy-gas:
     needs: verify
@@ -138,6 +139,10 @@ jobs:
           sed -i "s/const VERSION = 'docks-app-v1';/const VERSION = 'docks-app-${GITHUB_SHA::7}';/" site/app/sw.js
           sed -i "s/VERSION: \"\([^\"]*\)\"/VERSION: \"\1 · ${GITHUB_SHA::7}\"/" site/app/config.js
           grep -n "VERSION" site/app/sw.js site/app/config.js
+          mkdir -p site/stock
+          cp -r stock/. site/stock/
+          sed -i "s/const VERSION = 'stock-v1';/const VERSION = 'stock-${GITHUB_SHA::7}';/" site/stock/sw.js
+          grep -n "VERSION" site/stock/sw.js
           python3 - <<'PY'
           from pathlib import Path
           p=Path('site/index.html')

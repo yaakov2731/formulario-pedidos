@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql y 0002_roles_pedidos.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -40,6 +40,12 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   catch (e) { check('aplica 0001_base.sql', false, e.message); return finish(); }
   try { await db.exec(mig); check('0001 es idempotente (2da aplicación)', true); }
   catch (e) { check('0001 es idempotente (2da aplicación)', false, e.message); }
+
+  const mig2 = fs.readFileSync(path.join(root, 'supabase/migrations/0002_roles_pedidos.sql'), 'utf8');
+  try { await db.exec(mig2); check('aplica 0002_roles_pedidos.sql', true); }
+  catch (e) { check('aplica 0002_roles_pedidos.sql', false, e.message); return finish(); }
+  try { await db.exec(mig2); check('0002 es idempotente (2da aplicación)', true); }
+  catch (e) { check('0002 es idempotente (2da aplicación)', false, e.message); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -123,19 +129,32 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     const sa = await q('select * from stock_actual');
     check('encargado ve stock solo de su local', sa.every(r => r.local_id === l1.id) && sa.length >= 1);
     const m1 = await tryq("insert into movimientos(local_id,producto_id,tipo,cantidad) values ($1,$2,'merma',-1)", [l1.id, moz.id]);
-    check('encargado inserta merma en su local', !m1.err, m1.err);
+    check('encargado NO inserta movimientos (ni en su local)', !!m1.err);
     const m2 = await tryq("insert into movimientos(local_id,producto_id,tipo,cantidad) values ($1,$2,'merma',-1)", [l2.id, ajeno.id]);
     check('encargado NO inserta movimientos en otro local', !!m2.err);
-    const m3 = await tryq("insert into movimientos(local_id,producto_id,tipo,cantidad) values ($1,$2,'venta',-1)", [l1.id, moz.id]);
-    check('encargado NO inserta ventas', !!m3.err);
+    const m3 = await tryq("insert into movimientos(local_id,producto_id,tipo,cantidad) values ($1,$2,'recepcion',5)", [l1.id, moz.id]);
+    check('encargado NO inserta recepciones', !!m3.err);
     const c = await tryq('select registrar_conteo($1,$2,3)', [l1.id, moz.id]);
-    check('encargado registra conteo en su local', !c.err, c.err);
-    const o1 = await tryq("insert into ordenes_compra(local_id,proveedor_id,estado) values ($1,$2,'borrador')", [l1.id, prov.id]);
-    check('encargado crea orden borrador de su local', !o1.err, o1.err);
+    check('encargado NO registra conteo con efecto', !!c.err);
+    const stE = (await q('select stock from stock_actual where local_id=$1 and producto_id=$2', [l1.id, moz.id]))[0];
+    check('encargado ve "Quedan" (stock 5) y los intentos no lo alteraron', Number(stE.stock) === 5, JSON.stringify(stE));
+    const o1 = await tryq("insert into ordenes_compra(local_id,proveedor_id,estado,cargado_por_nombre,nota) values ($1,$2,'borrador','Ana','sin apuro') returning id", [l1.id, prov.id]);
+    check('encargado crea orden borrador de su local (con cargado_por_nombre y nota)', !o1.err, o1.err);
+    const ordenId = o1.rows && o1.rows[0].id;
+    const it1 = await tryq("insert into orden_items(orden_id,producto_id,cantidad_pedida) values ($1,$2,4)", [ordenId, moz.id]);
+    check('encargado agrega ítems a su orden borrador', !it1.err, it1.err);
+    const it2 = await tryq("update orden_items set cantidad_pedida = 6 where orden_id=$1", [ordenId]);
+    check('encargado edita cantidades de su borrador', !it2.err, it2.err);
+    const it3 = await tryq("insert into orden_items(orden_id,producto_id,cantidad_pedida) values ($1,$2,1)", [ordenId, ajeno.id]);
+    check('encargado NO agrega productos de otro local', !!it3.err);
     const o2 = await tryq("insert into ordenes_compra(local_id,proveedor_id,estado) values ($1,$2,'enviada')", [l1.id, prov.id]);
     check('encargado NO crea orden enviada', !!o2.err);
     const o3 = await tryq("insert into ordenes_compra(local_id,proveedor_id,estado) values ($1,$2,'borrador')", [l2.id, prov.id]);
     check('encargado NO crea orden en otro local', !!o3.err);
+    const o4 = await tryq("update ordenes_compra set estado='aprobada' where id=$1 returning id", [ordenId]);
+    check('encargado NO aprueba su orden', !!o4.err || o4.rows.length === 0);
+    const o5 = await tryq("select * from proveedores_basico");
+    check('encargado: proveedores_basico no expone pedido_minimo', o5.rows && o5.rows.length >= 1 && !('pedido_minimo' in o5.rows[0]) && 'tiene_minimo' in o5.rows[0]);
     const f = await tryq("insert into facturas_proveedor(proveedor_id,numero,fecha,total) values ($1,'X',current_date,1)", [prov.id]);
     check('encargado NO inserta facturas', !!f.err);
     const pi = await tryq("insert into precios(producto_id,precio) values ($1,1)", [moz.id]);
@@ -173,6 +192,14 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     check('gerencia ve precios', p[0].n >= 2);
     const pr = await tryq("insert into precios(producto_id,precio) values ($1,130)", [moz.id]);
     check('gerencia escribe precios', !pr.err, pr.err);
+    const oAdm = await q("select count(*)::int n from ordenes_compra where cargado_por_nombre='Ana'");
+    check('gerencia ve la orden cargada por el encargado', oAdm[0].n === 1);
+    const aprob = await tryq("update ordenes_compra set estado='aprobada' where cargado_por_nombre='Ana' returning id");
+    check('gerencia aprueba la orden', aprob.rows && aprob.rows.length === 1, aprob.err);
+    const mg = await tryq("insert into movimientos(local_id,producto_id,tipo,cantidad) values ($1,$2,'recepcion',2)", [l1.id, moz.id]);
+    check('gerencia inserta recepciones', !mg.err, mg.err);
+    const cg = await tryq('select registrar_conteo($1,$2,3)', [l1.id, moz.id]);
+    check('gerencia registra conteo', !cg.err, cg.err);
     const prods = await q('select codigo from productos');
     check('gerencia ve productos de todos los locales', prods.some(r => r.codigo === 'ZZ1-001') && prods.some(r => r.codigo === 'ZZ2-001'));
   });
@@ -182,6 +209,12 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const an = await tryq('select * from productos');
   await db.exec('reset role');
   check('anon no accede a productos', !!an.err || an.rows.length === 0);
+  await db.exec('set role anon');
+  const ll = await tryq('select * from locales_login()');
+  const lm = await tryq('select mi_rol()');
+  await db.exec('reset role');
+  check('anon lista locales para Entrar (solo codigo, nombre, encargados)', ll.rows && ll.rows.length >= 2 && Object.keys(ll.rows[0]).join() === 'codigo,nombre,encargados', ll.err);
+  check('anon NO ejecuta mi_rol()', !!lm.err);
 
   return finish();
 })().catch(e => { console.error('ERROR inesperado:', e); process.exit(1); });
