@@ -2,12 +2,12 @@
 import { mount, h, norm, fmtMoney, parseNum, porTexto, debounce } from './util.js';
 import { guardarProducto, guardarPrecio, mensajeError } from './api.js';
 import { G, cargarG, refrescarPrecio } from './datos.js';
-import { esqueleto, vacio, toast, hoja, campo, icon } from './ui.js';
+import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_CATALOGO } from './ui.js';
 
 export async function render(root, ctx) {
   let q = '', localF = 'todos';
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Catálogo' }), h('p', { class: 'sub', text: 'Productos, proveedores y costos' }));
-  mount(root, cab, esqueleto(5));
+  mount(root, cab, subnav(SUBNAV_CATALOGO, 'catalogo'), esqueleto(5));
   const lista = h('div', { class: 'lista' });
 
   function editar(p) {
@@ -64,7 +64,7 @@ export async function render(root, ctx) {
         cerrar(); pintar();
       } catch (e) { err.textContent = mensajeError(e); btn.disabled = false; btn.textContent = nuevo ? 'Crear producto' : 'Guardar cambios'; }
     });
-    setTimeout(() => (nuevo ? f.nombre : f.nombre).focus(), 60);
+    f.nombre.focus();
   }
 
   function pintar() {
@@ -86,7 +86,7 @@ export async function render(root, ctx) {
   const locSel = h('select', { class: 'input', 'aria-label': 'Local', on: { change: (e) => { localF = e.target.value; pintar(); } } },
     h('option', { value: 'todos', text: 'Todos los locales' }), G.locales.map(l => h('option', { value: l.id, text: l.nombre })));
   const buscar = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar por nombre o código', 'aria-label': 'Buscar producto', autocomplete: 'off', on: { input: debounce((e) => { q = e.target.value; pintar(); }, 120) } });
-  mount(root, cab,
+  mount(root, cab, subnav(SUBNAV_CATALOGO, 'catalogo'),
     h('div', { class: 'toolbar toolbar-row' }, buscar, locSel, h('button', { class: 'btn btn-primary', type: 'button', on: { click: () => editar(null) } }, icon('mas', 18), h('span', { text: 'Nuevo producto' }))),
     lista);
   pintar();

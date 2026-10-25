@@ -9,17 +9,26 @@ const NAV = {
     { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' }
   ],
   gerencia: [
+    { id: 'tablero', label: 'Tablero', icono: 'tablero' },
     { id: 'pedidos', label: 'Pedidos', icono: 'lista' },
     { id: 'recibir', label: 'Recibir', icono: 'recibir' },
     { id: 'stock', label: 'Stock', icono: 'stock' },
     { id: 'ventas', label: 'Ventas', icono: 'ventas' },
     { id: 'recetas', label: 'Cocina', icono: 'cocina' },
+    { id: 'pagos', label: 'Pagos', icono: 'pagos' },
     { id: 'catalogo', label: 'Catálogo', icono: 'catalogo' }
+  ],
+  contadora: [
+    { id: 'pagos', label: 'Pagos', icono: 'pagos' }
   ]
 };
+const RUTAS_PAGOS = { 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
   encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js') },
+  contadora: { ...RUTAS_PAGOS },
   gerencia: {
+    ...RUTAS_PAGOS,
+    'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'),
     'pedidos': () => import('./g-pedidos.js'), 'recibir': () => import('./g-recibir.js'),
     'stock': () => import('./g-stock.js'), 'catalogo': () => import('./g-catalogo.js'),
     'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
@@ -60,20 +69,21 @@ function construirShell(c) {
   const enlace = (it, clase) => h('a', { class: clase, href: '#/' + it.id, 'data-nav': it.id }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
   const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
   $side.replaceChildren(
-    h('div', { class: 'side-brand' }, h('img', { src: 'icons/icon-192.png', alt: '', width: 36, height: 36 }), h('div', {}, h('b', { text: 'Docks' }), h('small', { text: c.rol === 'gerencia' ? 'Gerencia' : (c.perfil.nombre || 'Local') }))),
+    h('div', { class: 'side-brand' }, h('img', { src: 'icons/icon-192.png', alt: '', width: 36, height: 36 }), h('div', {}, h('b', { text: 'Docks' }), h('small', { text: c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local')) }))),
     h('nav', { class: 'side-nav' }, items.map(it => enlace(it, 'side-link')), salirBtn('side-link side-out'))
   );
   $tab.replaceChildren(...items.map(it => enlace(it, 'tab')), salirBtn('tab'));
   $tab.hidden = false;
   $tab.classList.toggle('tabbar-7', items.length + 1 > 6);
+  $tab.classList.toggle('tabbar-scroll', items.length + 1 > 7);
 }
 
 function marcarActivo(id) {
-  const act = ({ revisar: 'pedir', analisis: 'ventas', merma: 'ventas', produccion: 'recetas' })[id] || id;
+  const act = ({ revisar: 'pedir', analisis: 'ventas', merma: 'ventas', produccion: 'recetas', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
     a.classList.toggle('is-active', on);
-    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (on) { a.setAttribute('aria-current', 'page'); if (a.classList.contains('tab') && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); } else a.removeAttribute('aria-current');
   });
 }
 
@@ -110,7 +120,7 @@ async function arrancar() {
     return pantallaSimple('Sin conexión', mensajeError(e), h('button', { class: 'btn btn-primary', type: 'button', text: 'Reintentar', on: { click: arrancar } }));
   }
   if (!perfil) return mostrarEntrar();
-  if (perfil.sinPerfil || !['encargado', 'gerencia'].includes(perfil.rol)) {
+  if (perfil.sinPerfil || !['encargado', 'gerencia', 'contadora'].includes(perfil.rol)) {
     return pantallaSimple('Sin permisos', 'Tu usuario todavía no tiene permisos para esta app. Avisale a gerencia.',
       h('button', { class: 'btn btn-ghost', type: 'button', text: 'Salir', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }));
   }

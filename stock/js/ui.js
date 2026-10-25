@@ -17,6 +17,8 @@ const P = {
   editar: 'M4 20h4L19 9l-4-4L4 16v4z',
   ventas: 'M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6',
   cocina: 'M5 11h14v6a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-6zM3 11h18M9 7c0-2 2-2 2-4M14 7c0-2 2-2 2-4',
+  tablero: 'M4 13h6V4H4zM14 20h6V4h-6zM4 20h6v-4H4z',
+  pagos: 'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M7 15h4',
   alerta: 'M12 9v4M12 17h.01M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'
 };
 export function icon(nombre, size = 20) {
@@ -97,4 +99,6 @@ export function barraFila(etiqueta, valorTexto, fraccion, detalle) {
 }
 
 export const SUBNAV_VENTAS = [['ventas', 'Importar'], ['analisis', 'Análisis'], ['merma', 'Merma']];
+export const SUBNAV_PAGOS = [['pagos', 'Cuentas'], ['facturas', 'Facturas'], ['historial', 'Pagos'], ['cargar-pago', 'Cargar']];
+export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['proveedores', 'Proveedores']];
 export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción']];

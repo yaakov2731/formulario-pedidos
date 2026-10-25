@@ -69,3 +69,24 @@ Aplicar después de 0001 y 0002 (es idempotente). Para pegar en el SQL Editor ha
 **Pedido sugerido (`sugerido_pedido(local)`, security invoker, sin precios)**: por producto devuelve stock, consumo semanal (ventas + consumo de producción + mermas de los últimos 28 días / 4), pendiente (órdenes aprobada/enviada/parcial no recibidas) y sugerido en unidad de compra = `max(0, ceil((consumo − stock − pendiente) / factor))`; sin consumo usa la cantidad ideal menos stock y pendiente como antes. La cantidad ideal se interpreta en unidad de uso, igual que el stock. Los platos (`Carta`) no se piden ni se cuentan. Pedir (encargado) lo usa y sigue mostrando solo "Quedan N" y "Pedir N"; si la función no existe todavía, vuelve al cálculo anterior. Nota: el encargado puede leer los movimientos de su local (necesario para "Quedan"), pero no las tablas de ventas, recetas ni producción.
 
 **Verificar**: `node scripts/verify-supabase.js` (aplica 0001+0002+0003), `node scripts/verify-stock.js` (incluye el parser contra `scripts/fixtures/nucleo/`, generados con `generar.js`) y `node scripts/e2e-stock.js` (capturas en `/mnt/project-files/app-stock/fase3/`).
+
+## Fase 4 y 5 · Pagos, WhatsApp y Tablero (`0004_pagos_tablero.sql`)
+Aplicar después de 0001, 0002 y 0003 (idempotente). Copia para pegar en el SQL Editor: `/mnt/project-files/supabase/6-pagos-tablero.sql`. Sin comandos extra: el bucket `comprobantes` ya existe desde 0001. Para que la contadora entre a la app basta su usuario en Auth + una fila en `perfiles` con rol `contadora` (mismo login "Administración").
+
+**Ajuste de fase 2**: `sugerido_pedido` divide el consumo de los últimos 28 días por las semanas con ventas importadas del local (desde la primera venta, mínimo 1 y máximo 4), no siempre por 4.
+
+**Pagos (gerencia y contadora; el encargado nunca)** · pantalla "Pagos", con cuatro pestañas:
+- *Cuentas*: cuenta corriente por proveedor (`cuenta_corriente`: facturado, pagado, saldo) y facturas pendientes.
+- *Facturas*: alta (proveedor, número, fecha, vencimiento, total, PDF o foto opcional en `facturas/<proveedor>/<archivo>`); las vencidas se resaltan (vista `facturas_pendientes`).
+- *Pagos*: lista con estado "Avisado" / "Sin avisar", ver comprobante y avisar.
+- *Cargar*: se sube el PDF del comprobante; pdf.js (vendorizado, ver `stock/vendor/README.md`) lee el texto en el navegador, arma las líneas por coordenada Y/X y `leerComprobante` precarga el formulario (editable). El proveedor se busca por `proveedores.cuit`; si no está, se sugiere por razón social y, al confirmar, se guarda el CUIT. Se imputa a facturas pendientes (las más viejas primero, editable; lo no imputado queda a cuenta). Guarda `registrar_pago(p_pago, p_imputaciones)` (transaccional, solo gerencia/contadora, rechaza la misma operación dos veces y sobreimputaciones) y sube el PDF a `pagos/<proveedor>/<operación>.pdf`.
+- `stock/js/comprobante.js` es una copia **generada** de `supabase/lib/comprobante.js` (única fuente): tras tocar el original, `node scripts/verify-stock.js --sync`.
+
+**WhatsApp**: nunca envío automático ni bot; lo manda una persona. Botón "Avisar por WhatsApp" (en el pago recién guardado o en la lista): en el celular usa Compartir con el PDF adjunto (`navigator.share({files, text})`); en la PC abre `wa.me/<whatsapp del proveedor>?text=…` y ofrece descargar el PDF (URL firmada) para adjuntarlo a mano. Al enviar se marca `avisado_en`. El WhatsApp, CUIT y alias/CBU se editan en Catálogo → Proveedores (gerencia).
+
+**Tablero (solo gerencia, inicio)** · `tablero(p_local, p_desde, p_hasta)` devuelve un jsonb (una sola llamada; sin fechas usa lunes a hoy; en la app, la semana contra el mismo tramo anterior):
+- ventas (total cobrado de las importaciones), compras (recepciones valorizadas), costo de mercadería vendida (consumo teórico × precio / factor) y margen bruto estimado (ventas − costo; lo que no tiene precio no resta);
+- plata parada en stock por local, deuda con proveedores y facturas vencidas, pagos sin avisar, pedidos por aprobar, faltantes más caros (merma_control) y datos pendientes (sin precio, sin proveedor, elaborados sin receta). Cada tarjeta lleva a su pantalla.
+- Nota: Postgres no admite un parámetro obligatorio después de uno con valor por defecto, por eso los tres parámetros tienen default (`null`); se llama por nombre.
+
+**Verificar**: `node scripts/verify-supabase.js` (0001–0004), `node scripts/verify-stock.js` (incluye el lector con texto de pdf.js de un fixture inventado) y `node scripts/e2e-stock.js` (capturas en `/mnt/project-files/app-stock/fase4/`).

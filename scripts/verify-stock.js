@@ -6,13 +6,18 @@ const { execFileSync } = require('child_process');
 const root = path.join(__dirname, '..');
 const S = (p) => path.join(root, 'stock', p);
 const read = (p) => fs.readFileSync(S(p), 'utf8');
+// stock/js/comprobante.js es una copia GENERADA de supabase/lib/comprobante.js (única fuente de verdad del lector).
+const comprobanteGenerado = () => `// GENERADO desde supabase/lib/comprobante.js (única fuente de verdad). No editar a mano:\n// corré \`node scripts/verify-stock.js --sync\` después de tocar el original.\n`
+  + fs.readFileSync(path.join(root, 'supabase/lib/comprobante.js'), 'utf8').replace(/\nif \(typeof module !== 'undefined'\)[^\n]*\n?/, '\nexport { leerComprobante, mensajeAviso, montoANumero, fechaISO };\n');
+if (process.argv.includes('--sync')) { fs.writeFileSync(S('js/comprobante.js'), comprobanteGenerado()); console.log('Sincronizado stock/js/comprobante.js'); }
 let fallas = 0;
 const check = (n, ok, x) => { console.log((ok ? 'OK   ' : 'FAIL ') + n + (!ok && x ? ' -> ' + x : '')); if (!ok) fallas++; };
 
 const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'css/stock.css', 'vendor/supabase.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png', 'icons/icon.svg',
-  'vendor/xlsx.full.min.js', 'vendor/README.md',
+  'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-catalogo.js',
-  'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js'];
+  'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
+  'js/g-tablero.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/aviso.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -34,7 +39,7 @@ for (const f of ['js/pedir.js', 'js/entrar.js']) {
   check(`${f}: sin "precio"/"costo"`, !/precio|costo|importe/i.test(t));
   check(`${f}: sin "mínimo" ni "par" visibles`, !/m[ií]nimo/i.test(t) && !/\bpar\b/i.test(t));
 }
-check('encargado no importa vistas de gerencia', !/g-pedidos|g-recibir|g-stock|g-catalogo|g-ventas|g-analisis|g-merma|g-recetas|g-produccion|nucleo|analisis\.js|datos\.js/.test(read('js/pedir.js')));
+check('encargado no importa vistas de gerencia', !/from '\.\/(g-[a-z-]+|nucleo|analisis|datos|aviso|pagos-util|comprobante|pdf-texto)\.js'/.test(read('js/pedir.js') + read('js/entrar.js')));
 check('encargado: ni ventas, recetas, producción ni lector de Excel en pedir.js/entrar.js', !/ventas|receta|producci[oó]n|xlsx|merma|importar_/i.test(read('js/pedir.js') + read('js/entrar.js')));
 check('encargado: sugerido por rpc sugerido_pedido (sin consultar tablas de ventas)', /rpc\('sugerido_pedido'/.test(read('js/api.js')) && /cargarSugerido/.test(read('js/pedir.js')));
 const main = read('js/main.js');
@@ -84,6 +89,56 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('análisis: franja horaria en horario argentino (12 a 21 h) y pedidos a $0 con sus productos', an.porHora[0].hora === 12 && an.porHora.at(-1).hora === 21 && an.ceros.length === 1 && an.ceros[0].productos[0].nombre === 'Parrillada Demo');
   check('análisis: top por cantidad y diferencia cobrado contra productos', an.top[0].k === 'BEB-901' && an.top[0].cantidad === 7 && an.diferencia.dif === 1000 && an.diferencia.pedidosConDif === 1);
   check('análisis: sin mozo en el reporte no hay sección de mozo', an.porMozo.length === 0);
+
+  // ---- Fase 4 y 5: pagos, comprobantes, WhatsApp y tablero ----
+  check('stock/js/comprobante.js es copia exacta de supabase/lib/comprobante.js (si falla: node scripts/verify-stock.js --sync)', read('js/comprobante.js') === comprobanteGenerado());
+  const CR = await import(pathToFileURL(S('js/comprobante.js')).href);
+  const PT = await import(pathToFileURL(S('js/pdf-texto.js')).href);
+  const PU = await import(pathToFileURL(S('js/pagos-util.js')).href);
+  const itemsFx = JSON.parse(fs.readFileSync(path.join(root, 'scripts/fixtures/comprobante/items-pdfjs.json'), 'utf8'));
+  const texto = PT.lineasDeItems(itemsFx);
+  const lin = texto.split('\n');
+  check('pdf.js → líneas: las columnas se separan con 2 o más espacios y cada fila va en su línea', /^Fecha de envío {2,}Monto$/.test(lin.find(l => l.startsWith('Fecha de envío'))) && /^05\/10\/2026 {2,}\$ 150\.000,50$/.test(lin.find(l => l.startsWith('05/10/2026'))), texto.slice(0, 400));
+  const rd = CR.leerComprobante(texto);
+  check('lector de comprobantes con texto de pdf.js (fixture inventado): operación, monto, fecha, CUIT, banco y cuenta',
+    rd.numero_operacion === 'DEMO0001ab' && rd.monto === 150000.5 && rd.fecha === '2026-10-05' && rd.cuit_destino === '30000000019' && rd.proveedor_razon_social === 'Distribuidora Demo Srl' && rd.banco_destino === 'Banco Demo' && rd.cuenta_destino.endsWith('1234') && rd.concepto === 'Factura' && rd.descripcion === 'Mercaderia' && rd.cuit_pagador === '30000000027' && rd.cuenta_origen === 'CC$ 000000001', JSON.stringify(rd));
+  const desordenado = PT.lineasDeItems([...itemsFx].reverse().map(i => ({ ...i, y: i.y + (i.y % 2 ? 1 : -1) })));
+  check('pdf.js → líneas: tolera items desordenados y diferencias de 1 pt en Y', CR.leerComprobante(desordenado).monto === 150000.5);
+  check('lector: un texto sin datos devuelve campos nulos (sin romper)', (() => { const x = CR.leerComprobante('hola'); return x.monto === null && x.numero_operacion === null && x.cuit_destino === null; })());
+  check('mensajeAviso arma el mensaje con monto, fecha, operación y cuenta terminada en 1234', (() => { const m = CR.mensajeAviso({ ...rd }, 'Distribuidora Demo'); return /Distribuidora Demo/.test(m) && /150\.000,50/.test(m) && /05\/10\/2026/.test(m) && /DEMO0001ab/.test(m) && /terminada en 1234/.test(m); })());
+
+  const provsFx = [{ id: 'a', nombre: 'Distribuidora Demo S.R.L.', cuit: '30-00000001-9', whatsapp: '54 9 11 5555-0001'}, { id: 'b', nombre: 'Barcena', cuit: null }, { id: 'c', nombre: 'Martín De Ridder', cuit: '' }];
+  check('proveedor por CUIT: ignora guiones y espacios', PU.proveedorPorCuit(provsFx, '30000000019').id === 'a' && PU.proveedorPorCuit(provsFx, '30-00000001-9').id === 'a' && PU.proveedorPorCuit(provsFx, '30000000027') === null && PU.proveedorPorCuit(provsFx, '') === null);
+  check('sugerencia por razón social (similitud): "Distribuidora Demo Srl" → Distribuidora Demo S.R.L., "Ridder Martin" → Martín De Ridder', PU.sugerirProveedores(provsFx, 'Distribuidora Demo Srl')[0].proveedor.id === 'a' && PU.sugerirProveedores(provsFx, 'RIDDER MARTIN')[0].proveedor.id === 'c' && PU.sugerirProveedores(provsFx, 'Zeta Omega Industrias').length === 0);
+  const facFx = [{ id: 'f2', fecha: '2026-09-20', numero: '0001-00000010', pendiente: 500 }, { id: 'f1', fecha: '2026-08-01', numero: '0001-00000002', pendiente: 1000 }, { id: 'f3', fecha: '2026-10-01', numero: '0001-00000030', pendiente: 300 }];
+  check('imputación automática: las facturas más viejas primero hasta agotar el monto (1200 → 1000 + 200)', JSON.stringify(PU.imputarAutomatico(1200, facFx)) === JSON.stringify({ f1: 1000, f2: 200 }), JSON.stringify(PU.imputarAutomatico(1200, facFx)));
+  check('imputación automática: un monto mayor a la deuda deja el resto a cuenta', Object.values(PU.imputarAutomatico(5000, facFx)).reduce((a, b) => a + b, 0) === 1800 && Object.keys(PU.imputarAutomatico(0, facFx)).length === 0);
+  check('validar imputación: no supera el pendiente de la factura ni el monto del pago', PU.validarImputacion(1200, facFx, { f1: 1000, f2: 200 }).error === null && PU.validarImputacion(1200, facFx, { f1: 1100 }).error && PU.validarImputacion(500, facFx, { f1: 400, f2: 200 }).error && PU.validarImputacion(1200, facFx, { f1: 1000 }).aCuenta === 200);
+  check('estado del aviso: "Avisado" / "Sin avisar"', PU.estadoAviso({ avisado_en: '2026-10-05T10:00:00Z' }) === 'Avisado' && PU.estadoAviso({ avisado_en: null }) === 'Sin avisar');
+  check('wa.me: número solo con dígitos y texto codificado', PU.urlWhatsApp('+54 9 11 5555-0001', 'Hola\ncómo') === 'https://wa.me/5491155550001?text=Hola%0Ac%C3%B3mo' && PU.urlWhatsApp('', 'x') === null);
+  check('rutas del bucket: pagos/<proveedor>/<operación>.pdf y facturas/<proveedor>/<archivo>', PU.rutaPago('prv1', 'LRAKD8f240') === 'pagos/prv1/LRAKD8f240.pdf' && /^facturas\/prv1\/\d+-Factura-1-.*\.pdf$/.test(PU.rutaFactura('prv1', 'Factura 1 ñ.pdf')), PU.rutaFactura('prv1', 'Factura 1 ñ.pdf'));
+
+  // Estructura: roles, rutas, vendors, sin envíos automáticos
+  const m4 = read('js/main.js');
+  const navGer = (m4.match(/gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0];
+  const navCon = (m4.match(/contadora: \[[\s\S]*?\]\s*\};/) || [''])[0];
+  check('gerencia: el tablero es el inicio (primera sección) y tiene Pagos', /\[\s*\{ id: 'tablero'/.test(navGer) && /id: 'pagos'/.test(navGer));
+  check('contadora: solo la sección Pagos', navCon.length > 0 && /id: 'pagos'/.test(navCon) && !/pedidos|stock|ventas|tablero|catalogo|recetas|recibir/.test(navCon), navCon);
+  check('el menú del encargado no tiene Pagos ni Tablero', navEnc.length > 0 && !/pagos|tablero|facturas|proveedores/.test(navEnc));
+  check('las rutas de pagos, facturas y comprobantes están en gerencia y contadora; tablero y proveedores solo en gerencia',
+    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'tablero': \(\) => import\('\.\/g-tablero\.js'\), 'proveedores'/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
+  check('el perfil contadora puede entrar a la app', /\['encargado', 'gerencia', 'contadora'\]\.includes\(perfil\.rol\)/.test(m4));
+  check('vendor pdf.js 4.x anotado en vendor/README.md', /pdf\.min\.mjs.*4\.\d+\.\d+/.test(read('vendor/README.md')) && /pdf\.worker\.min\.mjs/.test(read('vendor/README.md')));
+  check('pdf.js se carga solo en Cargar pago (import dinámico), no en index.html ni en el arranque', !/pdf\.|pdfjs/i.test(html) && /import\('\.\.\/vendor\/pdf\.min\.mjs'\)/.test(read('js/pdf-texto.js')) && !/pdf-texto|pdf\.min/.test(m4));
+  check('vendor pdf.js es el build de Mozilla', /Mozilla Foundation/.test(read('vendor/pdf.min.mjs').slice(0, 400)) && read('vendor/pdf.worker.min.mjs').length > 500000);
+  const todoJs = fs.readdirSync(S('js')).filter(x => x.endsWith('.js')).map(f => [f, read('js/' + f)]);
+  check('WhatsApp: nunca un envío automático ni un bot (sin APIs de mensajería, sin timers)', todoJs.every(([f, t]) => !/graph\.facebook|api\.whatsapp|twilio|setInterval|whatsapp-web|\/messages/i.test(t)), todoJs.filter(([f, t]) => /graph\.facebook|api\.whatsapp|twilio|setInterval/i.test(t)).map(x => x[0]).join());
+  const av = read('js/aviso.js');
+  check('WhatsApp: el aviso se abre por un botón (click) con navigator.share con archivos o wa.me; marca avisado al compartir', /navigator\.share\(\{ files: \[file\]/.test(av) && /canShare/.test(av) && /window\.open\(url, '_blank'/.test(av) && /marcarAvisado/.test(av) && !/^\s*(window\.open|navigator\.share)/m.test(av.split('on: { click')[0].split('export function abrirAviso')[0]));
+  check('el encargado no ve pagos: pedir.js/entrar.js sin pagos, facturas, comprobantes ni tablero', !/pago|factura|comprobante|tablero|cuenta_corriente/i.test(read('js/pedir.js') + read('js/entrar.js')));
+  const sw = read('sw.js');
+  check('el SW precachea los módulos nuevos', ['g-tablero', 'g-cuentas', 'g-facturas', 'g-historial', 'g-cargar-pago', 'g-proveedores', 'aviso', 'pagos-util', 'comprobante', 'pdf-texto'].every(m => sw.includes(`./js/${m}.js`)));
+  check('api.js: sube comprobantes al bucket privado y guarda con registrar_pago (rpc transaccional)', /from\('comprobantes'\)/.test(read('js/api.js')) && /rpc\('registrar_pago'/.test(read('js/api.js')) && /rpc\('tablero'/.test(read('js/api.js')));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

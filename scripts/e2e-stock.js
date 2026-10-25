@@ -1,22 +1,23 @@
 #!/usr/bin/env node
 // Prueba de punta a punta de stock/ (manual, no corre en CI). Levanta un servidor estático del repo y mockea con
 // page.route toda la API de Supabase. Recorre encargado (login, pedir, revisar, enviar, mis pedidos) y gerencia
-// (pedidos, aprobar, WhatsApp, recibir, stock, catálogo, ventas de Núcleo, análisis, recetas, producción y merma). Guarda capturas en OUT
-// (por defecto /mnt/project-files/app-stock/fase3).
+// (tablero, pedidos, aprobar, WhatsApp, recibir, stock, catálogo, ventas de Núcleo, análisis, recetas, producción y merma, pagos con
+// comprobante PDF, facturas, avisos por WhatsApp y proveedores) y contadora. Guarda capturas en OUT (por defecto /mnt/project-files/app-stock/fase4).
 // Uso: node scripts/e2e-stock.js [carpeta-de-capturas]
 const http = require('node:http');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (_e) { ({ chromium } = require('/opt/node-tools/node_modules/playwright')); }
 
 const ROOT = path.join(__dirname, '..');
-const OUT = path.resolve(process.argv[2] || '/mnt/project-files/app-stock/fase3');
+const OUT = path.resolve(process.argv[2] || '/mnt/project-files/app-stock/fase4');
 const SB = 'https://zunyzlpzofbyqplgiupl.supabase.co';
 const EXEC = process.env.CHROMIUM_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 fs.mkdirSync(OUT, { recursive: true });
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const MIME = { '.mjs': 'text/javascript; charset=utf-8', '.pdf': 'application/pdf', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 function servidor() {
   return new Promise((resolve) => {
     const s = http.createServer((req, res) => {
@@ -32,8 +33,17 @@ function servidor() {
 
 // ---------- datos de ejemplo ----------
 const L1 = 'loc-umo', L2 = 'loc-tre';
-const PV = { barcena: 'prv-barcena', florida: 'prv-florida', martin: 'prv-martin' };
-const U_ENC = 'usr-enc', U_GER = 'usr-ger';
+const PV = { barcena: 'prv-barcena', florida: 'prv-florida', martin: 'prv-martin', demo: 'prv-demo' };
+const U_ENC = 'usr-enc', U_GER = 'usr-ger', U_CON = 'usr-con';
+const COMPROBANTES = path.join(__dirname, 'fixtures/comprobante');
+const { items: ITEMS_FX, construirPdf } = require('./fixtures/comprobante/generar.js');
+// Comprobantes sintéticos de prueba: el de la carpeta de fixtures y otros con distinta operación y monto.
+const PDF_DEMO = path.join(COMPROBANTES, 'comprobante-demo.pdf');
+const pdfVariante = (op, monto, cuit, razon) => {
+  const f = path.join(os.tmpdir(), `${op}.pdf`);
+  fs.writeFileSync(f, construirPdf(ITEMS_FX.map(i => ({ ...i, str: i.str.replace('DEMO0001ab', op).replace('$ 150.000,50', monto).replace('30000000019', cuit || '30000000019').replace('Distribuidora Demo Srl', razon || 'Distribuidora Demo Srl') }))));
+  return f;
+};
 const prod = (id, codigo, nombre, cat, uc, uu, factor, prov, par, local = L1) => ({ id, codigo, nombre, local_id: local, categoria: cat, unidad_compra: uc, unidad_uso: uu, factor_conversion: factor, proveedor_id: prov, par, es_elaborado: false, activo: true });
 const db = {
   locales: [
@@ -43,9 +53,10 @@ const db = {
     { id: 'loc-gel', codigo: 'GEL', nombre: 'Puerto Gelato', encargados: [], activo: true }
   ],
   proveedores: [
-    { id: PV.barcena, nombre: 'Barcena', whatsapp: '5491155550003', dias_entrega: '1 día · pedir antes del jueves', corte: null, pedido_minimo: null, activo: true },
-    { id: PV.florida, nombre: 'Distribuidora Florida', whatsapp: '+54 9 11 5555-0001', dias_entrega: 'Sábado', corte: 'Miércoles', pedido_minimo: null, activo: true },
-    { id: PV.martin, nombre: 'Martín De Ridder', whatsapp: '5491155550002', dias_entrega: 'Martes y viernes', corte: null, pedido_minimo: 100000, activo: true }
+    { id: PV.barcena, nombre: 'Barcena', whatsapp: '5491155550003', cuit: null, alias_cbu: 'barcena.pagos', dias_entrega: '1 día · pedir antes del jueves', corte: null, pedido_minimo: null, activo: true },
+    { id: PV.florida, nombre: 'Distribuidora Florida', whatsapp: '+54 9 11 5555-0001', cuit: '30-00000002-7', alias_cbu: null, dias_entrega: 'Sábado', corte: 'Miércoles', pedido_minimo: null, activo: true },
+    { id: PV.martin, nombre: 'Martín De Ridder', whatsapp: '5491155550002', cuit: null, alias_cbu: null, dias_entrega: 'Martes y viernes', corte: null, pedido_minimo: 100000, activo: true },
+    { id: PV.demo, nombre: 'Distribuidora Demo', whatsapp: '5491155550004', cuit: null, alias_cbu: null, dias_entrega: 'Lunes', corte: null, pedido_minimo: null, activo: true }
   ],
   productos: [
     prod('p-chorizo', 'UMO-001', 'Chorizo parrillero', 'Carnes', 'kg', 'kg', 1, PV.barcena, 8),
@@ -67,7 +78,19 @@ const db = {
   ordenes: [], recepciones: [], items: [], movimientos: [], preciosNuevos: [], itemPrecios: [], conteos: [], log: [],
   // fase 3
   consumo: { 'p-chorizo': 9 },           // consumo semanal (unidad de uso) que usa el sugerido por consumo
-  alias: [], recetas: [], importaciones: [], producciones: [], asociaciones: [], platosCreados: [], recetasGuardadas: [], produccionesReg: [], importaciones_rpc: []
+  alias: [], recetas: [], importaciones: [], producciones: [], asociaciones: [], platosCreados: [], recetasGuardadas: [], produccionesReg: [], importaciones_rpc: [],
+  // fase 4: facturas, pagos, comprobantes y proveedores
+  facturas: [
+    { id: 'fa-1', proveedor_id: PV.demo, numero: '0001-00000002', fecha: '2026-08-01', vencimiento: '2026-09-01', total: 100000, archivo: null, imputado: 0 },
+    { id: 'fa-2', proveedor_id: PV.demo, numero: '0001-00000010', fecha: '2026-09-20', vencimiento: '2026-11-20', total: 70000, archivo: null, imputado: 0 },
+    { id: 'fa-3', proveedor_id: PV.barcena, numero: '0003-00000099', fecha: '2026-09-15', vencimiento: '2026-10-01', total: 30000, archivo: null, imputado: 0 },
+    { id: 'fa-4', proveedor_id: PV.martin, numero: '0002-00000045', fecha: '2026-10-10', vencimiento: null, total: 120000, archivo: null, imputado: 120000 }
+  ],
+  pagos: [
+    { id: 'pg-1', proveedor_id: PV.martin, monto: 120000, fecha: '2026-10-12', numero_operacion: 'OPVIEJA001', concepto: 'Factura', descripcion: 'Carnes', comprobante_path: 'pagos/prv-martin/OPVIEJA001.pdf', avisado_en: '2026-10-12T15:00:00Z', creado_en: '2026-10-12T14:00:00Z' },
+    { id: 'pg-2', proveedor_id: PV.florida, monto: 54000, fecha: '2026-10-20', numero_operacion: 'OPVIEJA002', concepto: 'Factura', descripcion: 'Bebidas', comprobante_path: 'pagos/prv-florida/OPVIEJA002.pdf', avisado_en: null, creado_en: '2026-10-20T14:00:00Z' }
+  ],
+  subidos: {}, pagosRegistrados: [], facturasCreadas: [], proveedoresEditados: [], avisos: [], consultasTablero: []
 };
 let seq = 1;
 const nid = (p) => p + '-' + (seq++);
@@ -96,7 +119,7 @@ async function montarApi(ctx) {
     const json = (data, status = 200) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify(data) });
     const body = () => { try { return JSON.parse(req.postData() || 'null'); } catch (_e) { return null; } };
     const sub = subDe(req);
-    const rol = sub === U_GER ? 'gerencia' : (sub === U_ENC ? 'encargado' : null);
+    const rol = sub === U_GER ? 'gerencia' : (sub === U_ENC ? 'encargado' : (sub === U_CON ? 'contadora' : null));
     const t = u.pathname.replace('/rest/v1/', '');
     db.log.push({ m: req.method(), t, q: Object.fromEntries(q), b: body(), rol });
 
@@ -105,16 +128,26 @@ async function montarApi(ctx) {
       if (u.searchParams.get('grant_type') === 'refresh_token') return json(sesion(String(b.refresh_token || '').slice(2), 'x@x'));
       if (b.email === 'local-umo@docks-stock.app' && b.password === '1234') return json(sesion(U_ENC, b.email));
       if (b.email === 'jacobo@ejemplo.com' && b.password === 'clave-segura') return json(sesion(U_GER, b.email));
+      if (b.email === 'conta@ejemplo.com' && b.password === 'clave-conta') return json(sesion(U_CON, b.email));
       return json({ error: 'invalid_grant', error_code: 'invalid_credentials', error_description: 'Invalid login credentials', msg: 'Invalid login credentials' }, 400);
     }
     if (u.pathname === '/auth/v1/user') return json(sesion(sub || U_ENC, 'x@x').user);
     if (u.pathname === '/auth/v1/logout') return route.fulfill({ status: 204, headers: cors });
+    if (u.pathname.startsWith('/storage/v1/')) {
+      if (rol !== 'gerencia' && rol !== 'contadora') return json({ statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' }, 403);
+      const ruta = decodeURIComponent(u.pathname.replace(/^\/storage\/v1\/object\/(sign\/|authenticated\/)?comprobantes\//, ''));
+      if (u.pathname.includes('/object/sign/') && req.method() === 'POST') return json({ signedURL: `/object/sign/comprobantes/${ruta}?token=firma` });
+      if (req.method() === 'POST' || req.method() === 'PUT') { db.subidos[ruta] = (req.postDataBuffer() || Buffer.alloc(0)).length; return json({ Key: 'comprobantes/' + ruta, Id: nid('obj') }); }
+      if (req.method() === 'GET') return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/pdf' }, body: fs.readFileSync(path.join(COMPROBANTES, 'comprobante-demo.pdf')) });
+      return json({}, 404);
+    }
     if (!u.pathname.startsWith('/rest/v1/')) return json({}, 404);
 
     if (t === 'rpc/locales_login') return json(db.locales.map(l => ({ codigo: l.codigo, nombre: l.nombre, encargados: l.encargados })));
     if (!rol) return json({ code: '42501', message: 'permission denied' }, 401);
     const esGet = req.method() === 'GET';
     const ver = (arr) => arr;
+    if (t === 'perfiles' && rol === 'contadora') return json([{ id: U_CON, nombre: 'Contadora', rol: 'contadora', local_id: null }]);
     if (t === 'perfiles') return json(rol === 'gerencia' ? [{ id: U_GER, nombre: 'Jacobo', rol: 'gerencia', local_id: null }] : [{ id: U_ENC, nombre: 'Local Umo', rol: 'encargado', local_id: L1 }]);
     if (t === 'locales') return json(rol === 'gerencia' ? db.locales : db.locales.filter(l => l.id === L1));
     if (t === 'productos') {
@@ -126,11 +159,63 @@ async function montarApi(ctx) {
     }
     if (t === 'stock_actual') return json(rol === 'gerencia' ? db.stock : db.stock.filter(s => s.local_id === L1));
     if (t === 'proveedores_basico') return json(db.proveedores.map(p => ({ id: p.id, nombre: p.nombre, dias_entrega: p.dias_entrega, corte: p.corte, tiene_minimo: !!p.pedido_minimo, activo: true })));
-    if (t === 'proveedores') return rol === 'gerencia' ? json(db.proveedores) : json([]);
+    if (t === 'proveedores' && req.method() === 'PATCH') {
+      if (rol !== 'gerencia') return json([]); // la contadora solo lee proveedores
+      const id = eq(q.get('id')); const p = db.proveedores.find(x => x.id === id); Object.assign(p, body()); db.proveedoresEditados.push({ id, ...body() }); return json([{ id, nombre: p.nombre, whatsapp: p.whatsapp, cuit: p.cuit, alias_cbu: p.alias_cbu }]);
+    }
+    if (t === 'proveedores') return rol === 'gerencia' || rol === 'contadora' ? json(db.proveedores) : json([]);
     if (t === 'precio_actual') return rol === 'gerencia' ? json(Object.entries(db.precios).map(([producto_id, precio]) => ({ producto_id, precio }))) : json([]);
     if (t === 'rpc/buscar_productos') { const b = body(); const n = (b.q || '').toLowerCase(); return json(db.productos.filter(p => p.local_id === (b.p_local || p.local_id) && p.nombre.toLowerCase().includes(n)).map(p => ({ id: p.id, codigo: p.codigo, nombre: p.nombre, local_id: p.local_id, score: 0.8 }))); }
     if (t === 'rpc/registrar_conteo') { const b = body(); if (rol !== 'gerencia') return json({ code: '42501', message: 'new row violates row-level security policy' }, 403); db.conteos.push(b); const s = db.stock.find(x => x.producto_id === b.p_producto && x.local_id === b.p_local); const dif = b.p_cantidad_contada - (s ? s.stock : 0); if (s) s.stock = b.p_cantidad_contada; else db.stock.push({ local_id: b.p_local, producto_id: b.p_producto, stock: b.p_cantidad_contada }); return json(dif); }
 
+
+
+    // ---- fase 4: facturas, pagos, comprobantes (gerencia y contadora; el encargado nunca) ----
+    const hoyMock = '2026-10-26';
+    const conSaldo = (f) => ({ ...f, pendiente: f.total - f.imputado, vencida: !!f.vencimiento && f.vencimiento < hoyMock && f.total - f.imputado > 0 });
+    if (/^(cuenta_corriente|facturas_pendientes|facturas_proveedor|pagos|pago_facturas|rpc\/(registrar_pago|tablero))/.test(t) && rol !== 'gerencia' && rol !== 'contadora') return json({ code: '42501', message: 'permission denied for table ' + t }, 403);
+    if (t === 'cuenta_corriente') {
+      return json(db.proveedores.map(p => { const fa = db.facturas.filter(f => f.proveedor_id === p.id).reduce((a, f) => a + f.total, 0), pa = db.pagos.filter(g => g.proveedor_id === p.id).reduce((a, g) => a + g.monto, 0);
+        return { proveedor_id: p.id, nombre: p.nombre, facturado: fa, pagado: pa, saldo: fa - pa }; }).sort((a, b) => b.saldo - a.saldo));
+    }
+    if (t === 'facturas_pendientes') {
+      let r = db.facturas.map(conSaldo); if (eq(q.get('proveedor_id'))) r = r.filter(f => f.proveedor_id === eq(q.get('proveedor_id')));
+      if ((q.get('pendiente') || '').startsWith('gt.')) r = r.filter(f => f.pendiente > Number(q.get('pendiente').slice(3)));
+      return json(r.sort((a, b) => a.fecha.localeCompare(b.fecha)));
+    }
+    if (t === 'facturas_proveedor' && req.method() === 'POST') {
+      const b = body(); if (db.facturas.some(f => f.proveedor_id === b.proveedor_id && f.numero === b.numero)) return json({ code: '23505', message: 'duplicate key value violates unique constraint "facturas_proveedor_proveedor_id_numero_key"' }, 409);
+      const f = { ...b, id: nid('fa'), imputado: 0 }; db.facturas.push(f); db.facturasCreadas.push(b); return json([{ id: f.id }], 201);
+    }
+    if (t === 'pagos' && req.method() === 'PATCH') { const id = eq(q.get('id')); const g = db.pagos.find(x => x.id === id); Object.assign(g, body()); db.avisos.push({ id, ...body() }); return json([{ id, avisado_en: g.avisado_en }]); }
+    if (t === 'pagos') {
+      let r = db.pagos; if (eq(q.get('numero_operacion'))) r = r.filter(g => g.numero_operacion === eq(q.get('numero_operacion')));
+      return json([...r].sort((a, b) => (b.fecha + b.creado_en).localeCompare(a.fecha + a.creado_en)));
+    }
+    if (t === 'rpc/registrar_pago') {
+      const b = body(); const pg = b.p_pago; db.pagosRegistrados.push(b);
+      if (pg.numero_operacion && db.pagos.some(g => g.numero_operacion === pg.numero_operacion)) return json({ code: '23505', message: `La operación ${pg.numero_operacion} ya está cargada: no se registra dos veces` }, 409);
+      const id = nid('pg'); db.pagos.push({ id, ...pg, avisado_en: null, creado_en: '2026-10-26T13:00:00Z' });
+      for (const im of b.p_imputaciones) db.facturas.find(f => f.id === im.factura_id).imputado += im.monto;
+      if (pg.actualizar_cuit && pg.cuit_destino) db.proveedores.find(x => x.id === pg.proveedor_id).cuit = pg.cuit_destino;
+      return json(id);
+    }
+    if (t === 'rpc/tablero') {
+      const b = body(); db.consultasTablero.push(b); const uno = !!b.p_local; const k = uno ? 0.4 : 1;
+      const m = (v) => Math.round(v * k);
+      return json({
+        periodo: { local_id: b.p_local, desde: b.p_desde, hasta: b.p_hasta, anterior_desde: '2026-10-19', anterior_hasta: '2026-10-26' },
+        actual: { ventas: m(2850000), compras: m(1240000), cmv: m(910000), margen: m(1940000), margen_pct: 68.1 },
+        anterior: { ventas: m(2610000), compras: m(1480000), cmv: m(940000), margen: m(1670000), margen_pct: 64 },
+        stock: { total: m(3120000), por_local: (uno ? [{ local_id: b.p_local, nombre: 'Umo Grill', valor: 1250000, sin_precio: 1 }] : [{ local_id: L1, nombre: 'Umo Grill', valor: 1250000, sin_precio: 1 }, { local_id: L2, nombre: 'Trento Café', valor: 870000, sin_precio: 0 }, { local_id: 'loc-brk', nombre: 'Brooklyn', valor: 620000, sin_precio: 3 }, { local_id: 'loc-gel', nombre: 'Puerto Gelato', valor: 380000, sin_precio: 0 }]) },
+        deuda: { total: 640000, proveedores: [{ proveedor_id: PV.demo, nombre: 'Distribuidora Demo', saldo: 170000 }, { proveedor_id: PV.martin, nombre: 'Martín De Ridder', saldo: 310000 }, { proveedor_id: PV.barcena, nombre: 'Barcena', saldo: 30000 }],
+          vencidas: { n: 2, total: 130000, items: [{ id: 'fa-1', proveedor: 'Distribuidora Demo', numero: '0001-00000002', vencimiento: '2026-09-01', pendiente: 100000 }, { id: 'fa-3', proveedor: 'Barcena', numero: '0003-00000099', vencimiento: '2026-10-01', pendiente: 30000 }] } },
+        pagos_sin_avisar: { n: 1, total: 54000, items: [{ id: 'pg-2', proveedor: 'Distribuidora Florida', monto: 54000, fecha: '2026-10-20' }] },
+        pedidos_por_aprobar: { n: 3, items: [{ id: 'o1', local: 'Umo Grill', proveedor: 'Barcena', lineas: 4, creado_en: '2026-10-25T10:00:00Z' }, { id: 'o2', local: 'Umo Grill', proveedor: null, lineas: 1, creado_en: '2026-10-25T10:00:00Z' }, { id: 'o3', local: 'Trento Café', proveedor: 'Distribuidora Florida', lineas: 6, creado_en: '2026-10-25T11:00:00Z' }] },
+        faltantes: [{ local: 'Umo Grill', producto_id: 'p-cerveza', nombre: 'Cerveza rubia lata 473 ml', unidad_uso: 'unidad', faltante: 12, valor: 19600 }, { local: 'Umo Grill', producto_id: 'p-chorizo', nombre: 'Chorizo parrillero', unidad_uso: 'kg', faltante: 2.5, valor: 15500 }, { local: 'Trento Café', producto_id: 'p-trento', nombre: 'Café en grano', unidad_uso: 'kg', faltante: 1.2, valor: 9800 }],
+        pendientes: { sin_precio: { n: 14, ejemplos: ['Servilletas de papel'] }, sin_proveedor: { n: 9, ejemplos: ['Servilletas de papel'] }, sin_receta: { n: 3, ejemplos: ['Parrillada Demo'] } }
+      });
+    }
 
     // ---- fase 2: sugerido por consumo (el encargado lo lee de su local, sin precios) ----
     if (t === 'rpc/sugerido_pedido') {
@@ -316,7 +401,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const itemsEnviados = posts.filter(l => l.t === 'orden_items').flatMap(l => l.b);
   ok(itemsEnviados.length === 6 && itemsEnviados.some(i => i.producto_id === 'p-servilleta'), `6 ítems enviados, incluida la servilleta sin proveedor (${itemsEnviados.length})`);
   ok(db.log.slice(antes).every(l => !(l.t === 'movimientos')), 'el encargado no escribe movimientos');
-  ok(db.log.filter(l => l.rol === 'encargado').every(l => !/ventas|receta|produccion|merma|alias|importar|precio/i.test(l.t)), 'el encargado nunca consulta ventas, recetas, producción, merma ni precios ' + [...new Set(db.log.filter(l => l.rol === 'encargado' && /ventas|receta|produccion|merma|alias|importar|precio/i.test(l.t)).map(l => l.t))].join());
+  ok(db.log.filter(l => l.rol === 'encargado').every(l => !/ventas|receta|produccion|merma|alias|importar|precio|pago|factura|cuenta_corriente|tablero|comprobante|storage/i.test(l.t)), 'el encargado nunca consulta ventas, recetas, producción, merma ni precios ' + [...new Set(db.log.filter(l => l.rol === 'encargado' && /ventas|receta|produccion|merma|alias|importar|precio|pago|factura|cuenta_corriente|tablero|comprobante|storage/i.test(l.t)).map(l => l.t))].join());
   ok(db.log.filter(l => l.t === 'rpc/sugerido_pedido').every(l => l.rol !== null), 'sugerido_pedido solo con sesión');
   ok(await e.locator('.ped').count() === 4, 'Mis pedidos lista 4 pedidos');
   ok((await e.locator('.ped').first().innerText()).includes('En revisión'), 'estado "En revisión"');
@@ -376,8 +461,27 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('#in-email').fill('jacobo@ejemplo.com');
   await g.locator('#in-pass').fill('clave-segura');
   await g.locator('form button[type=submit]').click();
-  await g.waitForSelector('.grupo-prov', { timeout: 8000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 400)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Pedidos no cargó'); });
-  ok(await g.locator('.sidebar .side-link').count() === 7, 'gerencia: barra lateral con 6 secciones (Pedidos, Recibir, Stock, Ventas, Cocina, Catálogo) + Salir');
+  await g.waitForSelector('.tb-card', { timeout: 8000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 400)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Tablero no cargó'); });
+  ok(await g.locator('h1').first().innerText() === 'Tablero', 'gerencia cae en el Tablero (inicio)');
+  ok(await g.locator('.sidebar .side-link').count() === 9, 'gerencia: barra lateral con 8 secciones (Tablero, Pedidos, Recibir, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
+  // ---- Tablero ----
+  const tbTxt = async () => (await g.locator('.tb-metricas').innerText()).replace(/\s+/g, ' ');
+  ok(/VENTAS \$ 2\.850\.000 Anterior \$ 2\.610\.000 · ▲ 9 %/i.test(await tbTxt()), 'Tablero: ventas de la semana contra la anterior con variación (+9 %) ' + await tbTxt());
+  ok(/COMPRAS \$ 1\.240\.000 Anterior \$ 1\.480\.000 · ▼ 16 %/i.test(await tbTxt()) && /MARGEN BRUTO ESTIMADO \$ 1\.940\.000/i.test(await tbTxt()) && /COSTO DE MERCADERÍA VENDIDA \$ 910\.000/i.test(await tbTxt()), 'Tablero: compras, costo de mercadería vendida y margen estimado');
+  for (const c of ['ventas', 'compras', 'cmv', 'margen', 'stock', 'deuda', 'sin-avisar', 'por-aprobar', 'faltantes', 'pendientes']) ok(await g.locator(`[data-card="${c}"]`).count() === 1, `Tablero: tarjeta ${c}`);
+  const tbAll = (await g.locator('.vista').innerText()).replace(/\s+/g, ' ');
+  ok(/Plata parada en stock \$ 3\.120\.000/i.test(tbAll) && /Trento Café \$ 870\.000/.test(tbAll), 'Tablero: plata parada en stock por local');
+  ok(/Deuda con proveedores \$ 640\.000 2 facturas vencidas · \$ 130\.000/i.test(tbAll), 'Tablero: deuda y facturas vencidas');
+  ok(/Pagos sin avisar 1/i.test(tbAll) && /Pedidos por aprobar 3/i.test(tbAll) && /Cerveza rubia lata 473 ml \$ 19\.600/.test(tbAll) && /Datos pendientes 26/i.test(tbAll), 'Tablero: pagos sin avisar, pedidos por aprobar, faltantes más caros y datos pendientes');
+  ok(db.consultasTablero.length === 1 && db.consultasTablero[0].p_local === null && db.consultasTablero[0].p_desde === '2026-10-26' && db.consultasTablero[0].p_hasta === '2026-10-26', 'Tablero: una sola llamada rpc tablero (todos los locales, lunes a hoy) ' + JSON.stringify(db.consultasTablero[0]));
+  await shot(g, '39-g-tablero-pc', true);
+  await g.locator('.chip', { hasText: 'Umo Grill' }).click();
+  await g.waitForFunction(() => /\$ 1\.140\.000/.test(document.querySelector('.tb-metricas').innerText));
+  ok(db.consultasTablero.at(-1).p_local === L1, 'Tablero: filtrar por local vuelve a llamar con ese local');
+  await g.locator('.chip', { hasText: 'Todos los locales' }).click();
+  await g.waitForFunction(() => /\$ 2\.850\.000/.test(document.querySelector('.tb-metricas').innerText));
+  await g.locator('[data-card="por-aprobar"]').click();
+  await g.waitForSelector('.grupo-prov', { timeout: 8000 });
   ok(await g.locator('.grupo-prov').count() === 4, 'Pedidos: borradores por proveedor (3) + Sin proveedor');
   const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');
   ok(await sinP.getByRole('button', { name: 'Aprobar' }).isDisabled() && await sinP.getByRole('button', { name: 'Enviar por WhatsApp' }).isDisabled(), 'Sin proveedor: Aprobar y WhatsApp deshabilitados');
@@ -429,7 +533,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(db.preciosNuevos.some(p => p.producto_id === 'p-cerveza' && p.precio === 10500), 'precio nuevo guardado al cambiar');
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'parcial', 'faltó la gaseosa: orden "parcial"');
   // Stock
-  await g.getByRole('link', { name: 'Stock' }).click();
+  await g.locator('.sidebar a[data-nav="stock"]').click();
   await g.waitForSelector('.prod-stk');
   await g.locator('.chip', { hasText: 'Umo Grill' }).click();
   await shot(g, '13-g-stock-pc');
@@ -459,6 +563,142 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.getByRole('button', { name: 'Crear producto' }).click();
   await g.waitForSelector('.toast-ok >> text=Producto creado');
   ok(db.productos.some(p => p.codigo === 'UMO-050' && p.nombre === 'Provoleta'), 'alta de producto ' + JSON.stringify(db.productos.filter(p => /Provoleta/.test(p.nombre))));
+  // ===== Gerencia · Pagos, facturas, comprobantes, avisos y proveedores (escritorio) =====
+  await g.locator('.sidebar a[data-nav="pagos"]').click();
+  await g.waitForSelector('.cc-fila');
+  ok(await g.locator('h1').first().innerText() === 'Pagos', 'pantalla Pagos (cuentas corrientes)');
+  const kp = (await g.locator('.kpis').innerText()).replace(/\s+/g, ' ');
+  ok(/DEUDA TOTAL \$ 200\.000/i.test(kp) && /VENCIDO \$ 130\.000 2 facturas/i.test(kp), 'cuentas: deuda total y vencido ' + kp);
+  const demoCC = (await g.locator('.cc-fila[data-prov="Distribuidora Demo"]').innerText()).replace(/\s+/g, ' ');
+  ok(/\$ 170\.000/.test(demoCC) && /1 factura vencida/.test(demoCC), 'cuentas: Distribuidora Demo debe $ 170.000 con una factura vencida');
+  ok((await g.locator('.cc-fila[data-prov="Distribuidora Florida"]').innerText()).includes('$ 54.000 a favor'), 'cuentas: pago sin facturas queda a favor');
+  await g.locator('.cc-fila[data-prov="Distribuidora Demo"] button', { hasText: 'Ver 2 facturas pendientes' }).click();
+  ok((await g.locator('.cc-fila[data-prov="Distribuidora Demo"] .tb-lista').innerText()).includes('0001-00000002'), 'cuentas: abre las facturas pendientes del proveedor');
+  await shot(g, '40-g-cuentas-pc', true);
+
+  // Facturas: alta con PDF y vencidas resaltadas
+  await g.locator('.subnav-b', { hasText: 'Facturas' }).click();
+  await g.waitForSelector('.fac');
+  ok(await g.locator('.fac').count() === 3 && await g.locator('.fac-vencida').count() === 2, 'facturas: 3 pendientes, 2 vencidas resaltadas');
+  await shot(g, '41-g-facturas-pc', true);
+  await g.getByRole('button', { name: 'Nueva factura' }).click();
+  await g.waitForSelector('dialog[open]');
+  await g.locator('#fa-prov').selectOption(PV.florida);
+  await g.locator('#fa-numero').fill('0004-00000123');
+  await g.locator('#fa-fecha').fill('2026-10-01');
+  await g.locator('#fa-venc').fill('2026-10-20');
+  await g.locator('#fa-total').fill('45000');
+  await g.locator('#fa-archivo').setInputFiles(PDF_DEMO);
+  await shot(g, '42-g-factura-nueva-pc');
+  await g.getByRole('button', { name: 'Guardar factura' }).click();
+  await g.waitForSelector('.toast-ok >> text=Factura guardada');
+  const fc = db.facturasCreadas[0];
+  ok(fc && fc.proveedor_id === PV.florida && fc.numero === '0004-00000123' && fc.total === 45000 && fc.vencimiento === '2026-10-20' && /^facturas\/prv-florida\/\d+-comprobante-demo\.pdf$/.test(fc.archivo), 'factura: proveedor, número, total, vencimiento y PDF en facturas/<proveedor>/<archivo> ' + JSON.stringify(fc));
+  ok(Object.keys(db.subidos).includes(fc.archivo) && db.subidos[fc.archivo] > 0, 'factura: el PDF se subió al bucket comprobantes');
+  await g.waitForSelector('.fac[data-factura="0004-00000123"].fac-vencida');
+  ok(await g.locator('.fac-vencida').count() === 3, 'factura nueva vencida resaltada');
+
+  // Cargar pago: subir el PDF, precarga, proveedor sugerido, imputación
+  await g.locator('.subnav-b', { hasText: 'Cargar' }).click();
+  await g.waitForSelector('#p-archivo', { state: 'attached' });
+  await shot(g, '43-g-cargar-pago-vacio-pc');
+  await g.locator('#p-archivo').setInputFiles(PDF_DEMO);
+  await g.waitForSelector('.banner-ok >> text=Comprobante leído', { timeout: 15000 }).catch(async () => { console.log('DEBUG lectura:', (await g.locator('#p-form').innerText()).slice(0, 300), errores.slice(-5)); throw new Error('no leyó el comprobante'); });
+  const val = async (id) => g.locator(id).inputValue();
+  ok(await val('#p-monto') === '150000,5' && await val('#p-fecha') === '2026-10-05' && await val('#p-op') === 'DEMO0001ab', `precarga: monto, fecha y operación (${await val('#p-monto')}, ${await val('#p-fecha')}, ${await val('#p-op')})`);
+  ok(await val('#p-cuit') === '30000000019' && await val('#p-banco') === 'Banco Demo' && (await val('#p-cuenta')).endsWith('1234') && await val('#p-concepto') === 'Factura' && await val('#p-desc') === 'Mercaderia', 'precarga: CUIT, banco, cuenta, concepto y descripción');
+  ok(await val('#p-prov') === '', 'ningún proveedor tiene ese CUIT: queda sin elegir');
+  ok((await g.locator('[data-sugerencias]').innerText()).includes('Distribuidora Demo'), 'sugiere el proveedor por razón social (Distribuidora Demo)');
+  ok(await g.locator('.imp-fila').count() === 0, 'sin proveedor todavía no hay facturas para imputar');
+  await g.locator('[data-sug="prv-demo"]').click();
+  await g.waitForSelector('.imp-fila');
+  ok((await g.locator('#p-form .banner-info').first().innerText()).includes('al guardar se guarda el 30000000019'), 'al confirmar avisa que guarda el CUIT en el proveedor');
+  const impVals = async () => g.locator('.imp-fila input').evaluateAll(els => els.map(e => e.value));
+  ok(JSON.stringify(await impVals()) === JSON.stringify(['100000', '50000,5']), 'imputación automática: más vieja primero (100000 + 50000,5) ' + JSON.stringify(await impVals()));
+  await g.locator('.imp-fila input').first().fill('90000');
+  ok((await g.locator('[data-imputado]').innerText()).replace(/\s+/g, ' ').includes('$ 140.001'), 'editar la imputación actualiza los totales');
+  await g.getByRole('button', { name: 'Volver a imputar automático' }).click();
+  ok(JSON.stringify(await impVals()) === JSON.stringify(['100000', '50000,5']), 'volver a imputar automático');
+  await shot(g, '44-g-cargar-pago-leido-pc', true);
+  await g.getByRole('button', { name: 'Guardar pago' }).click();
+  await g.waitForSelector('#p-resultado:not([hidden])');
+  const rp = db.pagosRegistrados[0];
+  ok(rp && rp.p_pago.monto === 150000.5 && rp.p_pago.numero_operacion === 'DEMO0001ab' && rp.p_pago.proveedor_id === PV.demo && rp.p_pago.fecha === '2026-10-05' && rp.p_pago.actualizar_cuit === true && rp.p_pago.cuit_destino === '30000000019', 'registrar_pago: pago, proveedor y confirmación del CUIT ' + JSON.stringify(rp && rp.p_pago));
+  ok(rp.p_imputaciones.length === 2 && rp.p_imputaciones[0].factura_id === 'fa-1' && rp.p_imputaciones[0].monto === 100000 && rp.p_imputaciones[1].monto === 50000.5, 'registrar_pago: imputaciones a las facturas más viejas');
+  ok(rp.p_pago.comprobante_path === 'pagos/prv-demo/DEMO0001ab.pdf' && db.subidos['pagos/prv-demo/DEMO0001ab.pdf'] > 0, 'el PDF se subió a pagos/<proveedor>/<operación>.pdf');
+  ok(db.proveedores.find(p => p.id === PV.demo).cuit === '30000000019', 'el CUIT quedó guardado en el proveedor');
+  await shot(g, '45-g-pago-guardado-pc');
+
+  // Avisar por WhatsApp (escritorio: wa.me + descargar el PDF)
+  await g.locator('[data-accion="avisar"]').click();
+  await g.waitForSelector('dialog[open] [data-accion="wa"]');
+  const msg = (await g.locator('[data-aviso]').innerText());
+  ok(/Distribuidora Demo/.test(msg) && /150\.000,50/.test(msg) && /DEMO0001ab/.test(msg) && /terminada en 1234/.test(msg) && /Banco Demo/.test(msg), 'el mensaje del aviso trae proveedor, monto, operación, banco y cuenta ' + JSON.stringify(msg));
+  ok(await g.locator('dialog [data-accion="compartir"]').count() === 0, 'escritorio: no hay botón Compartir');
+  ok((await g.locator('dialog .banner-info').innerText()).includes('adjuntalo a mano'), 'escritorio: avisa que el PDF se adjunta a mano');
+  await g.waitForSelector('dialog [data-accion="descargar"]');
+  ok(/\/storage\/v1\/object\/sign\/comprobantes\/pagos\/prv-demo\/DEMO0001ab\.pdf\?token=/.test(await g.locator('dialog [data-accion="descargar"]').getAttribute('href')), 'botón para descargar el PDF con URL firmada del bucket');
+  await shot(g, '46-g-avisar-pc');
+  const [waPopup] = await Promise.all([cGer.waitForEvent('page'), g.locator('dialog [data-accion="wa"]').click()]);
+  ok(waPopup.url().startsWith('https://wa.me/5491155550004?text='), 'abre wa.me con el número del proveedor: ' + waPopup.url().slice(0, 40));
+  ok(decodeURIComponent(waPopup.url().split('?text=')[1]) === msg, 'el texto de wa.me es el mismo mensaje');
+  await waPopup.close();
+  await g.waitForSelector('[data-estado].estado-avisado');
+  ok(db.avisos.length === 1 && db.avisos[0].avisado_en, 'al avisar se marca avisado_en');
+
+  // Lista de pagos: Avisado / Sin avisar
+  await g.locator('.subnav-b', { hasText: /^Pagos$/ }).click();
+  await g.waitForSelector('.prod[data-pago]');
+  ok(await g.locator('.prod[data-pago]').count() === 3, 'lista de pagos: 3');
+  ok((await g.locator('.prod[data-pago="DEMO0001ab"]').innerText()).includes('Avisado') && (await g.locator('.prod[data-pago="OPVIEJA002"]').innerText()).includes('Sin avisar'), 'lista de pagos con estado Avisado / Sin avisar');
+  await shot(g, '47-g-pagos-lista-pc', true);
+  await g.locator('.chip', { hasText: 'Sin avisar' }).click();
+  ok(await g.locator('.prod[data-pago]').count() === 1, 'filtro Sin avisar');
+  const [waPopup2] = await Promise.all([cGer.waitForEvent('page'), (async () => {
+    await g.locator('.prod[data-pago="OPVIEJA002"] [data-accion="avisar"]').click();
+    await g.locator('dialog [data-accion="wa"]').click();
+  })()]);
+  ok(waPopup2.url().startsWith('https://wa.me/5491155550001?text='), 'avisar desde la lista: número de Distribuidora Florida solo con dígitos');
+  await waPopup2.close();
+  await g.waitForSelector('text=No hay pagos sin avisar');
+  ok(db.avisos.length === 2 && db.avisos[1].id === 'pg-2', 'queda marcado el pago viejo');
+
+  // Segundo pago: ahora el proveedor se reconoce por el CUIT; imputa solo lo pendiente
+  await g.locator('.subnav-b', { hasText: 'Cargar' }).click();
+  await g.locator('#p-archivo').setInputFiles(pdfVariante('DEMO0002cd', '$ 80.000,00'));
+  await g.waitForSelector('.banner-ok >> text=Comprobante leído');
+  await g.waitForSelector('.imp-fila');
+  ok(await val('#p-prov') === PV.demo && (await g.locator('#p-form .banner-info').first().innerText()).includes('reconocido por el CUIT'), 'segundo pago: proveedor reconocido por el CUIT');
+  ok(JSON.stringify(await impVals()) === JSON.stringify(['19999,5']), 'segundo pago: solo queda pendiente la factura 2 (19999,5) ' + JSON.stringify(await impVals()));
+  await g.getByRole('button', { name: 'Guardar pago' }).click();
+  await g.waitForSelector('#p-resultado:not([hidden])');
+  const rp2 = db.pagosRegistrados[1];
+  ok(rp2.p_pago.actualizar_cuit === false && rp2.p_pago.monto === 80000 && rp2.p_imputaciones.length === 1 && rp2.p_imputaciones[0].monto === 19999.5, 'segundo pago: sin actualizar CUIT, imputa 19999,5 y el resto queda a cuenta');
+  ok((await g.locator('#p-resultado').innerText()).includes('imputado a 1 factura'), 'resultado del segundo pago');
+
+  // Operación duplicada
+  await g.getByRole('button', { name: 'Cargar otro pago' }).click();
+  await g.locator('#p-archivo').setInputFiles(PDF_DEMO);
+  await g.waitForSelector('.banner-error >> text=ya está cargada');
+  ok(await g.getByRole('button', { name: 'Guardar pago' }).isDisabled(), 'la misma operación no se puede guardar dos veces: botón deshabilitado y mensaje claro');
+  await shot(g, '48-g-pago-duplicado-pc', true);
+
+  // Proveedores (Catálogo → Proveedores)
+  await g.locator('.sidebar a[data-nav="catalogo"]').click();
+  await g.locator('.subnav-b', { hasText: 'Proveedores' }).click();
+  await g.waitForSelector('.prod-cat[data-prov="Barcena"]');
+  ok((await g.locator('.prod-cat[data-prov="Barcena"]').innerText()).includes('Sin CUIT'), 'proveedores: marca los que no tienen CUIT');
+  await g.locator('.prod-cat[data-prov="Barcena"]').click();
+  await g.waitForSelector('dialog[open]');
+  await g.locator('#pv-wa').fill('+54 9 11 5555-0099');
+  await g.locator('#pv-cuit').fill('30-00000003-5');
+  await g.locator('#pv-alias').fill('barcena.nuevo');
+  await shot(g, '49-g-proveedor-editar-pc');
+  await g.getByRole('button', { name: 'Guardar cambios' }).click();
+  await g.waitForSelector('.toast-ok >> text=Proveedor guardado');
+  const pe = db.proveedoresEditados[0];
+  ok(pe && pe.id === PV.barcena && pe.whatsapp === '5491155550099' && pe.cuit === '30-00000003-5' && pe.alias_cbu === 'barcena.nuevo', 'proveedor: WhatsApp (solo dígitos), CUIT con guiones y alias ' + JSON.stringify(pe));
+  await shot(g, '50-g-proveedores-pc', true);
   await cGer.close();
 
   // ===== Gerencia · celular y oscuro =====
@@ -470,8 +710,11 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.locator('#in-email').fill('jacobo@ejemplo.com');
   await gm.locator('#in-pass').fill('clave-segura');
   await gm.locator('form button[type=submit]').click();
-  await gm.waitForSelector('.vista-head');
+  await gm.waitForSelector('.tb-card');
   await gm.waitForTimeout(400);
+  await shot(gm, '16a-g-tablero-m', true);
+  await gm.locator('a.tab[data-nav="pedidos"]').click();
+  await gm.waitForSelector('.grupo-prov');
   await shot(gm, '16-g-pedidos-m', true);
   await gm.getByRole('link', { name: 'Catálogo' }).click();
   await gm.waitForSelector('.prod-cat');
@@ -486,15 +729,13 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gd.locator('#in-email').fill('jacobo@ejemplo.com');
   await gd.locator('#in-pass').fill('clave-segura');
   await gd.locator('form button[type=submit]').click();
-  await gd.waitForSelector('.vista-head');
-  await gd.getByRole('link', { name: 'Stock' }).click();
+  await gd.waitForSelector('.tb-card');
+  await shot(gd, '51-g-tablero-pc-oscuro', true);
+  await gd.locator('.sidebar a[data-nav="stock"]').click();
   await gd.waitForSelector('.prod-stk');
   await shot(gd, '18-g-stock-pc-oscuro');
   await cGerD.close();
 
-  // ===== Gerencia · Ventas, análisis, recetas, producción y merma =====
-  const FX = path.join(ROOT, 'scripts/fixtures/nucleo');
-  const ARCH = ['detalle-por-pedido.xlsx', 'formas-de-pago.xlsx', 'pedidos-por-producto.xlsx'].map(f => path.join(FX, f));
   const loginGer = async (pg) => {
     await pg.goto(BASE);
     await pg.waitForSelector('.seg');
@@ -504,10 +745,86 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
     await pg.locator('form button[type=submit]').click();
     await pg.waitForSelector('.vista-head');
   };
+
+  // ===== Gerencia · Pagos en el celular (Compartir con el PDF adjunto) =====
+  const cPM = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
+  await cPM.addInitScript(() => { // simula el Compartir del celular: guarda lo que se comparte
+    navigator.canShare = (d) => !!(d && d.files && d.files.length);
+    navigator.share = async (d) => { window.__compartido = { text: d.text, archivos: d.files.map(f => ({ name: f.name, type: f.type, size: f.size })) }; };
+  });
+  const pm = await nuevaPagina(cPM, 'pagos-m');
+  await loginGer(pm);
+  await pm.waitForSelector('.tb-card');
+  const barra = await pm.locator('.tabbar').evaluate(el => ({ scroll: el.scrollWidth, ancho: el.clientWidth, overflowX: getComputedStyle(el).overflowX }));
+  ok(barra.scroll > barra.ancho && barra.overflowX === 'auto', `celular: la barra inferior con 9 secciones se desplaza (${barra.scroll} > ${barra.ancho})`);
+  await pm.locator('a.tab[data-nav="pagos"]').click();
+  await pm.waitForSelector('.cc-fila');
+  await shot(pm, '52-g-cuentas-m', true);
+  await pm.locator('.subnav-b', { hasText: 'Facturas' }).click();
+  await pm.waitForSelector('.fac');
+  await shot(pm, '53-g-facturas-m', true);
+  await pm.locator('.subnav-b', { hasText: 'Cargar' }).click();
+  await pm.locator('#p-archivo').setInputFiles(pdfVariante('DEMO0003ef', '$ 12.500,00', '30000000035', 'Barcena SA'));
+  await pm.waitForSelector('.banner-ok >> text=Comprobante leído');
+  await pm.waitForSelector('.imp-fila');
+  await shot(pm, '54-g-cargar-pago-m', true);
+  await pm.getByRole('button', { name: 'Guardar pago' }).click();
+  await pm.waitForSelector('#p-resultado:not([hidden])');
+  await shot(pm, '55-g-pago-guardado-m');
+  await pm.locator('[data-accion="avisar"]').click();
+  await pm.waitForSelector('dialog [data-accion="compartir"]');
+  ok(await pm.locator('dialog [data-accion="wa"]').count() === 0, 'celular: botón Compartir en lugar de wa.me');
+  await shot(pm, '56-g-avisar-compartir-m');
+  const avisosAntes = db.avisos.length;
+  await pm.locator('dialog [data-accion="compartir"]').click();
+  await pm.waitForFunction(() => window.__compartido);
+  const comp = await pm.evaluate(() => window.__compartido);
+  ok(comp.archivos.length === 1 && comp.archivos[0].name === 'DEMO0003ef.pdf' && comp.archivos[0].type === 'application/pdf' && comp.archivos[0].size > 500, 'celular: se comparte el PDF adjunto ' + JSON.stringify(comp.archivos));
+  ok(/Barcena/.test(comp.text) && /12\.500,00/.test(comp.text) && /DEMO0003ef/.test(comp.text), 'celular: el texto compartido es el mensaje del aviso');
+  await pm.waitForSelector('[data-estado].estado-avisado');
+  ok(db.avisos.length === avisosAntes + 1, 'celular: al compartir se marca avisado_en');
+  await pm.locator('.subnav-b', { hasText: /^Pagos$/ }).click();
+  await pm.waitForSelector('.prod[data-pago]');
+  await shot(pm, '57-g-pagos-lista-m', true);
+  await pm.locator('a.tab[data-nav="catalogo"]').click();
+  await pm.locator('.subnav-b', { hasText: 'Proveedores' }).click();
+  await pm.waitForSelector('.prod-cat[data-prov]');
+  await shot(pm, '58-g-proveedores-m', true);
+  await cPM.close();
+
+  // ===== Contadora: solo Pagos (sin tablero, ventas ni catálogo) =====
+  const cCon = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' });
+  const co = await nuevaPagina(cCon, 'contadora');
+  await co.goto(BASE);
+  await co.waitForSelector('.seg');
+  await co.getByRole('tab', { name: 'Administración' }).click();
+  await co.locator('#in-email').fill('conta@ejemplo.com');
+  await co.locator('#in-pass').fill('clave-conta');
+  await co.locator('form button[type=submit]').click();
+  await co.waitForSelector('.cc-fila');
+  ok(await co.locator('.sidebar .side-link').count() === 2 && await co.locator('.sidebar a[data-nav="pagos"]').count() === 1, 'contadora: la barra lateral solo tiene Pagos y Salir');
+  await co.goto(BASE + '#/tablero');
+  await co.waitForSelector('.cc-fila');
+  ok(co.url().endsWith('#/pagos'), 'contadora: el tablero la redirige a Pagos');
+  await co.goto(BASE + '#/ventas');
+  await co.waitForSelector('.cc-fila');
+  ok(db.log.filter(l => l.rol === 'contadora').every(l => !/tablero|ventas|merma|recetas|produccion|ordenes/.test(l.t)), 'contadora: nunca consulta tablero, ventas ni pedidos ' + [...new Set(db.log.filter(l => l.rol === 'contadora').map(l => l.t))].join());
+  await co.locator('.subnav-b', { hasText: 'Cargar' }).click();
+  await co.locator('#p-archivo').setInputFiles(pdfVariante('DEMO0004gh', '$ 1.000,00'));
+  await co.waitForSelector('.banner-ok >> text=Comprobante leído');
+  await co.getByRole('button', { name: 'Guardar pago' }).click();
+  await co.waitForSelector('#p-resultado:not([hidden])');
+  ok(db.pagosRegistrados.at(-1).p_pago.numero_operacion === 'DEMO0004gh', 'contadora: puede cargar pagos');
+  await shot(co, '59-c-pagos-pc');
+  await cCon.close();
+
+  // ===== Gerencia · Ventas, análisis, recetas, producción y merma =====
+  const FX = path.join(ROOT, 'scripts/fixtures/nucleo');
+  const ARCH = ['detalle-por-pedido.xlsx', 'formas-de-pago.xlsx', 'pedidos-por-producto.xlsx'].map(f => path.join(FX, f));
   const cV = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' });
   const v = await nuevaPagina(cV, 'ventas-pc');
   await loginGer(v);
-  ok(await v.locator('.sidebar .side-link').count() === 7, 'gerencia: Ventas y Cocina en la barra lateral');
+  ok(await v.locator('.sidebar .side-link').count() === 9, 'gerencia: Ventas y Cocina en la barra lateral');
   await v.getByRole('link', { name: 'Ventas', exact: true }).click();
   await v.waitForSelector('#f-archivo', { state: 'attached' });
   ok(await v.locator('h1').first().innerText() === 'Ventas', 'pantalla Ventas');
@@ -658,7 +975,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const cV2 = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
   const vm = await nuevaPagina(cV2, 'ventas-m');
   await loginGer(vm);
-  ok(await vm.locator('.tab').count() === 7, 'celular: barra inferior con 6 secciones + Salir');
+  ok(await vm.locator('.tab').count() === 9, 'celular: barra inferior con 8 secciones + Salir (se desplaza)');
   await shot(vm, '31-g-barra-m');
   await vm.getByRole('link', { name: 'Ventas', exact: true }).click();
   await vm.waitForSelector('#f-archivo', { state: 'attached' });

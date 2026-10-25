@@ -1,0 +1,65 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1584 >>
+stream
+BT /F1 10 Tf 39 754 Td (Identificador de la operación: DEMO0001ab) Tj ET
+BT /F1 10 Tf 39 723 Td (Datos del pago) Tj ET
+BT /F1 10 Tf 39 701 Td (Tipo de transferencia) Tj ET
+BT /F1 10 Tf 239 701 Td (Nro. de Transferencia) Tj ET
+BT /F1 10 Tf 39 683 Td (Proveedores) Tj ET
+BT /F1 10 Tf 239 683 Td (1) Tj ET
+BT /F1 10 Tf 39 655 Td (Fecha de envío) Tj ET
+BT /F1 10 Tf 239 655 Td (Monto) Tj ET
+BT /F1 10 Tf 39 637 Td (05/10/2026) Tj ET
+BT /F1 10 Tf 239 637 Td ($ 150.000,50) Tj ET
+BT /F1 10 Tf 39 610 Td (Concepto) Tj ET
+BT /F1 10 Tf 239 610 Td (Descripción) Tj ET
+BT /F1 10 Tf 39 593 Td (Factura) Tj ET
+BT /F1 10 Tf 239 593 Td (Mercaderia) Tj ET
+BT /F1 10 Tf 39 567 Td (Datos del pagador) Tj ET
+BT /F1 10 Tf 39 545 Td (CUIT/CUIL) Tj ET
+BT /F1 10 Tf 239 545 Td (Razón Social) Tj ET
+BT /F1 10 Tf 39 527 Td (30000000027) Tj ET
+BT /F1 10 Tf 239 527 Td (EMPRESA DEMO SA) Tj ET
+BT /F1 10 Tf 39 511 Td (Cuenta a debitar) Tj ET
+BT /F1 10 Tf 39 493 Td (CC$ 000000001) Tj ET
+BT /F1 10 Tf 39 467 Td (Datos del destinatario) Tj ET
+BT /F1 10 Tf 39 445 Td (CUIT/CUIL) Tj ET
+BT /F1 10 Tf 239 445 Td (Razón social) Tj ET
+BT /F1 10 Tf 39 427 Td (30000000019) Tj ET
+BT /F1 10 Tf 239 427 Td (Distribuidora Demo Srl) Tj ET
+BT /F1 10 Tf 39 412 Td (Cuenta en) Tj ET
+BT /F1 10 Tf 239 412 Td (Cuenta de destino) Tj ET
+BT /F1 10 Tf 39 394 Td (Banco Demo) Tj ET
+BT /F1 10 Tf 239 394 Td (0000000000000000001234) Tj ET
+BT /F1 10 Tf 39 346 Td (COMPROBANTE DE LA OPERACIÓN) Tj ET
+BT /F1 10 Tf 39 312 Td (1/1) Tj ET
+BT /F1 10 Tf 475 312 Td (Impreso 05/10/2026 - 10:00) Tj ET
+BT /F1 10 Tf 437 801 Td (Office Banking) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001877 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1974
+%%EOF

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql, 0002_roles_pedidos.sql y 0003_ventas_recetas.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0004_pagos_tablero.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -52,6 +52,12 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   catch (e) { check('aplica 0003_ventas_recetas.sql', false, e.message); return finish(); }
   try { await db.exec(mig3); check('0003 es idempotente (2da aplicación)', true); }
   catch (e) { check('0003 es idempotente (2da aplicación)', false, e.message); }
+
+  const mig4 = fs.readFileSync(path.join(root, 'supabase/migrations/0004_pagos_tablero.sql'), 'utf8');
+  try { await db.exec(mig4); check('aplica 0004_pagos_tablero.sql', true); }
+  catch (e) { check('aplica 0004_pagos_tablero.sql', false, e.message); return finish(); }
+  try { await db.exec(mig4); check('0004 es idempotente (2da aplicación)', true); }
+  catch (e) { check('0004 es idempotente (2da aplicación)', false, e.message); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -372,7 +378,7 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     check('encargado lee sugerido_pedido de su local', !sg.err && sg.rows.length >= 7, sg.err);
     check('sugerido_pedido no expone precios', cols === 'producto_id,stock,consumo_semanal,pendiente,sugerido', cols);
     const fila = (id) => sg.rows.find(r => r.producto_id === id);
-    check('sugerido con consumo: ceil((consumo_semanal 10 − stock 1) / factor 6) = 2 cajas', fila(cerv) && Number(fila(cerv).consumo_semanal) === 10 && Number(fila(cerv).sugerido) === 2, JSON.stringify(fila(cerv)));
+    check('sugerido con consumo: ventas de un solo día = 1 semana con datos: consumo 40, ceil((40 − stock 1) / factor 6) = 7 cajas', fila(cerv) && Number(fila(cerv).consumo_semanal) === 40 && Number(fila(cerv).sugerido) === 7, JSON.stringify(fila(cerv)));
     check('sugerido sin consumo usa la cantidad ideal: 10 − stock 4 = 6', fila(sinCons) && fila(sinCons).consumo_semanal === null && Number(fila(sinCons).sugerido) === 6, JSON.stringify(fila(sinCons)));
     check('consumo fuera de las últimas 4 semanas no cuenta (cae a la cantidad ideal: 10 − 2 = 8)', fila(viejo) && fila(viejo).consumo_semanal === null && Number(fila(viejo).sugerido) === 8, JSON.stringify(fila(viejo)));
     check('sugerido_pedido omite los platos de la carta y productos de otro local', !sg.rows.some(r => r.producto_id === pla || r.producto_id === ajeno2));
@@ -408,7 +414,126 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     const [oBorr] = await q("insert into ordenes_compra(local_id,proveedor_id,estado) values ($1,$2,'borrador') returning id", [l1.id, prov.id]);
     await q('insert into orden_items(orden_id,producto_id,cantidad_pedida) values ($1,$2,5)', [oBorr.id, cerv]);
     const f = (await q('select * from sugerido_pedido($1) where producto_id=$2', [l1.id, cerv]))[0];
-    check('sugerido descuenta lo pendiente (2 cajas aprobadas = 12 unidades; el borrador no cuenta) → 0', Number(f.pendiente) === 12 && Number(f.sugerido) === 0, JSON.stringify(f));
+    check('sugerido descuenta lo pendiente (2 cajas aprobadas = 12 unidades; el borrador no cuenta) → ceil((40 − 1 − 12) / 6) = 5', Number(f.pendiente) === 12 && Number(f.sugerido) === 5, JSON.stringify(f));
+    // Ajuste de 0004: se divide por las semanas con ventas importadas del local (mínimo 1, máximo 4), no siempre por 4.
+    for (const [dias, semanas] of [[3, 1], [10, 2], [19, 3], [27, 4]]) {
+      await q("delete from movimientos where local_id=$1 and tipo='venta'", [l2.id]);
+      await q("insert into movimientos(local_id,producto_id,tipo,cantidad,creado_en) values ($1,$2,'venta',-120,now() - ($3 || ' days')::interval)", [l2.id, ajeno2, String(dias)]);
+      const s2 = (await q('select * from sugerido_pedido($1) where producto_id=$2', [l2.id, ajeno2]))[0];
+      check(`sugerido: primera venta hace ${dias} días = ${semanas} semana(s) con datos: consumo semanal ${120 / semanas}`, Number(s2.consumo_semanal) === 120 / semanas, JSON.stringify(s2));
+    }
+    await q("delete from movimientos where local_id=$1 and tipo='venta'", [l2.id]);
+  });
+
+  // ===================== 0004: facturas, pagos y tablero =====================
+  const [provP] = await q("insert into proveedores(nombre,whatsapp) values ('Prov Pagos','5491100000001') returning id");
+  const [provOtro] = await q("insert into proveedores(nombre) values ('Prov Otro') returning id");
+  let F1, F2, F3, F4, FO;
+  await as(U.con, async () => {
+    const ins = async (prv, num, venc, total) => (await q("insert into facturas_proveedor(proveedor_id,numero,fecha,vencimiento,total) values ($1,$2,current_date - 20,$3,$4) returning id", [prv, num, venc, total]))[0].id;
+    F1 = await ins(provP.id, 'F-1', (await q("select (current_date - 10)::text d"))[0].d, 1000);
+    F2 = await ins(provP.id, 'F-2', (await q("select (current_date + 15)::text d"))[0].d, 500);
+    F3 = await ins(provP.id, 'F-3', null, 300);
+    FO = await ins(provOtro.id, 'F-9', null, 100);
+    const dupF = await tryq("insert into facturas_proveedor(proveedor_id,numero,fecha,total) values ($1,'F-1',current_date,1)", [provP.id]);
+    check('factura: mismo proveedor y número no se repite', !!dupF.err);
+    const vi = await q('select numero, pendiente, vencida from facturas_pendientes where proveedor_id=$1 order by numero', [provP.id]);
+    check('facturas_pendientes: vencida solo la F-1 (venció hace 10 días y debe 1000)', vi.length === 3 && vi[0].vencida === true && vi[1].vencida === false && vi[2].vencida === false && Number(vi[0].pendiente) === 1000, JSON.stringify(vi));
+    const pago = { proveedor_id: provP.id, monto: 1200, fecha: '2026-10-19', numero_operacion: 'OP-T1', cuenta_origen: 'CC$ 123', banco: 'Banco X', cuit_destino: '30-99999999-9',
+      banco_destino: 'Banco Test', cuenta_destino: '0000000000000001234', concepto: 'Factura', descripcion: 'Test', comprobante_path: `pagos/${provP.id}/OP-T1.pdf`, actualizar_cuit: true };
+    const r = await tryq('select registrar_pago($1::jsonb, $2::jsonb) id', [JSON.stringify(pago), JSON.stringify([{ factura_id: F1, monto: 1000 }, { factura_id: F2, monto: 200 }])]);
+    check('contadora registra un pago con imputación a dos facturas', !r.err && !!r.rows[0].id, r.err);
+    const pid = r.rows && r.rows[0].id;
+    const pf = await q('select factura_id, monto from pago_facturas where pago_id=$1 order by monto desc', [pid]);
+    check('registrar_pago: imputaciones guardadas (1000 a F-1 y 200 a F-2)', pf.length === 2 && Number(pf[0].monto) === 1000 && pf[0].factura_id === F1 && Number(pf[1].monto) === 200, JSON.stringify(pf));
+    const pg = (await q('select monto, numero_operacion, comprobante_path, avisado_en, cargado_por from pagos where id=$1', [pid]))[0];
+    check('registrar_pago: guarda el pago sin avisar, con comprobante y usuario', Number(pg.monto) === 1200 && pg.numero_operacion === 'OP-T1' && pg.comprobante_path.endsWith('OP-T1.pdf') && pg.avisado_en === null && pg.cargado_por === U.con, JSON.stringify(pg));
+    const fp = await q('select numero, pendiente, imputado, vencida from facturas_pendientes where proveedor_id=$1 order by numero', [provP.id]);
+    check('facturas_pendientes después del pago: F-1 saldada, F-2 debe 300, F-3 debe 300, ninguna vencida',
+      Number(fp[0].pendiente) === 0 && Number(fp[1].pendiente) === 300 && Number(fp[1].imputado) === 200 && Number(fp[2].pendiente) === 300 && fp.every(x => x.vencida === false), JSON.stringify(fp));
+    const cc = (await q('select facturado, pagado, saldo from cuenta_corriente where proveedor_id=$1', [provP.id]))[0];
+    check('cuenta corriente del proveedor: facturado 1800, pagado 1200, saldo 600', Number(cc.facturado) === 1800 && Number(cc.pagado) === 1200 && Number(cc.saldo) === 600, JSON.stringify(cc));
+    const cuit = (await q('select cuit from proveedores where id=$1', [provP.id]))[0].cuit;
+    check('registrar_pago con actualizar_cuit guarda el CUIT del comprobante en el proveedor', cuit === '30-99999999-9', cuit);
+
+    const nPagos = async () => (await q('select count(*)::int n from pagos'))[0].n;
+    const n0 = await nPagos();
+    const dup = await tryq('select registrar_pago($1::jsonb) id', [JSON.stringify({ proveedor_id: provP.id, monto: 50, numero_operacion: 'OP-T1' })]);
+    check('la misma operación no se carga dos veces (mensaje claro, sin fila nueva)', !!dup.err && /ya está cargada/.test(dup.err) && (await nPagos()) === n0, dup.err);
+    const dupIdx = await tryq("insert into pagos(proveedor_id,monto,numero_operacion) values ($1,1,'OP-T1')", [provP.id]);
+    check('el índice único de numero_operacion también lo impide a mano', !!dupIdx.err);
+    const exc = await tryq('select registrar_pago($1::jsonb, $2::jsonb)', [JSON.stringify({ proveedor_id: provP.id, monto: 500, numero_operacion: 'OP-T2' }), JSON.stringify([{ factura_id: F2, monto: 400 }])]);
+    check('imputar más que el pendiente de la factura falla y no deja nada guardado', !!exc.err && /pendiente/.test(exc.err) && (await nPagos()) === n0 && (await q("select count(*)::int n from pagos where numero_operacion='OP-T2'"))[0].n === 0, exc.err);
+    const sup = await tryq('select registrar_pago($1::jsonb, $2::jsonb)', [JSON.stringify({ proveedor_id: provP.id, monto: 100, numero_operacion: 'OP-T3' }), JSON.stringify([{ factura_id: F3, monto: 200 }])]);
+    check('imputar más que el monto del pago falla (todo o nada)', !!sup.err && /supera/.test(sup.err) && (await nPagos()) === n0, sup.err);
+    const ajena = await tryq('select registrar_pago($1::jsonb, $2::jsonb)', [JSON.stringify({ proveedor_id: provP.id, monto: 100, numero_operacion: 'OP-T4' }), JSON.stringify([{ factura_id: FO, monto: 100 }])]);
+    check('no se imputa a facturas de otro proveedor', !!ajena.err && (await nPagos()) === n0, ajena.err);
+    const cero = await tryq('select registrar_pago($1::jsonb) id', [JSON.stringify({ proveedor_id: provP.id, monto: 0, numero_operacion: 'OP-T5' })]);
+    check('monto cero rechazado', !!cero.err);
+    const sinProv = await tryq('select registrar_pago($1::jsonb) id', [JSON.stringify({ monto: 10, numero_operacion: 'OP-T6' })]);
+    check('pago sin proveedor rechazado', !!sinProv.err);
+    // sin imputar: queda como pago a cuenta
+    const libre = await tryq('select registrar_pago($1::jsonb) id', [JSON.stringify({ proveedor_id: provOtro.id, monto: 40, numero_operacion: 'OP-T7' })]);
+    check('un pago puede quedar sin imputar (a cuenta)', !libre.err, libre.err);
+    const av = await tryq('update pagos set avisado_en = now() where id = $1 returning id', [pid]);
+    check('contadora marca el pago como avisado', av.rows && av.rows.length === 1, av.err);
+    F4 = await ins(provP.id, 'F-4', (await q("select (current_date - 3)::text d"))[0].d, 700);
+    const pc = await tryq('select * from pagos where id=$1', [pid]);
+    check('contadora lee pagos y comprobantes', pc.rows && pc.rows.length === 1);
+    const tb = await tryq('select tablero()');
+    check('contadora NO ve el tablero (ni las ventas)', !!tb.err);
+  });
+  await as(U.e1, async () => {
+    for (const [nom, sql, par] of [
+      ['registrar_pago', "select registrar_pago($1::jsonb)", [JSON.stringify({ proveedor_id: provP.id, monto: 10, numero_operacion: 'OP-ENC' })]],
+      ['tablero', 'select tablero()', []],
+      ['tablero_periodo', 'select tablero_periodo(null, current_date, current_date)', []]]) {
+      const r = await tryq(sql, par);
+      check('encargado NO ejecuta ' + nom + ' (error o sin datos)', !!r.err || (nom === 'tablero_periodo' && Object.values(r.rows[0])[0] === null));
+    }
+    for (const t of ['pagos', 'facturas_proveedor', 'pago_facturas', 'facturas_pendientes', 'cuenta_corriente']) {
+      const r = await tryq('select * from ' + t);
+      check('encargado: ' + t + ' sin filas', r.err ? true : r.rows.length === 0);
+    }
+    const ins = await tryq("insert into pagos(proveedor_id,monto) values ($1,1)", [provP.id]);
+    check('encargado NO inserta pagos directo', !!ins.err);
+    const ins2 = await tryq("update pagos set avisado_en = now() returning id");
+    check('encargado NO marca avisos', ins2.err ? true : ins2.rows.length === 0);
+  });
+  await as(U.ger, async () => {
+    const r = await tryq('select registrar_pago($1::jsonb, $2::jsonb) id', [JSON.stringify({ proveedor_id: provP.id, monto: 250, numero_operacion: 'OP-G1', cuit_destino: '30-11111111-1' }), JSON.stringify([{ factura_id: F3, monto: 250 }])]);
+    check('gerencia también registra pagos', !r.err, r.err);
+    const cuit = (await q('select cuit from proveedores where id=$1', [provP.id]))[0].cuit;
+    check('sin actualizar_cuit el CUIT del proveedor no se pisa', cuit === '30-99999999-9', cuit);
+    const f3 = (await q("select pendiente from facturas_pendientes where id=$1", [F3]))[0];
+    check('imputación de gerencia a la F-3 (300 − 250 = 50)', Number(f3.pendiente) === 50, JSON.stringify(f3));
+
+    // Tablero
+    const tb = (await q('select tablero($1, current_date, current_date) t', [l1.id]))[0].t;
+    const claves = Object.keys(tb).sort().join();
+    check('tablero devuelve las claves esperadas', claves === 'actual,anterior,deuda,faltantes,pagos_sin_avisar,pedidos_por_aprobar,pendientes,periodo,stock', claves);
+    check('tablero: período actual y anterior de igual duración', tb.periodo.desde === tb.periodo.hasta && tb.periodo.anterior_desde === tb.periodo.anterior_hasta && tb.periodo.anterior_hasta < tb.periodo.desde, JSON.stringify(tb.periodo));
+    check('tablero.actual: claves ventas, compras, cmv, margen y margen_pct', Object.keys(tb.actual).sort().join() === 'cmv,compras,margen,margen_pct,ventas', JSON.stringify(tb.actual));
+    check('tablero: ventas del día = total cobrado de la importación (1000)', Number(tb.actual.ventas) === 1000, JSON.stringify(tb.actual));
+    check('tablero: costo de mercadería vendida = 40 cervezas × (12 / 6) + 3 kg de mozzarella × 150 / 2 = 305; margen 695 (69,5 %)', Number(tb.actual.cmv) === 305 && Number(tb.actual.margen) === 695 && Number(tb.actual.margen_pct) === 69.5, JSON.stringify(tb.actual));
+    check('tablero: compras = recepciones valorizadas (1.890)', Number(tb.actual.compras) === 1890, JSON.stringify(tb.actual));
+    check('tablero: período anterior sin ventas ni compras y margen_pct nulo', Number(tb.anterior.ventas) === 0 && Number(tb.anterior.compras) === 0 && tb.anterior.margen_pct === null, JSON.stringify(tb.anterior));
+    check('tablero.stock: valor por local (cerveza 1 unidad × 12 / 6) y total', Number(tb.stock.total) > 0 && tb.stock.por_local.length === 1 && tb.stock.por_local[0].local_id === l1.id && Number(tb.stock.por_local[0].valor) >= 2, JSON.stringify(tb.stock));
+    const dTotal = (await q('select sum(saldo)::numeric s from cuenta_corriente where saldo > 0'))[0].s;
+    check('tablero.deuda: total = suma de saldos de la cuenta corriente y proveedor con más deuda primero', Number(tb.deuda.total) === Number(dTotal) && Number(tb.deuda.total) > 0 && tb.deuda.proveedores.length >= 1 && Number(tb.deuda.proveedores[0].saldo) >= Number(tb.deuda.proveedores.at(-1).saldo), JSON.stringify(tb.deuda));
+    check('tablero.deuda.vencidas: la F-4 (700, venció hace 3 días)', tb.deuda.vencidas.n === 1 && Number(tb.deuda.vencidas.total) === 700 && tb.deuda.vencidas.items[0].numero === 'F-4', JSON.stringify(tb.deuda.vencidas));
+    const sinAv = (await q('select count(*)::int n, sum(monto)::numeric t from pagos where avisado_en is null'))[0];
+    check('tablero.pagos_sin_avisar: cuenta los pagos no avisados (el de OP-T1 ya está avisado)', tb.pagos_sin_avisar.n === sinAv.n && Number(tb.pagos_sin_avisar.total) === Number(sinAv.t) && tb.pagos_sin_avisar.items.every(i => i.proveedor), JSON.stringify(tb.pagos_sin_avisar));
+    check('tablero.pedidos_por_aprobar: borradores del local (2)', tb.pedidos_por_aprobar.n === 2 && tb.pedidos_por_aprobar.items.length === 2, JSON.stringify(tb.pedidos_por_aprobar));
+    const fc = tb.faltantes.find(x => x.nombre === 'Cerveza Test');
+    check('tablero.faltantes: del más caro al más barato; cerveza = conteo −2 × 2 = 4', tb.faltantes.length >= 2 && fc && Number(fc.valor) === 4 && Number(fc.faltante) === 2 && tb.faltantes.every((x, i, a) => i === 0 || Number(a[i - 1].valor) >= Number(x.valor)), JSON.stringify(tb.faltantes));
+    check('tablero.pendientes: sin precio, sin proveedor y sin receta con cantidad y ejemplos',
+      ['sin_precio', 'sin_proveedor', 'sin_receta'].every(k => typeof tb.pendientes[k].n === 'number' && Array.isArray(tb.pendientes[k].ejemplos)) && tb.pendientes.sin_receta.ejemplos.includes('Plato sin receta') && tb.pendientes.sin_precio.n >= 1, JSON.stringify(tb.pendientes));
+    check('tablero: los platos de la carta no cuentan como "sin precio" ni "sin proveedor"', !tb.pendientes.sin_precio.ejemplos.includes('Plato sin receta') && !tb.pendientes.sin_proveedor.ejemplos.includes('Plato sin receta'));
+    const todos = (await q('select tablero() t'))[0].t;
+    check('tablero sin parámetros: todos los locales y semana actual (lunes a hoy)', todos.periodo.local_id === null && todos.stock.por_local.length >= 2 && todos.periodo.hasta === (await q('select current_date::text d'))[0].d, JSON.stringify(todos.periodo));
+    const mal = await tryq("select tablero(null, current_date, current_date - 2)");
+    check('tablero con fechas invertidas falla con mensaje', !!mal.err);
   });
 
   // anon sin sesión
