@@ -220,14 +220,22 @@ create table if not exists public.pagos (
   proveedor_id     uuid not null references public.proveedores(id),
   monto            numeric(14,2) not null check (monto > 0),
   fecha            date not null default current_date,
-  numero_operacion text,
+  numero_operacion text,                     -- "Identificador de la operación" del comprobante
   cuenta_origen    text,
   banco            text,
+  cuit_destino     text,                     -- CUIT del destinatario: identifica al proveedor
+  banco_destino    text,
+  cuenta_destino   text,                     -- CBU o cuenta de destino
+  concepto         text,                     -- p. ej. "Factura"
+  descripcion      text,                     -- p. ej. "Almacen"
   comprobante_path text,                     -- ruta en bucket 'comprobantes'
   avisado_en       timestamptz,
   cargado_por      uuid default auth.uid(),
   creado_en        timestamptz not null default now()
 );
+-- Un mismo comprobante no se carga dos veces
+create unique index if not exists pagos_numero_operacion_uq
+  on public.pagos (numero_operacion) where numero_operacion is not null;
 create table if not exists public.pago_facturas (
   pago_id    uuid not null references public.pagos(id) on delete cascade,
   factura_id uuid not null references public.facturas_proveedor(id) on delete cascade,
