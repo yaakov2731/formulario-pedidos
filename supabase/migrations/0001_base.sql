@@ -38,6 +38,8 @@ create or replace function public.mi_local() returns uuid
 language sql stable security definer set search_path = public as $$
   select local_id from public.perfiles where id = auth.uid()
 $$;
+revoke execute on function public.mi_rol(), public.mi_local() from public, anon;
+grant execute on function public.mi_rol(), public.mi_local() to authenticated;
 
 -- ============ Catálogo ============
 create table if not exists public.proveedores (
