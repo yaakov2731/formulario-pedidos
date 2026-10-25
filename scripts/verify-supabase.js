@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0004_pagos_tablero.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0006_aviso_telegram.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -58,6 +58,12 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   catch (e) { check('aplica 0004_pagos_tablero.sql', false, e.message); return finish(); }
   try { await db.exec(mig4); check('0004 es idempotente (2da aplicación)', true); }
   catch (e) { check('0004 es idempotente (2da aplicación)', false, e.message); }
+  const mig5 = fs.readFileSync(path.join(root, 'supabase/migrations/0005_locales_login.sql'), 'utf8');
+  try { await db.exec(mig5); await db.exec(mig5); check('aplica 0005_locales_login.sql (idempotente)', true); }
+  catch (e) { check('aplica 0005_locales_login.sql (idempotente)', false, e.message); return finish(); }
+  const mig6 = fs.readFileSync(path.join(root, 'supabase/migrations/0006_aviso_telegram.sql'), 'utf8');
+  try { await db.exec(mig6); await db.exec(mig6); check('aplica 0006_aviso_telegram.sql (idempotente)', true); }
+  catch (e) { check('aplica 0006_aviso_telegram.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -536,6 +542,33 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     check('tablero con fechas invertidas falla con mensaje', !!mal.err);
   });
 
+  // Aviso por Telegram (pglite no trae Vault ni pg_net: se simulan para ver qué mandaría)
+  {
+    const nueva = async () => (await as(U.e1, () => q("insert into ordenes_compra(local_id,proveedor_id,estado,cargado_por_nombre,nota) values ($1,$2,'borrador','Ruth','antes de las 10') returning id", [l1.id, prov.id])))[0].id;
+    const [pan] = await q("insert into productos(codigo,nombre,local_id,categoria,unidad_compra,unidad_uso) values ('ZZ1-901','Pan de campo',$1,'Panadería','u','u') returning id", [l1.id]);
+    const items = (oid, n, prod = moz.id) => as(U.e1, () => q('insert into orden_items(orden_id,producto_id,cantidad_pedida) values ($1,$2,$3)', [oid, prod, n]));
+    let sinSecretos = true; try { await items(await nueva(), 2); } catch { sinSecretos = false; }
+    check('sin Vault ni pg_net el pedido se guarda igual y no avisa', sinSecretos);
+    await db.exec(`create schema if not exists vault; create table vault.decrypted_secrets(name text, decrypted_secret text);
+      create schema if not exists net; create table net.enviados(url text, body jsonb);
+      create function net.http_post(url text, body jsonb, headers jsonb) returns bigint language sql as 'insert into net.enviados values (url, body) returning 1::bigint';`);
+    const o0 = await nueva(); await items(o0, 1);
+    check('sin token cargado no avisa', (await q('select count(*)::int n from net.enviados'))[0].n === 0);
+    await db.exec("insert into vault.decrypted_secrets values ('telegram_token','TOKEN'),('telegram_chat_id','123')");
+    const oid = await nueva(); await items(oid, 2.5);
+    const env = await q('select url, body from net.enviados');
+    check('pedido nuevo: un aviso a Telegram con local, proveedor, quién cargó, nota y productos',
+      env.length === 1 && env[0].url === 'https://api.telegram.org/botTOKEN/sendMessage' && env[0].body.chat_id === '123'
+      && /Pedido nuevo · Local Test 1/.test(env[0].body.text) && /Proveedor: Prov Test/.test(env[0].body.text) && /Cargó: Ruth/.test(env[0].body.text)
+      && /Nota: antes de las 10/.test(env[0].body.text) && /Mozzarella × 2\.5/.test(env[0].body.text) && !/\$/.test(env[0].body.text), JSON.stringify(env));
+    await items(oid, 1, pan.id);
+    check('agregar productos a una orden ya avisada no repite el aviso', (await q('select count(*)::int n from net.enviados'))[0].n === 1);
+    await db.exec("drop function net.http_post(text, jsonb, jsonb)");
+    let guardo = true; try { const o2 = await nueva(); await items(o2, 1); } catch { guardo = false; }
+    check('si Telegram falla el pedido se guarda igual', guardo);
+    await db.exec('drop schema net cascade; drop schema vault cascade');
+  }
+
   // anon sin sesión
   await db.exec('set role anon');
   const an = await tryq('select * from productos');
@@ -547,6 +580,8 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   await db.exec('reset role');
   check('anon lista locales para Entrar (solo codigo, nombre, encargados)', ll.rows && ll.rows.length >= 2 && Object.keys(ll.rows[0]).join() === 'codigo,nombre,encargados', ll.err);
   check('anon NO ejecuta mi_rol()', !!lm.err);
+  const sinEnc = await q("select l.codigo from locales l where l.activo and not exists (select 1 from perfiles p where p.local_id = l.id and p.rol = 'encargado')");
+  check('Entrar no lista locales sin encargado con usuario', ll.rows && !ll.rows.some(r => sinEnc.some(x => x.codigo === r.codigo)));
 
   return finish();
 })().catch(e => { console.error('ERROR inesperado:', e); process.exit(1); });

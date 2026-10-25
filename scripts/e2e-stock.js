@@ -50,7 +50,8 @@ const db = {
     { id: L1, codigo: 'UMO', nombre: 'Umo Grill', encargados: ['Ruth Coronel', 'Maru', 'Ayelén'], activo: true },
     { id: L2, codigo: 'TRE', nombre: 'Trento Café', encargados: ['Angelica'], activo: true },
     { id: 'loc-brk', codigo: 'BRK', nombre: 'Brooklyn', encargados: ['Maru'], activo: true },
-    { id: 'loc-gel', codigo: 'GEL', nombre: 'Puerto Gelato', encargados: [], activo: true }
+    { id: 'loc-gel', codigo: 'GEL', nombre: 'Puerto Gelato', encargados: [], activo: true },
+    { id: 'loc-shp', codigo: 'SHP', nombre: 'Shopping', encargados: [], activo: true }
   ],
   proveedores: [
     { id: PV.barcena, nombre: 'Barcena', whatsapp: '5491155550003', cuit: null, alias_cbu: 'barcena.pagos', dias_entrega: '1 día · pedir antes del jueves', corte: null, pedido_minimo: null, activo: true },
@@ -508,7 +509,21 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(db.log.slice(a0).some(l => l.m === 'PATCH' && l.t === 'ordenes_compra' && l.b.estado === 'aprobada'), 'PATCH estado aprobada');
   await shot(g, '11-g-pedidos-aprobado-pc');
   // WhatsApp
-  const [popup] = await Promise.all([cGer.waitForEvent('page'), g.locator('.grupo-prov[data-prov="Distribuidora Florida"]').getByRole('button', { name: 'Enviar por WhatsApp' }).click()]);
+  await g.locator('.grupo-prov[data-prov="Distribuidora Florida"]').getByRole('button', { name: 'Enviar por WhatsApp' }).click();
+  await g.waitForSelector('.sheet .orden-img img');
+  const dimImg = await g.locator('.sheet .orden-img img').evaluate(i => [i.naturalWidth, i.naturalHeight]);
+  ok(dimImg[0] === 1080 && dimImg[1] > 600, `copia del pedido en imagen (${dimImg.join('×')})`);
+  ok(await g.locator('.sheet [data-accion="descargar"]').count() === 1, 'se puede descargar la imagen');
+  await shot(g, '11c-g-pedidos-enviar-pc');
+  const imgOrden = await g.locator('.sheet .orden-img img').evaluate(async (i) => { const b = await (await fetch(i.src)).arrayBuffer(); let s = ''; new Uint8Array(b).forEach(x => { s += String.fromCharCode(x); }); return btoa(s); });
+  fs.writeFileSync(path.join(OUT, '11d-copia-pedido.png'), Buffer.from(imgOrden, 'base64'));
+  if (await g.locator('.sheet .seg').count()) {
+    await g.locator('.sheet').getByRole('tab', { name: 'Todo junto' }).click();
+    await g.waitForFunction(() => /Pedido total/.test(document.querySelector('.sheet [data-aviso]').textContent));
+    ok(true, 'Todo junto suma los productos de todos los locales');
+    await g.locator('.sheet').getByRole('tab', { name: 'Separado por local' }).click();
+  }
+  const [popup] = await Promise.all([cGer.waitForEvent('page'), g.locator('.sheet [data-accion="wa"]').click()]);
   const urlWA = popup.url();
   ok(urlWA.startsWith('https://wa.me/5491155550001?text='), `URL de WhatsApp con número solo dígitos: ${urlWA.slice(0, 48)}…`);
   const textoWA = decodeURIComponent(urlWA.split('?text=')[1]);
