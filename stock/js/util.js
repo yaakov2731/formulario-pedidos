@@ -23,7 +23,12 @@ export function fmtNum(n, dec = 2) {
   if (n === null || n === undefined || n === '' || Number.isNaN(Number(n))) return '';
   return Number(n).toLocaleString('es-AR', { maximumFractionDigits: dec });
 }
-export const fmtMoney = (n) => '$ ' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+// Sin centavos salvo que el monto los tenga (comprobantes y facturas pueden traerlos).
+export const fmtMoney = (n) => {
+  const v = Number(n || 0);
+  const dec = Number.isInteger(Math.round(v * 100) / 100) ? 0 : 2;
+  return '$ ' + v.toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+};
 
 export function parseNum(s) {
   if (typeof s === 'number') return s;

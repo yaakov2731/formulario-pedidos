@@ -616,7 +616,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const impVals = async () => g.locator('.imp-fila input').evaluateAll(els => els.map(e => e.value));
   ok(JSON.stringify(await impVals()) === JSON.stringify(['100000', '50000,5']), 'imputación automática: más vieja primero (100000 + 50000,5) ' + JSON.stringify(await impVals()));
   await g.locator('.imp-fila input').first().fill('90000');
-  ok((await g.locator('[data-imputado]').innerText()).replace(/\s+/g, ' ').includes('$ 140.001'), 'editar la imputación actualiza los totales');
+  ok((await g.locator('[data-imputado]').innerText()).replace(/\s+/g, ' ').includes('$ 140.000,50'), 'editar la imputación actualiza los totales');
   await g.getByRole('button', { name: 'Volver a imputar automático' }).click();
   ok(JSON.stringify(await impVals()) === JSON.stringify(['100000', '50000,5']), 'volver a imputar automático');
   await shot(g, '44-g-cargar-pago-leido-pc', true);
