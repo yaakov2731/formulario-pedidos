@@ -31,3 +31,5 @@ v3/gas/.clasp.json
 
 # salidas del inspector de design-taste-frontend
 .taste-skill/
+supabase/datos-v3/
+supabase/seed/
