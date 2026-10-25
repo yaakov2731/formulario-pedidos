@@ -1,26 +1,31 @@
 // Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
-import { mount, h, norm, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, sugerido, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
-import { swr, cargarCatalogo, cargarStock, cargarSugerido, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
+import { mount, h, norm, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
+import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
 import { icon, stepper, esqueleto, vacio, banner, toast, campo } from './ui.js';
 
-const S = { lid: null, local: null, prods: [], stock: new Map(), sug: null, provs: new Map(), draft: {}, listo: false, offline: false };
+const S = { lid: null, uid: null, local: null, prods: [], stock: new Map(), provs: new Map(), draft: {}, guardado: null, listo: false, offline: false };
 const SIN_PROV = '__sin__';
 
+// Cada encargado arma su propio pedido del local, que queda guardado en el celular hasta que lo envía (no hay pedido precargado).
+const claveBorrador = () => 'pedido:' + S.lid + ':' + (S.uid || '');
 function cargarBorrador() {
-  const d = lsGet('draft:' + S.lid);
-  const hoy = Date.now();
-  S.draft = d && d.t && hoy - d.t < 5 * 864e5 ? d.q : {};
+  const d = lsGet(claveBorrador());
+  const vigente = d && d.t && Date.now() - d.t < 21 * 864e5;
+  S.draft = vigente ? Object.fromEntries(Object.entries(d.q || {}).filter(([, v]) => v > 0)) : {};
+  S.guardado = vigente && Object.keys(S.draft).length ? d.t : null;
 }
-const guardarBorrador = () => lsSet('draft:' + S.lid, { t: Date.now(), q: S.draft });
-// Lo sugerido sale del servidor (consumo de las últimas 4 semanas); sin esa función, se cae al cálculo anterior.
-const sugeridoDe = (p) => (S.sug ? (S.sug.get(p.id) || 0) : (sugerido(p, S.stock.get(p.id)) || 0));
-const cantidad = (p) => (p.id in S.draft ? S.draft[p.id] : sugeridoDe(p));
+function guardarBorrador() {
+  for (const k of Object.keys(S.draft)) if (!(S.draft[k] > 0)) delete S.draft[k];
+  S.guardado = Object.keys(S.draft).length ? Date.now() : null;
+  lsSet(claveBorrador(), { t: Date.now(), q: S.draft });
+}
+const cantidad = (p) => S.draft[p.id] || 0;
 const quedan = (p) => S.stock.get(p.id) || 0;
 const pedidoActual = () => S.prods.filter(p => p.activo !== false && !esCarta(p) && cantidad(p) > 0);
 
 async function cargar(ctx, alActualizar) {
-  const lid = ctx.perfil.local_id;
-  if (S.lid !== lid) { Object.assign(S, { lid, prods: [], stock: new Map(), sug: null, jsug: null, provs: new Map(), listo: false }); cargarBorrador(); }
+  const lid = ctx.perfil.local_id, uid = ctx.perfil.id || null;
+  if (S.lid !== lid || S.uid !== uid) { Object.assign(S, { lid, uid, prods: [], stock: new Map(), provs: new Map(), listo: false }); cargarBorrador(); }
   const pon = (clave, fn) => (d, _cache, err) => { const j = JSON.stringify(d); if (j === (S['j' + clave])) return; S['j' + clave] = j; fn(d); S.offline = !!err; alActualizar(); };
   const tareas = [
     swr('cat:' + lid, () => cargarCatalogo(lid), pon('cat', d => { S.prods = d; })),
@@ -28,9 +33,7 @@ async function cargar(ctx, alActualizar) {
     swr('provb', cargarProveedoresBasico, pon('prv', d => { S.provs = new Map(d.map(p => [p.id, p])); })),
     swr('locales', cargarLocales, pon('loc', d => { S.local = d.find(l => l.id === lid) || d[0] || null; }))
   ];
-  // Si el servidor todavía no tiene el sugerido por consumo, no es un error de conexión: se usa el cálculo anterior.
-  const sug = swr('sug:' + lid, () => cargarSugerido(lid), pon('sug', d => { S.sug = new Map(d.map(r => [r.producto_id, Number(r.sugerido) || 0])); })).catch(() => {});
-  const res = await Promise.allSettled([...tareas, sug]);
+  const res = await Promise.allSettled(tareas);
   S.listo = true;
   const fallo = res.find(r => r.status === 'rejected');
   if (fallo && !S.prods.length) throw fallo.reason;
@@ -62,6 +65,7 @@ function cabecera(titulo, sub) {
 
 // ---------- Pedir ----------
 let filtro = { q: '', cat: 'todas' };
+const MI_PEDIDO = '__mio__';
 let extraIds = null; // ids que devolvió la búsqueda del servidor
 
 function pintarPedir(root, ctx) {
@@ -73,11 +77,26 @@ function pintarPedir(root, ctx) {
   const lista = h('div', { class: 'lista', id: 'lista-prod' });
   const pill = h('button', { class: 'pill', type: 'button', hidden: true, on: { click: () => ctx.ir('revisar') } });
 
+  const estado = h('div', { class: 'borrador', 'aria-live': 'polite' });
+  const chipMio = h('button', { class: 'chip chip-mio', type: 'button' });
   const actualizarPill = () => {
     const n = pedidoActual().length;
     pill.hidden = n === 0;
     pill.replaceChildren(icon('pedir', 20), h('span', { text: `Revisar pedido · ${n} ${n === 1 ? 'ítem' : 'ítems'}` }));
+    chipMio.textContent = n ? `En mi pedido · ${n}` : 'En mi pedido';
+    estado.hidden = n === 0;
+    if (n) {
+      const hora = S.guardado ? new Date(S.guardado).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
+      estado.replaceChildren(icon('check', 16), h('span', { text: `Tu pedido de ${nombreLocal || 'este local'} está guardado${hora ? ' (' + hora + ')' : ''}. Seguí cuando quieras.` }),
+        h('button', { class: 'btn btn-text', type: 'button', text: 'Vaciar', on: { click: vaciar } }));
+    }
   };
+  function vaciar() {
+    if (!confirm('¿Vaciar el pedido? Se borran todas las cantidades que cargaste.')) return;
+    S.draft = {}; guardarBorrador();
+    if (filtro.cat === MI_PEDIDO) filtro.cat = 'todas';
+    pintarPedir(root, ctx);
+  }
 
   const fila = (p) => {
     const q = cantidad(p);
@@ -95,7 +114,9 @@ function pintarPedir(root, ctx) {
   const pintarLista = () => {
     const q = norm(filtro.q);
     let vis = activos;
-    if (filtro.cat !== 'todas') vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
+    // Al buscar se busca en todo el catálogo del local, sin importar la categoría elegida.
+    if (filtro.cat === MI_PEDIDO && !q) vis = vis.filter(p => cantidad(p) > 0);
+    else if (filtro.cat !== 'todas' && !q) vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
     if (q) {
       const toks = q.split(' ');
       const local = vis.filter(p => { const t = norm(p.nombre + ' ' + p.codigo); return toks.every(k => t.includes(k)); });
@@ -104,8 +125,12 @@ function pintarPedir(root, ctx) {
       vis = [...local, ...extra];
     }
     if (!S.listo && !activos.length) { lista.replaceChildren(esqueleto(6)); return; }
-    if (!vis.length) { lista.replaceChildren(vacio(q ? 'No encontramos ese producto' : 'Sin productos', q ? 'Probá con otra palabra.' : 'Todavía no hay productos cargados para este local.')); return; }
-    if (q) { lista.replaceChildren(...vis.map(fila)); return; }
+    cuenta.textContent = q ? (vis.length ? `${vis.length} ${vis.length === 1 ? 'producto' : 'productos'}` : '') : '';
+    if (!vis.length) {
+      if (filtro.cat === MI_PEDIDO && !q) { lista.replaceChildren(vacio('Tu pedido está vacío', 'Buscá un producto o elegí una categoría y sumá con +.')); return; }
+      lista.replaceChildren(vacio(q ? 'No encontramos ese producto' : 'Sin productos', q ? 'Probá con otra palabra.' : 'Todavía no hay productos cargados para este local.')); return;
+    }
+    if (q || filtro.cat === MI_PEDIDO) { lista.replaceChildren(...vis.sort((a, b) => porTexto(a.nombre, b.nombre)).map(fila)); return; }
     const g = groupBy(vis, p => p.categoria || 'Sin categoría');
     const frag = [];
     for (const k of [...g.keys()].sort(porTexto)) {
@@ -123,19 +148,26 @@ function pintarPedir(root, ctx) {
     } catch (_e) { /* la búsqueda local alcanza */ }
   }, 300);
 
-  const buscador = h('input', { class: 'input input-search', type: 'search', id: 'buscar', placeholder: 'Buscar producto', autocomplete: 'off', 'aria-label': 'Buscar producto', value: filtro.q,
-    on: { input: (e) => { filtro.q = e.target.value; extraIds = null; pintarLista(); buscarRemoto(filtro.q); } } });
+  const cuenta = h('span', { class: 'busca-n', 'aria-live': 'polite' });
+  const limpiar = h('button', { class: 'busca-x', type: 'button', 'aria-label': 'Borrar búsqueda', hidden: !filtro.q, on: { click: () => { buscador.value = ''; alBuscar(''); buscador.focus(); } } }, icon('cerrar', 18));
+  const alBuscar = (v) => { filtro.q = v; limpiar.hidden = !v; extraIds = null; pintarLista(); buscarRemoto(v); };
+  const buscador = h('input', { class: 'input input-search', type: 'search', id: 'buscar', placeholder: 'Buscar producto (ej.: queso, coca, servilleta)', autocomplete: 'off', enterkeyhint: 'search', 'aria-label': 'Buscar producto', value: filtro.q,
+    on: { input: (e) => alBuscar(e.target.value) } });
+  const caja = h('div', { class: 'busca' }, icon('buscar', 20), buscador, limpiar, cuenta);
 
-  const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categorías' },
-    ['todas', ...cats].map(c => h('button', { class: 'chip' + (filtro.cat === c ? ' is-on' : ''), type: 'button', 'aria-pressed': filtro.cat === c ? 'true' : 'false', text: c === 'todas' ? 'Todas' : c,
-      on: { click: () => { filtro.cat = c; chips.querySelectorAll('.chip').forEach(b => { const on = b.textContent === (c === 'todas' ? 'Todas' : c); b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }); pintarLista(); } } })));
+  const marcar = (c) => chips.querySelectorAll('.chip').forEach(b => { const on = b.dataset.cat === c; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+  const elegir = (c) => { filtro.cat = c; if (filtro.q) { buscador.value = ''; filtro.q = ''; limpiar.hidden = true; extraIds = null; } marcar(c); pintarLista(); };
+  chipMio.dataset.cat = MI_PEDIDO; chipMio.addEventListener('click', () => elegir(MI_PEDIDO));
+  const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categorías' }, chipMio,
+    ['todas', ...cats].map(c => h('button', { class: 'chip', type: 'button', 'data-cat': c, text: c === 'todas' ? 'Todas' : c, on: { click: () => elegir(c) } })));
+  marcar(filtro.cat);
 
   mount(root, 
     cabecera('Pedir', nombreLocal),
     S.offline ? banner('Sin conexión: mostrando lo último que guardamos.', 'warn') : null,
     aviso.tipo === 'ok' ? h('p', { class: 'aviso-ok', text: aviso.texto }) : banner(aviso.texto, aviso.tipo === 'warn' ? 'warn' : 'info'),
-    h('div', { class: 'toolbar' }, buscador, chips),
-    lista, pill);
+    h('div', { class: 'toolbar toolbar-fija' }, caja, chips),
+    estado, lista, pill);
   pintarLista(); actualizarPill();
 }
 

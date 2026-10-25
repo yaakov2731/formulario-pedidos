@@ -1,6 +1,6 @@
 // Gerencia · Ventas: subir los Excel de Núcleo IT de un local y un día, asociar sus códigos a productos y confirmar la importación.
 import { mount, h, norm, fmtNum, fmtMoney, porTexto, hoyISO, sumarDias, fechaLarga } from './util.js';
-import { cargarAliasNucleo, asociarNucleo, crearPlato, importacionDelDia, importarVentas, buscarServidor, mensajeError } from './api.js';
+import { cargarAliasNucleo, asociarNucleo, crearPlato, importacionDelDia, importarVentas, importacionesRecientes, borrarImportacion, buscarServidor, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { leerReporte, armarImportacion, claveItem } from './nucleo.js';
 import { esqueleto, vacio, banner, toast, hoja, campo, subnav, icon, SUBNAV_VENTAS } from './ui.js';
@@ -9,7 +9,7 @@ const TIPOS = { detalle: 'Detalle por pedido', pagos: 'Formas de pago', simple: 
 
 // Estado de la importación en curso (se conserva al cambiar de pantalla).
 const E = { localId: null, fecha: null, fechaManual: false, archivos: [], detalle: null, pagos: null, simple: null, imp: null,
-  aliases: new Map(), nd: new Set(), sugerencias: new Map(), existente: null, resultado: null, cargandoAliases: false };
+  aliases: new Map(), nd: new Set(), sugerencias: new Map(), existente: null, resultado: null, cargandoAliases: false, recientes: [] };
 
 function cargarXLSX() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
@@ -73,6 +73,7 @@ export async function render(root, ctx) {
   }
   async function refrescarExistente() {
     E.existente = null;
+    if (E.localId) { try { E.recientes = await importacionesRecientes(E.localId); } catch (_e) { E.recientes = []; } }
     if (!E.localId || !E.fecha) return;
     try { const r = await importacionDelDia(E.localId, E.fecha); E.existente = r[0] || null; } catch (_e) { /* sin aviso */ }
   }
@@ -225,16 +226,48 @@ export async function render(root, ctx) {
     } catch (e) { toast(mensajeError(e), 'error'); btn.disabled = false; btn.textContent = 'Confirmar importación'; }
   }
 
+  // ---------- borrar una importación subida por error ----------
+  function pedirBorrar(i) {
+    const nl = (G.locales.find(l => l.id === E.localId) || {}).nombre || '';
+    const si = h('button', { class: 'btn btn-primary btn-peligro btn-block', type: 'button', text: 'Sí, borrar estas ventas' });
+    const { cerrar } = hoja('Borrar ventas', h('div', { class: 'borrar-imp' },
+      h('p', { text: `Vas a borrar las ventas de ${nl} del ${fechaLarga(i.fecha_desde)}${i.archivo ? ' (' + i.archivo + ')' : ''}.` }),
+      banner('Lo que esa importación descontó del stock vuelve a sumarse. Después podés subir el Excel correcto.', 'info'),
+      h('div', { class: 'acciones' }, si, h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'No, dejarlas', on: { click: () => cerrar() } }))));
+    si.addEventListener('click', async () => {
+      si.disabled = true; si.textContent = 'Borrando…';
+      try {
+        const r = await borrarImportacion(i.id);
+        cerrar(); toast(`Ventas borradas · ${r.movimientos} movimientos de stock devueltos`, 'ok');
+        if (E.resultado && E.resultado.import_id === i.id) E.resultado = null;
+        await refrescarExistente(); pintar();
+      } catch (e) { toast(mensajeError(e), 'error'); si.disabled = false; si.textContent = 'Sí, borrar estas ventas'; }
+    });
+  }
+
+  function listaRecientes() {
+    if (!E.recientes.length) return null;
+    return h('section', { class: 'imp-subidas', 'aria-label': 'Ventas ya subidas' },
+      h('h2', { class: 'cat-t', text: 'Ventas ya subidas' }),
+      h('p', { class: 'sub', text: '¿Subiste un Excel dos veces o en el día equivocado? Borralo y el stock vuelve.' }),
+      h('ul', { class: 'imp-lista' }, E.recientes.map(i => h('li', { class: 'imp-fila' },
+        h('div', { class: 'imp-info' },
+          h('b', { text: fechaLarga(i.fecha_desde) }),
+          h('span', { class: 'mute', text: [i.n_pedidos ? `${i.n_pedidos} pedidos` : null, i.total_productos !== null && i.total_productos !== undefined ? fmtMoney(i.total_productos) : null, i.archivo].filter(Boolean).join(' · ') })),
+        h('button', { class: 'btn btn-text btn-danger', type: 'button', text: 'Borrar', 'aria-label': `Borrar ventas del ${fechaLarga(i.fecha_desde)}`, on: { click: () => pedirBorrar(i) } })))));
+  }
+
   // ---------- pantalla ----------
   const zonaLista = h('div', { class: 'asoc-lista' });
   function pintarLista() {
     if (!zonaLista.isConnected) return;
+    if (!E.imp) { zonaLista.replaceChildren(); return; }
     const rs = renglones().sort((a, b) => porTexto(a.nombre, b.nombre));
     const faltan = rs.filter(r => estadoDe(r) === 'falta'); const hechos = rs.filter(r => estadoDe(r) !== 'falta');
     zonaLista.replaceChildren(
       h('h2', { class: 'cat-t', text: faltan.length ? `Faltan asociar · ${faltan.length}` : 'Todo asociado' }),
       ...(faltan.length ? [h('div', { class: 'lista' }, faltan.map(filaAsoc))] : []),
-      hechos.length ? h('details', { class: 'asoc-hechos', open: !faltan.length }, h('summary', { text: `Asociados · ${hechos.length}` }), h('div', { class: 'lista' }, hechos.map(filaAsoc))) : null);
+      ...(hechos.length ? [h('details', { class: 'asoc-hechos', open: !faltan.length }, h('summary', { text: `Asociados · ${hechos.length}` }), h('div', { class: 'lista' }, hechos.map(filaAsoc)))] : []));
   }
 
   function kpi(titulo, valor, nota, tono) {
@@ -266,13 +299,14 @@ export async function render(root, ctx) {
 
     mount(root, cab, subnav(SUBNAV_VENTAS, 'ventas'),
       h('div', { class: 'toolbar' }, chips.el, campo('Fecha de las ventas', inpFecha, E.fecha ? fechaLarga(E.fecha) : null)),
-      E.existente ? banner(`Ya hay ventas importadas de este día${E.existente.n_pedidos ? ' (' + E.existente.n_pedidos + ' pedidos)' : ''}. Al confirmar se reemplazan.`, 'warn') : null,
+      E.existente ? h('div', { class: 'existe' }, banner(`Ya hay ventas importadas de este día${E.existente.n_pedidos ? ' (' + E.existente.n_pedidos + ' pedidos)' : ''}. Al confirmar se reemplazan.`, 'warn'),
+        h('button', { class: 'btn btn-text btn-danger', type: 'button', text: 'Borrar las de este día', on: { click: () => pedirBorrar({ ...E.existente, fecha_desde: E.fecha }) } })) : null,
       h('div', { class: 'subida' }, h('label', { class: 'btn ' + (imp ? 'btn-ghost' : 'btn-primary'), for: 'f-archivo' }, h('span', { text: imp ? 'Sumar otro Excel' : 'Elegir Excel de Núcleo' })), inpArchivo,
         h('p', { class: 'sub', text: 'Subí el detalle por pedido y las formas de pago del mismo día. También sirve "Pedidos por producto".' })),
       archivos, fechaDif ? banner(`Los archivos son del ${res.fecha.split('-').reverse().join('/')} pero elegiste otra fecha.`, 'warn') : null,
       res && res.ignoraSimple ? banner('Se usa el detalle por pedido; "Pedidos por producto" se ignora.', 'info') : null,
       prev, zonaLista,
-      imp ? h('div', { class: 'confirmar' }, btn) : vacio('Todavía no subiste nada', 'Elegí el local, la fecha y el Excel que baja de Núcleo.'));
+      imp ? h('div', { class: 'confirmar' }, btn) : (listaRecientes() || vacio('Todavía no subiste nada', 'Elegí el local, la fecha y el Excel que baja de Núcleo.')));
     pintarLista();
   }
 
@@ -292,7 +326,8 @@ export async function render(root, ctx) {
           h('ul', { class: 'barras' }, r.sin_receta.slice(0, 8).map(p => h('li', { class: 'bfila' }, h('div', { class: 'bfila-t' }, h('span', { class: 'bfila-k', text: p.nombre }), h('b', { class: 'num', text: fmtNum(p.cantidad, 3) }))))),
           h('a', { class: 'btn btn-primary', href: '#/recetas', text: 'Cargar recetas' })) : banner('Todos los platos vendidos tienen receta.', 'info'),
         h('div', { class: 'acciones' }, h('a', { class: 'btn btn-ghost', href: '#/analisis', text: 'Ver análisis' }),
-          h('button', { class: 'btn btn-ghost', type: 'button', text: 'Importar otro día', on: { click: () => { E.resultado = null; pintar(); } } }))));
+          h('button', { class: 'btn btn-ghost', type: 'button', text: 'Importar otro día', on: { click: () => { E.resultado = null; pintar(); } } }),
+          h('button', { class: 'btn btn-text btn-danger', type: 'button', text: 'Me equivoqué: borrar esta importación', on: { click: () => pedirBorrar({ id: r.import_id, fecha_desde: r.fecha, archivo: null }) } }))));
   }
 
   await prepararLocal();

@@ -169,6 +169,9 @@ export const asociarNucleo = async (productoId, codigo, cantidadPorVenta = 1) =>
 export const crearPlato = async (localId, codigo, nombre) => ok(await sb.rpc('crear_plato', { p_local: localId, p_codigo: codigo || '', p_nombre: nombre }));
 export const importacionDelDia = async (localId, fecha) =>
   ok(await sb.from('ventas_import').select('id,archivo,n_pedidos,total_productos,creado_en').eq('local_id', localId).eq('fecha_desde', fecha).eq('fecha_hasta', fecha).limit(1));
+export const importacionesRecientes = async (localId) =>
+  ok(await sb.from('ventas_import').select('id,fecha_desde,archivo,n_pedidos,total_productos,creado_en').eq('local_id', localId).order('fecha_desde', { ascending: false }).order('creado_en', { ascending: false }).limit(15));
+export const borrarImportacion = async (id) => ok(await sb.rpc('borrar_importacion', { p_import: id }));
 export const importarVentas = async (localId, fecha, pedidos, items, pagos, archivo) =>
   ok(await sb.rpc('importar_ventas', { p_local: localId, p_fecha: fecha, p_pedidos: pedidos, p_items: items, p_pagos: pagos, p_archivo: archivo || null }));
 export const ventasPedidosRango = (localId, desde, hasta) => todo(() => sb.from('ventas_pedidos')

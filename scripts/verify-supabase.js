@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0007_recetas_estimadas.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -67,6 +67,9 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig7 = fs.readFileSync(path.join(root, 'supabase/migrations/0007_recetas_estimadas.sql'), 'utf8');
   try { await db.exec(mig7); await db.exec(mig7); check('aplica 0007_recetas_estimadas.sql (idempotente)', true); }
   catch (e) { check('aplica 0007_recetas_estimadas.sql (idempotente)', false, e.message); return finish(); }
+  const mig8 = fs.readFileSync(path.join(root, 'supabase/migrations/0008_borrar_importacion.sql'), 'utf8');
+  try { await db.exec(mig8); await db.exec(mig8); check('aplica 0008_borrar_importacion.sql (idempotente)', true); }
+  catch (e) { check('aplica 0008_borrar_importacion.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -360,6 +363,23 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     const simple = (await q("select importar_ventas($1,current_date - 40,'[]'::jsonb,$2::jsonb,'[]'::jsonb,'simple.xlsx') r", [l1.id, JSON.stringify([
       { codigo: 'BEB-1', nombre: 'Cerveza', cantidad: 2, importe: 20 }, { nombre: 'Antiguo Test', codigo: '', cantidad: 2, importe: 5, producto_id: viejo }])]))[0].r;
     check('modo simple (Pedidos por producto): ítems sin pedidos', simple.items === 2 && simple.pedidos === 0 && simple.movimientos === 2, JSON.stringify(simple));
+    // Borrar una importación subida por error: el stock vuelve a como estaba
+    const stB0 = await stockDe(cerv);
+    const dup = (await q("select importar_ventas($1,current_date - 41,'[]'::jsonb,$2::jsonb,'[]'::jsonb,'repetido.xlsx') r", [l1.id, JSON.stringify([{ codigo: 'BEB-1', nombre: 'Cerveza', cantidad: 5, importe: 50 }])]))[0].r;
+    check('importación repetida descuenta (5 cervezas)', (await stockDe(cerv)) === stB0 - 5);
+    const nImp0 = (await q('select count(*)::int n from ventas_import'))[0].n;
+    const bor = (await q('select borrar_importacion($1) r', [dup.import_id]))[0].r;
+    const quedan = (await q("select (select count(*) from ventas_items where import_id=$1)::int it, (select count(*) from movimientos where ref_tipo='venta_import' and ref_id=$1::text)::int m", [dup.import_id]))[0];
+    check('borrar_importacion devuelve el stock y borra ítems y movimientos', (await stockDe(cerv)) === stB0 && bor.movimientos === 1 && bor.items === 1 && quedan.it === 0 && quedan.m === 0, JSON.stringify(bor));
+    check('borrar_importacion no toca las otras importaciones', (await q('select count(*)::int n from ventas_import'))[0].n === nImp0 - 1);
+    const eBor2 = await tryq('select borrar_importacion($1) r', [dup.import_id]);
+    check('borrar_importacion de una ya borrada avisa', !!eBor2.err && /ya no existe/.test(eBor2.err), eBor2.err);
+    const conPed = (await q('select id from ventas_import where fecha_desde = current_date and local_id = $1', [l1.id]))[0].id;
+    await q('begin');
+    await q('select borrar_importacion($1)', [conPed]);
+    const cascada = (await q('select (select count(*) from ventas_pedidos where import_id=$1)::int p, (select count(*) from ventas_pedido_pagos g join ventas_pedidos vp on vp.id=g.pedido_id where vp.import_id=$1)::int g', [conPed]))[0];
+    check('borrar_importacion borra pedidos y pagos en cascada', cascada.p === 0 && cascada.g === 0, JSON.stringify(cascada));
+    await q('rollback');
 
     // Producción
     const stSalsa0 = await stockDe(salsa), stQ1 = await stockDe(queso);
@@ -405,7 +425,8 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
       ['registrar_produccion', 'select registrar_produccion($1,$2,1)', [l1.id, salsa]],
       ['guardar_receta', "select guardar_receta($1,1,'[]'::jsonb)", [pla]],
       ['crear_plato', "select crear_plato($1,'X','X')", [l1.id]],
-      ['asociar_nucleo', "select asociar_nucleo($1,'X',1)", [cerv]]]) {
+      ['asociar_nucleo', "select asociar_nucleo($1,'X',1)", [cerv]],
+      ['borrar_importacion', "select borrar_importacion((select id from ventas_import limit 1))", []]]) {
       const r = await tryq(sql, par);
       check('encargado NO ejecuta ' + nom, !!r.err);
     }

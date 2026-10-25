@@ -41,7 +41,7 @@ for (const f of ['js/pedir.js', 'js/entrar.js']) {
 }
 check('encargado no importa vistas de gerencia', !/from '\.\/(g-[a-z-]+|nucleo|analisis|datos|aviso|pagos-util|comprobante|pdf-texto)\.js'/.test(read('js/pedir.js') + read('js/entrar.js')));
 check('encargado: ni ventas, recetas, producción ni lector de Excel en pedir.js/entrar.js', !/ventas|receta|producci[oó]n|xlsx|merma|importar_/i.test(read('js/pedir.js') + read('js/entrar.js')));
-check('encargado: sugerido por rpc sugerido_pedido (sin consultar tablas de ventas)', /rpc\('sugerido_pedido'/.test(read('js/api.js')) && /cargarSugerido/.test(read('js/pedir.js')));
+check('encargado: Pedir arranca vacío (sin pedido precargado)', !/cargarSugerido|sugeridoDe/.test(read('js/pedir.js')));
 const main = read('js/main.js');
 const navEnc = (main.match(/encargado: \[[\s\S]*?\],\s*gerencia:/) || [''])[0];
 check('el menú del encargado no tiene Ventas ni Cocina', navEnc.length > 0 && !/ventas|recetas|merma|produccion/.test(navEnc));
