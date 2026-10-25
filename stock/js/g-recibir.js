@@ -29,15 +29,14 @@ export async function render(root, ctx) {
         const qty = parseNum(f.inQty.value); const pr = parseNum(f.inPrecio.value);
         return { item: f.it, qty: qty === null || qty < 0 ? 0 : qty, precio: pr === null ? null : pr, precioPrevio: f.precioPrevio, factor: f.p.factor_conversion };
       });
-      const total = lineas.map(l => (Number(l.item.cantidad_recibida) || 0) + l.qty);
-      const completa = filas.every((f, i) => total[i] >= Number(f.it.cantidad_pedida));
       if (!lineas.some(l => l.qty > 0) && !confirm('No cargaste ninguna cantidad. ¿Cerrar la orden igual?')) return;
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {
-        await registrarRecepcion(o, lineas, completa ? 'recibida' : 'parcial');
+        const estado = await registrarRecepcion(o, lineas);
+        const completa = estado === 'recibida';
         lineas.forEach(l => { if (l.qty > 0 && l.precio !== null) refrescarPrecio(l.item.producto_id, l.precio); });
         toast(completa ? 'Recepción completa. Stock actualizado.' : 'Recepción parcial guardada.', 'ok');
-        ordenes = completa ? ordenes.filter(x => x.id !== o.id) : (o.estado = 'parcial', lineas.forEach(l => { l.item.cantidad_recibida = (Number(l.item.cantidad_recibida) || 0) + l.qty; }), ordenes);
+        ordenes = completa ? ordenes.filter(x => x.id !== o.id) : (o.estado = estado, lineas.forEach(l => { l.item.cantidad_recibida = (Number(l.item.cantidad_recibida) || 0) + l.qty; }), ordenes);
         pintar();
       } catch (e) { toast(mensajeError(e), 'error'); btn.disabled = false; btn.textContent = 'Confirmar recepción'; }
     } } });

@@ -47,6 +47,6 @@ PWA sin bundler que usa Supabase directo (`stock/config.js` con URL y publishabl
 1. Supabase → Authentication → Add user: email `local-<codigo>@docks-stock.app` (ej. `local-umo@docks-stock.app`), PIN como contraseña, marcar "Auto confirm". Igual para el email de Jacobo.
 2. Insertar el perfil con `supabase/usuarios-ejemplo.sql` (parametrizado por email, sin contraseñas).
 
-Limitación: los productos sin proveedor aparecen en "Sin proveedor" pero no se envían (`ordenes_compra.proveedor_id` es obligatorio): el encargado debe avisar a gerencia.
+Productos sin proveedor: el encargado los pide igual (orden con `proveedor_id` nulo); gerencia asigna el proveedor en Pedidos y recién ahí puede aprobar y enviar. La recepción corre en la función transaccional `recibir_orden(orden, items)` (solo gerencia, todo o nada).
 
 **Verificar**: `node scripts/verify-supabase.js` (RLS), `node scripts/verify-stock.js` (estático, CI) y `node scripts/e2e-stock.js` (manual, Playwright con API mockeada; capturas en `/mnt/project-files/app-stock/fase1/`).

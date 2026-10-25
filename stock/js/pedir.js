@@ -162,7 +162,7 @@ function pintarRevisar(root, ctx) {
 
   const cardGrupo = (g) => {
     const notas = [];
-    if (g.key === SIN_PROV) notas.push(['warn', 'Estos productos no tienen proveedor asignado: no se envían. Avisale a gerencia.']);
+    if (g.key === SIN_PROV) notas.push(['warn', 'Estos productos no tienen proveedor: gerencia lo asigna antes de pedirlos.']);
     else {
       if (g.prov && g.prov.dias_entrega) notas.push(['info', 'Entrega: ' + g.prov.dias_entrega]);
       if (g.prov && g.prov.corte) notas.push(['info', 'Corte: ' + g.prov.corte]);
@@ -188,8 +188,7 @@ function pintarRevisar(root, ctx) {
   btn.addEventListener('click', async () => {
     err.replaceChildren();
     if (!nombre.trim()) return err.replaceChildren(banner('Poné tu nombre para enviar.', 'error'));
-    const enviables = grupos.filter(g => g.key !== SIN_PROV);
-    if (!enviables.length) return err.replaceChildren(banner('Ningún producto tiene proveedor: no hay nada para enviar.', 'error'));
+    const enviables = grupos;
     btn.disabled = true; btn.textContent = 'Enviando…';
     lsSet('nombre', nombre.trim());
     let fallos = 0, ok = 0;
@@ -198,7 +197,7 @@ function pintarRevisar(root, ctx) {
       try {
         let oid = enviado.ordenes[g.key];
         if (!oid) {
-          oid = await crearOrdenSolo({ local_id: S.lid, proveedor_id: g.key, estado: 'borrador', cargado_por_nombre: nombre.trim(), nota: nota.trim() || null });
+          oid = await crearOrdenSolo({ local_id: S.lid, proveedor_id: g.key === SIN_PROV ? null : g.key, estado: 'borrador', cargado_por_nombre: nombre.trim(), nota: nota.trim() || null });
           enviado.ordenes[g.key] = oid;
         }
         await agregarItems(oid, g.items.map(p => ({ producto_id: p.id, cantidad: cantidad(p) })));
@@ -239,7 +238,7 @@ async function renderMis(root, ctx) {
       const prov = provs.get(o.proveedor_id);
       return h('article', { class: 'ped' },
         h('button', { class: 'ped-b', type: 'button', 'aria-expanded': 'false', on: { click: (e) => { const b = e.currentTarget; det.hidden = !det.hidden; b.setAttribute('aria-expanded', String(!det.hidden)); } } },
-          h('span', { class: 'ped-prov', text: prov ? prov.nombre : 'Proveedor' }),
+          h('span', { class: 'ped-prov', text: prov ? prov.nombre : (o.proveedor_id ? 'Proveedor' : 'Sin proveedor') }),
           h('span', { class: 'estado estado-' + o.estado, text: ESTADOS[o.estado] || o.estado }),
           h('span', { class: 'ped-meta', text: `${fechaCorta(o.creado_en)} · ${items.length} ${items.length === 1 ? 'ítem' : 'ítems'}${o.cargado_por_nombre ? ' · ' + o.cargado_por_nombre : ''}` })),
         det, o.nota ? h('p', { class: 'ped-nota', text: 'Nota: ' + o.nota }) : null);

@@ -141,23 +141,12 @@ export async function crearOrdenSolo(o) {
 export const contarProducto = async (localId, productoId, cantidad) =>
   ok(await sb.rpc('registrar_conteo', { p_local: localId, p_producto: productoId, p_cantidad_contada: cantidad }));
 
-// Recepción de una orden: movimientos (cantidad × factor), cantidades recibidas, precios y estado.
-// El cliente no tiene transacciones: el orden de los pasos deja primero el stock y al final el estado.
-export async function registrarRecepcion(orden, lineas, nuevoEstado) {
-  const conQty = lineas.filter(l => l.qty > 0);
-  if (conQty.length) {
-    await ok(await sb.from('movimientos').insert(conQty.map(l => ({
-      local_id: orden.local_id, producto_id: l.item.producto_id, tipo: 'recepcion',
-      cantidad: Math.round(l.qty * Number(l.factor || 1) * 1000) / 1000, ref_tipo: 'orden', ref_id: orden.id, nota: 'Recepción de orden'
-    }))));
-  }
-  for (const l of lineas) {
-    if (l.qty > 0) await ok(await sb.from('orden_items').update({ cantidad_recibida: (Number(l.item.cantidad_recibida) || 0) + l.qty }).eq('id', l.item.id).select('id'));
-    if (l.qty > 0 && l.precio !== null) await ok(await sb.from('orden_item_precios').upsert({ orden_item_id: l.item.id, precio_unitario: l.precio }).select('orden_item_id'));
-  }
-  const nuevos = conQty.filter(l => l.precio !== null && l.precio !== l.precioPrevio).map(l => ({ producto_id: l.item.producto_id, proveedor_id: orden.proveedor_id, precio: l.precio, origen: 'recepcion' }));
-  if (nuevos.length) await ok(await sb.from('precios').insert(nuevos));
-  await ok(await sb.from('ordenes_compra').update({ estado: nuevoEstado }).eq('id', orden.id).select('id'));
+// Recepción de una orden: una sola función SQL transaccional (todo o nada). Devuelve el estado final.
+export async function registrarRecepcion(orden, lineas) {
+  return ok(await sb.rpc('recibir_orden', {
+    p_orden: orden.id,
+    p_items: lineas.map(l => ({ orden_item_id: l.item.id, cantidad_recibida: l.qty, precio_unitario: l.precio }))
+  }));
 }
 
 export async function guardarProducto(id, datos) {

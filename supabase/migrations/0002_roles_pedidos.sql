@@ -43,3 +43,60 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke execute on function public.locales_login() from public;
 grant execute on function public.locales_login() to anon, authenticated;
+
+-- 7) Pedidos sin proveedor llegan a gerencia, que asigna el proveedor antes de aprobar.
+alter table public.ordenes_compra alter column proveedor_id drop not null;
+
+-- 7b) Desempate del "último precio" cuando hay varios el mismo día: por hora de carga.
+alter table public.precios add column if not exists creado_en timestamptz not null default now();
+create or replace view public.precio_actual with (security_invoker = true) as
+  select distinct on (producto_id) producto_id, proveedor_id, precio, fecha, origen
+  from public.precios
+  order by producto_id, fecha desc, creado_en desc, id;
+
+-- 8) Recepción transaccional (todo o nada). p_items: [{orden_item_id, cantidad_recibida, precio_unitario}]
+--    cantidad_recibida = lo que llegó ahora (se suma a lo recibido antes). Devuelve el estado final.
+create or replace function public.recibir_orden(p_orden uuid, p_items jsonb)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  o public.ordenes_compra%rowtype;
+  it jsonb; oi public.orden_items%rowtype; fac numeric; qty numeric; pr numeric; previo numeric; completa boolean; est text;
+begin
+  if public.mi_rol() is distinct from 'gerencia' then
+    raise exception 'Sin permiso para recibir órdenes' using errcode = '42501';
+  end if;
+  select * into o from public.ordenes_compra where id = p_orden for update;
+  if not found then raise exception 'La orden no existe'; end if;
+  if o.estado not in ('enviada', 'parcial') then raise exception 'La orden no está esperando mercadería (estado %)', o.estado; end if;
+
+  for it in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) loop
+    select * into oi from public.orden_items where id = (it->>'orden_item_id')::uuid and orden_id = p_orden;
+    if not found then raise exception 'Ítem % no pertenece a la orden', it->>'orden_item_id'; end if;
+    qty := coalesce(nullif(it->>'cantidad_recibida', '')::numeric, 0);
+    if qty < 0 then raise exception 'Cantidad negativa'; end if;
+    pr := nullif(it->>'precio_unitario', '')::numeric;
+    if qty > 0 then
+      select factor_conversion into fac from public.productos where id = oi.producto_id;
+      insert into public.movimientos(local_id, producto_id, tipo, cantidad, ref_tipo, ref_id, nota)
+        values (o.local_id, oi.producto_id, 'recepcion', round(qty * fac, 3), 'orden', p_orden::text, 'Recepción de orden');
+      update public.orden_items set cantidad_recibida = coalesce(cantidad_recibida, 0) + qty where id = oi.id;
+      if pr is not null then
+        insert into public.orden_item_precios(orden_item_id, precio_unitario) values (oi.id, pr)
+          on conflict (orden_item_id) do update set precio_unitario = excluded.precio_unitario;
+        select precio into previo from public.precios where producto_id = oi.producto_id order by fecha desc, creado_en desc, id limit 1;
+        if previo is distinct from pr then
+          insert into public.precios(producto_id, proveedor_id, precio, origen) values (oi.producto_id, o.proveedor_id, pr, 'recepcion');
+        end if;
+      end if;
+    end if;
+  end loop;
+
+  select coalesce(bool_and(coalesce(cantidad_recibida, 0) >= cantidad_pedida), true) into completa
+    from public.orden_items where orden_id = p_orden;
+  est := case when completa then 'recibida' else 'parcial' end;
+  update public.ordenes_compra set estado = est where id = p_orden;
+  return est;
+end $$;
+revoke execute on function public.recibir_orden(uuid, jsonb) from public, anon;
+grant execute on function public.recibir_orden(uuid, jsonb) to authenticated;

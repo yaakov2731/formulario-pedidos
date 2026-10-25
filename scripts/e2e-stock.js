@@ -63,7 +63,7 @@ const db = {
     { local_id: L1, producto_id: 'p-bondiola', stock: 2 }, { local_id: L1, producto_id: 'p-queso', stock: 1.5 }
   ],
   precios: { 'p-chorizo': 6200, 'p-cerveza': 9800, 'p-gaseosa': 7400, 'p-bondiola': 8900, 'p-mozza': 9500 },
-  ordenes: [], items: [], movimientos: [], preciosNuevos: [], itemPrecios: [], conteos: [], log: []
+  ordenes: [], recepciones: [], items: [], movimientos: [], preciosNuevos: [], itemPrecios: [], conteos: [], log: []
 };
 let seq = 1;
 const nid = (p) => p + '-' + (seq++);
@@ -143,6 +143,21 @@ async function montarApi(ctx) {
       if (req.method() === 'DELETE') { const id = eq(q.get('id')); db.items = db.items.filter(x => x.id !== id); return json([{ id }]); }
     }
     if (t === 'movimientos' && req.method() === 'POST') { if (rol !== 'gerencia') return json({ code: '42501', message: 'row-level security' }, 403); const b = body(); db.movimientos.push(...b); return route.fulfill({ status: 201, headers: cors, body: '' }); }
+    if (t === 'rpc/recibir_orden') {
+      if (rol !== 'gerencia') return json({ code: '42501', message: 'Sin permiso para recibir órdenes' }, 403);
+      const b = body(); db.recepciones.push(b);
+      const o = db.ordenes.find(x => x.id === b.p_orden);
+      for (const it of b.p_items) {
+        const item = db.items.find(i => i.id === it.orden_item_id); const p = db.productos.find(x => x.id === item.producto_id);
+        if (it.cantidad_recibida > 0) {
+          db.movimientos.push({ local_id: o.local_id, producto_id: item.producto_id, tipo: 'recepcion', cantidad: it.cantidad_recibida * p.factor_conversion, ref_id: o.id });
+          item.cantidad_recibida = (item.cantidad_recibida || 0) + it.cantidad_recibida;
+          if (it.precio_unitario !== null && it.precio_unitario !== db.precios[item.producto_id]) { db.preciosNuevos.push({ producto_id: item.producto_id, precio: it.precio_unitario, origen: 'recepcion' }); db.precios[item.producto_id] = it.precio_unitario; }
+        }
+      }
+      o.estado = db.items.filter(i => i.orden_id === o.id).every(i => (i.cantidad_recibida || 0) >= i.cantidad_pedida) ? 'recibida' : 'parcial';
+      return json(o.estado);
+    }
     if (t === 'orden_item_precios') { const b = body(); db.itemPrecios.push(b); return json([b], 201); }
     if (t === 'precios' && req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(r => { db.preciosNuevos.push(r); db.precios[r.producto_id] = r.precio; }); return json([{ id: 'pr' }], 201); }
     return json({ message: 'mock: ruta no prevista ' + req.method() + ' ' + t }, 404);
@@ -226,13 +241,14 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await e.waitForSelector('.ped');
   const posts = db.log.slice(antes).filter(l => l.m === 'POST' && (l.t === 'ordenes_compra' || l.t === 'orden_items'));
   const postOrd = posts.filter(l => l.t === 'ordenes_compra');
-  ok(postOrd.length === 3, `3 órdenes creadas (una por proveedor): ${postOrd.length}`);
+  ok(postOrd.length === 4, `4 órdenes creadas (3 proveedores + sin proveedor): ${postOrd.length}`);
+  ok(postOrd.filter(l => l.b.proveedor_id === null).length === 1, 'el grupo "Sin proveedor" viaja con proveedor_id null');
   ok(postOrd.every(l => l.b.estado === 'borrador' && l.b.local_id === L1 && l.b.cargado_por_nombre === 'Ruth Coronel' && l.b.nota === 'Entregar antes de las 10'), 'órdenes en estado borrador, con local, nombre y nota');
   ok(posts.every(l => !/precio|costo|importe/i.test(JSON.stringify(l.b))), 'ningún POST del encargado incluye costos');
   const itemsEnviados = posts.filter(l => l.t === 'orden_items').flatMap(l => l.b);
-  ok(itemsEnviados.length === 5 && !itemsEnviados.some(i => i.producto_id === 'p-servilleta'), `5 ítems enviados; "Sin proveedor" no se envía (${itemsEnviados.length})`);
+  ok(itemsEnviados.length === 6 && itemsEnviados.some(i => i.producto_id === 'p-servilleta'), `6 ítems enviados, incluida la servilleta sin proveedor (${itemsEnviados.length})`);
   ok(db.log.slice(antes).every(l => !(l.t === 'movimientos')), 'el encargado no escribe movimientos');
-  ok(await e.locator('.ped').count() === 3, 'Mis pedidos lista 3 pedidos');
+  ok(await e.locator('.ped').count() === 4, 'Mis pedidos lista 4 pedidos');
   ok((await e.locator('.ped').first().innerText()).includes('En revisión'), 'estado "En revisión"');
   await e.locator('.ped-b').first().click();
   await shot(e, '05-mis-pedidos-m', true);
@@ -292,7 +308,14 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('form button[type=submit]').click();
   await g.waitForSelector('.grupo-prov', { timeout: 8000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 400)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Pedidos no cargó'); });
   ok(await g.locator('.sidebar .side-link').count() === 5, 'gerencia: barra lateral con 4 secciones + Salir');
-  ok(await g.locator('.grupo-prov').count() === 3, 'Pedidos: borradores agrupados por proveedor (3)');
+  ok(await g.locator('.grupo-prov').count() === 4, 'Pedidos: borradores por proveedor (3) + Sin proveedor');
+  const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');
+  ok(await sinP.getByRole('button', { name: 'Aprobar' }).isDisabled() && await sinP.getByRole('button', { name: 'Enviar por WhatsApp' }).isDisabled(), 'Sin proveedor: Aprobar y WhatsApp deshabilitados');
+  await shot(g, '10b-g-pedidos-sin-proveedor-pc');
+  await sinP.getByLabel('Asignar proveedor').selectOption(PV.barcena);
+  await g.waitForSelector('.grupo-prov[data-prov="Sin proveedor"]', { state: 'detached' });
+  ok(db.ordenes.filter(o => o.proveedor_id === PV.barcena).length === 2, 'asignar proveedor actualiza la orden (queda con Barcena)');
+  ok(await g.locator('.grupo-prov').count() === 3, 'tras asignar, la orden se agrupa con su proveedor');
   const martinG = await g.locator('.grupo-prov[data-prov="Martín De Ridder"]').innerText();
   ok(/Pedido mínimo \$ 100\.000/.test(martinG), 'gerencia ve el mínimo de Martín De Ridder');
   await shot(g, '10-g-pedidos-pc');
@@ -330,6 +353,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await shot(g, '12-g-recibir-pc');
   await g.getByRole('button', { name: 'Confirmar recepción' }).click();
   await g.waitForSelector('.toast-ok >> text=Recepción');
+  ok(db.recepciones.length === 1 && db.recepciones[0].p_items.length === 2, 'la recepción va en una sola llamada rpc recibir_orden');
   const mov = db.movimientos.find(m => m.producto_id === 'p-cerveza');
   ok(mov && mov.tipo === 'recepcion' && mov.cantidad === 12, `movimiento de recepción = cantidad × factor (2 cajas × 6 = ${mov && mov.cantidad})`);
   ok(db.preciosNuevos.some(p => p.producto_id === 'p-cerveza' && p.precio === 10500), 'precio nuevo guardado al cambiar');
@@ -355,6 +379,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.getByRole('button', { name: 'Guardar cambios' }).click();
   await g.waitForSelector('.toast-ok >> text=Cambios guardados');
   ok(db.preciosNuevos.some(p => p.producto_id === 'p-chorizo' && p.precio === 6900), 'editar costo inserta precio nuevo');
+  await g.waitForSelector('dialog', { state: 'detached' });
   await g.getByRole('button', { name: 'Nuevo producto' }).click();
   await g.locator('#f-nombre').fill('Provoleta');
   await g.locator('#f-codigo').fill('UMO-050');

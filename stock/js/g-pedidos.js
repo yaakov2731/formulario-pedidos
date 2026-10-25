@@ -4,6 +4,8 @@ import { swr, ordenesPorEstado, actualizarOrden, actualizarItem, borrarItem, men
 import { G, cargarG, nombreLocal } from './datos.js';
 import { esqueleto, vacio, banner, toast, stepper, icon } from './ui.js';
 
+const SIN = '__sin__';
+
 export async function render(root, ctx) {
   let ordenes = [];
   const pend = new Map(); // item.id -> { qty, timer }
@@ -40,17 +42,24 @@ export async function render(root, ctx) {
   const total = (os) => os.flatMap(o => o.orden_items).reduce((s, i) => s + i.cantidad_pedida * (G.precios.get(i.producto_id) || 0), 0);
 
   function tarjeta(provId, os) {
-    const prov = G.provs.get(provId);
-    const nombre = prov ? prov.nombre : 'Proveedor';
+    const sinProv = provId === SIN;
+    const prov = sinProv ? null : G.provs.get(provId);
+    const nombre = sinProv ? 'Sin proveedor' : (prov ? prov.nombre : 'Proveedor');
     const tot = total(os);
     const min = prov && prov.pedido_minimo ? Number(prov.pedido_minimo) : 0;
     const hayBorrador = os.some(o => o.estado === 'borrador');
-    const btnAprobar = h('button', { class: 'btn btn-ghost', type: 'button', text: 'Aprobar', on: { click: async (e) => {
+    const selProv = sinProv ? h('select', { class: 'input', 'aria-label': 'Asignar proveedor', on: { change: async (e) => {
+      const v = e.target.value; if (!v) return;
+      e.target.disabled = true;
+      try { await flush(); await Promise.all(os.map(o => actualizarOrden(o.id, { proveedor_id: v }))); os.forEach(o => { o.proveedor_id = v; }); toast('Proveedor asignado', 'ok'); pintar(); }
+      catch (x) { toast(mensajeError(x), 'error'); e.target.disabled = false; }
+    } } }, h('option', { value: '', text: 'Asignar proveedor…' }), [...G.provs.values()].filter(p => p.activo !== false).sort((a, b) => porTexto(a.nombre, b.nombre)).map(p => h('option', { value: p.id, text: p.nombre }))) : null;
+    const btnAprobar = h('button', { class: 'btn btn-ghost', type: 'button', text: 'Aprobar', disabled: sinProv, on: { click: async (e) => {
       const b = e.currentTarget; b.disabled = true;
       try { await flush(); await cambiarEstado(os.filter(o => o.estado === 'borrador'), 'aprobada'); toast(`${nombre}: aprobado`, 'ok'); pintar(); }
       catch (x) { toast(mensajeError(x), 'error'); b.disabled = false; }
     } } });
-    const btnWA = h('button', { class: 'btn btn-primary', type: 'button', on: { click: async (e) => {
+    const btnWA = h('button', { class: 'btn btn-primary', type: 'button', disabled: sinProv, on: { click: async (e) => {
       const b = e.currentTarget;
       const digitos = String((prov && prov.whatsapp) || '').replace(/\D/g, '');
       if (!digitos) return toast(`${nombre} no tiene WhatsApp cargado.`, 'error');
@@ -63,8 +72,10 @@ export async function render(root, ctx) {
     } } }, icon('whatsapp', 18), h('span', { text: 'Enviar por WhatsApp' }));
     return h('section', { class: 'grupo-prov', 'data-prov': nombre },
       h('header', { class: 'gp-head' }, h('h2', { class: 'gp-t', text: nombre }),
-        h('span', { class: 'gp-c', text: tot ? `≈ ${fmtMoney(tot)}` : `${os.reduce((n, o) => n + o.orden_items.length, 0)} ítems` })),
+        h('span', { class: 'gp-c', text: tot ? `≈ ${fmtMoney(tot)}` : (() => { const n = os.reduce((a, o) => a + o.orden_items.length, 0); return `${n} ${n === 1 ? 'ítem' : 'ítems'}`; })() })),
       min && tot < min ? h('p', { class: 'gp-nota gp-warn', text: `Pedido mínimo ${fmtMoney(min)}: faltan ${fmtMoney(min - tot)}.` }) : null,
+      sinProv ? h('p', { class: 'gp-nota gp-warn', text: 'Asigná el proveedor para poder aprobar y enviar.' }) : null,
+      selProv,
       prov && !prov.whatsapp ? h('p', { class: 'gp-nota gp-warn', text: 'Sin WhatsApp cargado.' }) : null,
       os.map(o => h('div', { class: 'orden', 'data-orden': o.id },
         h('div', { class: 'orden-h' },
@@ -88,8 +99,8 @@ export async function render(root, ctx) {
   function pintar() {
     if (!ctx.alive()) return;
     const vivas = ordenes.filter(o => o.orden_items.length);
-    const g = groupBy(vivas, o => o.proveedor_id);
-    const provs = [...g.keys()].sort((a, b) => porTexto((G.provs.get(a) || {}).nombre || '', (G.provs.get(b) || {}).nombre || ''));
+    const g = groupBy(vivas, o => o.proveedor_id || SIN);
+    const provs = [...g.keys()].sort((a, b) => (b === SIN) - (a === SIN) || porTexto((G.provs.get(a) || {}).nombre || '', (G.provs.get(b) || {}).nombre || ''));
     mount(root, 
       h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pedidos' }), h('p', { class: 'sub', text: 'Lo que cargaron los locales, por proveedor' })),
       ...(provs.length ? provs.map(p => tarjeta(p, g.get(p))) : [vacio('No hay pedidos pendientes', 'Cuando un local envíe un pedido aparece acá.')]));
