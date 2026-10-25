@@ -1,9 +1,9 @@
 // Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
-import { mount, h, norm, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, sugerido, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
-import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
+import { mount, h, norm, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, sugerido, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
+import { swr, cargarCatalogo, cargarStock, cargarSugerido, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
 import { icon, stepper, esqueleto, vacio, banner, toast, campo } from './ui.js';
 
-const S = { lid: null, local: null, prods: [], stock: new Map(), provs: new Map(), draft: {}, listo: false, offline: false };
+const S = { lid: null, local: null, prods: [], stock: new Map(), sug: null, provs: new Map(), draft: {}, listo: false, offline: false };
 const SIN_PROV = '__sin__';
 
 function cargarBorrador() {
@@ -12,13 +12,15 @@ function cargarBorrador() {
   S.draft = d && d.t && hoy - d.t < 5 * 864e5 ? d.q : {};
 }
 const guardarBorrador = () => lsSet('draft:' + S.lid, { t: Date.now(), q: S.draft });
-const cantidad = (p) => (p.id in S.draft ? S.draft[p.id] : (sugerido(p, S.stock.get(p.id)) || 0));
+// Lo sugerido sale del servidor (consumo de las últimas 4 semanas); sin esa función, se cae al cálculo anterior.
+const sugeridoDe = (p) => (S.sug ? (S.sug.get(p.id) || 0) : (sugerido(p, S.stock.get(p.id)) || 0));
+const cantidad = (p) => (p.id in S.draft ? S.draft[p.id] : sugeridoDe(p));
 const quedan = (p) => S.stock.get(p.id) || 0;
-const pedidoActual = () => S.prods.filter(p => p.activo !== false && cantidad(p) > 0);
+const pedidoActual = () => S.prods.filter(p => p.activo !== false && !esCarta(p) && cantidad(p) > 0);
 
 async function cargar(ctx, alActualizar) {
   const lid = ctx.perfil.local_id;
-  if (S.lid !== lid) { Object.assign(S, { lid, prods: [], stock: new Map(), provs: new Map(), listo: false }); cargarBorrador(); }
+  if (S.lid !== lid) { Object.assign(S, { lid, prods: [], stock: new Map(), sug: null, jsug: null, provs: new Map(), listo: false }); cargarBorrador(); }
   const pon = (clave, fn) => (d, _cache, err) => { const j = JSON.stringify(d); if (j === (S['j' + clave])) return; S['j' + clave] = j; fn(d); S.offline = !!err; alActualizar(); };
   const tareas = [
     swr('cat:' + lid, () => cargarCatalogo(lid), pon('cat', d => { S.prods = d; })),
@@ -26,7 +28,9 @@ async function cargar(ctx, alActualizar) {
     swr('provb', cargarProveedoresBasico, pon('prv', d => { S.provs = new Map(d.map(p => [p.id, p])); })),
     swr('locales', cargarLocales, pon('loc', d => { S.local = d.find(l => l.id === lid) || d[0] || null; }))
   ];
-  const res = await Promise.allSettled(tareas);
+  // Si el servidor todavía no tiene el sugerido por consumo, no es un error de conexión: se usa el cálculo anterior.
+  const sug = swr('sug:' + lid, () => cargarSugerido(lid), pon('sug', d => { S.sug = new Map(d.map(r => [r.producto_id, Number(r.sugerido) || 0])); })).catch(() => {});
+  const res = await Promise.allSettled([...tareas, sug]);
   S.listo = true;
   const fallo = res.find(r => r.status === 'rejected');
   if (fallo && !S.prods.length) throw fallo.reason;
@@ -63,7 +67,7 @@ let extraIds = null; // ids que devolvió la búsqueda del servidor
 function pintarPedir(root, ctx) {
   const nombreLocal = S.local ? S.local.nombre : '';
   const aviso = avisoCierre();
-  const activos = S.prods.filter(p => p.activo !== false);
+  const activos = S.prods.filter(p => p.activo !== false && !esCarta(p));
   const cats = [...new Set(activos.map(p => p.categoria || 'Sin categoría'))].sort(porTexto);
 
   const lista = h('div', { class: 'lista', id: 'lista-prod' });

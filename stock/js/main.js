@@ -12,6 +12,8 @@ const NAV = {
     { id: 'pedidos', label: 'Pedidos', icono: 'lista' },
     { id: 'recibir', label: 'Recibir', icono: 'recibir' },
     { id: 'stock', label: 'Stock', icono: 'stock' },
+    { id: 'ventas', label: 'Ventas', icono: 'ventas' },
+    { id: 'recetas', label: 'Cocina', icono: 'cocina' },
     { id: 'catalogo', label: 'Catálogo', icono: 'catalogo' }
   ]
 };
@@ -19,7 +21,9 @@ const VISTAS = {
   encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js') },
   gerencia: {
     'pedidos': () => import('./g-pedidos.js'), 'recibir': () => import('./g-recibir.js'),
-    'stock': () => import('./g-stock.js'), 'catalogo': () => import('./g-catalogo.js')
+    'stock': () => import('./g-stock.js'), 'catalogo': () => import('./g-catalogo.js'),
+    'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
+    'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js')
   }
 };
 
@@ -61,10 +65,11 @@ function construirShell(c) {
   );
   $tab.replaceChildren(...items.map(it => enlace(it, 'tab')), salirBtn('tab'));
   $tab.hidden = false;
+  $tab.classList.toggle('tabbar-7', items.length + 1 > 6);
 }
 
 function marcarActivo(id) {
-  const act = id === 'revisar' ? 'pedir' : id;
+  const act = ({ revisar: 'pedir', analisis: 'ventas', merma: 'ventas', produccion: 'recetas' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
     a.classList.toggle('is-active', on);

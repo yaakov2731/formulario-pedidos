@@ -1,4 +1,5 @@
 // Datos compartidos de gerencia (catálogo completo, proveedores con WhatsApp, locales, costos, stock).
+import { h, lsGet, lsSet } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarProveedores, cargarLocales, cargarPrecios } from './api.js';
 
 export const G = { prods: new Map(), provs: new Map(), locales: [], precios: new Map(), stock: new Map(), listo: false };
@@ -20,3 +21,19 @@ export async function cargarG(quiere, alCambiar) {
 }
 export const nombreLocal = (id) => { const l = G.locales.find(x => x.id === id); return l ? l.nombre : 'Local'; };
 export const refrescarPrecio = (productoId, precio) => G.precios.set(productoId, precio);
+
+// Selector de local de gerencia (recuerda el último elegido). alCambiar(localId) se llama al tocar un local.
+export function chipsLocal(alCambiar) {
+  const locales = G.locales.filter(l => l.activo);
+  let localId = lsGet('g:local');
+  if (!locales.some(l => l.id === localId)) localId = (locales[0] || {}).id;
+  const el = h('div', { class: 'chips', role: 'group', 'aria-label': 'Local' }, locales.map(l => h('button', {
+    class: 'chip' + (l.id === localId ? ' is-on' : ''), type: 'button', text: l.nombre, 'aria-pressed': l.id === localId ? 'true' : 'false', 'data-local': l.id,
+    on: { click: () => {
+      localId = l.id; lsSet('g:local', localId);
+      el.querySelectorAll('.chip').forEach(b => { const on = b.getAttribute('data-local') === l.id; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+      alCambiar(localId);
+    } }
+  })));
+  return { el, get: () => localId };
+}

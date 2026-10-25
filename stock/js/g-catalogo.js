@@ -12,7 +12,7 @@ export async function render(root, ctx) {
 
   function editar(p) {
     const nuevo = !p;
-    const d = p || { codigo: '', nombre: '', local_id: localF !== 'todos' ? localF : (G.locales[0] || {}).id, categoria: '', unidad_compra: '', unidad_uso: '', factor_conversion: 1, proveedor_id: '', par: null, activo: true };
+    const d = p || { codigo: '', nombre: '', local_id: localF !== 'todos' ? localF : (G.locales[0] || {}).id, categoria: '', unidad_compra: '', unidad_uso: '', factor_conversion: 1, proveedor_id: '', par: null, es_elaborado: false, activo: true };
     const sel = (opts, val, id) => { const s = h('select', { class: 'input', id }, opts.map(([v, t]) => h('option', { value: v, text: t }))); s.value = val || ''; return s; };
     const f = {
       codigo: h('input', { class: 'input num', id: 'f-codigo', value: d.codigo, autocomplete: 'off' }),
@@ -25,7 +25,8 @@ export async function render(root, ctx) {
       prov: sel([['', 'Sin proveedor'], ...[...G.provs.values()].sort((a, b) => porTexto(a.nombre, b.nombre)).map(x => [x.id, x.nombre])], d.proveedor_id, 'f-prov'),
       ideal: h('input', { class: 'input num', id: 'f-ideal', inputmode: 'decimal', value: d.par === null || d.par === undefined ? '' : String(d.par).replace('.', ','), placeholder: 'Sin definir' }),
       costo: h('input', { class: 'input num', id: 'f-costo', inputmode: 'decimal', value: p && G.precios.has(p.id) ? String(G.precios.get(p.id)).replace('.', ',') : '', placeholder: '0' }),
-      activo: h('input', { type: 'checkbox', id: 'f-activo', checked: d.activo !== false })
+      activo: h('input', { type: 'checkbox', id: 'f-activo', checked: d.activo !== false }),
+      elab: h('input', { type: 'checkbox', id: 'f-elab', checked: d.es_elaborado === true })
     };
     if (nuevo) f.local.addEventListener('change', () => { const l = G.locales.find(x => x.id === f.local.value); if (l && (!f.codigo.value || /^[A-Z]{3}-?$/.test(f.codigo.value))) f.codigo.value = l.codigo + '-'; });
     if (nuevo && !f.codigo.value) { const l = G.locales.find(x => x.id === f.local.value); if (l) f.codigo.value = l.codigo + '-'; }
@@ -39,6 +40,7 @@ export async function render(root, ctx) {
       campo('Factor de conversión', f.factor, 'Cuántas unidades de uso trae una de compra.'),
       campo('Proveedor', f.prov), campo('Cantidad ideal en el local', f.ideal, 'Sirve para sugerir el pedido.'),
       campo('Costo actual ($)', f.costo),
+      h('label', { class: 'check' }, f.elab, h('span', { text: 'Se elabora en el local (tiene receta)' })),
       h('label', { class: 'check' }, f.activo, h('span', { text: 'Activo' })), err, btn);
     const { cerrar } = hoja(nuevo ? 'Nuevo producto' : 'Editar producto', form);
     btn.addEventListener('click', async () => {
@@ -49,7 +51,7 @@ export async function render(root, ctx) {
       const datos = {
         codigo: f.codigo.value.trim().toUpperCase(), nombre: f.nombre.value.trim(), local_id: f.local.value, categoria: f.categoria.value.trim() || null,
         unidad_compra: f.uc.value.trim() || null, unidad_uso: f.uu.value.trim() || null, factor_conversion: factor,
-        proveedor_id: f.prov.value || null, par: parseNum(f.ideal.value), activo: f.activo.checked
+        proveedor_id: f.prov.value || null, par: parseNum(f.ideal.value), es_elaborado: f.elab.checked, activo: f.activo.checked
       };
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {

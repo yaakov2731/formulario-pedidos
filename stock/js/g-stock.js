@@ -1,5 +1,5 @@
 // Gerencia · Stock por local: "Quedan N" y conteo con registrar_conteo.
-import { mount, h, norm, fmtNum, parseNum, groupBy, porTexto, lsGet, lsSet } from './util.js';
+import { mount, h, norm, fmtNum, parseNum, groupBy, porTexto, lsGet, lsSet, esCarta } from './util.js';
 import { contarProducto, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo } from './ui.js';
@@ -35,7 +35,7 @@ export async function render(root, ctx) {
 
   function pintarLista() {
     const t = norm(q).split(' ').filter(Boolean);
-    const vis = [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && t.every(k => norm(p.nombre + ' ' + p.codigo).includes(k)));
+    const vis = [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && !esCarta(p) && t.every(k => norm(p.nombre + ' ' + p.codigo).includes(k)));
     if (!vis.length) { lista.replaceChildren(vacio('Sin productos', 'Cambiá el local o la búsqueda.')); return; }
     const g = groupBy(vis, p => p.categoria || 'Sin categoría');
     const out = [];

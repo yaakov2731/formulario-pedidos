@@ -15,6 +15,8 @@ const P = {
   whatsapp: 'M4 20l1.3-4.2A8 8 0 1 1 8.3 18.8L4 20z',
   cerrar: 'M6 6l12 12M18 6L6 18',
   editar: 'M4 20h4L19 9l-4-4L4 16v4z',
+  ventas: 'M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6',
+  cocina: 'M5 11h14v6a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-6zM3 11h18M9 7c0-2 2-2 2-4M14 7c0-2 2-2 2-4',
   alerta: 'M12 9v4M12 17h.01M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'
 };
 export function icon(nombre, size = 20) {
@@ -79,3 +81,20 @@ export function hoja(titulo, contenido, { onClose } = {}) {
   dlg.showModal();
   return { dlg, cerrar };
 }
+
+// Sub-navegación entre pantallas hermanas (Ventas: Importar · Análisis · Merma; Cocina: Recetas · Producción).
+export function subnav(items, actual) {
+  return h('nav', { class: 'subnav', 'aria-label': 'Sección' }, items.map(([id, texto]) =>
+    h('a', { class: 'subnav-b' + (id === actual ? ' is-on' : ''), href: '#/' + id, text: texto, 'aria-current': id === actual ? 'page' : null })));
+}
+
+// Fila con barra proporcional (CSS): etiqueta, valor y porcentaje.
+export function barraFila(etiqueta, valorTexto, fraccion, detalle) {
+  return h('li', { class: 'bfila' },
+    h('div', { class: 'bfila-t' }, h('span', { class: 'bfila-k', text: etiqueta }), h('b', { class: 'num', text: valorTexto })),
+    h('div', { class: 'bfila-bar', 'aria-hidden': 'true' }, h('span', { style: `width:${Math.max(2, Math.round(Math.min(1, fraccion) * 100))}%` })),
+    detalle ? h('span', { class: 'bfila-d', text: detalle }) : null);
+}
+
+export const SUBNAV_VENTAS = [['ventas', 'Importar'], ['analisis', 'Análisis'], ['merma', 'Merma']];
+export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción']];

@@ -3,9 +3,10 @@
 const VERSION = 'stock-v1';
 const SHELL = [
   './', './index.html', './config.js', './manifest.webmanifest', './css/stock.css',
-  './vendor/supabase.js',
+  './vendor/supabase.js', './vendor/xlsx.full.min.js',
   './js/main.js', './js/util.js', './js/api.js', './js/ui.js', './js/entrar.js', './js/pedir.js',
   './js/datos.js', './js/g-pedidos.js', './js/g-recibir.js', './js/g-stock.js', './js/g-catalogo.js',
+  './js/nucleo.js', './js/analisis.js', './js/g-ventas.js', './js/g-analisis.js', './js/g-merma.js', './js/g-recetas.js', './js/g-produccion.js',
   './icons/icon.svg', './icons/icon-180.png', './icons/icon-192.png'
 ];
 

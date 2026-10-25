@@ -156,3 +156,31 @@ export async function guardarProducto(id, datos) {
 }
 export const guardarPrecio = async (productoId, proveedorId, precio) =>
   ok(await sb.from('precios').insert({ producto_id: productoId, proveedor_id: proveedorId || null, precio, origen: 'manual' }).select('id'));
+
+// ---- pedido sugerido (consumo de las últimas 4 semanas) ----
+export const cargarSugerido = async (localId) => ok(await sb.rpc('sugerido_pedido', { p_local: localId }));
+
+// ---- ventas de Núcleo, recetas y producción (solo gerencia) ----
+export const cargarAliasNucleo = (localId) => todo(() => sb.from('producto_alias').select('id,producto_id,alias,cantidad_por_venta').eq('origen', 'nucleo').eq('local_id', localId).order('id'));
+export const asociarNucleo = async (productoId, codigo, cantidadPorVenta = 1) =>
+  ok(await sb.rpc('asociar_nucleo', { p_producto: productoId, p_codigo: codigo, p_cantidad_por_venta: cantidadPorVenta }));
+export const crearPlato = async (localId, codigo, nombre) => ok(await sb.rpc('crear_plato', { p_local: localId, p_codigo: codigo || '', p_nombre: nombre }));
+export const importacionDelDia = async (localId, fecha) =>
+  ok(await sb.from('ventas_import').select('id,archivo,n_pedidos,total_productos,creado_en').eq('local_id', localId).eq('fecha_desde', fecha).eq('fecha_hasta', fecha).limit(1));
+export const importarVentas = async (localId, fecha, pedidos, items, pagos, archivo) =>
+  ok(await sb.rpc('importar_ventas', { p_local: localId, p_fecha: fecha, p_pedidos: pedidos, p_items: items, p_pagos: pagos, p_archivo: archivo || null }));
+export const ventasPedidosRango = (localId, desde, hasta) => todo(() => sb.from('ventas_pedidos')
+  .select('numero,fecha,fecha_hora,tipo_pedido,sector,mozo,mesa,total,ventas_pedido_pagos(forma_pago,monto)')
+  .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('numero'));
+export const ventasItemsRango = (localId, desde, hasta) => todo(() => sb.from('ventas_items')
+  .select('id,pedido_numero,fecha,fecha_hora,codigo_origen,nombre_origen,cantidad,importe,rubro,subrubro,tipo_pedido,sector,producto_id')
+  .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('id'));
+export const cargarRecetas = () => todo(() => sb.from('recetas').select('id,producto_id,rinde,notas,receta_items(insumo_id,cantidad)').order('id'));
+export const guardarReceta = async (productoId, rinde, items, notas) =>
+  ok(await sb.rpc('guardar_receta', { p_producto: productoId, p_rinde: rinde, p_items: items, p_notas: notas || null }));
+export const platosSinReceta = async (localId) => ok(await sb.from('platos_sin_receta').select('producto_id,codigo,nombre,vendidos,ultima_venta').eq('local_id', localId).order('vendidos', { ascending: false }));
+export const registrarProduccion = async (localId, productoId, cantidad, nota) =>
+  ok(await sb.rpc('registrar_produccion', { p_local: localId, p_producto: productoId, p_cantidad: cantidad, p_nota: nota || null }));
+export const produccionesRecientes = async (localId) =>
+  ok(await sb.from('producciones').select('id,producto_id,cantidad,nota,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(12));
+export const mermaControl = async (localId, desde, hasta) => ok(await sb.rpc('merma_control', { p_local: localId, p_desde: desde, p_hasta: hasta }));

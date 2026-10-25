@@ -61,7 +61,7 @@ export function lsSet(k, v) { try { localStorage.setItem('stock:' + k, JSON.stri
 export function lsDel(k) { try { localStorage.removeItem('stock:' + k); } catch (_e) { /* nada */ } }
 
 // ---- reglas de pedido ----
-// Sugerido = max(0, par - stock) cuando hay par; si no, vacío (null). Es el único lugar donde se usa el par.
+// Respaldo del sugerido (cantidad ideal menos stock) para cuando el servidor todavía no tiene sugerido_pedido (migración 0003).
 export function sugerido(prod, stock) {
   if (prod.par === null || prod.par === undefined || prod.par === '') return null;
   const s = Math.max(0, Number(prod.par) - Number(stock || 0));
@@ -82,3 +82,17 @@ export const ESTADOS = {
   borrador: 'En revisión', aprobada: 'Aprobado', enviada: 'Enviado al proveedor',
   recibida: 'Recibido', parcial: 'Recibido parcial', cancelada: 'Cancelado'
 };
+
+// ---- fechas (día calendario, en texto aaaa-mm-dd) ----
+const pad = (n) => String(n).padStart(2, '0');
+export const aISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const hoyISO = () => aISO(new Date());
+export function sumarDias(iso, n) { const [y, m, d] = iso.split('-').map(Number); return aISO(new Date(y, m - 1, d + n)); }
+export function fechaLarga(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+// Los platos de la carta (productos elaborados que se venden, no se compran) no se piden ni se cuentan.
+export const esCarta = (p) => p && p.categoria === 'Carta';
