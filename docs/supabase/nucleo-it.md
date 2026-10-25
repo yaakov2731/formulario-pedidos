@@ -26,3 +26,17 @@ Mapeo: `ventas_pedidos` (número, fecha y hora, cliente, total) y `ventas_pedido
 
 Lo que mostró la muestra: 24 pedidos por $2.130.670, contra $2.082.870 del reporte por producto
 (diferencia $47.800, sin explicar todavía). Falta el pedido 3132 en la numeración (3125 a 3149).
+
+## Reporte "Detalle de productos vendidos por pedido" (el recomendado)
+
+Muestra: Umo Grill, sábado 24/10/2026. Reemplaza al de "Pedidos por producto": trae lo mismo, pero ticket por ticket.
+
+- Encabezados (fila 5): `Fecha | N° Pedido | Código | Nombre | Cantidad de productos | Total $ | Rubro | SubRubro | Tipo de pedido | Sector`.
+- `Tipo de pedido`: Salón o Mostrador. `Sector`: Salon Umo, Patio Burger, Patio Frente (vacío en Mostrador).
+- No trae mozo ni mesa.
+
+Cruce de la muestra con "Formas de pago": los productos suman $2.082.870 y los cobros $2.130.670.
+21 pedidos de salón cobran entre $1.000 y $7.000 más que sus productos (total $47.800): probablemente cubierto o servicio de mesa.
+El pedido 3132 (16:44, Salon Umo) tiene 27 productos a $0 y ningún cobro: consumo interno o cortesía; descuenta stock igual.
+
+Subir por día y por local: este reporte + "Formas de pago de pedidos".

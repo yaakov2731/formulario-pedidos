@@ -199,7 +199,10 @@ create table if not exists public.ventas_items (
   codigo_origen text,
   cantidad      numeric(14,3) not null,
   importe       numeric(14,2),
-  producto_id   uuid references public.productos(id)   -- null hasta asociar
+  producto_id   uuid references public.productos(id),  -- null hasta asociar
+  pedido_numero bigint,                                -- del reporte "Detalle de productos vendidos por pedido"
+  rubro         text,
+  subrubro      text
 );
 create index if not exists ventas_items_import_idx on public.ventas_items(import_id);
 
@@ -213,7 +216,9 @@ create table if not exists public.ventas_pedidos (
   cliente     text,
   mozo        text,                          -- aún no viene en el reporte
   mesa        text,
-  total       numeric(14,2) not null,
+  tipo_pedido text,                          -- Salón, Mostrador…
+  sector      text,                          -- Salon Umo, Patio Burger, Patio Frente…
+  total       numeric(14,2) not null,        -- 0 si no se cobró (consumo interno, cortesía)
   unique (local_id, numero)
 );
 create table if not exists public.ventas_pedido_pagos (
