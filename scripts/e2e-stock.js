@@ -244,6 +244,7 @@ async function montarApi(ctx) {
       db.platosCreados.push(b); return json(id);
     }
     const imps = () => db.importaciones;
+    if (t === 'ventas_import' && !q.getAll('fecha_desde').length) return json(eq(q.get('local_id')) === L1 ? [{ fecha_desde: '2026-10-24', creado_en: new Date().toISOString() }] : []);
     if (t === 'ventas_import') { const l = eq(q.get('local_id')); const f = (q.getAll('fecha_desde')[0] || '').replace('eq.', ''); const x = imps().find(i => i.local_id === l && i.fecha === f); return json(x ? [{ id: x.id, archivo: x.archivo, n_pedidos: x.pedidos.length, total_productos: 0, creado_en: new Date().toISOString() }] : []); }
     if (t === 'rpc/importar_ventas') {
       const b = body(); db.importaciones_rpc.push(b);
@@ -293,6 +294,11 @@ async function montarApi(ctx) {
       if (req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(i => db.items.push({ ...i, id: nid('it'), cantidad_recibida: null })); return json((Array.isArray(b) ? b : [b]).map(i => ({ id: 'x' })), 201); }
       if (req.method() === 'PATCH') { const id = eq(q.get('id')); const i = db.items.find(x => x.id === id); Object.assign(i, body()); return json([{ id }]); }
       if (req.method() === 'DELETE') { const id = eq(q.get('id')); db.items = db.items.filter(x => x.id !== id); return json([{ id }]); }
+    }
+    if (t === 'movimientos' && req.method() === 'GET') {
+      const ahora = new Date().toISOString(); const l = eq(q.get('local_id'));
+      const demo = [['p-chorizo', 'venta', -6], ['p-bondiola', 'venta', -3], ['p-mozza', 'produccion_consumo', -1.5], ['p-queso', 'merma', -0.5]].map(([producto_id, tipo, cantidad]) => ({ local_id: L1, producto_id, tipo, cantidad, creado_en: ahora }));
+      return json([...demo, ...db.movimientos.map(m => ({ creado_en: ahora, ...m }))].filter(m => m.local_id === l && m.tipo !== 'recepcion'));
     }
     if (t === 'movimientos' && req.method() === 'POST') { if (rol !== 'gerencia') return json({ code: '42501', message: 'row-level security' }, 403); const b = body(); db.movimientos.push(...b); return route.fulfill({ status: 201, headers: cors, body: '' }); }
     if (t === 'rpc/recibir_orden') {
@@ -551,6 +557,12 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('.sidebar a[data-nav="stock"]').click();
   await g.waitForSelector('.prod-stk');
   await g.locator('.chip', { hasText: 'Umo Grill' }).click();
+  await g.waitForSelector('[data-metricas]');
+  const kpS = (await g.locator('[data-metricas]').innerText()).replace(/\s+/g, ' ');
+  ok(/VALOR DEL STOCK \$/i.test(kpS) && /EN CERO/i.test(kpS) && /ÚLTIMA VENTA SUBIDA/i.test(kpS), `Stock: métricas del local (${kpS.slice(0, 120)}…)`);
+  const cons = (await g.locator('[data-bloque="consumo"]').innerText()).replace(/\s+/g, ' ');
+  ok(/Chorizo parrillero/.test(cons) && /alcanza para|no alcanza/.test(cons), `Stock: lo que más se usa con días de cobertura (${cons.slice(0, 140)})`);
+  ok(/Cargá las recetas/.test(await g.locator('[data-bloque="platos"]').innerText()), 'Stock: sin recetas explica qué hacer');
   await shot(g, '13-g-stock-pc');
   await g.getByRole('button', { name: 'Contar Chorizo parrillero' }).click();
   await g.locator('dialog .inp-big').fill('4');
@@ -959,6 +971,28 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(pr && pr.p_local === L1 && pr.p_cantidad === 4 && pr.p_nota === 'tanda de la mañana' && db.productos.find(p => p.id === pr.p_producto).nombre === 'Salsa criolla', 'registrar_produccion con local, producto, cantidad y nota');
   ok(await v.locator('.bloque .bfila').count() === 1, 'queda en las últimas producciones');
   await shot(v, '28-g-produccion-hecha-pc');
+  // Stock: producción disponible con la receta cargada
+  await v.locator('.sidebar a[data-nav="stock"]').click();
+  await v.waitForSelector('[data-bloque="produccion"] .bfila');
+  const pd = (await v.locator('[data-bloque="produccion"]').innerText()).replace(/\s+/g, ' ');
+  ok(/Salsa criolla/.test(pd) && /Hechos 4/.test(pd) && /(Se pueden hacer|No alcanza)/.test(pd) && !/Parrillada/.test(pd), `Stock: producción disponible solo elaborados (${pd.slice(0, 160)})`);
+  const pl = (await v.locator('[data-bloque="platos"]').innerText()).replace(/\s+/g, ' ');
+  ok(/Parrillada Demo/.test(pl) && /Limita/.test(pl), `Stock: platos que se pueden servir con lo que limita (${pl.slice(0, 160)})`);
+  await v.waitForSelector('.toast', { state: 'detached', timeout: 8000 }).catch(() => {});
+  await shot(v, '28b-g-stock-produccion-pc');
+  // Recetas estándar estimadas: se marcan y se filtran
+  db.recetas.forEach(r => { r.estimada = true; });
+  await v.getByRole('link', { name: 'Cocina' }).click();
+  await v.getByRole('link', { name: 'Recetas', exact: true }).click();
+  await v.waitForSelector('#lista-rec .prod-cat');
+  ok(await v.locator('#lista-rec .chip-aviso', { hasText: 'Estimada' }).count() >= 1, 'Recetas: las estándar se ven como "Estimada"');
+  await v.getByRole('button', { name: 'Estimadas' }).click();
+  await v.locator('#lista-rec .prod-cat').first().click();
+  await v.waitForSelector('dialog[open] .banner');
+  ok(/estimada/i.test(await v.locator('dialog[open] .banner').first().innerText()), 'Recetas: al abrir una estimada avisa que hay que revisar los pesos');
+  ok(/= \d+ (g|cc)/.test(await v.locator('dialog[open] .ins-lista').innerText()), 'Recetas: muestra el equivalente en gramos');
+  await shot(v, '28c-g-receta-estimada-pc');
+  await v.keyboard.press('Escape');
   // Análisis
   await v.getByRole('link', { name: 'Ventas', exact: true }).click();
   await v.waitForSelector('.subnav');

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0006_aviso_telegram.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0007_recetas_estimadas.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -64,6 +64,9 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig6 = fs.readFileSync(path.join(root, 'supabase/migrations/0006_aviso_telegram.sql'), 'utf8');
   try { await db.exec(mig6); await db.exec(mig6); check('aplica 0006_aviso_telegram.sql (idempotente)', true); }
   catch (e) { check('aplica 0006_aviso_telegram.sql (idempotente)', false, e.message); return finish(); }
+  const mig7 = fs.readFileSync(path.join(root, 'supabase/migrations/0007_recetas_estimadas.sql'), 'utf8');
+  try { await db.exec(mig7); await db.exec(mig7); check('aplica 0007_recetas_estimadas.sql (idempotente)', true); }
+  catch (e) { check('aplica 0007_recetas_estimadas.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -567,6 +570,26 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     let guardo = true; try { const o2 = await nueva(); await items(o2, 1); } catch { guardo = false; }
     check('si Telegram falla el pedido se guarda igual', guardo);
     await db.exec('drop schema net cascade; drop schema vault cascade');
+  }
+
+  // Recetas estándar de Umo (necesitan el catálogo real del seed)
+  if (seeded) {
+    const rec = fs.readFileSync(path.join(root, 'supabase/datos/recetas_umo_estandar.sql'), 'utf8');
+    const cuenta = async () => (await q("select count(*)::int r, (select count(*)::int from receta_items ri join recetas x on x.id = ri.receta_id join productos p on p.id = x.producto_id join locales l on l.id = p.local_id where l.codigo = 'UMO') i from recetas re join productos p on p.id = re.producto_id join locales l on l.id = p.local_id where l.codigo = 'UMO' and re.estimada"))[0];
+    try { await db.exec(rec); check('recetas estándar de Umo: se cargan', true); } catch (e) { check('recetas estándar de Umo: se cargan', false, e.message); }
+    const c1 = await cuenta();
+    check('recetas estándar: 28 platos y 76 insumos, todos del catálogo de Umo', c1.r === 28 && c1.i === 76, JSON.stringify(c1));
+    const alias = await q("select count(*)::int n from producto_alias a join locales l on l.id = a.local_id where l.codigo = 'UMO' and a.origen = 'nucleo' and a.alias like 'PAR-%'");
+    check('recetas estándar: cada plato queda asociado a su código de Núcleo', alias[0].n === 8, JSON.stringify(alias));
+    const [vac] = await q("select p.id, re.rinde from productos p join recetas re on re.producto_id = p.id where p.codigo = 'PLA-PAR-006'");
+    const [ins] = await q("select id from productos where codigo = 'UMO-065'");
+    await as(U.ger, () => q("select guardar_receta($1, 1, $2::jsonb, null)", [vac.id, JSON.stringify([{ insumo_id: ins.id, cantidad: 0.45 }])]));
+    const [ed] = await q('select estimada from recetas where producto_id = $1', [vac.id]);
+    check('al guardar la receta desde la app deja de ser estimada', ed.estimada === false);
+    await db.exec(rec);
+    const [it] = await q('select count(*)::int n, max(cantidad)::float c from receta_items ri join recetas re on re.id = ri.receta_id where re.producto_id = $1', [vac.id]);
+    check('volver a correr las recetas estándar no pisa una receta revisada', it.n === 1 && it.c === 0.45, JSON.stringify(it));
+    check('volver a correr las recetas estándar no duplica', (await cuenta()).r === 27);
   }
 
   // anon sin sesión

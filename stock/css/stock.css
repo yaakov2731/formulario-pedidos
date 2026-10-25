@@ -358,6 +358,8 @@ select.input { text-align: center; text-align-last: center; }
 .ins-lista { display: flex; flex-direction: column; gap: 8px; }
 .ins { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; background: var(--surface-2); border-radius: 12px; }
 .ins-n { font-weight: 600; text-align: center; }
+.stk-lista-t { text-align: center; margin: 6px 0 8px; }
+.ins-g { display: block; font-weight: 400; font-size: 13px; }
 .ins-c { display: flex; align-items: center; gap: 8px; }
 .ins-c .inp-num { width: 110px; }
 .chip-aviso { padding: 1px 10px; border-radius: 999px; background: var(--warn-soft); color: var(--warn-ink); font-weight: 700; font-size: 13px; }
