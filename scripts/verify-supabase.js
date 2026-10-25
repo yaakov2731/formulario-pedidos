@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0004_pagos_tablero.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0005_locales_login.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -58,6 +58,9 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   catch (e) { check('aplica 0004_pagos_tablero.sql', false, e.message); return finish(); }
   try { await db.exec(mig4); check('0004 es idempotente (2da aplicación)', true); }
   catch (e) { check('0004 es idempotente (2da aplicación)', false, e.message); }
+  const mig5 = fs.readFileSync(path.join(root, 'supabase/migrations/0005_locales_login.sql'), 'utf8');
+  try { await db.exec(mig5); await db.exec(mig5); check('aplica 0005_locales_login.sql (idempotente)', true); }
+  catch (e) { check('aplica 0005_locales_login.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -547,6 +550,8 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   await db.exec('reset role');
   check('anon lista locales para Entrar (solo codigo, nombre, encargados)', ll.rows && ll.rows.length >= 2 && Object.keys(ll.rows[0]).join() === 'codigo,nombre,encargados', ll.err);
   check('anon NO ejecuta mi_rol()', !!lm.err);
+  const sinEnc = await q("select l.codigo from locales l where l.activo and not exists (select 1 from perfiles p where p.local_id = l.id and p.rol = 'encargado')");
+  check('Entrar no lista locales sin encargado con usuario', ll.rows && !ll.rows.some(r => sinEnc.some(x => x.codigo === r.codigo)));
 
   return finish();
 })().catch(e => { console.error('ERROR inesperado:', e); process.exit(1); });

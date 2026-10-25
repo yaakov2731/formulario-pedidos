@@ -50,7 +50,8 @@ const db = {
     { id: L1, codigo: 'UMO', nombre: 'Umo Grill', encargados: ['Ruth Coronel', 'Maru', 'Ayelén'], activo: true },
     { id: L2, codigo: 'TRE', nombre: 'Trento Café', encargados: ['Angelica'], activo: true },
     { id: 'loc-brk', codigo: 'BRK', nombre: 'Brooklyn', encargados: ['Maru'], activo: true },
-    { id: 'loc-gel', codigo: 'GEL', nombre: 'Puerto Gelato', encargados: [], activo: true }
+    { id: 'loc-gel', codigo: 'GEL', nombre: 'Puerto Gelato', encargados: [], activo: true },
+    { id: 'loc-shp', codigo: 'SHP', nombre: 'Shopping', encargados: [], activo: true }
   ],
   proveedores: [
     { id: PV.barcena, nombre: 'Barcena', whatsapp: '5491155550003', cuit: null, alias_cbu: 'barcena.pagos', dias_entrega: '1 día · pedir antes del jueves', corte: null, pedido_minimo: null, activo: true },
