@@ -79,7 +79,7 @@ const db = {
   ordenes: [], recepciones: [], items: [], movimientos: [], preciosNuevos: [], itemPrecios: [], conteos: [], log: [],
   // fase 3
   consumo: { 'p-chorizo': 9 },           // consumo semanal (unidad de uso) que usa el sugerido por consumo
-  alias: [], recetas: [], importaciones: [], producciones: [], asociaciones: [], platosCreados: [], recetasGuardadas: [], produccionesReg: [], importaciones_rpc: [],
+  alias: [], recetas: [], importaciones: [], producciones: [], asociaciones: [], platosCreados: [], recetasGuardadas: [], produccionesReg: [], importaciones_rpc: [], borradas: [],
   // fase 4: facturas, pagos, comprobantes y proveedores
   facturas: [
     { id: 'fa-1', proveedor_id: PV.demo, numero: '0001-00000002', fecha: '2026-08-01', vencimiento: '2026-09-01', total: 100000, archivo: null, imputado: 0 },
@@ -244,15 +244,28 @@ async function montarApi(ctx) {
       db.platosCreados.push(b); return json(id);
     }
     const imps = () => db.importaciones;
-    if (t === 'ventas_import' && !q.getAll('fecha_desde').length) return json(eq(q.get('local_id')) === L1 ? [{ fecha_desde: '2026-10-24', creado_en: new Date().toISOString() }] : []);
+    if (t === 'ventas_import' && !q.getAll('fecha_desde').length) {
+      const l = eq(q.get('local_id'));
+      if (!/\bid\b/.test(q.get('select') || '')) return json(l === L1 ? [{ fecha_desde: '2026-10-24', creado_en: new Date().toISOString() }] : []);
+      return json(imps().filter(i => i.local_id === l).sort((a, b) => b.fecha.localeCompare(a.fecha))
+        .map(i => ({ id: i.id, fecha_desde: i.fecha, archivo: i.archivo, n_pedidos: i.pedidos.length, total_productos: i.items.reduce((s2, it) => s2 + (it.importe || 0), 0), creado_en: new Date().toISOString() })));
+    }
+    if (t === 'rpc/borrar_importacion') {
+      const b = body(); db.borradas.push(b.p_import);
+      const k = imps().findIndex(i => i.id === b.p_import);
+      if (k < 0) return json({ message: 'Esa importación ya no existe' }, 400);
+      const [x] = imps().splice(k, 1);
+      return json({ local_id: x.local_id, fecha: x.fecha, archivo: x.archivo, movimientos: 7, items: x.items.length, pedidos: x.pedidos.length });
+    }
     if (t === 'ventas_import') { const l = eq(q.get('local_id')); const f = (q.getAll('fecha_desde')[0] || '').replace('eq.', ''); const x = imps().find(i => i.local_id === l && i.fecha === f); return json(x ? [{ id: x.id, archivo: x.archivo, n_pedidos: x.pedidos.length, total_productos: 0, creado_en: new Date().toISOString() }] : []); }
     if (t === 'rpc/importar_ventas') {
       const b = body(); db.importaciones_rpc.push(b);
       const prev = imps().findIndex(i => i.local_id === b.p_local && i.fecha === b.p_fecha); if (prev >= 0) imps().splice(prev, 1);
-      imps().push({ id: nid('imp'), local_id: b.p_local, fecha: b.p_fecha, archivo: b.p_archivo, pedidos: b.p_pedidos, items: b.p_items, pagos: b.p_pagos });
+      const idImp = nid('imp');
+      imps().push({ id: idImp, local_id: b.p_local, fecha: b.p_fecha, archivo: b.p_archivo, pedidos: b.p_pedidos, items: b.p_items, pagos: b.p_pagos });
       const sin = new Map();
       for (const it of b.p_items) { const p = db.productos.find(x => x.id === it.producto_id); if (p && p.es_elaborado && !it.no_descontar && !db.recetas.some(r => r.producto_id === p.id)) { const a = sin.get(p.id) || { producto_id: p.id, codigo: p.codigo, nombre: p.nombre, cantidad: 0 }; a.cantidad += it.cantidad; sin.set(p.id, a); } }
-      return json({ import_id: 'imp', reemplazo: prev >= 0, items: b.p_items.length, pedidos: b.p_pedidos.length, pagos: b.p_pagos.length, movimientos: 7, no_descontados: b.p_items.filter(i => i.no_descontar).length, sin_receta: [...sin.values()].sort((x, y) => y.cantidad - x.cantidad) });
+      return json({ import_id: idImp, reemplazo: prev >= 0, items: b.p_items.length, pedidos: b.p_pedidos.length, pagos: b.p_pagos.length, movimientos: 7, no_descontados: b.p_items.filter(i => i.no_descontar).length, sin_receta: [...sin.values()].sort((x, y) => y.cantidad - x.cantidad) });
     }
     const enRango = (i) => { const g = q.getAll('fecha'); const d = (g.find(x => x.startsWith('gte.')) || 'gte.0000').slice(4), h2 = (g.find(x => x.startsWith('lte.')) || 'lte.9999').slice(4); return i.local_id === eq(q.get('local_id')) && i.fecha >= d && i.fecha <= h2; };
     if (t === 'ventas_pedidos') return json(imps().filter(enRango).flatMap(i => i.pedidos.map(p => ({ numero: p.numero, fecha: i.fecha, fecha_hora: p.fecha_hora, tipo_pedido: p.tipo_pedido, sector: p.sector, mozo: p.mozo, mesa: p.mesa, total: p.total,
@@ -364,18 +377,39 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await e.locator('h1').first().innerText() === 'Pedir', 'encargado cae en "Pedir"');
   ok((await e.locator('.vista-head .sub').innerText()).includes('Umo Grill'), 'muestra el local');
   ok(await e.locator('.prod').count() === 8, 'catálogo solo del local (8 productos, sin los de Trento)');
-  const pedirChorizo = await e.locator('.prod[data-id="p-chorizo"] .step-val').inputValue();
-  ok(pedirChorizo === '6', `Chorizo precargado con el sugerido por consumo (consumo semanal 9 − quedan 3 = 6, no la cantidad ideal 8 − 3): ${pedirChorizo}`);
-  ok(db.log.some(l => l.t === 'rpc/sugerido_pedido' && l.rol === 'encargado' && l.b.p_local === L1), 'Pedir lee sugerido_pedido de su local');
-  ok(await e.locator('.prod[data-id="p-mozza"] .step-val').inputValue() === '6', 'sin consumo, el sugerido sigue siendo la cantidad ideal menos lo que queda (10 − 4 = 6)');
+  ok(await e.locator('.prod[data-id="p-chorizo"] .step-val').inputValue() === '0', 'sin pedido precargado: Chorizo arranca en 0');
+  ok(await e.locator('.prod[data-id="p-mozza"] .step-val').inputValue() === '0', 'sin pedido precargado: Mozzarella arranca en 0');
+  ok(!db.log.some(l => l.t === 'rpc/sugerido_pedido'), 'Pedir ya no pide el sugerido');
   ok((await e.locator('.prod[data-id="p-chorizo"] .quedan').innerText()).replace(/\s+/g, ' ').includes('Quedan 3'), '"Quedan 3" visible');
   ok(await e.locator('.prod[data-id="p-bondiola"] .step-val').inputValue() === '0', 'sin par: Pedir arranca en 0');
-  ok((await e.locator('.pill').innerText()).includes('2 ítems'), 'píldora arranca con los 2 sugeridos');
+  ok(await e.locator('.pill').isHidden(), 'sin cantidades no hay píldora de Revisar');
+  ok(await e.locator('.borrador').isHidden(), 'sin cantidades no hay aviso de pedido guardado');
   await shot(e, '03-pedir-m');
-  // buscador
-  await e.locator('#buscar').fill('cerv');
-  ok(await e.locator('.prod').count() === 1, 'buscador filtra al instante');
-  await e.locator('#buscar').fill('');
+  // buscador: fijo arriba, busca en todo el catálogo aunque haya una categoría elegida
+  await e.locator('.chip', { hasText: 'Bebidas' }).click();
+  await e.locator('#buscar').fill('chor');
+  ok(await e.locator('.prod').count() === 1 && await e.locator('.prod[data-id="p-chorizo"]').count() === 1, 'buscador filtra al instante y busca fuera de la categoría elegida');
+  ok((await e.locator('.busca-n').innerText()).includes('1 producto'), 'buscador muestra cuántos encontró');
+  await e.getByRole('button', { name: 'Más · Pedir Chorizo parrillero', exact: true }).click();
+  await shot(e, '03b-pedir-buscar-m');
+  await e.locator('.busca-x').click();
+  ok(await e.locator('#buscar').inputValue() === '', 'la cruz borra la búsqueda');
+  await e.locator('.chip', { hasText: 'Todas' }).click();
+  await e.evaluate(() => window.scrollTo(0, 2000));
+  const topBusca = await e.locator('.toolbar-fija').evaluate(el => el.getBoundingClientRect().top);
+  ok(Math.abs(topBusca) < 2, `el buscador queda fijo arriba al bajar (${topBusca})`);
+  await e.evaluate(() => window.scrollTo(0, 0));
+  await e.getByRole('button', { name: 'Más · Pedir Mozzarella en barra', exact: true }).click();
+  // pedido guardado por local y encargado: sobrevive a recargar
+  ok((await e.locator('.borrador').innerText()).includes('Tu pedido de Umo Grill está guardado'), 'avisa que el pedido queda guardado');
+  const claves = await e.evaluate(() => Object.keys(localStorage).filter(k => k.includes('pedido:')));
+  ok(claves.length === 1 && claves[0].includes(L1) && /pedido:[^:]+:.+/.test(claves[0]), 'el pedido se guarda por local y por encargado: ' + claves.join());
+  await e.reload(); await e.waitForSelector('.prod');
+  ok(await e.locator('.prod[data-id="p-chorizo"] .step-val').inputValue() === '1' && (await e.locator('.pill').innerText()).includes('2 ítems'), 'al volver a entrar el pedido sigue ahí');
+  await e.locator('.chip-mio').click();
+  ok(await e.locator('.prod').count() === 2, '"En mi pedido" muestra solo lo que cargó');
+  await shot(e, '03c-pedir-guardado-m');
+  await e.locator('.chip', { hasText: 'Todas' }).click();
   // sumar 3 productos (+ uno sin proveedor)
   await e.getByRole('button', { name: 'Más · Pedir Cerveza rubia lata 473 ml', exact: true }).click();
   await e.getByRole('button', { name: 'Más · Pedir Cerveza rubia lata 473 ml', exact: true }).click();
@@ -435,6 +469,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await d.locator('form button[type=submit]').click();
   await d.waitForSelector('.prod');
   ok((await d.locator('.banner-warn').first().innerText()).includes('Distribuidora Florida'), 'jueves: aviso de cierre (solo Distribuidora Florida)');
+  await d.getByRole('button', { name: 'Más · Pedir Chorizo parrillero', exact: true }).click();
   await shot(d, '07-pedir-m-oscuro');
   await d.locator('.pill').click();
   await d.waitForSelector('.grupo-prov');
@@ -1058,6 +1093,26 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await vd.waitForSelector('.franja');
   await shot(vd, '38-g-analisis-pc-oscuro', true);
   await cV3.close();
+
+  // Subí un Excel de más: se borra desde Ventas y el stock vuelve
+  const cV4 = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
+  const vb = await nuevaPagina(cV4, 'ventas-borrar');
+  await loginGer(vb);
+  await vb.getByRole('link', { name: 'Ventas', exact: true }).click();
+  await vb.waitForSelector('.imp-fila');
+  ok(await vb.locator('.imp-fila').count() === 1 && /24 de octubre/i.test(await vb.locator('.imp-fila').innerText()), 'Ventas lista las ventas ya subidas del local');
+  await vb.locator('.imp-subidas').scrollIntoViewIfNeeded();
+  await shot(vb, '41-g-ventas-subidas-m');
+  await vb.locator('.imp-fila .btn-danger').click();
+  await vb.waitForSelector('dialog[open] .borrar-imp');
+  ok(/vuelve a sumarse/.test(await vb.locator('dialog[open]').innerText()), 'antes de borrar explica que el stock vuelve');
+  await shot(vb, '42-g-ventas-borrar-m');
+  const idBorrar = db.importaciones[0].id;
+  await vb.getByRole('button', { name: 'Sí, borrar estas ventas' }).click();
+  await vb.waitForSelector('.toast >> text=Ventas borradas');
+  ok(db.borradas.length === 1 && db.borradas[0] === idBorrar && db.importaciones.length === 0, 'rpc borrar_importacion con el id de esa importación');
+  ok(await vb.locator('.imp-fila').count() === 0, 'la importación borrada desaparece de la lista');
+  await cV4.close();
 
   await browser.close(); srv.close();
   if (errores.length) { console.log('\nErrores de consola/página:'); errores.forEach(x => console.log(' - ' + x)); fallas += errores.length; }
