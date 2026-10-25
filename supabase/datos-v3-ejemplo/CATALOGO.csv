@@ -1,0 +1,4 @@
+Código,Producto,Local,Categoría,Unidad,Proveedor,Precio,Par,Stock_Actual,Ultimo_Conteo,Estado,Actualizado
+TRE-001,Mozzarella,Trento Café,Lácteos,kg,Lácteos Ejemplo,9500,10,4,2026-10-24 16:00:00,Activo,2026-10-18 13:50:00
+TRE-002,Jamón cocido,Trento Café,Fiambres,kg,Lácteos Ejemplo,,5,,,Activo,2026-10-18 13:50:00
+UMO-001,Chorizo,Umo Grill,Achuras,kg,,6200,8,3,2026-10-24 16:00:00,Activo,2026-10-18 13:50:00
