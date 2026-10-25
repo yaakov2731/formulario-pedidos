@@ -1,10 +1,12 @@
 // Genera los PNG de app/icons a partir de app/icons/icon.svg con Chromium (Playwright).
-// Uso: node scripts/app-icons.js   (manual; los PNG quedan versionados en el repo)
+// Uso: node scripts/app-icons.js [carpeta] [fondo maskable]   (manual; los PNG quedan versionados en el repo)
+//      node scripts/app-icons.js stock/icons '#FFFFFF'
 const path = require('node:path');
 const fs = require('node:fs');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (_e) { ({ chromium } = require('/opt/node-tools/node_modules/playwright')); }
-const DIR = path.resolve(__dirname, '..', 'app', 'icons');
+const DIR = path.resolve(__dirname, '..', process.argv[2] || path.join('app', 'icons'));
+const FONDO = process.argv[3] || '#0E1A2B';
 const EXEC = process.env.CHROMIUM_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 const svg = fs.readFileSync(path.join(DIR, 'icon.svg'), 'utf8');
 
@@ -17,7 +19,7 @@ const svg = fs.readFileSync(path.join(DIR, 'icon.svg'), 'utf8');
     const inner = maskable ? Math.round(size * 0.8) : size;
     const off = Math.round((size - inner) / 2);
     const body = maskable
-      ? `<div style="width:${size}px;height:${size}px;background:#0E1A2B;position:relative"><div style="position:absolute;left:${off}px;top:${off}px;width:${inner}px;height:${inner}px">${svg.replace('width="512" height="512"', `width="${inner}" height="${inner}"`)}</div></div>`
+      ? `<div style="width:${size}px;height:${size}px;background:${FONDO};position:relative"><div style="position:absolute;left:${off}px;top:${off}px;width:${inner}px;height:${inner}px">${svg.replace('width="512" height="512"', `width="${inner}" height="${inner}"`)}</div></div>`
       : svg.replace('width="512" height="512"', `width="${size}" height="${size}"`);
     await page.setContent(`<!doctype html><html><body style="margin:0;background:transparent">${body}</body></html>`);
     await page.screenshot({ path: path.join(DIR, file), omitBackground: !maskable, clip: { x: 0, y: 0, width: size, height: size } });

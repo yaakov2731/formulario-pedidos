@@ -20,8 +20,11 @@ export function montarEntrar(root, alEntrar) {
         on: { click: () => { modo = m; pintar(); } }
       })));
     mount(root, h('section', { class: 'login' },
-      h('img', { class: 'login-logo', src: 'icons/icon-192.png', alt: '', width: 64, height: 64 }),
-      h('h1', { class: 'titulo', text: 'Entrar' }),
+      h('div', { class: 'login-marca' },
+        h('img', { class: 'login-logo', src: 'icons/logo-docks.svg', alt: '', width: 231, height: 65 }),
+        h('h1', { class: 'login-nombre', text: 'DOCKS DEL PUERTO' }),
+        h('p', { class: 'login-lema', text: 'Locales comerciales • Gastronomía • Diversión' }),
+        h('p', { class: 'login-lema', text: 'Tigre' })),
       h('p', { class: 'sub', text: 'Pedidos y stock de los locales' }),
       tabs, modo === 'encargado' ? formEncargado() : formAdmin()));
   };

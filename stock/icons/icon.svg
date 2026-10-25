@@ -1,10 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="114" fill="#0E1A2B"/>
-  <!-- muelle: tablón y tres pilotes -->
-  <rect x="96" y="176" width="320" height="44" rx="14" fill="#FFFFFF"/>
-  <rect x="132" y="220" width="36" height="108" rx="10" fill="#FFFFFF" opacity="0.95"/>
-  <rect x="238" y="220" width="36" height="128" rx="10" fill="#FFFFFF" opacity="0.95"/>
-  <rect x="344" y="220" width="36" height="108" rx="10" fill="#FFFFFF" opacity="0.95"/>
-  <!-- agua -->
-  <path d="M84 388c28-22 56-22 84 0s56 22 84 0 56-22 84 0 56 22 92 0" fill="none" stroke="#E2542B" stroke-width="26" stroke-linecap="round" opacity="0.92"/>
+  <!-- Docks del Puerto: los cuatro locales con su puerta, en grilla de 2 x 2 -->
+  <rect width="512" height="512" rx="114" fill="#FFFFFF"/>
+  <rect x="92" y="92" width="150" height="150" rx="12" fill="#EB4537"/>
+  <rect x="145" y="144" width="44" height="82" rx="6" fill="#FFFFFF"/>
+  <rect x="270" y="92" width="150" height="150" rx="12" fill="#F4842A"/>
+  <rect x="323" y="144" width="44" height="82" rx="6" fill="#FFFFFF"/>
+  <rect x="92" y="270" width="150" height="150" rx="12" fill="#F8B600"/>
+  <rect x="145" y="322" width="44" height="82" rx="6" fill="#FFFFFF"/>
+  <rect x="270" y="270" width="150" height="150" rx="12" fill="#4688F4"/>
+  <rect x="323" y="322" width="44" height="82" rx="6" fill="#FFFFFF"/>
 </svg>
