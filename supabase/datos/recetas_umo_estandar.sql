@@ -5,7 +5,9 @@
 -- Ají molido en gramos; Cebolla de verdeo por atado (medio atado = 0,5).
 -- No llevan receta los platos sin insumos en el catálogo (pan de los sándwiches, limonada, café, postres):
 -- el pan se suma a la receta cuando esté en el catálogo.
--- Requiere 0007_recetas_estimadas.sql. Se puede correr más de una vez: no pisa recetas ya existentes.
+-- Si un código de Núcleo estaba asociado directo a un insumo crudo (ej. "Asado al Asador" → Asado, 1 kg por venta),
+-- pasa a apuntar al plato con su receta: así cada venta descuenta la porción y la guarnición, no 1 kg.
+-- Requiere 0007_recetas_estimadas.sql. Se puede correr más de una vez: no pisa recetas ya revisadas.
 
 drop table if exists pg_temp.r;
 create temp table r(plato_codigo text, plato_nombre text, insumo_codigo text, cantidad numeric);
@@ -87,33 +89,45 @@ insert into r values
   ('SAN-004', 'Sándwich de Milanesa', 'UMO-102', 0.03),
   ('SAN-004', 'Sándwich de Milanesa', 'UMO-109', 0.05);
 
--- Platos (si no existen) asociados a su código de Núcleo.
-with platos as (
-  insert into public.productos(codigo, nombre, local_id, categoria, unidad_uso, es_elaborado, activo)
-  select distinct 'PLA-' || r.plato_codigo, r.plato_nombre, l.id, 'Carta', 'porción', true, true
-  from r join public.locales l on l.codigo = 'UMO'
-  where not exists (select 1 from public.producto_alias a where a.origen = 'nucleo' and a.local_id = l.id and public.norm(a.alias) = public.norm(r.plato_codigo))
-    and not exists (select 1 from public.productos p where p.codigo = 'PLA-' || r.plato_codigo)
-  returning id, codigo, local_id
-)
-insert into public.producto_alias(producto_id, alias, origen, local_id)
-select id, substr(codigo, 5), 'nucleo', local_id from platos;
+-- 1) Plato de la carta para cada código (si no hay uno ya).
+insert into public.productos(codigo, nombre, local_id, categoria, unidad_uso, es_elaborado, activo)
+select distinct 'PLA-' || r.plato_codigo, r.plato_nombre, l.id, 'Carta', 'porción', true, true
+from r join public.locales l on l.codigo = 'UMO'
+where not exists (select 1 from public.producto_alias a join public.productos p on p.id = a.producto_id
+                  where a.origen = 'nucleo' and a.local_id = l.id and public.norm(a.alias) = public.norm(r.plato_codigo) and p.es_elaborado)
+  and not exists (select 1 from public.productos p where p.codigo = 'PLA-' || r.plato_codigo);
 
--- Recetas estimadas (solo si el plato todavía no tiene una).
+-- 2) El código de Núcleo apunta al plato (reemplaza la asociación directa a un insumo crudo).
+update public.producto_alias a set producto_id = p.id, cantidad_por_venta = 1
+from public.productos p, public.locales l
+where l.codigo = 'UMO' and a.origen = 'nucleo' and a.local_id = l.id
+  and p.codigo = 'PLA-' || a.alias and p.local_id = l.id
+  and a.alias in (select plato_codigo from r)
+  and not exists (select 1 from public.productos x where x.id = a.producto_id and x.es_elaborado);
+insert into public.producto_alias(producto_id, alias, origen, local_id)
+select p.id, substr(p.codigo, 5), 'nucleo', l.id
+from public.productos p join public.locales l on l.codigo = 'UMO' and p.local_id = l.id
+where p.codigo in (select distinct 'PLA-' || plato_codigo from r)
+  and not exists (select 1 from public.producto_alias a where a.origen = 'nucleo' and a.local_id = l.id and public.norm(a.alias) = public.norm(substr(p.codigo, 5)));
+
+-- 3) Recetas estimadas (solo si el plato todavía no tiene una).
 insert into public.recetas(producto_id, rinde, notas, estimada)
 select distinct a.producto_id, 1, 'Receta estándar estimada: revisá los pesos', true
 from r
 join public.locales l on l.codigo = 'UMO'
 join public.producto_alias a on a.origen = 'nucleo' and a.local_id = l.id and public.norm(a.alias) = public.norm(r.plato_codigo)
+join public.productos p on p.id = a.producto_id and p.es_elaborado
 on conflict (producto_id) do nothing;
 
+-- 4) Insumos de cada receta estimada (sin repetir).
 insert into public.receta_items(receta_id, insumo_id, cantidad)
-select re.id, ins.id, r.cantidad
+select re.id, ins.id, sum(r.cantidad)
 from r
 join public.locales l on l.codigo = 'UMO'
 join public.producto_alias a on a.origen = 'nucleo' and a.local_id = l.id and public.norm(a.alias) = public.norm(r.plato_codigo)
 join public.recetas re on re.producto_id = a.producto_id and re.estimada
 join public.productos ins on ins.codigo = r.insumo_codigo and ins.local_id = l.id
-where not exists (select 1 from public.receta_items x where x.receta_id = re.id and x.insumo_id = ins.id);
+group by re.id, ins.id
+on conflict (receta_id, insumo_id) do nothing;
 
 select count(*) filter (where estimada) as recetas_estimadas from public.recetas;

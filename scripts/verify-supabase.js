@@ -576,9 +576,16 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   if (seeded) {
     const rec = fs.readFileSync(path.join(root, 'supabase/datos/recetas_umo_estandar.sql'), 'utf8');
     const cuenta = async () => (await q("select count(*)::int r, (select count(*)::int from receta_items ri join recetas x on x.id = ri.receta_id join productos p on p.id = x.producto_id join locales l on l.id = p.local_id where l.codigo = 'UMO') i from recetas re join productos p on p.id = re.producto_id join locales l on l.id = p.local_id where l.codigo = 'UMO' and re.estimada"))[0];
+    // Como en la base real: códigos asociados directo a un insumo crudo (1 kg por venta) y un plato ya creado al importar.
+    const [umo] = await q("select id from locales where codigo = 'UMO'");
+    await q("insert into producto_alias(producto_id, alias, origen, local_id, cantidad_por_venta) select p.id, x.alias, 'nucleo', $1, 1 from (values ('PAR-002','UMO-051'),('COC-004','UMO-056'),('PAR-007','UMO-056'),('ACH-001','UMO-054')) x(alias, cod) join productos p on p.codigo = x.cod", [umo.id]);
+    await as(U.ger, () => q("select crear_plato($1, 'PAR-006', 'Vacío c/ Guarnición')", [umo.id]));
     try { await db.exec(rec); check('recetas estándar de Umo: se cargan', true); } catch (e) { check('recetas estándar de Umo: se cargan', false, e.message); }
     const c1 = await cuenta();
     check('recetas estándar: 28 platos y 76 insumos, todos del catálogo de Umo', c1.r === 28 && c1.i === 76, JSON.stringify(c1));
+    const dir = await q("select a.alias, p.codigo, a.cantidad_por_venta::float c from producto_alias a join productos p on p.id = a.producto_id where a.alias in ('PAR-002','COC-004','PAR-007','ACH-001') order by a.alias");
+    check('los códigos asociados directo a un insumo crudo pasan a su plato con receta', dir.every(x => x.codigo === 'PLA-' + x.alias && x.c === 1), JSON.stringify(dir));
+    check('reusa el plato que ya se había creado al importar', (await q("select count(*)::int n from productos where codigo like 'PLA-PAR-006%'"))[0].n === 1);
     const alias = await q("select count(*)::int n from producto_alias a join locales l on l.id = a.local_id where l.codigo = 'UMO' and a.origen = 'nucleo' and a.alias like 'PAR-%'");
     check('recetas estándar: cada plato queda asociado a su código de Núcleo', alias[0].n === 8, JSON.stringify(alias));
     const [vac] = await q("select p.id, re.rinde from productos p join recetas re on re.producto_id = p.id where p.codigo = 'PLA-PAR-006'");
