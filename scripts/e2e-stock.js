@@ -592,6 +592,39 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await g.locator('.grupo-prov').count() === 4, 'tras asignar, quedan 4 proveedores (con Demo)');
   const martinG = await g.locator('.grupo-prov[data-prov="Martín De Ridder"]').innerText();
   ok(/Pedido mínimo \$ 100\.000/.test(martinG), 'gerencia ve el mínimo de Martín De Ridder');
+  // destildar un producto: no se manda ni se imprime
+  const barcena = g.locator('.grupo-prov[data-prov="Barcena"]');
+  await barcena.getByLabel('Pedir Café en grano').uncheck();
+  await g.waitForSelector('.grupo-prov[data-prov="Barcena"] .pp-fila.is-fuera');
+  ok(/2 de 3 productos/.test(await barcena.locator('.pp-sub').innerText()) && /1 producto destildado/.test(await barcena.innerText()), 'destildar: la tarjeta dice 2 de 3 y avisa que no se manda');
+  const martinC = g.locator('.grupo-prov[data-prov="Martín De Ridder"]');
+  await martinC.getByLabel('Pedir Bondiola de cerdo').uncheck();
+  ok(await martinC.getByRole('button', { name: 'Enviar por WhatsApp' }).isDisabled() && await martinC.getByRole('button', { name: 'Imprimir' }).isDisabled(), 'todo destildado: no se puede mandar ni imprimir');
+  await martinC.getByLabel('Pedir Bondiola de cerdo').check();
+  await g.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  await barcena.evaluate(el => el.scrollIntoView({ block: 'start' }));
+  await shot(g, '10e-g-pedidos-destildado-pc');
+  // imprimir: A4 horizontal con lo tildado; la vista previa se guarda en PDF
+  await g.evaluate(() => { window.print = () => { window.__impreso = document.querySelector('.print-area').outerHTML; }; });
+  const avisoPrint = new Promise(r => g.once('dialog', async d => { r(d.message()); await d.dismiss(); }));
+  await barcena.getByRole('button', { name: 'Imprimir' }).click();
+  ok(/Marcar el pedido a Barcena como enviado/.test(await avisoPrint) && /1 producto destildado sale/.test(await avisoPrint), 'después de imprimir pregunta si se marca como enviado');
+  const impreso = await g.evaluate(() => window.__impreso || '');
+  ok(/Chorizo parrillero/.test(impreso) && /Mozzarella en barra/.test(impreso) && !/Café en grano/.test(impreso) && !/\$/.test(impreso), 'la hoja impresa lleva lo tildado, sin el destildado ni precios');
+  ok(db.ordenes.find(o => o.local_id === L1 && o.proveedor_id === PV.barcena && o.id === ordBar.id).estado === 'borrador', 'si no se confirma, el pedido no cambia');
+  const pdf = async (html, nombre) => {
+    await g.evaluate((x) => { document.querySelectorAll('.print-area').forEach(e => e.remove()); const d = document.createElement('div'); d.innerHTML = x; document.body.append(d.firstElementChild); document.body.classList.add('imprimiendo'); }, html);
+    await g.pdf({ path: path.join(OUT, nombre + '.pdf'), preferCSSPageSize: true, printBackground: true });
+    await g.evaluate(() => { document.querySelectorAll('.print-area').forEach(e => e.remove()); document.body.classList.remove('imprimiendo'); });
+  };
+  await g.locator('[data-accion="imprimir-todos"]').click();
+  const todos = await g.evaluate(() => window.__impreso);
+  ok((todos.match(/class="pr-prov"/g) || []).length === 4, 'Imprimir todos: una hoja por proveedor (4)');
+  await pdf(todos, 'impresion-todos');
+  // lista larga (de prueba) para ver salto de página y numeración
+  const largo = await g.evaluate((x) => { const d = document.createElement('div'); d.innerHTML = x; const tb = d.querySelector('tbody'); const base = [...tb.children]; for (let i = 0; i < 14; i++) base.forEach(r => tb.append(r.cloneNode(true))); return d.innerHTML; }, impreso);
+  await pdf(largo, 'impresion-lista-larga');
+  await barcena.getByLabel('Pedir Café en grano').check();
   const florida = g.locator('.grupo-prov[data-prov="Distribuidora Florida"]');
   // aprobar
   const a0 = db.log.length;
@@ -854,6 +887,19 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.locator('.seg-ped [data-vista="proveedor"]').click();
   await gm.waitForSelector('.grupo-prov');
   await shot(gm, '16c-g-pedidos-proveedor-m');
+  // imprimir y marcar como enviado: lo destildado sale del pedido; la orden que queda vacía se cancela
+  const barM = gm.locator('.grupo-prov[data-prov="Barcena"]');
+  await barM.getByLabel('Pedir Café en grano').uncheck();
+  await gm.waitForSelector('.grupo-prov[data-prov="Barcena"] .pp-fila.is-fuera');
+  await shot(gm, '16d-g-pedidos-destildado-m');
+  await gm.evaluate(() => { window.print = () => {}; });
+  gm.once('dialog', d => d.accept());
+  const nCafe = db.items.filter(i => i.producto_id === 'p-trento').length;
+  await barM.getByRole('button', { name: 'Imprimir' }).click();
+  await gm.waitForTimeout(800);
+  ok(db.items.filter(i => i.producto_id === 'p-trento').length === nCafe - 2, 'al marcar enviado, el café destildado sale de los dos pedidos de Trento');
+  ok(db.ordenes.find(o => o.id === 'ord-tre-1').estado === 'cancelada', 'la orden de Trento que quedó vacía se cancela');
+  ok(db.ordenes.find(o => o.local_id === L1 && o.proveedor_id === PV.barcena && o.estado === 'enviada'), 'lo de Umo para Barcena queda enviado');
   await gm.getByRole('link', { name: 'Catálogo' }).click();
   await gm.waitForSelector('.prod-cat');
   await shot(gm, '17-g-catalogo-m');

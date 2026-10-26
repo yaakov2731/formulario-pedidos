@@ -22,6 +22,8 @@ export async function render(root, ctx) {
   let filtroLocal = '';
   let recordar = lsGet('g:ped:recordar', true) !== false;
   const abiertos = new Set();
+  const fuera = new Set(lsGet('g:ped:fuera', [])); // ítems destildados en "Por proveedor": no se mandan ni se imprimen
+  const guardarFuera = () => lsSet('g:ped:fuera', [...fuera]);
   const pend = new Map(); // item.id -> { qty, timer }
 
   const flush = async () => {
@@ -263,7 +265,7 @@ export async function render(root, ctx) {
   };
 
   // Hoja para mandar el pedido al proveedor: imagen con el logo + mensaje. Lo envía siempre una persona.
-  function abrirEnvio(prov, os, alEnviar) {
+  function abrirEnvio(prov, os, alEnviar, sacados = 0) {
     const locales = new Set(os.map(o => o.local_id)).size;
     const fecha = new Date();
     let junto = false, file = null, urlImg = null, version = 0;
@@ -272,7 +274,9 @@ export async function render(root, ctx) {
     const txt = h('div', { class: 'aviso-txt', 'data-aviso': '' });
     const acciones = h('div', { class: 'form' });
     const cuerpo = h('div', { class: 'form' },
-      h('p', { class: 'sub', text: `Para ${prov.nombre}${prov.whatsapp ? ' · ' + prov.whatsapp : ''}` }), seg, vistaImg, txt, acciones);
+      h('p', { class: 'sub', text: `Para ${prov.nombre}${prov.whatsapp ? ' · ' + prov.whatsapp : ''}` }),
+      sacados ? banner(`${sacados} ${sacados === 1 ? 'producto destildado no va en el pedido y sale' : 'productos destildados no van en el pedido y salen'} al marcarlo como enviado.`, 'info') : null,
+      seg, vistaImg, txt, acciones);
     const { cerrar } = hoja('Enviar pedido por WhatsApp', cuerpo, { onClose: () => { if (urlImg) URL.revokeObjectURL(urlImg); } });
     const nombreArchivo = `pedido-${prov.nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${fecha.toISOString().slice(0, 10)}.png`;
 
@@ -320,12 +324,63 @@ export async function render(root, ctx) {
 
   const cambiarEstado = async (os, estado) => { await Promise.all(os.map(o => actualizarOrden(o.id, { estado }))); os.forEach(o => { o.estado = estado; }); };
   const total = (os) => os.flatMap(o => o.orden_items).reduce((s, i) => s + i.cantidad_pedida * (G.precios.get(i.producto_id) || 0), 0);
+  // Copia de las órdenes solo con los productos tildados (lo que se manda o se imprime).
+  const incluidos = (os) => os.map(o => ({ ...o, orden_items: o.orden_items.filter(i => !fuera.has(i.id)) })).filter(o => o.orden_items.length);
+  const nFuera = (os) => new Set(os.flatMap(o => o.orden_items.filter(i => fuera.has(i.id)).map(i => i.producto_id))).size;
+  // Al marcar como enviado, lo destildado sale del pedido (la orden que queda vacía se cancela).
+  async function marcarEnviado(os) {
+    await flush();
+    for (const o of os) {
+      const sacar = o.orden_items.filter(i => fuera.has(i.id));
+      await Promise.all(sacar.map(i => borrarItem(i.id)));
+      o.orden_items = o.orden_items.filter(i => !fuera.has(i.id));
+      sacar.forEach(i => fuera.delete(i.id));
+    }
+    guardarFuera();
+    const vacias = os.filter(o => !o.orden_items.length);
+    await cambiarEstado(os.filter(o => o.orden_items.length), 'enviada');
+    if (vacias.length) await cambiarEstado(vacias, 'cancelada');
+  }
+
+  // ---------- impresión: A4 horizontal, 13 pt, páginas numeradas ----------
+  function hojaImpresion(prov, os) {
+    const fecha = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const n = new Set(os.flatMap(o => o.orden_items.map(i => i.producto_id))).size;
+    const porLocal = [...groupBy(os, o => o.local_id)].sort((a, b) => porTexto(nombreLocal(a[0]), nombreLocal(b[0])));
+    return h('section', { class: 'pr-prov' },
+      h('header', { class: 'pr-head' },
+        h('div', {}, h('p', { class: 'pr-marca', text: 'Docks del Puerto · Pedido de compra' }), h('h1', { class: 'pr-t', text: prov.nombre })),
+        h('div', { class: 'pr-datos' }, h('p', { text: fecha }), prov.whatsapp ? h('p', { text: 'WhatsApp ' + prov.whatsapp }) : null,
+          h('p', { text: `${n} ${n === 1 ? 'producto' : 'productos'} · ${porLocal.length} ${porLocal.length === 1 ? 'local' : 'locales'}` }))),
+      porLocal.map(([lid, lista]) => {
+        const m = new Map();
+        for (const o of lista) for (const i of o.orden_items) { const x = m.get(i.producto_id) || { producto_id: i.producto_id, cant: 0 }; x.cant += Number(i.cantidad_pedida); m.set(i.producto_id, x); }
+        const filas = [...m.values()].sort((a, b) => porTexto(nombreProd(a), nombreProd(b)));
+        const quien = [...new Set(lista.map(o => o.cargado_por_nombre).filter(Boolean))].join(', ');
+        const notas = [...new Set(lista.map(o => o.nota).filter(Boolean))].join(' · ');
+        return h('table', { class: 'pr-tabla' + (filas.length <= 12 ? ' pr-junta' : '') },
+          h('thead', {},
+            h('tr', {}, h('th', { class: 'pr-local', colspan: '4' }, h('b', { text: nombreLocal(lid) }), quien ? h('span', { text: ' · pidió ' + quien }) : null, notas ? h('span', { class: 'pr-nota', text: ' · Nota: ' + notas }) : null, h('span', { class: 'pr-para', text: 'Pedido a ' + prov.nombre }))),
+            h('tr', {}, h('th', { text: 'Producto' }), h('th', { class: 'pr-num', text: 'Cantidad' }), h('th', { text: 'Unidad' }), h('th', { class: 'pr-ok', text: 'Recibido' }))),
+          h('tbody', {}, filas.map(x => h('tr', {}, h('td', { text: nombreProd(x) }), h('td', { class: 'pr-num', text: fmtNum(x.cant, 3) }), h('td', { text: unidad(x) || '' }), h('td', { class: 'pr-ok' })))));
+      }));
+  }
+  function imprimir(lista) {
+    document.querySelectorAll('.print-area').forEach(el => el.remove());
+    const area = h('div', { class: 'print-area' }, lista.map(({ prov, os }) => hojaImpresion(prov, os)));
+    document.body.append(area);
+    document.body.classList.add('imprimiendo');
+    const limpiar = () => { document.body.classList.remove('imprimiendo'); area.remove(); window.removeEventListener('afterprint', limpiar); };
+    window.addEventListener('afterprint', limpiar);
+    window.print();
+    setTimeout(limpiar, 1000);
+  }
 
   function tarjeta(provId, os) {
     const sinProv = provId === SIN;
     const prov = sinProv ? null : G.provs.get(provId);
     const nombre = sinProv ? 'Sin proveedor' : (prov ? prov.nombre : 'Proveedor');
-    const tot = total(os);
+    const tot = total(os.map(o => ({ ...o, orden_items: o.orden_items.filter(i => !fuera.has(i.id)) })));
     const min = prov && prov.pedido_minimo ? Number(prov.pedido_minimo) : 0;
     const hayBorrador = os.some(o => o.estado === 'borrador');
     const estados = [...new Set(os.map(o => o.estado))];
@@ -341,9 +396,16 @@ export async function render(root, ctx) {
     const prods = [...m.values()].sort((a, b) => porTexto(nombreProd(a), nombreProd(b)));
     const sugs = sinProv ? prods.map(x => ({ x, s: sugerir(x.producto_id) })).filter(y => y.s) : [];
 
+    const estaFuera = (x) => x.pares.every(p => fuera.has(p.it.id));
     const filas = prods.map(x => {
       const sug = sinProv ? sugerir(x.producto_id) : null;
-      return h('div', { class: 'pp-fila', 'data-prod': x.producto_id },
+      const off = !sinProv && estaFuera(x);
+      const chk = sinProv ? null : h('input', { type: 'checkbox', class: 'pp-chk', checked: !off, 'aria-label': `Pedir ${nombreProd(x)}`, on: { change: (e) => {
+        x.pares.forEach(p => { if (e.target.checked) fuera.delete(p.it.id); else fuera.add(p.it.id); });
+        guardarFuera(); pintar();
+      } } });
+      return h('div', { class: 'pp-fila' + (chk ? ' con-chk' : '') + (off ? ' is-fuera' : ''), 'data-prod': x.producto_id },
+        chk ? h('label', { class: 'pp-sel', title: off ? 'No se pide' : 'Se pide' }, chk) : null,
         h('div', { class: 'pp-prod' }, h('b', { text: nombreProd(x) }),
           h('span', { class: 'pp-locales', text: [...x.porLocal].map(([lid, c]) => `${nombreLocal(lid)} ${fmtNum(c, 3)}`).join(' · ') })),
         h('div', { class: 'pp-cant num' }, h('b', { text: fmtNum(x.cant, 3) }), h('span', { class: 'mute', text: ' ' + (unidad(x) || '') })),
@@ -363,26 +425,36 @@ export async function render(root, ctx) {
       try { await flush(); await cambiarEstado(os.filter(o => o.estado === 'borrador'), 'aprobada'); toast(`${nombre}: aprobado`, 'ok'); pintar(); }
       catch (x) { toast(mensajeError(x), 'error'); b.disabled = false; }
     } } }) : null;
-    const btnWA = !sinProv ? h('button', { class: 'btn btn-primary', type: 'button', on: { click: async () => {
+    const quedan = incluidos(os);
+    const sacados = nFuera(os);
+    const btnWA = !sinProv ? h('button', { class: 'btn btn-primary', type: 'button', disabled: !quedan.length, on: { click: async () => {
       try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
-      abrirEnvio(prov || { nombre }, os.filter(o => o.orden_items.length), async () => { await cambiarEstado(os, 'enviada'); toast(`${nombre}: marcado como enviado`, 'ok'); pintar(); });
+      abrirEnvio(prov || { nombre }, incluidos(os), async () => { await marcarEnviado(os); toast(`${nombre}: marcado como enviado`, 'ok'); pintar(); }, sacados);
     } } }, icon('whatsapp', 18), h('span', { text: 'Enviar por WhatsApp' })) : null;
+    const btnPrint = !sinProv ? h('button', { class: 'btn btn-ghost', type: 'button', 'data-accion': 'imprimir', disabled: !quedan.length, on: { click: async () => {
+      try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
+      imprimir([{ prov: prov || { nombre }, os: incluidos(os) }]);
+      if (!confirm(`¿Marcar el pedido a ${nombre} como enviado?${sacados ? `\n${sacados} ${sacados === 1 ? 'producto destildado sale' : 'productos destildados salen'} del pedido.` : ''}`)) return;
+      try { await marcarEnviado(os); toast(`${nombre}: marcado como enviado`, 'ok'); } catch (x) { toast(mensajeError(x), 'error'); }
+      pintar();
+    } } }, icon('imprimir', 18), h('span', { text: 'Imprimir' })) : null;
 
     const locales = [...groupBy(os, o => o.local_id)].map(([lid, l]) => `${nombreLocal(lid)}${[...new Set(l.map(o => o.cargado_por_nombre).filter(Boolean))].length ? ' (' + [...new Set(l.map(o => o.cargado_por_nombre).filter(Boolean))].join(', ') + ')' : ''}`);
     return h('section', { class: 'grupo-prov pp' + (sinProv ? ' sin-prov' : ''), 'data-prov': nombre },
       h('header', { class: 'pp-head' },
         h('div', { class: 'pp-tit' }, h('h2', { class: 'gp-t', text: nombre }),
-          h('p', { class: 'pp-sub', text: `${prods.length} ${prods.length === 1 ? 'producto' : 'productos'} · ${locales.join(' · ')}` })),
+          h('p', { class: 'pp-sub', text: `${sacados ? (prods.filter(x => !estaFuera(x)).length + ' de ') : ''}${prods.length} ${prods.length === 1 ? 'producto' : 'productos'} · ${locales.join(' · ')}` })),
         h('div', { class: 'pp-meta' },
           tot ? h('span', { class: 'gp-c', text: `≈ ${fmtMoney(tot)}` }) : null,
           estados.map(s => h('span', { class: 'estado estado-' + s, text: ESTADOS[s] })))),
       min && tot < min ? h('p', { class: 'gp-nota gp-warn', text: `Pedido mínimo ${fmtMoney(min)}: faltan ${fmtMoney(min - tot)}.` }) : null,
+      sacados ? h('p', { class: 'gp-nota gp-info', text: `${sacados} ${sacados === 1 ? 'producto destildado: no se manda ni se imprime' : 'productos destildados: no se mandan ni se imprimen'}. Al marcarlo como enviado sale del pedido.` }) : null,
       sinProv ? h('p', { class: 'gp-nota gp-warn', text: sugs.length ? 'Elegí el proveedor de cada producto o usá los sugeridos.' : 'Elegí el proveedor de cada producto.' }) : null,
       prov && !prov.whatsapp ? h('p', { class: 'gp-nota gp-warn', text: 'Sin WhatsApp cargado.' }) : null,
       h('div', { class: 'pp-tabla' },
-        h('div', { class: 'pp-fila pp-h', 'aria-hidden': 'true' }, h('span', { text: 'Producto · locales' }), h('span', { class: 'pp-h-tot', text: 'Total' }), h('span', { text: sinProv ? 'Proveedor' : 'Pasar a otro proveedor' })),
+        h('div', { class: 'pp-fila pp-h' + (sinProv ? '' : ' con-chk'), 'aria-hidden': 'true' }, sinProv ? null : h('span', { text: 'Pedir' }), h('span', { text: 'Producto · locales' }), h('span', { class: 'pp-h-tot', text: 'Total' }), h('span', { text: sinProv ? 'Proveedor' : 'Pasar a otro proveedor' })),
         filas),
-      h('div', { class: 'acciones' }, btnSugeridos, btnAprobar, btnWA));
+      h('div', { class: 'acciones' }, btnSugeridos, btnAprobar, btnPrint, btnWA));
   }
 
   function vistaProveedor() {
@@ -391,7 +463,13 @@ export async function render(root, ctx) {
     const provs = [...g.keys()].sort((a, b) => (b === SIN) - (a === SIN) || porTexto(nombreProv(a), nombreProv(b)));
     const chkRecordar = h('input', { type: 'checkbox', checked: recordar, on: { change: (e) => { recordar = e.target.checked; lsSet('g:ped:recordar', recordar); } } });
     return [
-      provs.length ? h('label', { class: 'check pp-recordar' }, chkRecordar, h('span', { text: 'Al cambiar el proveedor de un producto, guardarlo para los próximos pedidos' })) : null,
+      provs.length ? h('div', { class: 'pp-barra' },
+        h('label', { class: 'check pp-recordar' }, chkRecordar, h('span', { text: 'Al cambiar el proveedor de un producto, guardarlo para los próximos pedidos' })),
+        provs.filter(p => p !== SIN).length > 1 ? h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'data-accion': 'imprimir-todos', on: { click: async () => {
+          try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
+          const lista = provs.filter(p => p !== SIN).map(p => ({ prov: G.provs.get(p) || { nombre: nombreProv(p) }, os: incluidos(g.get(p)) })).filter(x => x.os.length);
+          imprimir(lista);
+        } } }, icon('imprimir', 18), h('span', { text: 'Imprimir todos (uno por hoja)' })) : null) : null,
       ...(provs.length ? provs.map(p => tarjeta(p, g.get(p))) : [vacio('No hay pedidos para armar', 'Lo que manden los locales y esté en revisión o aprobado aparece acá, agrupado por proveedor.')])
     ];
   }
