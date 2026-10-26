@@ -202,6 +202,11 @@ export const ventasItemsRango = (localId, desde, hasta) => todo(() => sb.from('v
 // Salidas de stock de un local desde una fecha (ventas, producción y merma), para las métricas de Stock.
 export const movimientosLocal = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,creado_en')
   .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma']).order('creado_en'));
+// Todos los movimientos de un local desde una fecha (para Inicio / Ahora / Dif. y los últimos ajustes en Stock).
+export const movimientosDesde = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,nota,creado_en')
+  .eq('local_id', localId).gte('creado_en', desde).order('creado_en'));
+// Ajuste a mano de gerencia: merma con motivo (cantidad negativa) o entrada sin pedido (positiva).
+export const registrarAjuste = async (m) => ok(await sb.from('movimientos').insert([m]));
 export const ultimaVentaSubida = async (localId) => (await ok(await sb.from('ventas_import').select('fecha_desde,creado_en')
   .eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
 export const cargarRecetas = () => todo(() => sb.from('recetas').select('*,receta_items(insumo_id,cantidad)').order('id'));
