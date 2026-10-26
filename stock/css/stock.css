@@ -154,6 +154,7 @@ select.input { text-align: center; text-align-last: center; }
 .seg { display: flex; gap: 4px; padding: 4px; background: var(--fill); border-radius: 12px; margin: 18px 0 22px; }
 .seg-b { flex: 1; min-height: 44px; border: 0; border-radius: 9px; background: none; font-weight: 700; color: var(--text-2); }
 .seg-b.is-on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(14, 26, 43, 0.15); }
+.seg-form { margin: 0; }
 
 .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .chips-scroll { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 2px 2px 6px; scrollbar-width: none; }

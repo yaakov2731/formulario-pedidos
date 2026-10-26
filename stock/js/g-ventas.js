@@ -1,5 +1,5 @@
 // Gerencia · Ventas: subir los Excel de Núcleo IT de un local y un día, asociar sus códigos a productos y confirmar la importación.
-import { mount, h, norm, fmtNum, fmtMoney, porTexto, hoyISO, sumarDias, fechaLarga } from './util.js';
+import { mount, h, norm, tokens, coincide, fmtNum, fmtMoney, porTexto, hoyISO, sumarDias, fechaLarga } from './util.js';
 import { cargarAliasNucleo, asociarNucleo, crearPlato, importacionDelDia, importarVentas, importacionesRecientes, borrarImportacion, buscarServidor, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { leerReporte, armarImportacion, claveItem } from './nucleo.js';
@@ -140,8 +140,8 @@ export async function render(root, ctx) {
     const cuerpo = h('div', { class: 'form' });
     const { cerrar } = hoja(`Asociar · ${r.nombre}`, cuerpo);
     const pintarOpc = () => {
-      const t = norm(q).split(' ').filter(Boolean);
-      const vis = [...G.prods.values()].filter(p => p.local_id === E.localId && p.activo !== false && t.every(k => norm(p.nombre + ' ' + p.codigo).includes(k))).sort((a, b) => porTexto(a.nombre, b.nombre)).slice(0, 40);
+      const t = tokens(q);
+      const vis = [...G.prods.values()].filter(p => p.local_id === E.localId && p.activo !== false && coincide(p.nombre + ' ' + p.codigo, t)).sort((a, b) => porTexto(a.nombre, b.nombre)).slice(0, 40);
       lista.replaceChildren(...(vis.length ? vis.map(p => h('button', { class: 'prod prod-cat', type: 'button', 'aria-label': `Elegir ${p.nombre}`, on: { click: () => paso2(p) } },
         h('span', { class: 'prod-n', text: p.nombre }), h('span', { class: 'prod-m' }, h('span', { class: 'num', text: p.codigo }), h('span', { text: p.unidad_uso || '' })))) : [vacio('No encontramos ese producto', 'Probá con otra palabra.')]));
     };

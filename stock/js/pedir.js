@@ -1,5 +1,5 @@
 // Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
-import { mount, h, norm, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
+import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
 import { icon, stepper, esqueleto, vacio, banner, toast, campo } from './ui.js';
 
@@ -118,8 +118,8 @@ function pintarPedir(root, ctx) {
     if (filtro.cat === MI_PEDIDO && !q) vis = vis.filter(p => cantidad(p) > 0);
     else if (filtro.cat !== 'todas' && !q) vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
     if (q) {
-      const toks = q.split(' ');
-      const local = vis.filter(p => { const t = norm(p.nombre + ' ' + p.codigo); return toks.every(k => t.includes(k)); });
+      const toks = tokens(q);
+      const local = vis.filter(p => coincide(p.nombre + ' ' + p.codigo, toks));
       const ids = new Set(local.map(p => p.id));
       const extra = extraIds ? vis.filter(p => extraIds.has(p.id) && !ids.has(p.id)) : [];
       vis = [...local, ...extra];

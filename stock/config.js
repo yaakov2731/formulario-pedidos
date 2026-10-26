@@ -3,5 +3,5 @@
 window.STOCK_CONFIG = {
   SUPABASE_URL: "https://zunyzlpzofbyqplgiupl.supabase.co",
   SUPABASE_KEY: "sb_publishable_-dfl3GhckV3dyYn35OAsGQ_b-ew4UbF",
-  VERSION: "2026.10.25"
+  VERSION: "2026.10.26"
 };

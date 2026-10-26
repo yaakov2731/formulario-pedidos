@@ -19,6 +19,11 @@ export function mount(el, ...kids) { el.replaceChildren(...kids.flat().filter(k 
 
 export const norm = (t) => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
+// Búsqueda tolerante: sin acentos ni mayúsculas y en singular (limones → limon, nueces → nuez, papas → papa).
+const raiz = (w) => w.length > 4 && w.endsWith('ces') ? w.slice(0, -3) + 'z' : w.length > 4 && /[^aeiou]es$/.test(w) ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w;
+export const tokens = (q) => norm(q).split(' ').filter(Boolean).map(raiz);
+export const coincide = (texto, toks) => { const t = norm(texto); return toks.every(k => t.includes(k)); };
+
 export function fmtNum(n, dec = 2) {
   if (n === null || n === undefined || n === '' || Number.isNaN(Number(n))) return '';
   return Number(n).toLocaleString('es-AR', { maximumFractionDigits: dec });

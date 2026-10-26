@@ -1,5 +1,5 @@
 // Gerencia · Catálogo: búsqueda, alta y edición de productos y costo actual.
-import { mount, h, norm, fmtMoney, parseNum, porTexto, debounce } from './util.js';
+import { mount, h, tokens, coincide, fmtMoney, parseNum, porTexto, debounce } from './util.js';
 import { guardarProducto, guardarPrecio, mensajeError } from './api.js';
 import { G, cargarG, refrescarPrecio } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_CATALOGO } from './ui.js';
@@ -68,8 +68,8 @@ export async function render(root, ctx) {
   }
 
   function pintar() {
-    const t = norm(q).split(' ').filter(Boolean);
-    const vis = [...G.prods.values()].filter(p => (localF === 'todos' || p.local_id === localF) && t.every(k => norm(p.nombre + ' ' + p.codigo).includes(k)))
+    const t = tokens(q);
+    const vis = [...G.prods.values()].filter(p => (localF === 'todos' || p.local_id === localF) && coincide(p.nombre + ' ' + p.codigo, t))
       .sort((a, b) => porTexto(a.nombre, b.nombre)).slice(0, 150);
     if (!vis.length) { lista.replaceChildren(vacio('No hay productos', 'Probá con otra búsqueda o creá uno nuevo.')); return; }
     lista.replaceChildren(...vis.map(p => {
