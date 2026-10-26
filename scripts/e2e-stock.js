@@ -1101,12 +1101,37 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.getByRole('button', { name: 'Agregar Queso cremoso' }).click();
   await v.getByLabel('Cantidad de Queso cremoso').fill('0,1');
   await v.getByLabel('Cantidad de Queso cremoso').press('Tab');
+  // Insumo que no está en el catálogo del local: búsqueda tolerante (limones → Limón) y alta en el momento
+  await v.getByRole('button', { name: 'Agregar insumo' }).click();
+  await v.locator('dialog input[type=search]').fill('chorizos');
+  ok(await v.getByRole('button', { name: 'Agregar Chorizo parrillero' }).count() === 0, 'Recetas: un insumo ya usado no se ofrece de nuevo');
+  await v.locator('dialog input[type=search]').fill('Mozzarellas');
+  ok(await v.getByRole('button', { name: 'Agregar Mozzarella en barra' }).count() === 1, 'Recetas: la búsqueda encuentra en plural y con mayúsculas');
+  await v.locator('dialog input[type=search]').fill('limónes');
+  await v.waitForSelector('dialog >> text=No está en el catálogo de');
+  ok(await v.getByRole('button', { name: /Crear «limónes» como insumo nuevo/ }).isVisible(), 'Recetas: si no existe ofrece crearlo');
+  await shot(v, '25a-g-receta-no-existe-pc');
+  await v.setViewportSize({ width: 390, height: 844 });
+  await shot(v, '25a-g-receta-no-existe-m');
+  await v.getByRole('button', { name: /Crear «limónes» como insumo nuevo/ }).click();
+  await v.waitForSelector('#n-nombre');
+  ok(await v.locator('#n-nombre').inputValue() === 'Limones' && await v.locator('#n-cat').inputValue() === 'Verdulería', 'Insumo nuevo: copia nombre y categoría del mismo insumo de otro local');
+  ok(/Copiamos los datos de «Limones» de Trento/.test(await v.locator('dialog .banner').innerText()), 'Insumo nuevo: avisa de dónde copió los datos');
+  await v.locator('#n-cant').fill('0,15');
+  await shot(v, '25b-g-insumo-nuevo-m');
+  await v.setViewportSize({ width: 1366, height: 900 });
+  await shot(v, '25b-g-insumo-nuevo-pc');
+  await v.getByRole('button', { name: 'Crear y sumar a la receta' }).click();
+  await v.waitForSelector('.toast-ok >> text=Limones quedó en el catálogo de Umo');
+  const limUmo = db.productos.find(x => x.local_id === L1 && x.nombre === 'Limones');
+  ok(limUmo && /^UMO-\d{3}$/.test(limUmo.codigo) && limUmo.unidad_uso === 'kg' && limUmo.factor_conversion === 1 && limUmo.es_elaborado === false && db.productos.filter(x => x.codigo === limUmo.codigo).length === 1, 'Insumo nuevo: queda en el catálogo del local con código libre y unidad ' + JSON.stringify(limUmo));
+  ok(await v.getByLabel('Cantidad de Limones').inputValue() === '0,15', 'Insumo nuevo: se suma a la receta con la cantidad cargada');
   ok((await v.locator('dialog .sub').innerText()).includes('Costo estimado'), 'la receta muestra el costo estimado');
   await shot(v, '25-g-receta-editar-pc');
   await v.getByRole('button', { name: 'Guardar receta' }).click();
   await v.waitForSelector('.toast-ok >> text=Receta guardada');
   const rg = db.recetasGuardadas[0];
-  ok(rg && rg.p_rinde === 1 && rg.p_items.length === 2 && rg.p_items.some(i => i.insumo_id === 'p-chorizo' && i.cantidad === 0.25) && rg.p_items.some(i => i.insumo_id === 'p-queso' && i.cantidad === 0.1), 'guardar_receta: insumos con cantidad en su unidad de uso y rinde');
+  ok(rg && rg.p_rinde === 1 && rg.p_items.length === 3 && rg.p_items.some(i => i.cantidad === 0.15) && rg.p_items.some(i => i.insumo_id === 'p-chorizo' && i.cantidad === 0.25) && rg.p_items.some(i => i.insumo_id === 'p-queso' && i.cantidad === 0.1), 'guardar_receta: insumos con cantidad en su unidad de uso y rinde');
   ok(await v.locator('.sr-b').count() === 1, 'el plato con receta sale de la lista de sin receta');
   // Elaborado desde Catálogo + receta + producción
   await v.getByRole('link', { name: 'Catálogo' }).click();
