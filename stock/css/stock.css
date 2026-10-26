@@ -594,6 +594,57 @@ a.tb-card:hover { border-color: var(--text-2); }
   .pp-fila.con-chk > * { grid-area: auto; }
 }
 
+
+/* ---------- Stock por producto: estados tocables, tarjetas Inicio / Quedan / Dif. ---------- */
+.btn-sm { min-height: 44px; padding: 0 14px; font-size: 15px; gap: 6px; }
+.stk-head { position: relative; }
+.stk-head .sub { font-weight: 600; }
+.stk-print { position: absolute; right: 0; top: 0; }
+.stk-print[hidden] { display: none; }
+.stk-buscar { margin-bottom: 10px; }
+.stk-estados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 10px; }
+.stk-k { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 72px; padding: 10px 6px; border-radius: var(--r-card);
+  border: 1.5px solid var(--sep); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; transition: transform 0.12s ease; }
+.stk-k:active { transform: scale(0.97); }
+.stk-kv { font: 700 26px/1 var(--font-display); }
+.stk-kt { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-2); }
+.stk-k-todos { background: var(--fill); }
+.stk-k-agotado { background: var(--bad-soft); border-color: var(--bad-line); }
+.stk-k-agotado .stk-kv, .stk-k-agotado .stk-kt { color: var(--bad-ink); }
+.stk-k-bajo { background: var(--warn-soft); border-color: var(--warn-line); }
+.stk-k-bajo .stk-kv, .stk-k-bajo .stk-kt { color: var(--warn-ink); }
+.stk-k.is-on { border-width: 2.5px; border-color: var(--text); box-shadow: 0 2px 8px rgba(14, 26, 43, 0.12); }
+.stk-cats { margin-bottom: 4px; }
+.stk-cats[hidden] { display: none; }
+.seg-per { margin: 6px auto 10px; max-width: 320px; }
+.prod-stk { gap: 10px; border-top-width: 5px; }
+.prod-stk.stk-agotado { border-top-color: var(--bad-ink); }
+.prod-stk.stk-bajo { border-top-color: var(--warn-line); }
+.prod-stk.stk-ok { border-top-color: var(--ok-line); }
+.stk-top { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.stk-pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
+.stk-pill-agotado { background: var(--bad-ink); color: var(--surface); }
+.stk-pill-bajo { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid var(--warn-line); }
+.stk-pill-ok { background: var(--ok-soft); color: var(--ok-ink); }
+.stk-cols { display: grid; grid-template-columns: 1fr 1.2fr 1fr; width: 100%; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--sep); }
+.stk-c { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; min-width: 0; }
+.stk-c + .stk-c { border-left: 1px solid var(--sep); }
+.stk-ck { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-2); white-space: nowrap; }
+.stk-cv { font-size: 17px; font-weight: 700; overflow-wrap: anywhere; }
+.stk-c-ahora .stk-cv { font-size: 21px; }
+.stk-cu { font-size: 12px; color: var(--text-2); line-height: 1; }
+@media (min-width: 820px) { .stk-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; align-items: stretch; } .stk-lista > .cat-t, .stk-lista > .empty { grid-column: 1 / -1; } }
+.stk-c-menos .stk-cv { color: var(--bad-ink); }
+.stk-c-mas .stk-cv { color: var(--ok-ink); }
+.stk-mov, .stk-aj { font-size: 13px; color: var(--text-2); }
+.stk-aj { font-style: italic; }
+.stk-acc { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.stk-pedir { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 700; font-size: 14px; }
+.stk-ajuste { color: var(--accent-text); }
+.stk-motivos { justify-content: center; }
+.stk-motivos .chip { min-height: 40px; font-size: 14px; padding: 0 12px; }
+@media (prefers-reduced-motion: reduce) { .stk-k { transition: none; } .stk-k:active { transform: none; } }
+
 .print-area { display: none; }
 @page { size: A4 landscape; margin: 12mm 14mm 16mm;
   @bottom-center { content: "Página " counter(page) " de " counter(pages); font: 10pt "Public Sans", Arial, sans-serif; color: #444; } }
@@ -620,5 +671,7 @@ a.tb-card:hover { border-color: var(--text-2); }
   .pr-num { text-align: right !important; font-variant-numeric: tabular-nums; width: 14%; font-weight: 700; }
   .pr-tabla td:nth-child(3), .pr-tabla th:nth-child(3) { width: 18%; }
   .pr-ok { width: 12%; }
+  .pr-stock td.pr-blanco::after { width: 60pt; border-width: 0 0 1pt; border-radius: 0; }
+  .pr-stock .pr-num { width: 10%; }
   td.pr-ok::after { content: ""; display: inline-block; width: 14pt; height: 14pt; border: 1pt solid #000; border-radius: 2pt; }
 }
