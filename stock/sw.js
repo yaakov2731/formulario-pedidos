@@ -1,6 +1,6 @@
 // App de stock · service worker. Red primero (siempre la última versión publicada), caché como respaldo
 // sin conexión. Nunca intercepta la API de Supabase (otro origen).
-const VERSION = 'stock-v2';
+const VERSION = 'stock-v1';
 const SHELL = [
   './', './index.html', './config.js', './manifest.webmanifest', './css/stock.css',
   './vendor/supabase.js', './vendor/xlsx.full.min.js',
