@@ -106,3 +106,24 @@ export function fechaLarga(iso) {
 
 // Los platos de la carta (productos elaborados que se venden, no se compran) no se piden ni se cuentan.
 export const esCarta = (p) => p && p.categoria === 'Carta';
+
+// ---- notas del equipo ----
+// Etiquetas: minúsculas, sin # ni espacios, sin repetir.
+export const limpiarEtiquetas = (arr) => [...new Set((arr || []).map(t => String(t).toLowerCase().replace(/^#+/, '').replace(/[^a-z0-9ñáéíóúü_-]/g, '')).filter(Boolean))].slice(0, 6);
+
+// Carpetas del tablero. Las resueltas solo aparecen en su carpeta.
+export const CARPETAS = [
+  ['todas', 'Todas', 'bandeja'],
+  ['gerencia', 'Para gerencia', 'persona'],
+  ['equipo', 'Para el equipo', 'equipo'],
+  ['de-gerencia', 'De gerencia', 'nota'],
+  ['resueltas', 'Resueltas', 'check']
+];
+export function enCarpeta(n, c) {
+  if (c === 'resueltas') return !!n.resuelta_en;
+  if (n.resuelta_en) return false;
+  if (c === 'gerencia') return n.autor_rol === 'encargado' && n.para === 'gerencia';
+  if (c === 'equipo') return n.autor_rol === 'encargado' && n.para === 'equipo';
+  if (c === 'de-gerencia') return n.autor_rol === 'gerencia';
+  return true;
+}

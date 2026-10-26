@@ -469,7 +469,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok((await e.locator('.ped').first().innerText()).includes('En revisión'), 'estado "En revisión"');
   await e.locator('.ped-b').first().click();
   await shot(e, '05-mis-pedidos-m', true);
-  ok(await e.locator('a[data-nav]').count() === 4 || await e.locator('.tab').count() >= 2, 'encargado solo tiene Pedir / Mis pedidos / Salir');
+  ok(await e.locator('a[data-nav]').count() === 4 || await e.locator('.tab').count() >= 2, 'encargado solo tiene Pedir / Mis pedidos / Notas / Salir');
   const navTxt = (await e.locator('.tabbar').innerText()).toLowerCase();
   ok(!/stock|recibir|cat[aá]logo/.test(navTxt), 'encargado sin secciones de gerencia');
   await e.goto(BASE + '#/catalogo');
@@ -535,7 +535,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('form button[type=submit]').click();
   await g.waitForSelector('.tb-card', { timeout: 8000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 400)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Tablero no cargó'); });
   ok(await g.locator('h1').first().innerText() === 'Tablero', 'gerencia cae en el Tablero (inicio)');
-  ok(await g.locator('.sidebar .side-link').count() === 9, 'gerencia: barra lateral con 8 secciones (Tablero, Pedidos, Recibir, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
+  ok(await g.locator('.sidebar .side-link').count() === 10, 'gerencia: barra lateral con 9 secciones (Tablero, Pedidos, Notas, Recibir, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
   // ---- Tablero ----
   const tbTxt = async () => (await g.locator('.tb-metricas').innerText()).replace(/\s+/g, ' ');
   ok(/VENTAS \$ 2\.850\.000 Anterior \$ 2\.610\.000 · ▲ 9 %/i.test(await tbTxt()), 'Tablero: ventas de la semana contra la anterior con variación (+9 %) ' + await tbTxt());
@@ -1081,7 +1081,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const cV = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' });
   const v = await nuevaPagina(cV, 'ventas-pc');
   await loginGer(v);
-  ok(await v.locator('.sidebar .side-link').count() === 9, 'gerencia: Ventas y Cocina en la barra lateral');
+  ok(await v.locator('.sidebar .side-link').count() === 10, 'gerencia: Ventas y Cocina en la barra lateral');
   await v.getByRole('link', { name: 'Ventas', exact: true }).click();
   await v.waitForSelector('#f-archivo', { state: 'attached' });
   ok(await v.locator('h1').first().innerText() === 'Ventas', 'pantalla Ventas');
@@ -1280,7 +1280,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const cV2 = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
   const vm = await nuevaPagina(cV2, 'ventas-m');
   await loginGer(vm);
-  ok(await vm.locator('.tab').count() === 9, 'celular: barra inferior con 8 secciones + Salir (se desplaza)');
+  ok(await vm.locator('.tab').count() === 10, 'celular: barra inferior con 9 secciones + Salir (se desplaza)');
   await shot(vm, '31-g-barra-m');
   await vm.getByRole('link', { name: 'Ventas', exact: true }).click();
   await vm.waitForSelector('#f-archivo', { state: 'attached' });
