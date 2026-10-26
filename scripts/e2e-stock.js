@@ -68,7 +68,9 @@ const db = {
     prod('p-gaseosa', 'UMO-006', 'Gaseosa cola 1,5 l', 'Bebidas', 'pack x 6', 'unidad', 6, PV.florida, null),
     prod('p-agua', 'UMO-007', 'Agua sin gas 500 ml', 'Bebidas', 'pack x 12', 'unidad', 12, PV.florida, null),
     prod('p-servilleta', 'UMO-008', 'Servilletas de papel', 'Descartables', 'paquete', 'paquete', 1, null, null),
-    prod('p-trento', 'TRE-001', 'Café en grano', 'Café', 'kg', 'kg', 1, PV.barcena, null, L2)
+    prod('p-trento', 'TRE-001', 'Café en grano', 'Café', 'kg', 'kg', 1, PV.barcena, null, L2),
+    prod('p-serv-tre', 'TRE-002', 'Servilletas de papel', 'Descartables', 'paquete', 'paquete', 1, PV.demo, null, L2),
+    prod('p-limon', 'TRE-003', 'Limones', 'Verdulería', 'kg', 'kg', 1, null, null, L2)
   ],
   stock: [
     { local_id: L1, producto_id: 'p-chorizo', stock: 3 }, { local_id: L1, producto_id: 'p-mozza', stock: 4 },
@@ -294,7 +296,7 @@ async function montarApi(ctx) {
     }
 
     if (t === 'ordenes_compra') {
-      if (req.method() === 'POST') { const b = body(); const o = { ...b, id: nid('ord'), creado_en: new Date().toISOString(), creado_por: U_ENC }; db.ordenes.push(o); return json([{ id: o.id }], 201); }
+      if (req.method() === 'POST') { const b = body(); const o = { creado_en: new Date().toISOString(), ...b, id: nid('ord'), creado_por: U_ENC }; db.ordenes.push(o); return json([{ id: o.id }], 201); }
       if (req.method() === 'PATCH') { const id = eq(q.get('id')); const o = db.ordenes.find(x => x.id === id); Object.assign(o, body()); return json([{ id }]); }
       let r = db.ordenes; const est = enLista(q.get('estado')); if (est) r = r.filter(o => est.includes(o.estado));
       if (eq(q.get('local_id'))) r = r.filter(o => o.local_id === eq(q.get('local_id')));
@@ -339,6 +341,7 @@ async function montarApi(ctx) {
 const errores = [];
 let fallas = 0;
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FAIL ') + msg); if (!cond) fallas++; };
+const VIVAS_E2E = ['borrador', 'aprobada'];
 const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.png'), fullPage: full });
 
 (async () => {
@@ -494,6 +497,15 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await w.locator('.prod').count() === 8, 'sesión persistente tras recargar');
   await cEncW.close();
 
+  // Pedidos de otro local y uno ya recibido (historial): para la tabla de gerencia y el proveedor sugerido.
+  const hace = (min) => new Date(Date.now() - min * 60000).toISOString();
+  db.ordenes.push({ id: 'ord-tre-1', local_id: L2, proveedor_id: PV.barcena, estado: 'borrador', cargado_por_nombre: 'Angelica', nota: null, creado_en: hace(90) },
+    { id: 'ord-tre-2', local_id: L2, proveedor_id: null, estado: 'borrador', cargado_por_nombre: 'Angelica', nota: null, creado_en: hace(89) },
+    { id: 'ord-tre-h', local_id: L2, proveedor_id: PV.demo, estado: 'recibida', cargado_por_nombre: 'Angelica', nota: null, creado_en: hace(60 * 24 * 6) });
+  db.items.push({ id: 'it-tre-1', orden_id: 'ord-tre-1', producto_id: 'p-trento', cantidad_pedida: 2, cantidad_recibida: null },
+    { id: 'it-tre-2', orden_id: 'ord-tre-2', producto_id: 'p-limon', cantidad_pedida: 3, cantidad_recibida: null },
+    { id: 'it-tre-h', orden_id: 'ord-tre-h', producto_id: 'p-limon', cantidad_pedida: 2, cantidad_recibida: 2 });
+
   // ===== Gerencia · escritorio =====
   const cGer = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' });
   const g = await nuevaPagina(cGer, 'gerencia');
@@ -523,25 +535,64 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('.chip', { hasText: 'Todos los locales' }).click();
   await g.waitForFunction(() => /\$ 2\.850\.000/.test(document.querySelector('.tb-metricas').innerText));
   await g.locator('[data-card="por-aprobar"]').click();
-  await g.waitForSelector('.grupo-prov', { timeout: 8000 });
-  ok(await g.locator('.grupo-prov').count() === 4, 'Pedidos: borradores por proveedor (3) + Sin proveedor');
-  const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');
-  ok(await sinP.getByRole('button', { name: 'Aprobar' }).isDisabled() && await sinP.getByRole('button', { name: 'Enviar por WhatsApp' }).isDisabled(), 'Sin proveedor: Aprobar y WhatsApp deshabilitados');
-  await shot(g, '10b-g-pedidos-sin-proveedor-pc');
-  await sinP.getByLabel('Asignar proveedor').selectOption(PV.barcena);
-  await g.waitForSelector('.grupo-prov[data-prov="Sin proveedor"]', { state: 'detached' });
-  ok(db.ordenes.filter(o => o.proveedor_id === PV.barcena).length === 2, 'asignar proveedor actualiza la orden (queda con Barcena)');
-  ok(await g.locator('.grupo-prov').count() === 3, 'tras asignar, la orden se agrupa con su proveedor');
-  const martinG = await g.locator('.grupo-prov[data-prov="Martín De Ridder"]').innerText();
-  ok(/Pedido mínimo \$ 100\.000/.test(martinG), 'gerencia ve el mínimo de Martín De Ridder');
-  await shot(g, '10-g-pedidos-pc');
-  // editar una cantidad
-  const florida = g.locator('.grupo-prov[data-prov="Distribuidora Florida"]');
-  await florida.getByRole('button', { name: /^Más · Cantidad de Cerveza/ }).click();
+  await g.waitForSelector('.ped-tabla', { timeout: 8000 });
+  ok(await g.locator('.seg-ped [data-vista="locales"]').getAttribute('aria-selected') === 'true', 'Pedidos abre en "De los locales" (tabla)');
+  ok(await g.locator('.pt-envio').count() === 2, `tabla: un renglón por pedido de cada local (Umo de Ruth y Trento de Angelica), no por proveedor (${await g.locator('.pt-envio').count()})`);
+  ok(await g.locator('.pt-h').isVisible(), 'en PC la tabla tiene encabezados');
+  const filaUmo = g.locator('.pt-envio', { hasText: 'Umo Grill' });
+  const txtUmo = (await filaUmo.innerText()).replace(/\s+/g, ' ');
+  ok(/Ruth Coronel/.test(txtUmo) && /6 productos/.test(txtUmo) && /Barcena/.test(txtUmo) && /Sin proveedor/.test(txtUmo) && /En revisión/.test(txtUmo) && /Nota/.test(txtUmo), 'fila: local, encargado, productos, proveedores, estado y nota · ' + txtUmo);
+  ok((await g.locator('.pt-envio').first().innerText()).includes('Umo Grill'), 'lo más nuevo arriba');
+  await g.locator('[data-filtro="enviados"]').click();
+  ok(await g.locator('.pt-envio').count() === 1 && /Recibido/.test(await g.locator('.pt-envio').innerText()), 'filtro Enviados muestra el historial (pedido recibido de Trento)');
+  await g.locator('[data-filtro="revisar"]').click();
+  await shot(g, '10-g-pedidos-tabla-pc');
+  await filaUmo.locator('.pt-fila').click();
+  await g.waitForSelector('.pt-det');
+  ok(await g.locator('.pt-det .det-fila:not(.det-h)').count() === 6, 'detalle: los 6 productos del pedido');
+  ok(/Entregar antes de las 10/.test(await g.locator('.pt-det .pt-nota').innerText()), 'detalle: nota del local');
+  const sugServ = await g.locator('.det-fila', { hasText: 'Servilletas de papel' }).locator('.sug').innerText();
+  ok(/Distribuidora Demo/.test(sugServ) && /como en Trento Café/.test(sugServ), 'proveedor sugerido: el mismo producto en otro local · ' + sugServ.replace(/\s+/g, ' '));
+  ok(!(await g.locator('.pt-det').innerText()).includes('$'), 'el detalle del pedido no muestra plata');
+  await shot(g, '10b-g-pedidos-detalle-pc');
+  // corregir una cantidad desde la tabla
+  const inpCer = g.getByLabel('Cantidad de Cerveza rubia lata 473 ml');
+  await inpCer.fill('3'); await inpCer.evaluate(el => el.blur());
   await g.waitForTimeout(700);
   ok(db.items.find(i => i.producto_id === 'p-cerveza').cantidad_pedida === 3, 'editar cantidad guarda el ítem (2 → 3)');
-  await florida.getByRole('button', { name: 'Menos · Cantidad de Cerveza rubia lata 473 ml' }).click();
+  await inpCer.fill('2'); await inpCer.evaluate(el => el.blur());
   await g.waitForTimeout(700);
+  // pasar un producto a otro proveedor: va a una orden nueva del mismo local, encargado y fecha
+  const ordBar = db.ordenes.find(o => o.local_id === L1 && o.proveedor_id === PV.barcena);
+  await g.getByLabel('Proveedor de Mozzarella en barra').selectOption(PV.demo);
+  await g.waitForFunction(() => document.querySelector('.det-fila[data-item] select[aria-label="Proveedor de Mozzarella en barra"]')?.value !== '' );
+  await g.waitForTimeout(400);
+  const ordDemo = db.ordenes.find(o => o.local_id === L1 && o.proveedor_id === PV.demo);
+  ok(ordDemo && ordDemo.cargado_por_nombre === 'Ruth Coronel' && ordDemo.creado_en === ordBar.creado_en && db.items.find(i => i.producto_id === 'p-mozza').orden_id === ordDemo.id, 'mover un producto: orden nueva de Demo para Umo, misma encargada y fecha, con el ítem movido');
+  ok(db.items.find(i => i.producto_id === 'p-chorizo').orden_id === ordBar.id, 'el resto del pedido de Barcena queda donde estaba');
+  ok(db.productos.find(p => p.id === 'p-mozza').proveedor_id === PV.demo, 'el catálogo recuerda el proveedor nuevo');
+  ok(await g.locator('.pt-envio').count() === 2, 'sigue siendo un solo pedido de Umo en la tabla');
+  await g.getByLabel('Proveedor de Mozzarella en barra').selectOption(PV.barcena);
+  await g.waitForTimeout(600);
+  ok(ordDemo.proveedor_id === PV.barcena && db.productos.find(p => p.id === 'p-mozza').proveedor_id === PV.barcena, 'volver a Barcena: la orden entera cambia de proveedor y el catálogo también');
+  // ---- Por proveedor ----
+  await g.locator('.seg-ped [data-vista="proveedor"]').click();
+  await g.waitForSelector('.grupo-prov');
+  ok(await g.locator('.grupo-prov').count() === 4, `Por proveedor: Barcena, Florida, Martín + Sin proveedor (${await g.locator('.grupo-prov').count()})`);
+  const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');
+  ok(await sinP.getByRole('button', { name: 'Enviar por WhatsApp' }).count() === 0, 'Sin proveedor: no se puede mandar');
+  const txtSin = (await sinP.innerText()).replace(/\s+/g, ' ');
+  ok(/Servilletas de papel/.test(txtSin) && /Limones/.test(txtSin) && /último pedido/.test(txtSin), 'Sin proveedor junta los dos locales y sugiere por último pedido · ' + txtSin);
+  const barTxt = (await g.locator('.grupo-prov[data-prov="Barcena"]').innerText()).replace(/\s+/g, ' ');
+  ok(/Umo Grill \(Ruth Coronel\)/.test(barTxt) && /Trento Café \(Angelica\)/.test(barTxt) && /Café en grano/.test(barTxt), 'Barcena suma lo de Umo y Trento y dice quién pidió · ' + barTxt);
+  await shot(g, '10c-g-pedidos-proveedor-pc', true);
+  await sinP.locator('[data-accion="sugeridos"]').click();
+  await g.waitForSelector('.grupo-prov[data-prov="Sin proveedor"]', { state: 'detached' });
+  ok(db.ordenes.filter(o => VIVAS_E2E.includes(o.estado) && o.proveedor_id === PV.demo).length === 2, 'Usar los sugeridos: servilletas y limones pasan a Distribuidora Demo');
+  ok(await g.locator('.grupo-prov').count() === 4, 'tras asignar, quedan 4 proveedores (con Demo)');
+  const martinG = await g.locator('.grupo-prov[data-prov="Martín De Ridder"]').innerText();
+  ok(/Pedido mínimo \$ 100\.000/.test(martinG), 'gerencia ve el mínimo de Martín De Ridder');
+  const florida = g.locator('.grupo-prov[data-prov="Distribuidora Florida"]');
   // aprobar
   const a0 = db.log.length;
   await florida.getByRole('button', { name: 'Aprobar' }).click();
@@ -776,8 +827,14 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.waitForTimeout(400);
   await shot(gm, '16a-g-tablero-m', true);
   await gm.locator('a.tab[data-nav="pedidos"]').click();
+  await gm.waitForSelector('.ped-tabla');
+  await shot(gm, '16-g-pedidos-m');
+  await gm.locator('.pt-envio', { hasText: 'Trento Café' }).locator('.pt-fila').click();
+  await gm.waitForSelector('.pt-det');
+  await shot(gm, '16b-g-pedidos-detalle-m');
+  await gm.locator('.seg-ped [data-vista="proveedor"]').click();
   await gm.waitForSelector('.grupo-prov');
-  await shot(gm, '16-g-pedidos-m', true);
+  await shot(gm, '16c-g-pedidos-proveedor-m');
   await gm.getByRole('link', { name: 'Catálogo' }).click();
   await gm.waitForSelector('.prod-cat');
   await shot(gm, '17-g-catalogo-m');
