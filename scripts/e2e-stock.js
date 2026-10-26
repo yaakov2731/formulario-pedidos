@@ -301,13 +301,13 @@ async function montarApi(ctx) {
       let r = db.ordenes; const est = enLista(q.get('estado')); if (est) r = r.filter(o => est.includes(o.estado));
       if (eq(q.get('local_id'))) r = r.filter(o => o.local_id === eq(q.get('local_id')));
       if (rol === 'encargado') r = r.filter(o => o.local_id === L1);
-      r = r.map(o => ({ ...o, orden_items: db.items.filter(i => i.orden_id === o.id).map(i => ({ id: i.id, producto_id: i.producto_id, cantidad_pedida: i.cantidad_pedida, cantidad_recibida: i.cantidad_recibida })) }));
+      r = r.map(o => ({ ...o, orden_items: db.items.filter(i => i.orden_id === o.id).map(i => ({ id: i.id, producto_id: i.producto_id, cantidad_pedida: i.cantidad_pedida, cantidad_recibida: i.cantidad_recibida, excluido: !!i.excluido })) }));
       r.sort((a, b) => (q.get('order') || '').includes('desc') ? b.creado_en.localeCompare(a.creado_en) : a.creado_en.localeCompare(b.creado_en));
       return json(r);
     }
     if (t === 'orden_items') {
       if (req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(i => db.items.push({ ...i, id: nid('it'), cantidad_recibida: null })); return json((Array.isArray(b) ? b : [b]).map(i => ({ id: 'x' })), 201); }
-      if (req.method() === 'PATCH') { const id = eq(q.get('id')); const i = db.items.find(x => x.id === id); Object.assign(i, body()); return json([{ id }]); }
+      if (req.method() === 'PATCH') { const ids = enLista(q.get('id')) || [eq(q.get('id'))]; ids.forEach(id => Object.assign(db.items.find(x => x.id === id), body())); return json(ids.map(id => ({ id }))); }
       if (req.method() === 'DELETE') { const id = eq(q.get('id')); db.items = db.items.filter(x => x.id !== id); return json([{ id }]); }
     }
     if (t === 'movimientos' && req.method() === 'GET') {
@@ -596,6 +596,11 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const barcena = g.locator('.grupo-prov[data-prov="Barcena"]');
   await barcena.getByLabel('Pedir Café en grano').uncheck();
   await g.waitForSelector('.grupo-prov[data-prov="Barcena"] .pp-fila.is-fuera');
+  await g.waitForTimeout(300);
+  ok(db.items.filter(i => i.producto_id === 'p-trento').every(i => i.excluido === true) && db.log.some(l => l.m === 'PATCH' && l.t === 'orden_items' && l.b.excluido === true), 'destildar se guarda en el servidor (orden_items.excluido)');
+  await g.reload();
+  await g.waitForSelector('.grupo-prov[data-prov="Barcena"] .pp-fila.is-fuera');
+  ok(!(await g.getByLabel('Pedir Café en grano').isChecked()), 'al volver a abrir, lo destildado sigue destildado');
   ok(/2 de 3 productos/.test(await barcena.locator('.pp-sub').innerText()) && /1 producto destildado/.test(await barcena.innerText()), 'destildar: la tarjeta dice 2 de 3 y avisa que no se manda');
   const martinC = g.locator('.grupo-prov[data-prov="Martín De Ridder"]');
   await martinC.getByLabel('Pedir Bondiola de cerdo').uncheck();

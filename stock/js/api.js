@@ -116,17 +116,27 @@ export async function misOrdenes(localId) {
     .select('id,estado,creado_en,cargado_por_nombre,nota,proveedor_id,orden_items(producto_id,cantidad_pedida)')
     .eq('local_id', localId).order('creado_en', { ascending: false }).limit(60));
 }
+// orden_items.excluido (migración 0009): producto destildado por gerencia. Si la columna todavía no existe, se lee sin ella.
+const COLS_ORD = 'id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida,excluido)';
+let hayExcluido = true;
+const faltaColumna = (e) => e && (e.code === '42703' || /excluido/.test(e.message || ''));
+async function selOrdenes(armar) {
+  if (hayExcluido) {
+    const r = await armar(COLS_ORD);
+    if (!r.error) return r.data;
+    if (!faltaColumna(r.error)) throw r.error;
+    hayExcluido = false;
+  }
+  return ok(await armar(COLS_ORD.replace(',excluido', '')));
+}
+export const guardaExcluidos = () => hayExcluido;
 export async function ordenesPorEstado(estados) {
-  return ok(await sb.from('ordenes_compra')
-    .select('id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida)')
-    .in('estado', estados).order('creado_en', { ascending: true }).limit(500));
+  return selOrdenes(cols => sb.from('ordenes_compra').select(cols).in('estado', estados).order('creado_en', { ascending: true }).limit(500));
 }
 
 // Pedidos ya enviados al proveedor (o recibidos) desde una fecha: para la tabla de gerencia y el proveedor habitual.
 export async function ordenesHistorial(desde) {
-  return ok(await sb.from('ordenes_compra')
-    .select('id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida)')
-    .in('estado', ['enviada', 'parcial', 'recibida']).gte('creado_en', desde).order('creado_en', { ascending: false }).limit(300));
+  return selOrdenes(cols => sb.from('ordenes_compra').select(cols).in('estado', ['enviada', 'parcial', 'recibida']).gte('creado_en', desde).order('creado_en', { ascending: false }).limit(300));
 }
 
 // ---- escrituras ----
@@ -140,6 +150,7 @@ export async function agregarItems(ordenId, items) {
 }
 export const actualizarOrden = async (id, cambios) => ok(await sb.from('ordenes_compra').update(cambios).eq('id', id).select('id'));
 export const actualizarItem = async (id, cantidad) => ok(await sb.from('orden_items').update({ cantidad_pedida: cantidad }).eq('id', id).select('id'));
+export const marcarExcluidos = async (ids, excluido) => ok(await sb.from('orden_items').update({ excluido }).in('id', ids).select('id'));
 export const moverItem = async (id, ordenId) => ok(await sb.from('orden_items').update({ orden_id: ordenId }).eq('id', id).select('id'));
 export const borrarItem = async (id) => ok(await sb.from('orden_items').delete().eq('id', id).select('id'));
 export async function crearOrdenSolo(o) {
