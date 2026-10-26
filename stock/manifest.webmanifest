@@ -3,6 +3,7 @@
   "short_name": "Pedidos",
   "description": "Pedidos a proveedores y stock de los locales de Docks del Puerto.",
   "lang": "es-AR",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
