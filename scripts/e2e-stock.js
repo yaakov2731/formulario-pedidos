@@ -388,6 +388,24 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await e.locator('.pill').isHidden(), 'sin cantidades no hay píldora de Revisar');
   ok(await e.locator('.borrador').isHidden(), 'sin cantidades no hay aviso de pedido guardado');
   await shot(e, '03-pedir-m');
+  // pantalla fija como app de iPhone: la ventana no se desplaza, scrollea sólo #scroller y la barra queda abajo
+  const fija = await e.evaluate(async () => {
+    const sc = document.getElementById('scroller');
+    window.scrollTo(0, 0);
+    const barra = () => document.getElementById('tabbar').getBoundingClientRect().bottom;
+    const antes = barra();
+    sc.scrollTop = 400; await new Promise(r => setTimeout(r, 50));
+    const fs = [...document.querySelectorAll('input, select, textarea')].filter(x => x.offsetParent).map(x => parseFloat(getComputedStyle(x).fontSize));
+    const r = { ventana: document.scrollingElement.scrollHeight <= innerHeight + 1, scrollea: sc.scrollTop > 0, barra: barra() === antes && Math.round(antes) === innerHeight,
+      busca: Math.round(document.querySelector('.toolbar-fija').getBoundingClientRect().top) >= 0, letra: Math.min(...fs), ancho: document.documentElement.scrollWidth <= innerWidth };
+    window.scrollTo(0, 0); r.vuelve = sc.scrollTop === 0;
+    return r;
+  });
+  ok(fija.ventana && fija.scrollea && fija.vuelve, 'iPhone: la ventana no se desplaza, scrollea el contenido y window.scrollTo lo lleva arriba');
+  ok(fija.barra, 'iPhone: la barra inferior no se mueve al scrollear');
+  ok(fija.busca, 'iPhone: el buscador queda fijo arriba al scrollear');
+  ok(fija.letra >= 16, `iPhone: campos con letra de 16 px o más (sin zoom al tocar) · mínimo ${fija.letra}`);
+  ok(fija.ancho, 'iPhone: sin desplazamiento horizontal');
   // buscador: fijo arriba, busca en todo el catálogo aunque haya una categoría elegida
   await e.locator('.chip', { hasText: 'Bebidas' }).click();
   await e.locator('#buscar').fill('chor');

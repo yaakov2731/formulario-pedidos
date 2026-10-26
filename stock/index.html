@@ -7,6 +7,7 @@
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1320">
   <meta name="format-detection" content="telephone=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Pedidos">
   <meta name="description" content="Pedidos a proveedores y stock de los locales de Docks del Puerto.">
@@ -25,7 +26,7 @@
 <body>
   <div id="app" class="app no-nav">
     <aside id="sidebar" class="sidebar" aria-label="Secciones"></aside>
-    <div class="main">
+    <div id="scroller" class="main">
       <header id="topbar" class="topbar" hidden></header>
       <main id="view" class="wrap" aria-live="polite"></main>
     </div>

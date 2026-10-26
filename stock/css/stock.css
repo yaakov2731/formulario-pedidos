@@ -44,11 +44,19 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* Pantalla fija como app nativa: la ventana no se desplaza ni rebota; scrollea sólo el contenido (#scroller). */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { position: fixed; inset: 0; margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.45 var(--font); -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; touch-action: manipulation; }
+button, a, .tab, .chip, .side-link, label { -webkit-user-select: none; user-select: none; }
+input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+img { -webkit-user-drag: none; }
 h1, h2, h3, p { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
+/* iOS agranda la pantalla al tocar un campo con letra menor a 16 px. */
+@media (pointer: coarse) { input, select, textarea { font-size: max(16px, 1em) !important; } }
 a { color: var(--accent-text); }
 :focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; border-radius: 6px; }
 .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
@@ -56,8 +64,9 @@ a { color: var(--accent-text); }
 [hidden] { display: none !important; }
 
 /* ---------- estructura ---------- */
-.app { min-height: 100vh; min-height: 100dvh; }
-.main { min-width: 0; }
+.app { height: 100vh; height: 100dvh; }
+.main { min-width: 0; height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: none; -webkit-overflow-scrolling: touch;
+  padding-top: env(safe-area-inset-top, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
 .wrap { max-width: 760px; margin: 0 auto; padding: 22px var(--gutter) calc(var(--tabbar-h) + var(--sab) + 110px); }
 .app.no-nav .wrap { padding-bottom: 40px; }
 .sidebar { display: none; }
@@ -74,7 +83,7 @@ a { color: var(--accent-text); }
 
 @media (min-width: 820px) {
   .app:not(.no-nav) { display: grid; grid-template-columns: 236px minmax(0, 1fr); }
-  .app:not(.no-nav) .sidebar { display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; padding: 20px 14px; background: var(--surface); border-right: 1px solid var(--sep); gap: 18px; }
+  .app:not(.no-nav) .sidebar { display: flex; flex-direction: column; height: 100%; overflow-y: auto; padding: 20px 14px; background: var(--surface); border-right: 1px solid var(--sep); gap: 18px; }
   .tabbar { display: none; }
   .wrap { padding: 36px 32px 120px; max-width: 980px; }
   .app.no-nav .wrap { max-width: 520px; padding-top: 64px; }
@@ -111,6 +120,11 @@ a { color: var(--accent-text); }
 .btn-block { display: flex; width: 100%; }
 .btn-lg { min-height: 54px; font-size: 17px; }
 .btn:disabled { opacity: 0.55; cursor: default; }
+/* Respuesta al toque como en iOS: se hunde apenas al apretar. */
+.btn, .chip, .icon-btn, .tab, .side-link { transition: transform 0.12s ease, opacity 0.12s ease; }
+.btn:active:not(:disabled), .chip:active, .icon-btn:active, .side-link:active { transform: scale(0.97); }
+.tab:active { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { .btn, .chip, .icon-btn, .tab, .side-link { transition: none; } .btn:active:not(:disabled), .chip:active, .icon-btn:active, .side-link:active { transform: none; } }
 .icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; border: 0; background: var(--fill); }
 
 .input { width: 100%; min-height: 48px; padding: 10px 14px; background: var(--surface); border: 1.5px solid var(--sep); border-radius: var(--r-field); color: var(--text); text-align: center; }
@@ -255,7 +269,7 @@ select.input { text-align: center; text-align-last: center; }
 .vista > .btn-block { margin-top: 8px; }
 
 /* ---------- toasts y hoja ---------- */
-.toasts { position: fixed; left: 0; right: 0; top: 12px; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 12px; }
+.toasts { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 12px; }
 .toast { pointer-events: auto; max-width: 440px; padding: 12px 18px; border-radius: 12px; background: var(--ink); color: var(--ink-text); font-weight: 600; font-size: 15px; text-align: center; box-shadow: var(--shadow-pill); animation: entra 0.2s ease-out; }
 .toast-ok { background: var(--ok-ink); color: #fff; }
 @media (prefers-color-scheme: dark) { .toast-ok { background: #1E7A4C; } }
@@ -269,8 +283,8 @@ select.input { text-align: center; text-align-last: center; }
 .sheet::backdrop { background: var(--backdrop); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 12px 56px; border-bottom: 1px solid var(--sep); }
 .sheet-t { flex: 1; text-align: center; font: 700 19px/1.2 var(--font-display); }
-.sheet-body { padding: 16px; overflow-y: auto; }
-@media (max-width: 819px) { .sheet { margin: auto auto 0; width: 100vw; max-width: none; border-radius: 20px 20px 0 0; max-height: 92dvh; } }
+.sheet-body { padding: 16px; overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 819px) { .sheet { margin: auto auto 0; width: 100vw; max-width: none; border-radius: 20px 20px 0 0; max-height: 92dvh; padding-bottom: env(safe-area-inset-bottom, 0px); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
@@ -583,6 +597,7 @@ a.tb-card:hover { border-color: var(--text-2); }
 @page { size: A4 landscape; margin: 12mm 14mm 16mm;
   @bottom-center { content: "Página " counter(page) " de " counter(pages); font: 10pt "Public Sans", Arial, sans-serif; color: #444; } }
 @media print {
+  html, body, .app, .main { position: static !important; height: auto !important; overflow: visible !important; }
   body.imprimiendo { background: #fff !important; }
   body.imprimiendo > :not(.print-area) { display: none !important; }
   body.imprimiendo .print-area { display: block; color: #000; font: 13pt/1.35 "Public Sans", Arial, sans-serif; }

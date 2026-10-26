@@ -38,6 +38,10 @@ const VISTAS = {
 
 const $app = document.getElementById('app');
 const $view = document.getElementById('view');
+// La ventana queda fija (sin rebote en iPhone) y lo que scrollea es #scroller: los window.scrollTo de las vistas van ahí.
+const $scroller = document.getElementById('scroller');
+const scrollVentana = window.scrollTo.bind(window);
+window.scrollTo = (...a) => { scrollVentana(...a); if ($scroller) $scroller.scrollTo(...a); };
 const $side = document.getElementById('sidebar');
 const $tab = document.getElementById('tabbar');
 
