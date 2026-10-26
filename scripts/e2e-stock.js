@@ -623,6 +623,25 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await popup.close();
   await g.waitForTimeout(500);
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'enviada', 'marca la orden como "enviada"');
+  // Cargar un pedido desde gerencia en nombre de un local
+  await g.locator('[data-accion="cargar"]').click();
+  await g.waitForSelector('.cargar-local');
+  await g.locator('.cargar-local .chip', { hasText: 'Trento Café' }).click();
+  await g.waitForSelector('.prod[data-id="p-trento"]');
+  ok(await g.locator('.prod').count() === 3 && !(await g.locator('#view').innerText()).includes('$'), 'Cargar: catálogo del local elegido (Trento, 3 productos), sin precios');
+  await g.getByRole('button', { name: 'Más · Pedir Café en grano', exact: true }).click();
+  await g.getByRole('button', { name: 'Más · Pedir Café en grano', exact: true }).click();
+  ok(/Trento Café/.test(await g.locator('.vista-head .sub').first().innerText()) && /Tu pedido de Trento Café/.test(await g.locator('.borrador').innerText()), 'Cargar: el encabezado muestra el local elegido');
+  await shot(g, '10d-g-cargar-pc');
+  await g.locator('.pill').click();
+  await g.waitForSelector('#rev-nombre');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos', 'Cargar queda marcado dentro de Pedidos');
+  const nOrd = db.ordenes.length;
+  await g.getByRole('button', { name: 'Enviar pedido' }).click();
+  await g.waitForSelector('.seg-ped');
+  const nueva = db.ordenes.slice(nOrd);
+  ok(nueva.length === 1 && nueva[0].local_id === L2 && nueva[0].proveedor_id === PV.barcena && nueva[0].estado === 'borrador' && nueva[0].cargado_por_nombre === 'Jacobo', 'Cargar: crea la orden del local elegido, en revisión, cargada por Jacobo ' + JSON.stringify(nueva[0]));
+  ok(db.items.some(i => i.orden_id === nueva[0].id && i.producto_id === 'p-trento' && i.cantidad_pedida === 2), 'Cargar: con sus productos');
   // Recibir
   await g.getByRole('link', { name: 'Recibir' }).click();
   await g.waitForSelector('.grupo-prov[data-orden]');
@@ -829,7 +848,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.locator('a.tab[data-nav="pedidos"]').click();
   await gm.waitForSelector('.ped-tabla');
   await shot(gm, '16-g-pedidos-m');
-  await gm.locator('.pt-envio', { hasText: 'Trento Café' }).locator('.pt-fila').click();
+  await gm.locator('.pt-envio', { hasText: 'Angelica' }).locator('.pt-fila').click();
   await gm.waitForSelector('.pt-det');
   await shot(gm, '16b-g-pedidos-detalle-m');
   await gm.locator('.seg-ped [data-vista="proveedor"]').click();

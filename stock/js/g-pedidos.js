@@ -409,7 +409,8 @@ export async function render(root, ctx) {
         on: { click: () => { if (vista !== k) cambiarVista(k); } } }, t, n ? h('span', { class: 'seg-n num', text: String(n) }) : null)));
     mount(root,
       h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pedidos' }),
-        h('p', { class: 'sub', text: vista === 'locales' ? 'Qué pidió cada local, quién y cuándo' : 'Lo pendiente de todos los locales, sumado por proveedor para mandar' })),
+        h('p', { class: 'sub', text: vista === 'locales' ? 'Qué pidió cada local, quién y cuándo' : 'Lo pendiente de todos los locales, sumado por proveedor para mandar' }),
+        h('a', { class: 'btn btn-ghost btn-cargar', href: '#/cargar', 'data-accion': 'cargar' }, icon('mas', 18), h('span', { text: 'Cargar pedido para un local' }))),
       seg,
       ...(vista === 'locales' ? vistaLocales() : vistaProveedor()));
   }
