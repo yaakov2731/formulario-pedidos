@@ -6,11 +6,13 @@ import { icon, toast, esqueleto } from './ui.js';
 const NAV = {
   encargado: [
     { id: 'pedir', label: 'Pedir', icono: 'pedir' },
-    { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' }
+    { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
+    { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
   gerencia: [
     { id: 'tablero', label: 'Tablero', icono: 'tablero' },
     { id: 'pedidos', label: 'Pedidos', icono: 'lista' },
+    { id: 'notas', label: 'Notas', icono: 'nota' },
     { id: 'recibir', label: 'Recibir', icono: 'recibir' },
     { id: 'stock', label: 'Stock', icono: 'stock' },
     { id: 'ventas', label: 'Ventas', icono: 'ventas' },
@@ -24,7 +26,7 @@ const NAV = {
 };
 const RUTAS_PAGOS = { 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js') },
+  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
@@ -32,7 +34,8 @@ const VISTAS = {
     'pedidos': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'),
     'stock': () => import('./g-stock.js'), 'catalogo': () => import('./g-catalogo.js'),
     'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
-    'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js')
+    'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js'),
+    'notas': () => import('./notas.js')
   }
 };
 

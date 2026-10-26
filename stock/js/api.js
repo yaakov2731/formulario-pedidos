@@ -254,3 +254,11 @@ export const guardarProveedor = async (id, datos) => ok(await sb.from('proveedor
 
 // ---- tablero de gerencia (una sola llamada) ----
 export const tablero = async (localId, desde, hasta) => ok(await sb.rpc('tablero', { p_local: localId || null, p_desde: desde, p_hasta: hasta }));
+
+// ---- notas del equipo ----
+const COLS_NOTA = 'id,local_id,para,titulo,texto,color,etiquetas,autor_nombre,autor_rol,fijada,resuelta_en,resuelta_por,leida_en,creado_en,nota_respuestas(id,texto,autor_nombre,autor_rol,creado_en)';
+export const cargarNotas = async () => ok(await sb.from('notas').select(COLS_NOTA).order('creado_en', { ascending: false }).limit(400));
+export const crearNota = async (n) => (await ok(await sb.from('notas').insert(n).select(COLS_NOTA)))[0];
+export const actualizarNota = async (id, cambios) => ok(await sb.from('notas').update(cambios).eq('id', id).select('id'));
+export const borrarNota = async (id) => ok(await sb.from('notas').delete().eq('id', id).select('id'));
+export const responderNota = async (r) => (await ok(await sb.from('nota_respuestas').insert(r).select('id,texto,autor_nombre,autor_rol,creado_en')))[0];

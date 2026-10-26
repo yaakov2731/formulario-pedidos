@@ -17,7 +17,7 @@ const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'c
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-catalogo.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
-  'js/g-tablero.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/aviso.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
+  'js/g-tablero.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/aviso.js', 'js/notas.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -139,6 +139,20 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   const sw = read('sw.js');
   check('el SW precachea los módulos nuevos', ['g-tablero', 'g-cuentas', 'g-facturas', 'g-historial', 'g-cargar-pago', 'g-proveedores', 'aviso', 'pagos-util', 'comprobante', 'pdf-texto'].every(m => sw.includes(`./js/${m}.js`)));
   check('api.js: sube comprobantes al bucket privado y guarda con registrar_pago (rpc transaccional)', /from\('comprobantes'\)/.test(read('js/api.js')) && /rpc\('registrar_pago'/.test(read('js/api.js')) && /rpc\('tablero'/.test(read('js/api.js')));
+
+  // ---- Notas del equipo ----
+  const nt = read('js/notas.js');
+  check('notas: pantalla en el menú del encargado y de gerencia, con ruta en ambos', /id: 'notas'/.test(navEnc) && /id: 'notas'/.test(navGer) && (m4.match(/'notas': \(\) => import\('\.\/notas\.js'\)/g) || []).length === 2);
+  check('notas: el SW precachea notas.js', sw.includes('./js/notas.js'));
+  check('notas: sin precios ni costos', !/precio|costo|importe/i.test(nt));
+  check('notas: el tema oscuro se saca al salir de la pantalla', /classList\.add\('tema-notas'\)/.test(nt) && /classList\.remove\('tema-notas'\)/.test(nt));
+  const NT = await import(pathToFileURL(S('js/util.js')).href).catch(() => null);
+  check('notas: etiquetas sin #, en minúscula y sin repetir', NT && NT.limpiarEtiquetas(['#Urgente', 'urgente', ' Rotura ', '##', 'faltante!']).join() === 'urgente,rotura,faltante');
+  check('notas: carpetas (resueltas aparte, para gerencia, para el equipo, de gerencia)', NT && (() => {
+    const a = { autor_rol: 'encargado', para: 'gerencia' }, b = { autor_rol: 'encargado', para: 'equipo' }, c = { autor_rol: 'gerencia', para: 'equipo' }, r = { ...a, resuelta_en: 'x' };
+    return NT.enCarpeta(a, 'gerencia') && !NT.enCarpeta(b, 'gerencia') && NT.enCarpeta(b, 'equipo') && NT.enCarpeta(c, 'de-gerencia') && !NT.enCarpeta(r, 'todas') && NT.enCarpeta(r, 'resueltas');
+  })());
+  check('notas: migración 0010 con RLS por local y aviso Telegram opcional', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0010_notas.sql'), 'utf8'); return /enable row level security/.test(q) && /local_id = public\.mi_local\(\)/.test(q) && /avisar_nota_telegram/.test(q); })());
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);
