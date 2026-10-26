@@ -1,46 +1,39 @@
-/* App de stock y pedidos · dirección "Comanda": porcelana, tinta azul noche y pimentón. Todo centrado, mobile-first. */
+/* App de stock y pedidos · tema "Brasa": negro carbón con brillo naranja, tarjetas de vidrio oscuro y acentos ámbar.
+   Siempre oscuro (no depende del modo del teléfono). Todo centrado, mobile-first. La impresión sale en blanco (@media print). */
 :root {
-  color-scheme: light dark;
-  --bg: #F2F4F6;
-  --surface: #FFFFFF;
-  --surface-2: #F7F8FA;
-  --fill: rgba(14, 26, 43, 0.07);
-  --sep: #D5DBE2;
-  --text: #0E1A2B;
-  --text-2: #4F5A6A;
-  --accent: #C9441F;          /* botones (texto blanco, contraste 4.8) */
-  --accent-deco: #E2542B;     /* solo decorativo */
-  --accent-text: #B53B18;     /* acento como texto sobre porcelana */
-  --accent-ink: #FFFFFF;
-  --accent-soft: #FBEDE7;
-  --ink: #0E1A2B;
-  --ink-text: #FFFFFF;
-  --warn-ink: #7A4300; --warn-soft: #FBF0DC; --warn-line: #E9C98E;
-  --ok-ink: #17623D; --ok-soft: #E3F2EA; --ok-line: #A9D7BC;
-  --bad-ink: #9E2A1A; --bad-soft: #FBE7E3; --bad-line: #EDB5AB;
-  --info-ink: #2B3F5C; --info-soft: #E8EDF3; --info-line: #C4CFDC;
-  --backdrop: rgba(14, 26, 43, 0.4);
-  --shadow-pill: 0 12px 28px -10px rgba(14, 26, 43, 0.55);
-  --r-card: 14px; --r-field: 10px;
+  color-scheme: dark;
+  --bg: #0B0908;
+  /* vidrio oscuro cálido: brillo arriba que se apaga hacia abajo (se usa siempre como background, puede ser capa) */
+  --surface: linear-gradient(180deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.02) 100%), rgba(34, 28, 26, 0.70);
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --fill: rgba(255, 255, 255, 0.08);
+  --sep: rgba(255, 255, 255, 0.11);
+  --text: #F6F1EC;
+  --text-2: #B3A69C;
+  --accent: #F58220;          /* naranja brasa: botones con texto oscuro */
+  --accent-deco: #F58220;
+  --accent-text: #FFA149;     /* acento como texto sobre negro */
+  --accent-ink: #1C0E03;
+  --accent-soft: rgba(245, 130, 32, 0.17);
+  --accent-grad: linear-gradient(180deg, #FFA74A 0%, #F3741C 100%);
+  --amber: #F7C744;           /* amarillo de títulos */
+  --ink: #F58220;             /* elegido (chips, locales): naranja */
+  --ink-text: #1C0E03;
+  --warn-ink: #F6C27F; --warn-soft: rgba(240, 165, 74, 0.14); --warn-line: rgba(240, 165, 74, 0.38);
+  --ok-ink: #8AE6AC; --ok-soft: rgba(76, 197, 122, 0.14); --ok-line: rgba(76, 197, 122, 0.36);
+  --bad-ink: #FF9C8E; --bad-soft: rgba(255, 106, 85, 0.15); --bad-line: rgba(255, 106, 85, 0.40);
+  --info-ink: #D9CCC2; --info-soft: rgba(255, 236, 220, 0.08); --info-line: rgba(255, 236, 220, 0.20);
+  --backdrop: rgba(0, 0, 0, 0.62);
+  --shadow-pill: 0 14px 30px -10px rgba(245, 130, 32, 0.55);
+  --glass-hi: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 18px 40px -30px rgba(0, 0, 0, 0.95);
+  --r-card: 18px; --r-field: 12px;
   --gutter: 16px;
   --tabbar-h: 60px;
   --sab: env(safe-area-inset-bottom, 0px);
   --font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-display: "Familjen Grotesk", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Poppins", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0B1320; --surface: #141E2C; --surface-2: #1A2534; --fill: rgba(170, 186, 206, 0.12); --sep: #2A3746;
-    --text: #EEF1F4; --text-2: #A3AEBC;
-    --accent: #C9441F; --accent-text: #F58C69; --accent-soft: rgba(232, 96, 58, 0.16);
-    --ink: #EEF1F4; --ink-text: #0B1320;
-    --warn-ink: #F6C27F; --warn-soft: rgba(240, 165, 74, 0.14); --warn-line: rgba(240, 165, 74, 0.35);
-    --ok-ink: #8AE6AC; --ok-soft: rgba(76, 197, 122, 0.14); --ok-line: rgba(76, 197, 122, 0.35);
-    --bad-ink: #FF9C8E; --bad-soft: rgba(255, 106, 85, 0.14); --bad-line: rgba(255, 106, 85, 0.38);
-    --info-ink: #BCC8D8; --info-soft: rgba(170, 186, 206, 0.12); --info-line: rgba(170, 186, 206, 0.25);
-    --backdrop: rgba(0, 0, 0, 0.6); --shadow-pill: 0 12px 28px -10px rgba(0, 0, 0, 0.8);
-  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -272,10 +265,8 @@ select.input { text-align: center; text-align-last: center; }
 /* ---------- toasts y hoja ---------- */
 .toasts { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 12px; }
 .toast { pointer-events: auto; max-width: 440px; padding: 12px 18px; border-radius: 12px; background: var(--ink); color: var(--ink-text); font-weight: 600; font-size: 15px; text-align: center; box-shadow: var(--shadow-pill); animation: entra 0.2s ease-out; }
-.toast-ok { background: var(--ok-ink); color: #fff; }
-@media (prefers-color-scheme: dark) { .toast-ok { background: #1E7A4C; } }
-.toast-error { background: var(--bad-ink); color: #fff; }
-@media (prefers-color-scheme: dark) { .toast-error { background: #B8321F; } }
+.toast-ok { background: #1E7A4C; color: #fff; }
+.toast-error { background: #B8321F; color: #fff; }
 .toast.is-out { opacity: 0; transition: opacity 0.25s; }
 @keyframes entra { from { transform: translateY(-8px); opacity: 0; } }
 
@@ -623,7 +614,7 @@ a.tb-card:hover { border-color: var(--text-2); }
 .prod-stk.stk-ok { border-top-color: var(--ok-line); }
 .stk-top { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .stk-pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
-.stk-pill-agotado { background: var(--bad-ink); color: var(--surface); }
+.stk-pill-agotado { background: var(--bad-ink); color: #1C0E03; }
 .stk-pill-bajo { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid var(--warn-line); }
 .stk-pill-ok { background: var(--ok-soft); color: var(--ok-ink); }
 .stk-cols { display: grid; grid-template-columns: 1fr 1.2fr 1fr; width: 100%; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--sep); }
@@ -676,6 +667,42 @@ a.tb-card:hover { border-color: var(--text-2); }
   td.pr-ok::after { content: ""; display: inline-block; width: 14pt; height: 14pt; border: 1pt solid #000; border-radius: 2pt; }
 }
 
+/* ---------- tema "Brasa": fondo con brillo naranja, vidrio oscuro y pills naranja ---------- */
+body { background:
+  radial-gradient(80% 55% at 100% 0%, rgba(247, 128, 32, 0.62), transparent 72%),
+  radial-gradient(75% 50% at 0% 100%, rgba(240, 108, 28, 0.55), transparent 74%),
+  radial-gradient(50% 35% at 0% 0%, rgba(190, 78, 22, 0.40), transparent 72%),
+  radial-gradient(70% 45% at 60% 55%, rgba(120, 52, 18, 0.22), transparent 78%),
+  var(--bg); }
+/* Tarjetas: vidrio oscuro con brillo arriba. Sin blur (en iPhone con muchas tarjetas se pone lento). */
+.prod, .grupo-prov, .ped, .skel-card, .arch, .kpi, .bloque, .drop, .tb-card, .imp-fila, .pt-envio, .ped-tabla, .cargar-local, .stk-k, .local-btn, .chip, .btn-ghost, .step-btn {
+  box-shadow: var(--glass-hi), var(--glass-shadow); }
+.input { background: rgba(255, 255, 255, 0.06); }
+.input:focus { background: rgba(255, 255, 255, 0.09); }
+select.input option { background: #1E1815; color: var(--text); }
+/* Botón principal, elegidos y contadores: pill naranja con degradé, como los precios de la referencia. */
+.btn-primary, .chip.is-on, .local-btn.is-on, .seg-n { background: var(--accent-grad); border-color: transparent; color: var(--accent-ink); }
+.btn-primary { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 24px -14px rgba(245, 130, 32, 0.9); }
+.chip.is-on, .local-btn.is-on { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -12px rgba(245, 130, 32, 0.9); }
+.prod.is-on { border-color: rgba(255, 161, 73, 0.75); box-shadow: var(--glass-hi), 0 0 0 1px rgba(255, 161, 73, 0.25), 0 14px 30px -20px rgba(245, 130, 32, 0.7); }
+.seg-b.is-on, .subnav-b.is-on { background: rgba(255, 255, 255, 0.13); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+.stk-k.is-on { border-color: var(--accent-text); box-shadow: var(--glass-hi), 0 0 0 1px rgba(255, 161, 73, 0.3); }
+.stk-pedir { background: var(--accent-grad); color: var(--accent-ink); }
+/* Títulos blancos con peso de la referencia; rótulos de sección en amarillo. */
+.titulo, .sheet-t, .side-brand b { font-weight: 700; letter-spacing: -0.005em; }
+.cat-t { color: var(--amber); }
+.toast { background: rgba(34, 27, 24, 0.96); color: var(--text); border: 1px solid var(--sep); }
+/* Barras: vidrio esmerilado sobre el brillo. */
+.tabbar { background: rgba(14, 11, 10, 0.82); border-top-color: rgba(255, 255, 255, 0.08); -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4); }
+@media (min-width: 820px) {
+  .app:not(.no-nav) .sidebar { background: rgba(14, 11, 10, 0.55); border-right-color: rgba(255, 255, 255, 0.08); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); }
+}
+.side-link.is-active { background: rgba(255, 255, 255, 0.08); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+.side-link.is-active svg { color: var(--accent-text); }
+.toolbar-fija { background: rgba(16, 12, 10, 0.55); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.sheet { background: rgba(28, 22, 20, 0.97); border: 1px solid var(--sep); -webkit-backdrop-filter: blur(28px) saturate(1.3); backdrop-filter: blur(28px) saturate(1.3); }
+.sheet::backdrop { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+
 /* ---------- Notas del equipo: tablero oscuro con vidrio esmerilado y post-its ---------- */
 .tema-notas {
   color-scheme: dark;
@@ -688,7 +715,7 @@ a.tb-card:hover { border-color: var(--text-2); }
 }
 .app.tema-notas { background:
   radial-gradient(60% 45% at 8% 6%, rgba(242, 160, 52, 0.22), transparent 70%),
-  radial-gradient(55% 40% at 96% 18%, rgba(82, 132, 230, 0.16), transparent 70%),
+  radial-gradient(55% 40% at 96% 18%, rgba(245, 120, 30, 0.22), transparent 70%),
   radial-gradient(70% 50% at 50% 108%, rgba(246, 199, 70, 0.10), transparent 70%),
   #0A0E16; color: var(--text); }
 .app.tema-notas .sidebar { background: rgba(14, 19, 29, 0.55); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); }
