@@ -563,3 +563,46 @@ a.tb-card:hover { border-color: var(--text-2); }
 .btn-cargar { margin-top: 12px; min-height: 44px; }
 .cargar-local { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 14px; padding: 12px; border-radius: var(--r-card); background: var(--surface); border: 1.5px solid var(--sep); }
 .cargar-k { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+
+/* ---------- Pedidos: destildar productos e imprimir ---------- */
+.pp-barra { display: flex; flex-direction: column; gap: 8px; margin: -6px 0 12px; }
+.pp-barra .pp-recordar { margin: 0; }
+.btn-sm { min-height: 40px; padding: 0 14px; font-size: 15px; }
+@media (min-width: 820px) { .pp-barra { flex-direction: row; align-items: center; justify-content: space-between; } }
+.pp-fila.con-chk { grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-areas: "sel prod cant" ". prov prov"; }
+.pp-sel { grid-area: sel; display: grid; place-items: center; width: 36px; height: 36px; cursor: pointer; }
+.pp-chk { width: 24px; height: 24px; accent-color: var(--accent); cursor: pointer; }
+.pp-fila.is-fuera .pp-prod b, .pp-fila.is-fuera .pp-cant { text-decoration: line-through; color: var(--text-2); }
+.pp-fila.is-fuera .pp-prov { opacity: 0.5; }
+@media (min-width: 820px) {
+  .pp-fila.con-chk { grid-template-columns: 44px minmax(0, 1fr) 120px minmax(0, 340px); grid-template-areas: none; }
+  .pp-fila.con-chk > * { grid-area: auto; }
+}
+
+.print-area { display: none; }
+@page { size: A4 landscape; margin: 12mm 14mm 16mm;
+  @bottom-center { content: "Página " counter(page) " de " counter(pages); font: 10pt "Public Sans", Arial, sans-serif; color: #444; } }
+@media print {
+  body.imprimiendo { background: #fff !important; }
+  body.imprimiendo > :not(.print-area) { display: none !important; }
+  body.imprimiendo .print-area { display: block; color: #000; font: 13pt/1.35 "Public Sans", Arial, sans-serif; }
+  .pr-prov + .pr-prov { break-before: page; }
+  .pr-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding-bottom: 8pt; margin-bottom: 10pt; border-bottom: 2pt solid #000; break-after: avoid; }
+  .pr-marca { font-size: 11pt; text-transform: uppercase; letter-spacing: 0.08em; color: #444; }
+  .pr-t { font: 700 22pt/1.1 "Familjen Grotesk", "Public Sans", Arial, sans-serif; text-align: left; }
+  .pr-datos { text-align: right; font-size: 11pt; color: #222; }
+  .pr-tabla { width: 100%; border-collapse: collapse; margin: 0 0 14pt; font-size: 13pt; }
+  .pr-tabla.pr-junta { break-inside: avoid; }
+  .pr-tabla thead { display: table-header-group; }
+  .pr-tabla tr { break-inside: avoid; }
+  .pr-tabla th, .pr-tabla td { padding: 5pt 8pt; border-bottom: 0.75pt solid #999; text-align: left; vertical-align: top; }
+  .pr-tabla th { font-size: 10pt; text-transform: uppercase; letter-spacing: 0.06em; color: #333; border-bottom: 1.25pt solid #000; }
+  .pr-tabla th.pr-local { font-size: 13pt; text-transform: none; letter-spacing: 0; color: #000; background: #eee; border-bottom: 0; }
+  .pr-local span { font-weight: 400; }
+  .pr-nota { font-style: italic; }
+  .pr-para { float: right; font-size: 11pt; color: #333; }
+  .pr-num { text-align: right !important; font-variant-numeric: tabular-nums; width: 14%; font-weight: 700; }
+  .pr-tabla td:nth-child(3), .pr-tabla th:nth-child(3) { width: 18%; }
+  .pr-ok { width: 12%; }
+  td.pr-ok::after { content: ""; display: inline-block; width: 14pt; height: 14pt; border: 1pt solid #000; border-radius: 2pt; }
+}
