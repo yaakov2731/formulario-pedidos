@@ -4,7 +4,7 @@
 // "Por proveedor": arma el envío de cada proveedor sumando todos los locales; cada producto se puede pasar a otro
 //   proveedor (con proveedor sugerido) y se aprueba y manda por WhatsApp.
 import { mount, h, norm, fmtNum, fmtMoney, parseNum, groupBy, porTexto, fechaCorta, lsGet, lsSet, hoyISO, sumarDias, ESTADOS } from './util.js';
-import { swr, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, mensajeError } from './api.js';
+import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal } from './datos.js';
 import { esqueleto, vacio, banner, toast, icon, hoja } from './ui.js';
 import { imagenOrden } from './orden-imagen.js';
@@ -22,8 +22,26 @@ export async function render(root, ctx) {
   let filtroLocal = '';
   let recordar = lsGet('g:ped:recordar', true) !== false;
   const abiertos = new Set();
-  const fuera = new Set(lsGet('g:ped:fuera', [])); // ítems destildados en "Por proveedor": no se mandan ni se imprimen
-  const guardarFuera = () => lsSet('g:ped:fuera', [...fuera]);
+  // Ítems destildados en "Por proveedor": no se mandan ni se imprimen. Se guardan en el servidor (orden_items.excluido)
+  // para verse igual en el celular y la PC; si la base todavía no tiene la columna, quedan en este dispositivo.
+  let fuera = new Set(lsGet('g:ped:fuera', []));
+  const guardarFuera = () => { if (!guardaExcluidos()) lsSet('g:ped:fuera', [...fuera]); };
+  async function cambiarFuera(ids, sacar) {
+    ids.forEach(id => { if (sacar) fuera.add(id); else fuera.delete(id); });
+    for (const o of ordenes) for (const i of o.orden_items) if (ids.includes(i.id)) i.excluido = sacar;
+    if (!guardaExcluidos()) return guardarFuera();
+    try { await marcarExcluidos(ids, sacar); } catch (x) { toast('No se pudo guardar: ' + mensajeError(x), 'error'); }
+  }
+  // Al leer del servidor: lo destildado viene en cada ítem; lo que había quedado guardado solo en este dispositivo se sube una vez.
+  async function leerFuera() {
+    if (!guardaExcluidos()) return;
+    const locales = lsGet('g:ped:fuera', []);
+    const vivos = new Set(ordenes.filter(o => VIVAS.includes(o.estado)).flatMap(o => o.orden_items.map(i => i.id)));
+    const subir = locales.filter(id => vivos.has(id) && !ordenes.some(o => o.orden_items.some(i => i.id === id && i.excluido)));
+    fuera = new Set(ordenes.flatMap(o => o.orden_items.filter(i => i.excluido).map(i => i.id)));
+    if (subir.length) { await cambiarFuera(subir, true).catch(() => {}); }
+    if (locales.length) lsSet('g:ped:fuera', []);
+  }
   const pend = new Map(); // item.id -> { qty, timer }
 
   const flush = async () => {
@@ -401,8 +419,8 @@ export async function render(root, ctx) {
       const sug = sinProv ? sugerir(x.producto_id) : null;
       const off = !sinProv && estaFuera(x);
       const chk = sinProv ? null : h('input', { type: 'checkbox', class: 'pp-chk', checked: !off, 'aria-label': `Pedir ${nombreProd(x)}`, on: { change: (e) => {
-        x.pares.forEach(p => { if (e.target.checked) fuera.delete(p.it.id); else fuera.add(p.it.id); });
-        guardarFuera(); pintar();
+        cambiarFuera(x.pares.map(p => p.it.id), !e.target.checked);
+        pintar();
       } } });
       return h('div', { class: 'pp-fila' + (chk ? ' con-chk' : '') + (off ? ' is-fuera' : ''), 'data-prod': x.producto_id },
         chk ? h('label', { class: 'pp-sel', title: off ? 'No se pide' : 'Se pide' }, chk) : null,
@@ -499,6 +517,12 @@ export async function render(root, ctx) {
   await swr('g:ord:tabla', async () => {
     const [vs, hist] = await Promise.all([ordenesPorEstado(VIVAS), ordenesHistorial(desde)]);
     return [...vs, ...hist];
-  }, (d) => { if (!pend.size) { ordenes = d.map(o => ({ ...o, orden_items: o.orden_items || [] })); pintar(); } });
+  }, async (d, deCache) => {
+    if (pend.size) return;
+    ordenes = d.map(o => ({ ...o, orden_items: o.orden_items || [] }));
+    if (deCache) fuera = new Set([...lsGet('g:ped:fuera', []), ...ordenes.flatMap(o => o.orden_items.filter(i => i.excluido).map(i => i.id))]);
+    else await leerFuera();
+    pintar();
+  });
   return () => { flush().catch(() => {}); };
 }
