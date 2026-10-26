@@ -25,7 +25,7 @@ const pedidoActual = () => S.prods.filter(p => p.activo !== false && !esCarta(p)
 
 async function cargar(ctx, alActualizar) {
   const lid = ctx.perfil.local_id, uid = ctx.perfil.id || null;
-  if (S.lid !== lid || S.uid !== uid) { Object.assign(S, { lid, uid, prods: [], stock: new Map(), provs: new Map(), listo: false }); cargarBorrador(); }
+  if (S.lid !== lid || S.uid !== uid) { Object.assign(S, { lid, uid, prods: [], stock: new Map(), provs: new Map(), local: null, listo: false, jcat: null, jstk: null, jprv: null, jloc: null }); cargarBorrador(); }
   const pon = (clave, fn) => (d, _cache, err) => { const j = JSON.stringify(d); if (j === (S['j' + clave])) return; S['j' + clave] = j; fn(d); S.offline = !!err; alActualizar(); };
   const tareas = [
     swr('cat:' + lid, () => cargarCatalogo(lid), pon('cat', d => { S.prods = d; })),
@@ -188,9 +188,10 @@ function pintarRevisar(root, ctx) {
   const aviso = avisoCierre();
   let nombre = lsGet('nombre') || ctx.perfil.nombre || '';
   let nota = '';
-  const volver = h('a', { class: 'volver', href: '#/pedir', text: '‹ Seguir pidiendo' });
+  const rPedir = '#/' + (ctx.rutaPedir || 'pedir');
+  const volver = h('a', { class: 'volver', href: rPedir, text: '‹ Seguir pidiendo' });
   if (!grupos.length) {
-    mount(root, volver, cabecera('Revisar pedido'), vacio('No hay nada para pedir', 'Volvé y sumá productos.'), h('a', { class: 'btn btn-primary', href: '#/pedir', text: 'Ir a pedir' }));
+    mount(root, volver, cabecera('Revisar pedido'), vacio('No hay nada para pedir', 'Volvé y sumá productos.'), h('a', { class: 'btn btn-primary', href: rPedir, text: 'Ir a pedir' }));
     return;
   }
   const err = h('div', { class: 'form-err', 'aria-live': 'polite' });
@@ -244,7 +245,7 @@ function pintarRevisar(root, ctx) {
     guardarBorrador();
     if (!fallos) {
       enviado = { ordenes: {}, hechos: new Set() };
-      toast('Pedido enviado. Gerencia lo revisa.', 'ok');
+      toast(ctx.gerencia ? `Pedido de ${S.local ? S.local.nombre : 'el local'} cargado: quedó en Pedidos para revisar.` : 'Pedido enviado. Gerencia lo revisa.', 'ok');
       ctx.ir('mis-pedidos');
     } else {
       btn.disabled = false; btn.textContent = ok ? 'Reintentar lo que falta' : 'Enviar pedido';

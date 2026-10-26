@@ -122,6 +122,13 @@ export async function ordenesPorEstado(estados) {
     .in('estado', estados).order('creado_en', { ascending: true }).limit(500));
 }
 
+// Pedidos ya enviados al proveedor (o recibidos) desde una fecha: para la tabla de gerencia y el proveedor habitual.
+export async function ordenesHistorial(desde) {
+  return ok(await sb.from('ordenes_compra')
+    .select('id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida)')
+    .in('estado', ['enviada', 'parcial', 'recibida']).gte('creado_en', desde).order('creado_en', { ascending: false }).limit(300));
+}
+
 // ---- escrituras ----
 export async function crearOrden(o, items) {
   const [orden] = await ok(await sb.from('ordenes_compra').insert(o).select('id'));
@@ -133,6 +140,7 @@ export async function agregarItems(ordenId, items) {
 }
 export const actualizarOrden = async (id, cambios) => ok(await sb.from('ordenes_compra').update(cambios).eq('id', id).select('id'));
 export const actualizarItem = async (id, cantidad) => ok(await sb.from('orden_items').update({ cantidad_pedida: cantidad }).eq('id', id).select('id'));
+export const moverItem = async (id, ordenId) => ok(await sb.from('orden_items').update({ orden_id: ordenId }).eq('id', id).select('id'));
 export const borrarItem = async (id) => ok(await sb.from('orden_items').delete().eq('id', id).select('id'));
 export async function crearOrdenSolo(o) {
   const [orden] = await ok(await sb.from('ordenes_compra').insert(o).select('id'));
