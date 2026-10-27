@@ -13,6 +13,7 @@ export function mensajeError(e) {
   if (/failed to fetch|networkerror|load failed|network request failed|fetch/i.test(m) && !code) return 'Sin conexión. Revisá internet e intentá de nuevo.';
   if (code === '42501' || /row-level security|permission denied|not authorized|JWT/i.test(m)) return 'No tenés permiso para hacer eso.';
   if (/operaci[oó]n .* ya est[aá] cargada|pagos_numero_operacion_uq/i.test(m)) return 'Esa operación ya está cargada: el pago no se registra dos veces.';
+  if (/proveedores_nombre_key/i.test(m)) return 'Ya hay un proveedor con ese nombre.';
   if (/facturas_proveedor_proveedor_id_numero_key/i.test(m)) return 'Ya cargaste una factura con ese número para este proveedor.';
   if (code === '23505' || /duplicate key/i.test(m)) return 'Ya existe un registro igual (código repetido).';
   if (/email not confirmed/i.test(m)) return 'La cuenta todavía no está confirmada. Avisale a gerencia.';
@@ -106,7 +107,14 @@ export const cargarStock = (localId) => todo(() => {
   return q;
 });
 export const cargarProveedoresBasico = async () => ok(await sb.from('proveedores_basico').select('id,nombre,dias_entrega,corte,tiene_minimo,activo').order('nombre'));
-export const cargarProveedores = async () => ok(await sb.from('proveedores').select('id,nombre,whatsapp,cuit,alias_cbu,dias_entrega,corte,pedido_minimo,activo').order('nombre'));
+const COLS_PROV = 'id,nombre,whatsapp,cuit,alias_cbu,dias_entrega,corte,pedido_minimo,notas,activo';
+const COLS_PROV_0011 = ',razon_social,contacto,telefono,email,whatsapp_pagos,email_pagos,banco';
+// Si todavía no se corrió 0011_proveedores_datos.sql, trae solo las columnas de siempre (sin contacto, email ni datos de cobranza).
+export async function cargarProveedores() {
+  const r = await sb.from('proveedores').select(COLS_PROV + COLS_PROV_0011).order('nombre');
+  if (r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''))) return ok(await sb.from('proveedores').select(COLS_PROV).order('nombre'));
+  return ok(r);
+}
 export const cargarLocales = async () => ok(await sb.from('locales').select('id,codigo,nombre,encargados,activo').order('nombre'));
 export const cargarPrecios = async () => ok(await sb.from('precio_actual').select('producto_id,precio'));
 export const buscarServidor = async (q, localId) => ok(await sb.rpc('buscar_productos', { q, p_local: localId || null }));
@@ -250,7 +258,8 @@ export async function urlComprobante(ruta, nombreDescarga) {
   if (error) throw error;
   return data.signedUrl;
 }
-export const guardarProveedor = async (id, datos) => ok(await sb.from('proveedores').update(datos).eq('id', id).select('id,nombre,whatsapp,cuit,alias_cbu'));
+export const guardarProveedor = async (id, datos) => ok(await sb.from('proveedores').update(datos).eq('id', id).select('id'));
+export const crearProveedor = async (datos) => { const [r] = await ok(await sb.from('proveedores').insert(datos).select('id')); return r.id; };
 
 // ---- tablero de gerencia (una sola llamada) ----
 export const tablero = async (localId, desde, hasta) => ok(await sb.rpc('tablero', { p_local: localId || null, p_desde: desde, p_hasta: hasta }));

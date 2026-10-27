@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql y 0011_proveedores_datos.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -70,6 +70,13 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig8 = fs.readFileSync(path.join(root, 'supabase/migrations/0008_borrar_importacion.sql'), 'utf8');
   try { await db.exec(mig8); await db.exec(mig8); check('aplica 0008_borrar_importacion.sql (idempotente)', true); }
   catch (e) { check('aplica 0008_borrar_importacion.sql (idempotente)', false, e.message); return finish(); }
+  const mig11 = fs.readFileSync(path.join(root, 'supabase/migrations/0011_proveedores_datos.sql'), 'utf8');
+  try {
+    await db.exec(mig11); await db.exec(mig11);
+    const cols = (await db.query(`select column_name from information_schema.columns where table_schema='public' and table_name='proveedores'`)).rows.map(r => r.column_name);
+    const faltan = ['razon_social', 'contacto', 'telefono', 'email', 'whatsapp_pagos', 'email_pagos', 'banco'].filter(c => !cols.includes(c));
+    check('aplica 0011_proveedores_datos.sql (idempotente) con contacto, email y datos de pago', !faltan.length, faltan.join(', '));
+  } catch (e) { check('aplica 0011_proveedores_datos.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;

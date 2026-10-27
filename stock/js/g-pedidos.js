@@ -9,6 +9,7 @@ import { G, cargarG, nombreLocal } from './datos.js';
 import { esqueleto, vacio, banner, toast, icon, hoja } from './ui.js';
 import { imagenOrden } from './orden-imagen.js';
 import { puedeCompartirArchivos } from './aviso.js';
+import { urlMail } from './pagos-util.js';
 
 const SIN = '__sin__';
 const VIVAS = ['borrador', 'aprobada'];
@@ -279,7 +280,7 @@ export async function render(root, ctx) {
   const textoWA = (prov, bloques, fecha) => {
     const partes = bloques.map(b => `*${b.titulo}*\n${b.lineas.map(l => `• ${l.cant} ${l.unidad || ''} ${l.nombre}`.replace(/\s+/g, ' ') + (l.detalle ? ` (${l.detalle})` : '')).join('\n')}`);
     const n = bloques.reduce((a, b) => a + b.lineas.length, 0);
-    return `Hola ${prov.nombre}! Te paso el pedido de *Docks del Puerto* del ${fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n${partes.join('\n\n')}\n\nTotal: ${n} ${n === 1 ? 'producto' : 'productos'}. ¡Gracias!`;
+    return `Hola ${prov.contacto || prov.nombre}! Te paso el pedido de *Docks del Puerto* del ${fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n${partes.join('\n\n')}\n\nTotal: ${n} ${n === 1 ? 'producto' : 'productos'}. ¡Gracias!`;
   };
 
   // Hoja para mandar el pedido al proveedor: imagen con el logo + mensaje. Lo envía siempre una persona.
@@ -292,10 +293,10 @@ export async function render(root, ctx) {
     const txt = h('div', { class: 'aviso-txt', 'data-aviso': '' });
     const acciones = h('div', { class: 'form' });
     const cuerpo = h('div', { class: 'form' },
-      h('p', { class: 'sub', text: `Para ${prov.nombre}${prov.whatsapp ? ' · ' + prov.whatsapp : ''}` }),
+      h('p', { class: 'sub', 'data-destino': '', text: `Para ${prov.nombre}${prov.contacto ? ' (' + prov.contacto + ')' : ''}${prov.whatsapp ? ' · WhatsApp ' + prov.whatsapp : ''}${prov.email ? ' · ' + prov.email : ''}` }),
       sacados ? banner(`${sacados} ${sacados === 1 ? 'producto destildado no va en el pedido y sale' : 'productos destildados no van en el pedido y salen'} al marcarlo como enviado.`, 'info') : null,
       seg, vistaImg, txt, acciones);
-    const { cerrar } = hoja('Enviar pedido por WhatsApp', cuerpo, { onClose: () => { if (urlImg) URL.revokeObjectURL(urlImg); } });
+    const { cerrar } = hoja(prov.whatsapp || !prov.email ? 'Enviar pedido por WhatsApp' : 'Enviar pedido', cuerpo, { onClose: () => { if (urlImg) URL.revokeObjectURL(urlImg); } });
     const nombreArchivo = `pedido-${prov.nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${fecha.toISOString().slice(0, 10)}.png`;
 
     async function enviado() { try { await alEnviar(); } catch (x) { toast('Se envió, pero no pude marcarlo como enviado: ' + mensajeError(x), 'error'); } cerrar(); }
@@ -327,13 +328,18 @@ export async function render(root, ctx) {
         } } }, icon('whatsapp', 20), h('span', { text: 'Compartir por WhatsApp con la imagen' })));
       } else {
         const digitos = String(prov.whatsapp || '').replace(/\D/g, '');
-        if (!digitos) lista.push(banner(`${prov.nombre} no tiene WhatsApp cargado. Cargalo en Proveedores.`, 'warn'));
+        if (!digitos) lista.push(banner(`${prov.nombre} no tiene WhatsApp cargado.${prov.email ? ' Podés mandarlo por email.' : ' Cargalo en Proveedores.'}`, 'warn'));
         lista.push(h('button', { class: 'btn btn-primary btn-block btn-lg', type: 'button', disabled: !digitos, 'data-accion': 'wa', on: { click: async () => {
           window.open(`https://wa.me/${digitos}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
           await enviado();
         } } }, icon('whatsapp', 20), h('span', { text: 'Abrir WhatsApp con el mensaje' })));
         if (file) lista.push(banner('En la computadora WhatsApp no recibe la imagen sola: descargala y adjuntala en el chat.', 'info'));
       }
+      const urlM = urlMail(prov.email, `Pedido de Docks del Puerto · ${fecha.toLocaleDateString('es-AR')}`, texto.replace(/\*/g, ''));
+      if (urlM) lista.push(h('button', { class: 'btn btn-ghost btn-block', type: 'button', 'data-accion': 'mail', on: { click: async () => {
+        window.location.href = urlM;
+        await enviado();
+      } } }, icon('mail', 20), h('span', { text: `Mandar por email a ${prov.email}` })));
       if (urlImg && file) lista.push(h('a', { class: 'btn btn-ghost btn-block', href: urlImg, download: nombreArchivo, 'data-accion': 'descargar' }, h('span', { text: 'Descargar la imagen' })));
       if (v === version) acciones.replaceChildren(...lista);
     }
@@ -368,7 +374,8 @@ export async function render(root, ctx) {
     return h('section', { class: 'pr-prov' },
       h('header', { class: 'pr-head' },
         h('div', {}, h('p', { class: 'pr-marca', text: 'Docks del Puerto · Pedido de compra' }), h('h1', { class: 'pr-t', text: prov.nombre })),
-        h('div', { class: 'pr-datos' }, h('p', { text: fecha }), prov.whatsapp ? h('p', { text: 'WhatsApp ' + prov.whatsapp }) : null,
+        h('div', { class: 'pr-datos' }, h('p', { text: fecha }), prov.contacto ? h('p', { text: 'Contacto ' + prov.contacto }) : null,
+          prov.whatsapp ? h('p', { text: 'WhatsApp ' + prov.whatsapp }) : null, prov.telefono ? h('p', { text: 'Tel. ' + prov.telefono }) : null, prov.email ? h('p', { text: prov.email }) : null,
           h('p', { text: `${n} ${n === 1 ? 'producto' : 'productos'} · ${porLocal.length} ${porLocal.length === 1 ? 'local' : 'locales'}` }))),
       porLocal.map(([lid, lista]) => {
         const m = new Map();
@@ -448,7 +455,7 @@ export async function render(root, ctx) {
     const btnWA = !sinProv ? h('button', { class: 'btn btn-primary', type: 'button', disabled: !quedan.length, on: { click: async () => {
       try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
       abrirEnvio(prov || { nombre }, incluidos(os), async () => { await marcarEnviado(os); toast(`${nombre}: marcado como enviado`, 'ok'); pintar(); }, sacados);
-    } } }, icon('whatsapp', 18), h('span', { text: 'Enviar por WhatsApp' })) : null;
+    } } }, icon(prov && !prov.whatsapp && prov.email ? 'mail' : 'whatsapp', 18), h('span', { text: prov && !prov.whatsapp && prov.email ? 'Enviar por email' : 'Enviar por WhatsApp' })) : null;
     const btnPrint = !sinProv ? h('button', { class: 'btn btn-ghost', type: 'button', 'data-accion': 'imprimir', disabled: !quedan.length, on: { click: async () => {
       try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
       imprimir([{ prov: prov || { nombre }, os: incluidos(os) }]);
@@ -468,7 +475,7 @@ export async function render(root, ctx) {
       min && tot < min ? h('p', { class: 'gp-nota gp-warn', text: `Pedido mínimo ${fmtMoney(min)}: faltan ${fmtMoney(min - tot)}.` }) : null,
       sacados ? h('p', { class: 'gp-nota gp-info', text: `${sacados} ${sacados === 1 ? 'producto destildado: no se manda ni se imprime' : 'productos destildados: no se mandan ni se imprimen'}. Al marcarlo como enviado sale del pedido.` }) : null,
       sinProv ? h('p', { class: 'gp-nota gp-warn', text: sugs.length ? 'Elegí el proveedor de cada producto o usá los sugeridos.' : 'Elegí el proveedor de cada producto.' }) : null,
-      prov && !prov.whatsapp ? h('p', { class: 'gp-nota gp-warn', text: 'Sin WhatsApp cargado.' }) : null,
+      prov && !prov.whatsapp ? h('p', { class: 'gp-nota ' + (prov.email ? 'gp-info' : 'gp-warn'), text: prov.email ? `Sin WhatsApp: se manda por email a ${prov.email}.` : 'Sin WhatsApp ni email cargado: cargalo en Catálogo → Proveedores.' }) : null,
       h('div', { class: 'pp-tabla' },
         h('div', { class: 'pp-fila pp-h' + (sinProv ? '' : ' con-chk'), 'aria-hidden': 'true' }, sinProv ? null : h('span', { text: 'Pedir' }), h('span', { text: 'Producto · locales' }), h('span', { class: 'pp-h-tot', text: 'Total' }), h('span', { text: sinProv ? 'Proveedor' : 'Pasar a otro proveedor' })),
         filas),

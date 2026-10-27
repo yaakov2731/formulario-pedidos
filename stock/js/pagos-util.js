@@ -32,8 +32,8 @@ export function similitud(a, b) {
 export function sugerirProveedores(provs, razonSocial, max = 3) {
   const palabras = norm(razonSocial).split(' ').filter((w) => w.length > 3);
   return [...provs].map((p) => {
-    let s = similitud(p.nombre, razonSocial);
-    if (palabras.some((w) => norm(p.nombre).includes(w))) s = Math.max(s, 0.5); // comparten una palabra significativa
+    let s = Math.max(similitud(p.nombre, razonSocial), p.razon_social ? similitud(p.razon_social, razonSocial) : 0);
+    if (palabras.some((w) => norm(`${p.nombre} ${p.razon_social || ''}`).includes(w))) s = Math.max(s, 0.5); // comparten una palabra significativa
     return { proveedor: p, score: s };
   }).filter((x) => x.score >= 0.3).sort((a, b) => b.score - a.score).slice(0, max);
 }
@@ -74,6 +74,20 @@ export function urlWhatsApp(telefono, texto) {
   const d = soloDigitos(telefono);
   return d ? `https://wa.me/${d}?text=${encodeURIComponent(texto)}` : null;
 }
+// WhatsApp listo para wa.me: solo dígitos y, si es un número argentino sin código de país (10 dígitos), con 549 adelante.
+export function whatsappAR(t) {
+  let d = soloDigitos(t).replace(/^0+/, '');
+  if (d.length === 10) d = '549' + d;
+  return d;
+}
+export const emailValido = (t) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(t || '').trim());
+export function urlMail(email, asunto, texto) {
+  const e = String(email || '').trim();
+  return emailValido(e) ? `mailto:${e}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(texto)}` : null;
+}
+// A dónde va el aviso de pago: los datos de cobranzas y, si están vacíos, los de pedidos.
+export const whatsappPagos = (prov) => (prov && (prov.whatsapp_pagos || prov.whatsapp)) || null;
+export const emailPagos = (prov) => (prov && (prov.email_pagos || prov.email)) || null;
 
 export const nombreArchivoSeguro = (n) => String(n || 'archivo').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-80) || 'archivo';
 export const rutaPago = (proveedorId, op) => `pagos/${proveedorId}/${nombreArchivoSeguro(op || String(Date.now()))}.pdf`;

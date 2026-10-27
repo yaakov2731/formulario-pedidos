@@ -116,6 +116,9 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('validar imputación: no supera el pendiente de la factura ni el monto del pago', PU.validarImputacion(1200, facFx, { f1: 1000, f2: 200 }).error === null && PU.validarImputacion(1200, facFx, { f1: 1100 }).error && PU.validarImputacion(500, facFx, { f1: 400, f2: 200 }).error && PU.validarImputacion(1200, facFx, { f1: 1000 }).aCuenta === 200);
   check('estado del aviso: "Avisado" / "Sin avisar"', PU.estadoAviso({ avisado_en: '2026-10-05T10:00:00Z' }) === 'Avisado' && PU.estadoAviso({ avisado_en: null }) === 'Sin avisar');
   check('wa.me: número solo con dígitos y texto codificado', PU.urlWhatsApp('+54 9 11 5555-0001', 'Hola\ncómo') === 'https://wa.me/5491155550001?text=Hola%0Ac%C3%B3mo' && PU.urlWhatsApp('', 'x') === null);
+  check('WhatsApp argentino sin 549 se completa', PU.whatsappAR('11 5555-0123') === '5491155550123' && PU.whatsappAR('011 5555 0123') === '5491155550123' && PU.whatsappAR('+54 9 11 5555-0001') === '5491155550001' && PU.whatsappAR('') === '');
+  check('email: valida y arma mailto con asunto y texto', PU.emailValido('a@b.com') && !PU.emailValido('a@b') && PU.urlMail('a@b.com', 'Pago', 'Hola\nya') === 'mailto:a@b.com?subject=Pago&body=Hola%0Aya' && PU.urlMail('', 'x', 'y') === null);
+  check('comprobante: va a cobranzas y si falta a pedidos', PU.whatsappPagos({ whatsapp: '1', whatsapp_pagos: '2' }) === '2' && PU.whatsappPagos({ whatsapp: '1' }) === '1' && PU.emailPagos({ email: 'a@b.com' }) === 'a@b.com' && PU.emailPagos(null) === null);
   check('rutas del bucket: pagos/<proveedor>/<operación>.pdf y facturas/<proveedor>/<archivo>', PU.rutaPago('prv1', 'LRAKD8f240') === 'pagos/prv1/LRAKD8f240.pdf' && /^facturas\/prv1\/\d+-Factura-1-.*\.pdf$/.test(PU.rutaFactura('prv1', 'Factura 1 ñ.pdf')), PU.rutaFactura('prv1', 'Factura 1 ñ.pdf'));
 
   // Estructura: roles, rutas, vendors, sin envíos automáticos
