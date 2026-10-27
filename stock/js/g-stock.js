@@ -30,7 +30,8 @@ export async function render(root, ctx) {
   const u = (p) => p.unidad_uso ? ' ' + p.unidad_uso : '';
   const n2 = (n) => fmtNum(n, 2) || '0';
   const desdeISO = () => { if (periodo === 'hoy') { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); } return new Date(Date.now() - 7 * 864e5).toISOString(); };
-  const prodsLocal = () => [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && !esCarta(p));
+  // Lo oculto (resto de la lista de un mayorista) solo se lista si hay stock.
+  const prodsLocal = () => [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && !esCarta(p) && (!p.oculto || quedan(p) !== 0));
 
   // Por producto, en el período: suma de movimientos (Dif.), entradas, salidas y el último ajuste a mano.
   function porProducto() {

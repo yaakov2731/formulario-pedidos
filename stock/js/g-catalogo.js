@@ -1,18 +1,18 @@
 // Gerencia · Catálogo: búsqueda, alta y edición de productos y costo actual.
 import { mount, h, tokens, coincide, fmtMoney, parseNum, porTexto, debounce } from './util.js';
-import { guardarProducto, guardarPrecio, mensajeError } from './api.js';
+import { guardarProducto, guardarPrecio, mensajeError, hayColumnaOculto } from './api.js';
 import { G, cargarG, refrescarPrecio } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_CATALOGO } from './ui.js';
 
 export async function render(root, ctx) {
-  let q = '', localF = 'todos';
+  let q = '', localF = 'todos', vistaF = 'todos';
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Catálogo' }), h('p', { class: 'sub', text: 'Productos, proveedores y costos' }));
   mount(root, cab, subnav(SUBNAV_CATALOGO, 'catalogo'), esqueleto(5));
   const lista = h('div', { class: 'lista' });
 
   function editar(p) {
     const nuevo = !p;
-    const d = p || { codigo: '', nombre: '', local_id: localF !== 'todos' ? localF : (G.locales[0] || {}).id, categoria: '', unidad_compra: '', unidad_uso: '', factor_conversion: 1, proveedor_id: '', par: null, es_elaborado: false, activo: true };
+    const d = p || { codigo: '', nombre: '', local_id: localF !== 'todos' ? localF : (G.locales[0] || {}).id, categoria: '', unidad_compra: '', unidad_uso: '', factor_conversion: 1, proveedor_id: '', par: null, es_elaborado: false, activo: true, oculto: false };
     const sel = (opts, val, id) => { const s = h('select', { class: 'input', id }, opts.map(([v, t]) => h('option', { value: v, text: t }))); s.value = val || ''; return s; };
     const f = {
       codigo: h('input', { class: 'input num', id: 'f-codigo', value: d.codigo, autocomplete: 'off' }),
@@ -26,6 +26,7 @@ export async function render(root, ctx) {
       ideal: h('input', { class: 'input num', id: 'f-ideal', inputmode: 'decimal', value: d.par === null || d.par === undefined ? '' : String(d.par).replace('.', ','), placeholder: 'Sin definir' }),
       costo: h('input', { class: 'input num', id: 'f-costo', inputmode: 'decimal', value: p && G.precios.has(p.id) ? String(G.precios.get(p.id)).replace('.', ',') : '', placeholder: '0' }),
       activo: h('input', { type: 'checkbox', id: 'f-activo', checked: d.activo !== false }),
+      oculto: h('input', { type: 'checkbox', id: 'f-oculto', checked: d.oculto === true }),
       elab: h('input', { type: 'checkbox', id: 'f-elab', checked: d.es_elaborado === true })
     };
     if (nuevo) f.local.addEventListener('change', () => { const l = G.locales.find(x => x.id === f.local.value); if (l && (!f.codigo.value || /^[A-Z]{3}-?$/.test(f.codigo.value))) f.codigo.value = l.codigo + '-'; });
@@ -41,6 +42,7 @@ export async function render(root, ctx) {
       campo('Proveedor', f.prov), campo('Cantidad ideal en el local', f.ideal, 'Sirve para sugerir el pedido.'),
       campo('Costo actual ($)', f.costo),
       h('label', { class: 'check' }, f.elab, h('span', { text: 'Se elabora en el local (tiene receta)' })),
+      hayColumnaOculto() ? h('label', { class: 'check' }, f.oculto, h('span', { text: 'Oculto en Pedir: aparece solo al buscarlo' })) : null,
       h('label', { class: 'check' }, f.activo, h('span', { text: 'Activo' })), err, btn);
     const { cerrar } = hoja(nuevo ? 'Nuevo producto' : 'Editar producto', form);
     btn.addEventListener('click', async () => {
@@ -53,6 +55,7 @@ export async function render(root, ctx) {
         unidad_compra: f.uc.value.trim() || null, unidad_uso: f.uu.value.trim() || null, factor_conversion: factor,
         proveedor_id: f.prov.value || null, par: parseNum(f.ideal.value), es_elaborado: f.elab.checked, activo: f.activo.checked
       };
+      if (hayColumnaOculto()) datos.oculto = f.oculto.checked;
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {
         const id = await guardarProducto(p ? p.id : null, datos);
@@ -69,14 +72,14 @@ export async function render(root, ctx) {
 
   function pintar() {
     const t = tokens(q);
-    const vis = [...G.prods.values()].filter(p => (localF === 'todos' || p.local_id === localF) && coincide(p.nombre + ' ' + p.codigo, t))
+    const vis = [...G.prods.values()].filter(p => (localF === 'todos' || p.local_id === localF) && (vistaF === 'todos' || (vistaF === 'ocultos') === (p.oculto === true)) && coincide(p.nombre + ' ' + p.codigo, t))
       .sort((a, b) => porTexto(a.nombre, b.nombre)).slice(0, 150);
     if (!vis.length) { lista.replaceChildren(vacio('No hay productos', 'Probá con otra búsqueda o creá uno nuevo.')); return; }
     lista.replaceChildren(...vis.map(p => {
       const prov = G.provs.get(p.proveedor_id);
       return h('button', { class: 'prod prod-cat' + (p.activo === false ? ' is-off' : ''), type: 'button', on: { click: () => editar(p) }, 'aria-label': `Editar ${p.nombre}` },
         h('span', { class: 'prod-n', text: p.nombre }),
-        h('span', { class: 'prod-m' }, h('span', { class: 'prod-u num', text: p.codigo }), h('span', { text: prov ? prov.nombre : 'Sin proveedor' })),
+        h('span', { class: 'prod-m' }, h('span', { class: 'prod-u num', text: p.codigo }), h('span', { text: prov ? prov.nombre : 'Sin proveedor' }), p.oculto ? h('span', { class: 'tag-oculto', text: 'Oculto' }) : null),
         h('span', { class: 'prod-m' }, h('span', { text: p.unidad_compra || '—' }), G.precios.has(p.id) ? h('b', { class: 'num', text: fmtMoney(G.precios.get(p.id)) }) : h('span', { class: 'mute', text: 'Sin costo' })));
     }));
   }
@@ -85,9 +88,11 @@ export async function render(root, ctx) {
   if (!ctx.alive()) return;
   const locSel = h('select', { class: 'input', 'aria-label': 'Local', on: { change: (e) => { localF = e.target.value; pintar(); } } },
     h('option', { value: 'todos', text: 'Todos los locales' }), G.locales.map(l => h('option', { value: l.id, text: l.nombre })));
+  const vistaSel = h('select', { class: 'input', 'aria-label': 'Qué mostrar', hidden: !hayColumnaOculto(), on: { change: (e) => { vistaF = e.target.value; pintar(); } } },
+    h('option', { value: 'todos', text: 'A la vista y ocultos' }), h('option', { value: 'vista', text: 'Solo a la vista' }), h('option', { value: 'ocultos', text: 'Solo ocultos' }));
   const buscar = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar por nombre o código', 'aria-label': 'Buscar producto', autocomplete: 'off', on: { input: debounce((e) => { q = e.target.value; pintar(); }, 120) } });
   mount(root, cab, subnav(SUBNAV_CATALOGO, 'catalogo'),
-    h('div', { class: 'toolbar toolbar-row' }, buscar, locSel, h('button', { class: 'btn btn-primary', type: 'button', on: { click: () => editar(null) } }, icon('mas', 18), h('span', { text: 'Nuevo producto' }))),
+    h('div', { class: 'toolbar toolbar-row' }, buscar, locSel, vistaSel, h('button', { class: 'btn btn-primary', type: 'button', on: { click: () => editar(null) } }, icon('mas', 18), h('span', { text: 'Nuevo producto' }))),
     lista);
   pintar();
 }
