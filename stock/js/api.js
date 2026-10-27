@@ -96,11 +96,21 @@ export async function localesLogin() {
 
 // ---- lecturas ----
 const COLS_PROD = 'id,codigo,nombre,local_id,categoria,unidad_compra,unidad_uso,factor_conversion,proveedor_id,par,es_elaborado,activo';
-export const cargarCatalogo = (localId) => todo(() => {
-  let q = sb.from('productos').select(COLS_PROD).order('nombre');
+// productos.oculto (migración 0012): no se muestra en Pedir salvo al buscar. Si la columna todavía no existe, se lee sin ella.
+let hayOculto = true;
+const catalogo = (localId) => todo(() => {
+  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '')).order('nombre');
   if (localId) q = q.eq('local_id', localId).eq('activo', true);
   return q;
 });
+export const hayColumnaOculto = () => hayOculto;
+export async function cargarCatalogo(localId) {
+  try { return await catalogo(localId); } catch (e) {
+    if (!hayOculto || !(e && (e.code === '42703' || /oculto/.test(e.message || '')))) throw e;
+    hayOculto = false;
+    return catalogo(localId);
+  }
+}
 export const cargarStock = (localId) => todo(() => {
   let q = sb.from('stock_actual').select('local_id,producto_id,stock').order('producto_id');
   if (localId) q = q.eq('local_id', localId);

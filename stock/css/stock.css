@@ -81,7 +81,7 @@ a { color: var(--accent-text); }
   .wrap { padding: 36px 32px 120px; max-width: 980px; }
   .app.no-nav .wrap { max-width: 520px; padding-top: 64px; }
   .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: stretch; }
-  .lista > .cat-t, .lista > .empty { grid-column: 1 / -1; }
+  .lista > .cat-t, .lista > .empty, .lista > .mas-buscar { grid-column: 1 / -1; }
   .pill { bottom: 28px !important; }
 }
 .side-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 12px; border-bottom: 1px solid var(--sep); }
@@ -100,6 +100,9 @@ a { color: var(--accent-text); }
 .titulo { font: 700 28px/1.1 var(--font-display); letter-spacing: -0.01em; text-align: center; }
 .sub { color: var(--text-2); font-size: 15px; text-align: center; margin-top: 4px; }
 .cat-t { grid-column: 1 / -1; text-align: center; font: 700 13px/1 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); margin: 18px 0 2px; }
+.mas-buscar { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 22px 0 6px; padding: 12px 16px; border-radius: 14px; border: 1px dashed var(--sep); color: var(--text-2); font-size: 14px; text-align: center; }
+.mas-buscar svg { flex: none; }
+.tag-oculto { display: inline-block; padding: 2px 8px; border-radius: 8px; background: var(--fill); color: var(--text-2); font-size: 12px; font-weight: 600; }
 .volver { display: block; text-align: center; font-weight: 600; text-decoration: none; padding: 10px; min-height: 44px; margin-bottom: 4px; }
 
 /* ---------- controles ---------- */

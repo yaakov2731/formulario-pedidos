@@ -72,7 +72,10 @@ function pintarPedir(root, ctx) {
   const nombreLocal = S.local ? S.local.nombre : '';
   const aviso = avisoCierre();
   const activos = S.prods.filter(p => p.activo !== false && !esCarta(p));
-  const cats = [...new Set(activos.map(p => p.categoria || 'Sin categoría'))].sort(porTexto);
+  // Lo oculto (lo que casi no se pide, como el resto de la lista de un mayorista) solo aparece al buscar o si ya está en el pedido.
+  const aLaVista = (p) => !p.oculto || cantidad(p) > 0;
+  const nOcultos = activos.filter(p => p.oculto).length;
+  const cats = [...new Set(activos.filter(aLaVista).map(p => p.categoria || 'Sin categoría'))].sort(porTexto);
 
   const lista = h('div', { class: 'lista', id: 'lista-prod' });
   const pill = h('button', { class: 'pill', type: 'button', hidden: true, on: { click: () => ctx.ir('revisar') } });
@@ -115,6 +118,7 @@ function pintarPedir(root, ctx) {
     const q = norm(filtro.q);
     let vis = activos;
     // Al buscar se busca en todo el catálogo del local, sin importar la categoría elegida.
+    if (!q) vis = vis.filter(aLaVista);
     if (filtro.cat === MI_PEDIDO && !q) vis = vis.filter(p => cantidad(p) > 0);
     else if (filtro.cat !== 'todas' && !q) vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
     if (q) {
@@ -136,6 +140,7 @@ function pintarPedir(root, ctx) {
     for (const k of [...g.keys()].sort(porTexto)) {
       frag.push(h('h2', { class: 'cat-t', text: k }), ...g.get(k).map(fila));
     }
+    if (nOcultos) frag.push(h('p', { class: 'mas-buscar' }, icon('buscar', 16), h('span', { text: `Hay ${nOcultos} productos más que se piden poco. Buscalos por nombre arriba.` })));
     lista.replaceChildren(...frag);
   };
 
