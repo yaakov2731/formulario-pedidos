@@ -45,6 +45,8 @@ const pdfVariante = (op, monto, cuit, razon) => {
   return f;
 };
 const prod = (id, codigo, nombre, cat, uc, uu, factor, prov, par, local = L1) => ({ id, codigo, nombre, local_id: local, categoria: cat, unidad_compra: uc, unidad_uso: uu, factor_conversion: factor, proveedor_id: prov, par, es_elaborado: false, activo: true });
+// Columnas de 0011_proveedores_datos.sql (contacto, email y datos de cobranza).
+const EXTRA_PROV = { razon_social: null, contacto: null, telefono: null, email: null, whatsapp_pagos: null, email_pagos: null, banco: null, notas: null };
 const db = {
   locales: [
     { id: L1, codigo: 'UMO', nombre: 'Umo Grill', encargados: ['Ruth Coronel', 'Maru', 'Ayelén'], activo: true },
@@ -54,10 +56,10 @@ const db = {
     { id: 'loc-shp', codigo: 'SHP', nombre: 'Shopping', encargados: [], activo: true }
   ],
   proveedores: [
-    { id: PV.barcena, nombre: 'Barcena', whatsapp: '5491155550003', cuit: null, alias_cbu: 'barcena.pagos', dias_entrega: '1 día · pedir antes del jueves', corte: null, pedido_minimo: null, activo: true },
-    { id: PV.florida, nombre: 'Distribuidora Florida', whatsapp: '+54 9 11 5555-0001', cuit: '30-00000002-7', alias_cbu: null, dias_entrega: 'Sábado', corte: 'Miércoles', pedido_minimo: null, activo: true },
-    { id: PV.martin, nombre: 'Martín De Ridder', whatsapp: '5491155550002', cuit: null, alias_cbu: null, dias_entrega: 'Martes y viernes', corte: null, pedido_minimo: 100000, activo: true },
-    { id: PV.demo, nombre: 'Distribuidora Demo', whatsapp: '5491155550004', cuit: null, alias_cbu: null, dias_entrega: 'Lunes', corte: null, pedido_minimo: null, activo: true }
+    { ...EXTRA_PROV, id: PV.barcena, nombre: 'Barcena', whatsapp: '5491155550003', cuit: null, alias_cbu: 'barcena.pagos', dias_entrega: '1 día · pedir antes del jueves', corte: null, pedido_minimo: null, activo: true },
+    { ...EXTRA_PROV, email: 'pedidos@florida.com', contacto: 'Hernán', id: PV.florida, nombre: 'Distribuidora Florida', whatsapp: '+54 9 11 5555-0001', cuit: '30-00000002-7', alias_cbu: null, dias_entrega: 'Sábado', corte: 'Miércoles', pedido_minimo: null, activo: true },
+    { ...EXTRA_PROV, id: PV.martin, nombre: 'Martín De Ridder', whatsapp: '5491155550002', cuit: null, alias_cbu: null, dias_entrega: 'Martes y viernes', corte: null, pedido_minimo: 100000, activo: true },
+    { ...EXTRA_PROV, whatsapp_pagos: '5491155550044', email_pagos: 'cobranzas@demo.com', id: PV.demo, nombre: 'Distribuidora Demo', whatsapp: '5491155550004', cuit: null, alias_cbu: null, dias_entrega: 'Lunes', corte: null, pedido_minimo: null, activo: true }
   ],
   productos: [
     prod('p-chorizo', 'UMO-001', 'Chorizo parrillero', 'Carnes', 'kg', 'kg', 1, PV.barcena, 8),
@@ -93,7 +95,7 @@ const db = {
     { id: 'pg-1', proveedor_id: PV.martin, monto: 120000, fecha: '2026-10-12', numero_operacion: 'OPVIEJA001', concepto: 'Factura', descripcion: 'Carnes', comprobante_path: 'pagos/prv-martin/OPVIEJA001.pdf', avisado_en: '2026-10-12T15:00:00Z', creado_en: '2026-10-12T14:00:00Z' },
     { id: 'pg-2', proveedor_id: PV.florida, monto: 54000, fecha: '2026-10-20', numero_operacion: 'OPVIEJA002', concepto: 'Factura', descripcion: 'Bebidas', comprobante_path: 'pagos/prv-florida/OPVIEJA002.pdf', avisado_en: null, creado_en: '2026-10-20T14:00:00Z' }
   ],
-  subidos: {}, pagosRegistrados: [], facturasCreadas: [], proveedoresEditados: [], avisos: [], consultasTablero: []
+  subidos: {}, pagosRegistrados: [], facturasCreadas: [], proveedoresEditados: [], proveedoresCreados: [], sin0011: false, avisos: [], consultasTablero: []
 };
 let seq = 1;
 const nid = (p) => p + '-' + (seq++);
@@ -166,7 +168,13 @@ async function montarApi(ctx) {
       if (rol !== 'gerencia') return json([]); // la contadora solo lee proveedores
       const id = eq(q.get('id')); const p = db.proveedores.find(x => x.id === id); Object.assign(p, body()); db.proveedoresEditados.push({ id, ...body() }); return json([{ id, nombre: p.nombre, whatsapp: p.whatsapp, cuit: p.cuit, alias_cbu: p.alias_cbu }]);
     }
-    if (t === 'proveedores') return rol === 'gerencia' || rol === 'contadora' ? json(db.proveedores) : json([]);
+    if (t === 'proveedores' && req.method() === 'POST') {
+      if (rol !== 'gerencia') return json({ code: '42501', message: 'new row violates row-level security policy' }, 403);
+      const b = body(); if (db.proveedores.some(x => x.nombre === b.nombre)) return json({ code: '23505', message: 'duplicate key value violates unique constraint "proveedores_nombre_key"' }, 409);
+      const r = { ...EXTRA_PROV, ...b, id: nid('prv') }; db.proveedores.push(r); db.proveedoresCreados.push(r); return json([{ id: r.id }], 201);
+    }
+    if (t === 'proveedores' && db.sin0011 && /razon_social/.test(q.get('select') || '')) return json({ code: '42703', message: 'column proveedores.razon_social does not exist' }, 400);
+    if (t === 'proveedores') return rol === 'gerencia' || rol === 'contadora' ? json(db.sin0011 ? db.proveedores.map(p => Object.fromEntries(Object.entries(p).filter(([k]) => !(k in EXTRA_PROV)))) : db.proveedores) : json([]);
     if (t === 'precio_actual') return rol === 'gerencia' ? json(Object.entries(db.precios).map(([producto_id, precio]) => ({ producto_id, precio }))) : json([]);
     if (t === 'rpc/buscar_productos') { const b = body(); const n = (b.q || '').toLowerCase(); return json(db.productos.filter(p => p.local_id === (b.p_local || p.local_id) && p.nombre.toLowerCase().includes(n)).map(p => ({ id: p.id, codigo: p.codigo, nombre: p.nombre, local_id: p.local_id, score: 0.8 }))); }
     if (t === 'rpc/registrar_conteo') { const b = body(); if (rol !== 'gerencia') return json({ code: '42501', message: 'new row violates row-level security policy' }, 403); db.conteos.push(b); const s = db.stock.find(x => x.producto_id === b.p_producto && x.local_id === b.p_local); const dif = b.p_cantidad_contada - (s ? s.stock : 0); if (s) s.stock = b.p_cantidad_contada; else db.stock.push({ local_id: b.p_local, producto_id: b.p_producto, stock: b.p_cantidad_contada }); return json(dif); }
@@ -662,6 +670,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const dimImg = await g.locator('.sheet .orden-img img').evaluate(i => [i.naturalWidth, i.naturalHeight]);
   ok(dimImg[0] === 1080 && dimImg[1] > 600, `copia del pedido en imagen (${dimImg.join('×')})`);
   ok(await g.locator('.sheet [data-accion="descargar"]').count() === 1, 'se puede descargar la imagen');
+  ok((await g.locator('.sheet [data-accion="mail"]').innerText()).includes('pedidos@florida.com'), 'pedido: botón para mandarlo por email');
+  ok(/Hernán/.test(await g.locator('.sheet [data-destino]').innerText()), 'pedido: muestra el contacto del proveedor');
   await shot(g, '11c-g-pedidos-enviar-pc');
   const imgOrden = await g.locator('.sheet .orden-img img').evaluate(async (i) => { const b = await (await fetch(i.src)).arrayBuffer(); let s = ''; new Uint8Array(b).forEach(x => { s += String.fromCharCode(x); }); return btoa(s); });
   fs.writeFileSync(path.join(OUT, '11d-copia-pedido.png'), Buffer.from(imgOrden, 'base64'));
@@ -675,7 +685,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const urlWA = popup.url();
   ok(urlWA.startsWith('https://wa.me/5491155550001?text='), `URL de WhatsApp con número solo dígitos: ${urlWA.slice(0, 48)}…`);
   const textoWA = decodeURIComponent(urlWA.split('?text=')[1]);
-  ok(/Umo Grill/.test(textoWA) && /Cerveza rubia/.test(textoWA) && /Gaseosa cola/.test(textoWA), 'el texto lista local y productos');
+  ok(/^Hola Hernán!/.test(textoWA) && /Umo Grill/.test(textoWA) && /Cerveza rubia/.test(textoWA) && /Gaseosa cola/.test(textoWA), 'el texto lista local y productos');
   await popup.close();
   await g.waitForTimeout(500);
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'enviada', 'marca la orden como "enviada"');
@@ -863,9 +873,11 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok((await g.locator('dialog .banner-info').innerText()).includes('adjuntalo a mano'), 'escritorio: avisa que el PDF se adjunta a mano');
   await g.waitForSelector('dialog [data-accion="descargar"]');
   ok(/\/storage\/v1\/object\/sign\/comprobantes\/pagos\/prv-demo\/DEMO0001ab\.pdf\?token=/.test(await g.locator('dialog [data-accion="descargar"]').getAttribute('href')), 'botón para descargar el PDF con URL firmada del bucket');
+  ok((await g.locator('dialog [data-accion="mail"]').innerText()).includes('cobranzas@demo.com'), 'aviso: botón para mandarlo por email a cobranzas');
+  ok(/WhatsApp 5491155550044 · cobranzas@demo\.com/.test(await g.locator('dialog [data-destino]').innerText()), 'aviso: muestra WhatsApp y email de cobranzas');
   await shot(g, '46-g-avisar-pc');
   const [waPopup] = await Promise.all([cGer.waitForEvent('page'), g.locator('dialog [data-accion="wa"]').click()]);
-  ok(waPopup.url().startsWith('https://wa.me/5491155550004?text='), 'abre wa.me con el número del proveedor: ' + waPopup.url().slice(0, 40));
+  ok(waPopup.url().startsWith('https://wa.me/5491155550044?text='), 'abre wa.me con el WhatsApp de cobranzas del proveedor: ' + waPopup.url().slice(0, 40));
   ok(decodeURIComponent(waPopup.url().split('?text=')[1]) === msg, 'el texto de wa.me es el mismo mensaje');
   await waPopup.close();
   await g.waitForSelector('[data-estado].estado-avisado');
@@ -908,21 +920,76 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await g.getByRole('button', { name: 'Guardar pago' }).isDisabled(), 'la misma operación no se puede guardar dos veces: botón deshabilitado y mensaje claro');
   await shot(g, '48-g-pago-duplicado-pc', true);
 
-  // Proveedores (Catálogo → Proveedores)
+  // Proveedores (Catálogo → Proveedores): sin el SQL 0011 la ficha avisa y guarda solo lo de siempre
+  db.sin0011 = true;
   await g.locator('.sidebar a[data-nav="catalogo"]').click();
   await g.locator('.subnav-b', { hasText: 'Proveedores' }).click();
   await g.waitForSelector('.prod-cat[data-prov="Barcena"]');
-  ok((await g.locator('.prod-cat[data-prov="Barcena"]').innerText()).includes('Sin CUIT'), 'proveedores: marca los que no tienen CUIT');
+  await g.waitForTimeout(400);
   await g.locator('.prod-cat[data-prov="Barcena"]').click();
   await g.waitForSelector('dialog[open]');
+  ok(await g.locator('dialog .banner-warn', { hasText: 'Falta pegar el SQL' }).count() === 1 && await g.locator('#pv-email').count() === 0, 'sin 0011: avisa y oculta email, contacto y cobranzas');
+  await g.locator('dialog [aria-label="Cerrar"]').click();
+  db.sin0011 = false;
+  await g.reload();
+  await g.waitForSelector('.prod-cat[data-prov="Barcena"]');
+  await g.waitForTimeout(400);
+  ok((await g.locator('.prod-cat[data-prov="Barcena"]').innerText()).includes('Sin CUIT'), 'proveedores: marca los que no tienen CUIT');
+  ok(/1 día · pedir antes del jueves/.test(await g.locator('.prod-cat[data-prov="Barcena"]').innerText()), 'proveedores: la tarjeta muestra días de entrega');
+  await g.locator('.prod-cat[data-prov="Barcena"]').click();
+  await g.waitForSelector('dialog[open] #pv-email');
   await g.locator('#pv-wa').fill('+54 9 11 5555-0099');
   await g.locator('#pv-cuit').fill('30-00000003-5');
   await g.locator('#pv-alias').fill('barcena.nuevo');
+  await g.locator('#pv-contacto').fill('Rubén');
+  await g.locator('#pv-email').fill('Ventas@Barcena.com');
+  await g.locator('#pv-email-pago').fill('cobranzas@barcena');
+  await g.getByRole('button', { name: 'Guardar cambios' }).click();
+  ok((await g.locator('dialog .form-err').innerText()).includes('email de cobranzas'), 'valida el email de cobranzas');
+  await g.locator('#pv-email-pago').fill('cobranzas@barcena.com');
   await shot(g, '49-g-proveedor-editar-pc');
   await g.getByRole('button', { name: 'Guardar cambios' }).click();
   await g.waitForSelector('.toast-ok >> text=Proveedor guardado');
   const pe = db.proveedoresEditados[0];
   ok(pe && pe.id === PV.barcena && pe.whatsapp === '5491155550099' && pe.cuit === '30-00000003-5' && pe.alias_cbu === 'barcena.nuevo', 'proveedor: WhatsApp (solo dígitos), CUIT con guiones y alias ' + JSON.stringify(pe));
+  ok(pe && pe.contacto === 'Rubén' && pe.email === 'ventas@barcena.com' && pe.email_pagos === 'cobranzas@barcena.com' && pe.nombre === 'Barcena', 'proveedor: contacto y emails guardados');
+  // Nuevo proveedor
+  await g.locator('[data-accion="nuevo-proveedor"]').click();
+  await g.waitForSelector('dialog[open] #pv-nombre');
+  await g.getByRole('button', { name: 'Crear proveedor' }).click();
+  ok((await g.locator('dialog .form-err').innerText()).includes('nombre'), 'nuevo: pide el nombre');
+  await g.locator('#pv-nombre').fill('barcena');
+  await g.getByRole('button', { name: 'Crear proveedor' }).click();
+  ok((await g.locator('dialog .form-err').innerText()).includes('Ya hay un proveedor'), 'nuevo: no deja repetir el nombre');
+  await g.locator('#pv-nombre').fill('Lácteos del Sur');
+  await g.locator('#pv-contacto').fill('Carla');
+  await g.locator('#pv-wa').fill('11 5555-0123');
+  await g.locator('#pv-tel').fill('011 4444-5555');
+  await g.locator('#pv-email').fill('pedidos@lacteosdelsur.com');
+  await g.locator('#pv-entrega').fill('Martes y viernes');
+  await g.locator('#pv-corte').fill('Lunes 18 h');
+  await g.locator('#pv-minimo').fill('50000');
+  await g.locator('#pv-razon').fill('Lácteos del Sur SRL');
+  await g.locator('#pv-cuit').fill('30711112223');
+  await g.locator('#pv-banco').fill('Galicia');
+  await g.locator('#pv-alias').fill('lacteos.sur');
+  await g.locator('#pv-wa-pago').fill('5491166660000');
+  await shot(g, '49b-g-proveedor-nuevo-pc', true);
+  await g.getByRole('button', { name: 'Crear proveedor' }).click();
+  await g.waitForSelector('.toast-ok >> text=Proveedor creado');
+  const pc = db.proveedoresCreados[0];
+  ok(pc && pc.nombre === 'Lácteos del Sur' && pc.whatsapp === '5491155550123' && pc.cuit === '30-71111222-3' && pc.pedido_minimo === 50000 && pc.razon_social === 'Lácteos del Sur SRL' && pc.banco === 'Galicia' && pc.whatsapp_pagos === '5491166660000' && pc.activo === true, 'nuevo proveedor con datos de pedidos y pagos ' + JSON.stringify(pc));
+  // queda abierta su ficha para sumarle productos
+  await g.waitForSelector('dialog[open] #pv-buscar-prod');
+  await g.locator('#pv-buscar-prod').fill('cerveza');
+  await g.waitForSelector('dialog .pv-res .pv-prod');
+  await g.locator('dialog .pv-res .pv-prod').first().getByRole('button', { name: /Sumar/ }).click();
+  await g.waitForSelector('dialog .pv-lista .pv-prod');
+  ok(db.productos.filter(x => x.proveedor_id === pc.id).length === 1, 'sumar producto: queda asignado al proveedor nuevo');
+  await shot(g, '49c-g-proveedor-productos-pc');
+  await g.locator('dialog [aria-label="Cerrar"]').click();
+  await g.waitForSelector('.prod-cat[data-prov="Lácteos del Sur"]');
+  ok(/1 producto/.test(await g.locator('.prod-cat[data-prov="Lácteos del Sur"]').innerText()), 'la tarjeta cuenta sus productos');
   await shot(g, '50-g-proveedores-pc', true);
   await cGer.close();
 
@@ -1046,7 +1113,14 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await pm.locator('a.tab[data-nav="catalogo"]').click();
   await pm.locator('.subnav-b', { hasText: 'Proveedores' }).click();
   await pm.waitForSelector('.prod-cat[data-prov]');
+  await pm.waitForSelector('.toast', { state: 'detached', timeout: 8000 }).catch(() => {});
   await shot(pm, '58-g-proveedores-m', true);
+  await pm.locator('.prod-cat[data-prov="Lácteos del Sur"]').click();
+  await pm.waitForSelector('dialog[open] #pv-email');
+  await shot(pm, '58b-g-proveedor-ficha-m');
+  await pm.locator('dialog .sheet-body').evaluate(e => { e.scrollTop = e.scrollHeight; });
+  await shot(pm, '58c-g-proveedor-pagos-m');
+  await pm.locator('dialog [aria-label="Cerrar"]').click();
   await cPM.close();
 
   // ===== Contadora: solo Pagos (sin tablero, ventas ni catálogo) =====
