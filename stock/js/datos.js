@@ -19,6 +19,8 @@ export async function cargarG(quiere, alCambiar) {
   const f = res.find(r => r.status === 'rejected');
   if (f) throw f.reason;
 }
+// Razón social con la que compra el local (sale en las órdenes a los proveedores).
+export const razonLocal = (id) => { const l = G.locales.find(x => x.id === id); return (l && l.razon_social) || ''; };
 export const nombreLocal = (id) => { const l = G.locales.find(x => x.id === id); return l ? l.nombre : 'Local'; };
 export const refrescarPrecio = (productoId, precio) => G.precios.set(productoId, precio);
 
