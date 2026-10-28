@@ -4,7 +4,7 @@
 import { mount, h, tokens, coincide, fmtNum, fmtMoney, parseNum, groupBy, porTexto, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, sugerido } from './util.js';
 import { contarProducto, registrarAjuste, movimientosDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal } from './datos.js';
-import { esqueleto, vacio, toast, hoja, campo, icon } from './ui.js';
+import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_STOCK } from './ui.js';
 
 const PERIODOS = { hoy: 'Hoy', semana: '7 días' };
 const ESTADO = { agotado: 'Agotado', bajo: 'Por agotarse', ok: 'Ok' };
@@ -24,7 +24,8 @@ export async function render(root, ctx) {
   const sub = h('p', { class: 'sub', text: 'Lo que queda en cada local' });
   const btnPrint = h('button', { class: 'icon-btn stk-print', type: 'button', 'aria-label': 'Imprimir o guardar PDF', title: 'Imprimir o guardar PDF', on: { click: () => imprimir() } }, icon('imprimir', 20));
   const cab = h('header', { class: 'vista-head stk-head' }, h('div', { class: 'stk-head-t' }, h('h1', { class: 'titulo', text: 'Stock' }), sub), btnPrint);
-  mount(root, cab, esqueleto(5));
+  const nav = subnav(SUBNAV_STOCK, 'stock');
+  mount(root, cab, nav, esqueleto(5));
 
   const quedan = (p) => G.stock.get(p.local_id + '|' + p.id) || 0;
   const u = (p) => p.unidad_uso ? ' ' + p.unidad_uso : '';
@@ -48,7 +49,7 @@ export async function render(root, ctx) {
   // Consumo de 7 días (ventas, producción y merma) para saber cuánto alcanza.
   function consumo7() {
     const c = new Map();
-    for (const x of movs) if (['venta', 'produccion_consumo', 'merma'].includes(x.tipo)) c.set(x.producto_id, (c.get(x.producto_id) || 0) - Number(x.cantidad));
+    for (const x of movs) if (['venta', 'produccion_consumo', 'merma', 'uso_dia'].includes(x.tipo)) c.set(x.producto_id, (c.get(x.producto_id) || 0) - Number(x.cantidad));
     return c;
   }
   function estadoDe(p, cons) {
@@ -295,6 +296,6 @@ export async function render(root, ctx) {
     else { resumen.replaceChildren(esqueleto(3)); await pintarResumen(); }
   }
   ponerSub(); pintarVista();
-  mount(root, cab, h('div', { class: 'toolbar' }, chips), segVista, cuerpo);
+  mount(root, cab, nav, h('div', { class: 'toolbar' }, chips), segVista, cuerpo);
   await refrescar();
 }

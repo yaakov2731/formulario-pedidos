@@ -7,6 +7,7 @@ const NAV = {
   encargado: [
     { id: 'pedir', label: 'Pedir', icono: 'pedir' },
     { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
+    { id: 'elaborados', label: 'Elaborados', icono: 'cocina' },
     { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
   gerencia: [
@@ -26,13 +27,13 @@ const NAV = {
 };
 const RUTAS_PAGOS = { 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'notas': () => import('./notas.js') },
+  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'elaborados': () => import('./elaborados.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
     'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'),
-    'stock': () => import('./g-stock.js'), 'catalogo': () => import('./g-catalogo.js'),
+    'stock': () => import('./g-stock.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'),
     'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
     'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js'),
     'notas': () => import('./notas.js')
@@ -86,7 +87,7 @@ function construirShell(c) {
 }
 
 function marcarActivo(id) {
-  const act = ({ revisar: 'pedir', analisis: 'ventas', merma: 'ventas', produccion: 'recetas', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos' })[id] || id;
+  const act = (ctx && ctx.rol === 'gerencia' && id === 'elaborados') ? 'stock' : ({ revisar: 'pedir', analisis: 'ventas', merma: 'ventas', produccion: 'recetas', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
     a.classList.toggle('is-active', on);

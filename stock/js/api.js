@@ -226,7 +226,7 @@ export const ventasItemsRango = (localId, desde, hasta) => todo(() => sb.from('v
   .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('id'));
 // Salidas de stock de un local desde una fecha (ventas, producción y merma), para las métricas de Stock.
 export const movimientosLocal = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,creado_en')
-  .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma']).order('creado_en'));
+  .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma', 'uso_dia']).order('creado_en'));
 // Todos los movimientos de un local desde una fecha (para Inicio / Ahora / Dif. y los últimos ajustes en Stock).
 export const movimientosDesde = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,nota,creado_en')
   .eq('local_id', localId).gte('creado_en', desde).order('creado_en'));
@@ -242,6 +242,14 @@ export const registrarProduccion = async (localId, productoId, cantidad, nota) =
   ok(await sb.rpc('registrar_produccion', { p_local: localId, p_producto: productoId, p_cantidad: cantidad, p_nota: nota || null }));
 export const produccionesRecientes = async (localId) =>
   ok(await sb.from('producciones').select('id,producto_id,cantidad,nota,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(12));
+// Elaborados del local (encargado y gerencia): lo que se elaboró con lo que se usó de verdad, y el uso del día (0014_elaborados.sql).
+export const registrarElaboracion = async (localId, productoId, cantidad, items, nota, encargado) =>
+  ok(await sb.rpc('registrar_elaboracion', { p_local: localId, p_producto: productoId, p_cantidad: cantidad, p_items: items, p_nota: nota || null, p_encargado: encargado || null }));
+export const cerrarServicio = async (localId, items, nota, encargado) =>
+  ok(await sb.rpc('cerrar_servicio', { p_local: localId, p_items: items, p_nota: nota || null, p_encargado: encargado || null }));
+export const borrarElaboracion = async (id) => ok(await sb.rpc('borrar_elaboracion', { p_id: id }));
+export const elaboracionesDesde = async (localId, desdeISO) =>
+  ok(await sb.from('producciones').select('id,tipo,producto_id,cantidad,items,nota,encargado,creado_en').eq('local_id', localId).gte('creado_en', desdeISO).order('creado_en', { ascending: false }).limit(60));
 export const mermaControl = async (localId, desde, hasta) => ok(await sb.rpc('merma_control', { p_local: localId, p_desde: desde, p_hasta: hasta }));
 
 // ---- facturas, pagos y comprobantes (gerencia y contadora) ----
