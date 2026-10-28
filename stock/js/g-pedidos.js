@@ -2,7 +2,8 @@
 // "De los locales": tabla de lo que mandó cada local (cuándo, local, quién, qué productos, a qué proveedor, estado);
 //   se abre una fila para ver y corregir cantidades y proveedor de cada producto.
 // "Por proveedor": arma el envío de cada proveedor sumando todos los locales; cada producto se puede pasar a otro
-//   proveedor (con proveedor sugerido) y se aprueba y manda por WhatsApp.
+//   proveedor (con proveedor sugerido), se corrige la cantidad de cada local y se aprueba; recién aprobado se manda
+//   por WhatsApp o se imprime.
 import { mount, h, norm, fmtNum, fmtMoney, parseNum, groupBy, porTexto, fechaCorta, lsGet, lsSet, hoyISO, sumarDias, ESTADOS } from './util.js';
 import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, borrarTodosLosPedidos, limpiarCache, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, razonLocal } from './datos.js';
@@ -416,6 +417,31 @@ export async function render(root, ctx) {
     setTimeout(limpiar, 1000);
   }
 
+  // Cantidad de cada local dentro del total del proveedor; mientras el pedido no se envió, se corrige ahí mismo.
+  function cantLocales(x, alCambiar) {
+    const pares = x.pares.slice().sort((a, b) => porTexto(nombreLocal(a.o.local_id), nombreLocal(b.o.local_id)));
+    const veces = groupBy(pares, p => p.o.local_id);
+    return h('span', { class: 'pp-locales' }, pares.map(({ o, it }) => {
+      // si el mismo local lo pidió dos veces (dos encargados), se aclara quién
+      const loc = nombreLocal(o.local_id) + (veces.get(o.local_id).length > 1 && o.cargado_por_nombre ? ' · ' + o.cargado_por_nombre : '');
+      const ok = o.estado === 'aprobada' ? h('span', { class: 'pp-loc-ok', title: 'Aprobado', 'aria-label': 'aprobado', text: '✓' }) : null;
+      if (!editable(o) || fuera.has(it.id)) return h('span', { class: 'pp-loc' }, h('span', { text: loc }), h('b', { class: 'num', text: fmtNum(it.cantidad_pedida, 3) }), ok);
+      const inp = h('input', { class: 'input input-sm num pp-loc-inp', type: 'text', inputmode: 'decimal', value: fmtNum(it.cantidad_pedida, 3), 'aria-label': `Cantidad de ${nombreProd(it)} para ${loc}`,
+        on: { focus: (ev) => ev.target.select(), change: (ev) => {
+          const n = parseNum(ev.target.value);
+          if (n === null || n < 0) { ev.target.value = fmtNum(it.cantidad_pedida, 3); return toast('Poné una cantidad válida.', 'error'); }
+          if (n === 0 && !confirm(`¿Sacar ${nombreProd(it)} del pedido de ${loc}?`)) { ev.target.value = fmtNum(it.cantidad_pedida, 3); return; }
+          x.cant += n - Number(it.cantidad_pedida);
+          cambiarQty(o, it, n);
+          if (n > 0) alCambiar();
+        } } });
+      return h('label', { class: 'pp-loc is-edit' }, h('span', { text: loc }), inp, ok);
+    }));
+  }
+  // "Facturar a SUMA ACTIVA S.A.: Umo Grill, Brooklyn · SPMAR S.A.: Shopping"
+  const facturasDe = (os) => [...groupBy(os, o => razonLocal(o.local_id) || '')].filter(([r]) => r)
+    .map(([r, l]) => `${r}: ${[...new Set(l.map(o => nombreLocal(o.local_id)))].sort(porTexto).join(', ')}`).sort(porTexto).join(' · ');
+
   function tarjeta(provId, os) {
     const sinProv = provId === SIN;
     const prov = sinProv ? null : G.provs.get(provId);
@@ -424,14 +450,17 @@ export async function render(root, ctx) {
     const min = prov && prov.pedido_minimo ? Number(prov.pedido_minimo) : 0;
     const hayBorrador = os.some(o => o.estado === 'borrador');
     const estados = [...new Set(os.map(o => o.estado))];
+    const pendLocales = [...new Set(os.filter(o => o.estado === 'borrador').map(o => nombreLocal(o.local_id)))].sort(porTexto);
 
-    // productos sumados entre locales; cada uno recuerda sus ítems para poder moverlos juntos
+    // productos sumados entre locales (cada local tiene su ficha: se juntan por código del proveedor o por nombre y
+    // unidad, como en "Todo junto"); cada uno recuerda sus ítems para poder moverlos o destildarlos juntos
     const m = new Map();
     for (const o of os) for (const it of o.orden_items) {
-      const x = m.get(it.producto_id) || { producto_id: it.producto_id, cant: 0, pares: [], porLocal: new Map() };
+      const k = (codProv(it) || norm(nombreProd(it))) + '|' + norm(unidad(it) || '');
+      const x = m.get(k) || { producto_id: it.producto_id, cant: 0, pares: [], porLocal: new Map() };
       x.cant += Number(it.cantidad_pedida); x.pares.push({ o, it });
       x.porLocal.set(o.local_id, (x.porLocal.get(o.local_id) || 0) + Number(it.cantidad_pedida));
-      m.set(it.producto_id, x);
+      m.set(k, x);
     }
     const prods = [...m.values()].sort((a, b) => porTexto(nombreProd(a), nombreProd(b)));
     const sugs = sinProv ? prods.map(x => ({ x, s: sugerir(x.producto_id) })).filter(y => y.s) : [];
@@ -440,15 +469,15 @@ export async function render(root, ctx) {
     const filas = prods.map(x => {
       const sug = sinProv ? sugerir(x.producto_id) : null;
       const off = !sinProv && estaFuera(x);
+      const tot = h('b', { text: fmtNum(x.cant, 3) });
       const chk = sinProv ? null : h('input', { type: 'checkbox', class: 'pp-chk', checked: !off, 'aria-label': `Pedir ${nombreProd(x)}`, on: { change: (e) => {
         cambiarFuera(x.pares.map(p => p.it.id), !e.target.checked);
         pintar();
       } } });
       return h('div', { class: 'pp-fila' + (chk ? ' con-chk' : '') + (off ? ' is-fuera' : ''), 'data-prod': x.producto_id },
         chk ? h('label', { class: 'pp-sel', title: off ? 'No se pide' : 'Se pide' }, chk) : null,
-        h('div', { class: 'pp-prod' }, h('b', { text: nombreProd(x) }),
-          h('span', { class: 'pp-locales', text: [...x.porLocal].map(([lid, c]) => `${nombreLocal(lid)} ${fmtNum(c, 3)}`).sort(porTexto).join(' · ') })),
-        h('div', { class: 'pp-cant num' }, h('b', { text: fmtNum(x.cant, 3) }), h('span', { class: 'mute', text: ' ' + (unidad(x) || '') })),
+        h('div', { class: 'pp-prod' }, h('b', { text: nombreProd(x) }), cantLocales(x, () => { tot.textContent = fmtNum(x.cant, 3); })),
+        h('div', { class: 'pp-cant num' }, tot, h('span', { class: 'mute', text: ' ' + (unidad(x) || '') })),
         h('div', { class: 'pp-prov' },
           selectorProv(sinProv ? null : provId, (v, sel) => moverYAvisar(x.pares, v, sel), sinProv ? `Proveedor de ${nombreProd(x)}` : `Pasar ${nombreProd(x)} a otro proveedor`),
           botonSugerido(sug, (v, b) => moverYAvisar(x.pares, v, b))));
@@ -460,18 +489,20 @@ export async function render(root, ctx) {
       catch (x) { toast(mensajeError(x), 'error'); }
       pintar();
     } } }, h('span', { text: `Usar los sugeridos (${sugs.length})` })) : null;
-    const btnAprobar = !sinProv && hayBorrador ? h('button', { class: 'btn btn-ghost', type: 'button', text: 'Aprobar', on: { click: async (e) => {
+    const btnAprobar = !sinProv && hayBorrador ? h('button', { class: 'btn btn-primary', type: 'button', 'data-accion': 'aprobar', text: 'Aprobar cantidades', on: { click: async (e) => {
       const b = e.currentTarget; b.disabled = true;
       try { await flush(); await cambiarEstado(os.filter(o => o.estado === 'borrador'), 'aprobada'); toast(`${nombre}: aprobado`, 'ok'); pintar(); }
       catch (x) { toast(mensajeError(x), 'error'); b.disabled = false; }
     } } }) : null;
     const quedan = incluidos(os);
     const sacados = nFuera(os);
-    const btnWA = !sinProv ? h('button', { class: 'btn btn-primary', type: 'button', disabled: !quedan.length, on: { click: async () => {
+    // Primero se aprueba: mientras quede algún local por aprobar no se manda ni se imprime.
+    const listo = quedan.length && !hayBorrador;
+    const btnWA = !sinProv ? h('button', { class: 'btn ' + (hayBorrador ? 'btn-ghost' : 'btn-primary'), type: 'button', 'data-accion': 'enviar', disabled: !listo, on: { click: async () => {
       try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
       abrirEnvio(prov || { nombre }, incluidos(os), async () => { await marcarEnviado(os); toast(`${nombre}: marcado como enviado`, 'ok'); pintar(); }, sacados);
     } } }, icon(prov && !prov.whatsapp && prov.email ? 'mail' : 'whatsapp', 18), h('span', { text: prov && !prov.whatsapp && prov.email ? 'Enviar por email' : 'Enviar por WhatsApp' })) : null;
-    const btnPrint = !sinProv ? h('button', { class: 'btn btn-ghost', type: 'button', 'data-accion': 'imprimir', disabled: !quedan.length, on: { click: async () => {
+    const btnPrint = !sinProv ? h('button', { class: 'btn btn-ghost', type: 'button', 'data-accion': 'imprimir', disabled: !listo, on: { click: async () => {
       try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
       imprimir([{ prov: prov || { nombre }, os: incluidos(os) }]);
       if (!confirm(`¿Marcar el pedido a ${nombre} como enviado?${sacados ? `\n${sacados} ${sacados === 1 ? 'producto destildado sale' : 'productos destildados salen'} del pedido.` : ''}`)) return;
@@ -489,6 +520,8 @@ export async function render(root, ctx) {
           estados.map(s => h('span', { class: 'estado estado-' + s, text: ESTADOS[s] })))),
       min && tot < min ? h('p', { class: 'gp-nota gp-warn', text: `Pedido mínimo ${fmtMoney(min)}: faltan ${fmtMoney(min - tot)}.` }) : null,
       sacados ? h('p', { class: 'gp-nota gp-info', text: `${sacados} ${sacados === 1 ? 'producto destildado: no se manda ni se imprime' : 'productos destildados: no se mandan ni se imprimen'}. Al marcarlo como enviado sale del pedido.` }) : null,
+      !sinProv && hayBorrador ? h('p', { class: 'gp-nota gp-warn pp-falta-aprobar', text: `Revisá las cantidades de cada local y aprobá para poder enviarlo${pendLocales.length ? ' · falta aprobar: ' + pendLocales.join(', ') : ''}.` }) : null,
+      !sinProv && facturasDe(os) ? h('p', { class: 'pp-facturar', text: 'Facturar a ' + facturasDe(os) }) : null,
       sinProv ? h('p', { class: 'gp-nota gp-warn', text: sugs.length ? 'Elegí el proveedor de cada producto o usá los sugeridos.' : 'Elegí el proveedor de cada producto.' }) : null,
       prov && !prov.whatsapp ? h('p', { class: 'gp-nota ' + (prov.email ? 'gp-info' : 'gp-warn'), text: prov.email ? `Sin WhatsApp: se manda por email a ${prov.email}.` : 'Sin WhatsApp ni email cargado: cargalo en Catálogo → Proveedores.' }) : null,
       h('div', { class: 'pp-tabla' },
@@ -507,7 +540,9 @@ export async function render(root, ctx) {
         h('label', { class: 'check pp-recordar' }, chkRecordar, h('span', { text: 'Al cambiar el proveedor de un producto, guardarlo para los próximos pedidos' })),
         provs.filter(p => p !== SIN).length > 1 ? h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'data-accion': 'imprimir-todos', on: { click: async () => {
           try { await flush(); } catch (x) { return toast(mensajeError(x), 'error'); }
-          const lista = provs.filter(p => p !== SIN).map(p => ({ prov: G.provs.get(p) || { nombre: nombreProv(p) }, os: incluidos(g.get(p)) })).filter(x => x.os.length);
+          // Solo los proveedores con todo aprobado.
+          const lista = provs.filter(p => p !== SIN && !g.get(p).some(o => o.estado === 'borrador')).map(p => ({ prov: G.provs.get(p) || { nombre: nombreProv(p) }, os: incluidos(g.get(p)) })).filter(x => x.os.length);
+          if (!lista.length) return toast('Aprobá primero los pedidos que quieras imprimir.', 'error');
           imprimir(lista);
         } } }, icon('imprimir', 18), h('span', { text: 'Imprimir todos (uno por hoja)' })) : null) : null,
       ...(provs.length ? provs.map(p => tarjeta(p, g.get(p))) : [vacio('No hay pedidos para armar', 'Lo que manden los locales y esté en revisión o aprobado aparece acá, agrupado por proveedor.')])
