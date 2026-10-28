@@ -151,7 +151,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await guardarImagen(g, '03-orden-imagen-por-local');
   await shot(g, '04-enviar-por-local-pc');
   await g.locator('.sheet .seg-b', { hasText: 'Todo junto' }).click();
-  await g.waitForTimeout(600);
+  await g.waitForFunction(() => /Gelato \+ Umo Grill/.test((document.querySelector('.orden-img img') || {}).alt || ''));
   msg = await alt();
   ok(/Shopping\nFacturar a SPMAR S\.A\./.test(msg) && /Gelato \+ Umo Grill\nFacturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8/.test(msg), 'Todo junto: un bloque por razón social');
   ok(/3 bidón Lavandina x 5 litros · Cód\. LAVAN \(Gelato 1 · Umo Grill 2\)/.test(msg) && /• 3 bidón Lavandina x 5 litros · Cód\. LAVAN\n/.test(msg), 'Todo junto: suma solo dentro de la misma razón social · ' + (msg.match(/.*Lavandina.*/g) || []).join(' | '));
