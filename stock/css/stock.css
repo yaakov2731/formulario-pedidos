@@ -666,6 +666,7 @@ a.tb-card:hover { border-color: var(--text-2); }
   .pr-num { text-align: right !important; font-variant-numeric: tabular-nums; width: 14%; font-weight: 700; }
   .pr-tabla td:nth-child(3), .pr-tabla th:nth-child(3) { width: 18%; }
   .pr-ok { width: 12%; }
+  .pr-cod { font: 700 11pt ui-monospace, Menlo, Consolas, monospace; margin-right: 8pt; }
   .pr-stock td.pr-blanco::after { width: 60pt; border-width: 0 0 1pt; border-radius: 0; }
   .pr-stock .pr-num { width: 10%; }
   td.pr-ok::after { content: ""; display: inline-block; width: 14pt; height: 14pt; border: 1pt solid #000; border-radius: 2pt; }

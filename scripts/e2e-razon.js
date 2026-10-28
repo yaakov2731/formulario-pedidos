@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Prueba de punta a punta de la razón social por local en las órdenes a proveedores (manual, no corre en CI). Servidor estático y
 // API de Supabase mockeada con page.route. Gerencia (PC y iPhone): Catálogo → Locales edita razón social y CUIT; el envío por
-// WhatsApp (mensaje + imagen) y la impresión dicen "Facturar a …" por local; "Todo junto" suma por razón social. Sin 0013, como antes.
+// WhatsApp (mensaje + imagen) y la impresión dicen "Facturar a …" por local y el código del mayorista en cada producto; "Todo junto" suma por razón social. Sin 0013, como antes.
 // Uso: node scripts/e2e-razon.js [carpeta-de-capturas]
 const http = require('node:http');
 const fs = require('node:fs');
@@ -10,7 +10,7 @@ let chromium;
 try { ({ chromium } = require('playwright')); } catch (_e) { ({ chromium } = require('/opt/node-tools/node_modules/playwright')); }
 
 const ROOT = path.join(__dirname, '..');
-const OUT = path.resolve(process.argv[2] || '/mnt/project-files/app-stock/razon-social');
+const OUT = path.resolve(process.argv[2] || '/mnt/project-files/app-stock/codigo-proveedor');
 const SB = 'https://zunyzlpzofbyqplgiupl.supabase.co';
 const EXEC = process.env.CHROMIUM_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 fs.mkdirSync(OUT, { recursive: true });
@@ -48,7 +48,7 @@ const orden = (local, quien, lineas) => {
 };
 orden('umo', 'Ruth Coronel', [[prod('umo', 'LAVAN', 'Lavandina x 5 litros', 'bidón'), 2], [prod('umo', 'F100', 'B.aluminio f100 x 100 unidades', 'paquete'), 3]]);
 orden('gel', 'Sofía', [[prod('gel', 'LAVAN', 'Lavandina x 5 litros', 'bidón'), 1], [prod('gel', 'POTE1', 'Pote térmico 1 kg x 25', 'paquete'), 4]]);
-orden('shp', 'Carla', [[prod('shp', 'LAVAN', 'Lavandina x 5 litros', 'bidón'), 3], [prod('shp', 'CONS80', 'Bolsa consorcio 80x110 x 10', 'paquete'), 6]]);
+orden('shp', 'Carla', [[prod('shp', 'LAVAN', 'Lavandina x 5 litros', 'bidón'), 3], [prod('shp', 'CONS80', 'Bolsa consorcio 80x110 x 10', 'paquete'), 6], [prod('shp', 'PANU6-B', 'Paño multiuso x 6', 'paquete'), 2]]);
 function jwt(sub) {
   const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   return `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 7 * 86400 })}.firma`;
@@ -145,13 +145,14 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   let msg = await g.locator('[data-aviso]').innerText();
   ok(/\*Umo Grill\*\n_Facturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8_/.test(msg), 'mensaje: Umo factura a SUMA ACTIVA con CUIT');
   ok(/\*Gelato\*\n_Facturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8_/.test(msg) && /\*Shopping\*\n_Facturar a SPMAR S\.A\._/.test(msg), 'mensaje: Gelato a SUMA ACTIVA y Shopping a SPMAR');
+  ok(/• 2 bidón Lavandina x 5 litros · Cód\. LAVAN\n/.test(msg) && /Pote térmico 1 kg x 25 · Cód\. POTE1/.test(msg) && /Cód\. PANU6\n/.test(msg), 'mensaje: cada producto lleva el código del mayorista (sin LOCAL-DS- ni -B)');
   await guardarImagen(g, '03-orden-imagen-por-local');
   await shot(g, '04-enviar-por-local-pc');
   await g.locator('.sheet .seg-b', { hasText: 'Todo junto' }).click();
   await g.waitForTimeout(600);
   msg = await g.locator('[data-aviso]').innerText();
   ok(/\*Shopping\*\n_Facturar a SPMAR S\.A\._/.test(msg) && /\*Gelato \+ Umo Grill\*\n_Facturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8_/.test(msg), 'Todo junto: un bloque por razón social');
-  ok(/3 bidón Lavandina x 5 litros \(Gelato 1 · Umo Grill 2\)/.test(msg) && /• 3 bidón Lavandina x 5 litros\n/.test(msg), 'Todo junto: suma solo dentro de la misma razón social · ' + (msg.match(/.*Lavandina.*/g) || []).join(' | '));
+  ok(/3 bidón Lavandina x 5 litros · Cód\. LAVAN \(Gelato 1 · Umo Grill 2\)/.test(msg) && /• 3 bidón Lavandina x 5 litros · Cód\. LAVAN\n/.test(msg), 'Todo junto: suma solo dentro de la misma razón social · ' + (msg.match(/.*Lavandina.*/g) || []).join(' | '));
   await guardarImagen(g, '05-orden-imagen-todo-junto');
   await g.keyboard.press('Escape');
 
@@ -161,6 +162,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForSelector('.print-area .pr-factura');
   const fact = await g.locator('.print-area .pr-factura').allInnerTexts();
   ok(fact.length === 3 && fact.filter(x => /SUMA ACTIVA/.test(x)).length === 2 && fact.some(x => /SPMAR/.test(x)), 'impresión: "Facturar a" en cada local · ' + fact.join(' | '));
+  const cods = await g.locator('.print-area .pr-cod').allInnerTexts();
+  ok(cods.includes('LAVAN') && cods.includes('CONS80') && cods.includes('PANU6'), 'impresión: código del mayorista en cada producto · ' + cods.join(' '));
   await g.pdf({ path: path.join(OUT, '06-impresion.pdf'), format: 'A4', landscape: true, printBackground: true }).catch(() => {});
   await g.emulateMedia({ media: 'screen' });
   await cG.close();

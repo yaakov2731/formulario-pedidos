@@ -1,6 +1,7 @@
 // Copia del pedido en imagen (PNG) para mandarle al proveedor: logo de Docks del Puerto, proveedor, fecha
 // y los productos, separados por local o todo junto. Sin precios.
-// orden: { proveedor, fecha: Date, bloques: [{ titulo, factura, lineas: [{ cant, unidad, nombre, detalle }] }] }
+// orden: { proveedor, fecha: Date, bloques: [{ titulo, factura, lineas: [{ cant, unidad, nombre, codigo, detalle }] }] }
+// codigo: el del proveedor ("Cód. LAVAN"), debajo del nombre.
 // factura: "Facturar a SUMA ACTIVA S.A." (razón social del local), debajo del título del bloque.
 
 const W = 1080, PAD = 72;
@@ -78,11 +79,13 @@ function pintar(ctx, orden, medir) {
       total++;
       ctx.font = `600 25px ${SANS}`;
       const nom = cortar(ctx, l.nombre, anchoNom);
-      const alto = 24 + nom.length * 32 + (l.detalle ? 26 : 0) + 14;
+      const alto = 24 + nom.length * 32 + (l.codigo ? 26 : 0) + (l.detalle ? 26 : 0) + 14;
       t(l.cant, xCant, y + 46, `600 26px ${MONO}`, TINTA, 'right');
       t(l.unidad || '', xCant, y + 72, `500 16px ${SANS}`, GRIS, 'right');
       nom.forEach((n, i) => t(n, xNom, y + 46 + i * 32, `600 25px ${SANS}`, TINTA));
-      if (l.detalle) t(l.detalle, xNom, y + 46 + nom.length * 32 - 4, `400 18px ${SANS}`, GRIS);
+      let yExtra = y + 46 + nom.length * 32 - 4;
+      if (l.codigo) { t('Cód. ' + l.codigo, xNom, yExtra, `600 18px ${MONO}`, TINTA); yExtra += 26; }
+      if (l.detalle) t(l.detalle, xNom, yExtra, `400 18px ${SANS}`, GRIS);
       y += Math.max(alto, 86);
       if (!medir) { ctx.fillStyle = LINEA; ctx.fillRect(PAD + 20, y - 1, W - PAD * 2 - 40, 1); }
     }
