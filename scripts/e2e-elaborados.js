@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Prueba de punta a punta de Elaborados (manual, no corre en CI). Servidor estático y API de Supabase mockeada con page.route.
 // Encargado (iPhone): pestaña Elaborados; "Elaboré" 25 milanesas con 5 kg de nalga feteada y 500 g de pan rallado (en g);
-// la segunda vez se completa con lo de la última vez escalado; "Usé hoy" 2 kg de papas; borrar lo de hoy; lo de ayer no.
+// la segunda vez se completa con lo de la última vez escalado; "Usé hoy" 2 kg de papas; borrar lo de hoy; lo de ayer no;
+// "Cierre" al terminar el servicio: sobró y se tiró por elaborado, con la diferencia contra el sistema.
 // Gerencia (PC): Stock → Elaborados con selector de local y receta. Sin 0014, avisa y no guarda.
 // Uso: node scripts/e2e-elaborados.js [carpeta-de-capturas]
 const http = require('node:http');
@@ -99,6 +100,12 @@ async function montarApi(ctx) {
       (b.p_items || []).forEach(it => db.stock.set(it.insumo_id, (db.stock.get(it.insumo_id) || 0) - it.cantidad));
       if (b.p_producto) db.stock.set(b.p_producto, (db.stock.get(b.p_producto) || 0) + b.p_cantidad);
       db.regs.push({ id, local_id: b.p_local, tipo: b.p_producto ? 'elaboracion' : 'uso', producto_id: b.p_producto, cantidad: b.p_cantidad, items: b.p_items, nota: b.p_nota, encargado: b.p_encargado, creado_en: new Date().toISOString() });
+      return json(id);
+    }
+    if (t === 'rpc/cerrar_servicio') {
+      const b = body(); db.rpc.push(b); const id = 'r' + (++seq);
+      const det = b.p_items.map(it => { const sis = db.stock.get(it.producto_id) || 0; db.stock.set(it.producto_id, it.sobro); return { ...it, sistema: sis, dif: it.sobro + it.tiro - sis }; });
+      db.regs.push({ id, local_id: b.p_local, tipo: 'cierre', producto_id: null, cantidad: null, items: det, nota: b.p_nota, encargado: b.p_encargado, creado_en: new Date().toISOString() });
       return json(id);
     }
     if (t === 'rpc/borrar_elaboracion') { const b = body(); db.rpc.push({ borrar: b.p_id }); db.regs = db.regs.filter(r => r.id !== b.p_id); return json(null); }
@@ -201,6 +208,24 @@ async function elegir(sel, texto) { const v = await nombreOpt(sel, texto); if (!
   await e.locator('.el-reg').first().locator('.el-borrar').click();
   await e.waitForFunction(() => document.querySelectorAll('.el-reg').length === 2);
   ok(db.rpc.some(x => x.borrar === idUso), 'borra lo de hoy en el servidor');
+  // Cierre del servicio: Milanesa (6 + 25 hechas hoy = 31 en sistema) → sobraron 20 y se tiraron 3: faltan 8.
+  await e.locator('.el-seg [data-modo="cierre"]').click();
+  await e.waitForSelector('[data-cierre]');
+  const primero = await e.locator('[data-cierre]').first().getAttribute('data-cierre');
+  ok(primero === P.mila.id && /Debería quedar 31 · hoy se hizo 25/.test(await e.locator(`[data-cierre="${P.mila.id}"]`).innerText()), 'cierre: la milanesa arriba con lo que debería quedar y lo hecho hoy');
+  ok(!(await e.locator('[data-cierre]').allInnerTexts()).some(t => /Nalga|napolitana/.test(t)), 'cierre: solo elaborados (sin insumos ni platos de la carta)');
+  const cm = e.locator(`[data-cierre="${P.mila.id}"]`);
+  await cm.locator('.el-cant').nth(0).fill('20');
+  await cm.locator('.el-cant').nth(1).fill('3');
+  ok(/Faltan 8/.test(await cm.locator('.el-dif').innerText()), 'cierre: muestra la diferencia al escribir (faltan 8)');
+  await shot(e, '08-cierre-m', true);
+  await e.locator('.el-guardar').click();
+  await e.waitForSelector('.el-reg-cierre');
+  r = db.rpc[db.rpc.length - 1];
+  ok(r.p_items.length === 1 && r.p_items[0].producto_id === P.mila.id && r.p_items[0].sobro === 20 && r.p_items[0].tiro === 3 && r.p_encargado === 'Maru', 'cierre: manda sobró 20 y se tiró 3 de la milanesa');
+  ok(/Milanesa de nalga sobró 20 · se tiró 3 · Faltan 8/.test(await e.locator('.el-reg-cierre').innerText()), 'cierre: queda en lo anotado hoy con la diferencia');
+  ok(/Debería quedar 20/.test(await e.locator(`[data-cierre="${P.mila.id}"]`).innerText()), 'cierre: después del cierre el sistema queda en lo que sobró');
+  await shot(e, '09-cierre-hecho-m', true);
   // Validaciones
   await e.locator('.el-seg [data-modo="elaboracion"]').click();
   await e.locator('.el-guardar').click();

@@ -244,6 +244,8 @@ export const produccionesRecientes = async (localId) =>
 // Elaborados del local (encargado y gerencia): lo que se elaboró con lo que se usó de verdad, y el uso del día (0014_elaborados.sql).
 export const registrarElaboracion = async (localId, productoId, cantidad, items, nota, encargado) =>
   ok(await sb.rpc('registrar_elaboracion', { p_local: localId, p_producto: productoId, p_cantidad: cantidad, p_items: items, p_nota: nota || null, p_encargado: encargado || null }));
+export const cerrarServicio = async (localId, items, nota, encargado) =>
+  ok(await sb.rpc('cerrar_servicio', { p_local: localId, p_items: items, p_nota: nota || null, p_encargado: encargado || null }));
 export const borrarElaboracion = async (id) => ok(await sb.rpc('borrar_elaboracion', { p_id: id }));
 export const elaboracionesDesde = async (localId, desdeISO) =>
   ok(await sb.from('producciones').select('id,tipo,producto_id,cantidad,items,nota,encargado,creado_en').eq('local_id', localId).gte('creado_en', desdeISO).order('creado_en', { ascending: false }).limit(60));

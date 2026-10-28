@@ -2,9 +2,10 @@
 // "Elaboré": qué salió y cuánto (25 milanesas) y qué se usó de verdad (5 kg de nalga feteada, 500 g de pan rallado).
 //   Suma lo elaborado al stock y descuenta lo usado. Se completa con lo de la última vez (o la receta, en gerencia).
 // "Usé hoy": lo que se saca para el turno al empezar el día (2 kg de papas). Solo descuenta.
+// "Cierre": al terminar el servicio, por elaborado: debería quedar (sistema), sobró y se tiró; muestra la diferencia.
 // Abajo, lo anotado hoy y ayer, con quién lo anotó; lo de hoy se puede borrar si se cargó mal. No muestra plata.
 import { mount, h, norm, fmtNum, parseNum, porTexto, esCarta, lsGet, groupBy } from './util.js';
-import { swr, cargarCatalogo, cargarStock, cargarLocales, cargarRecetas, registrarElaboracion, borrarElaboracion, elaboracionesDesde, mensajeError } from './api.js';
+import { swr, cargarCatalogo, cargarStock, cargarLocales, cargarRecetas, registrarElaboracion, borrarElaboracion, cerrarServicio, elaboracionesDesde, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, banner, icon, subnav, SUBNAV_STOCK } from './ui.js';
 
@@ -24,6 +25,7 @@ export function escalasDe(unidad) {
 // Cantidad cómoda de leer: 0,5 kg → 500 g; 1500 g → 1,5 kg.
 export function legible(cant, unidad) {
   const u = norm(unidad); const n = Number(cant) || 0;
+  if (n === 0) return unidad && !/^u(n|nid|nidad|nidades)?\.?$/.test(u) ? `0 ${unidad}` : '0';
   if (['kg', 'kgs', 'kilo', 'kilos'].includes(u) && Math.abs(n) < 1) return `${fmtNum(n * 1000, 0)} g`;
   if (['g', 'gr', 'grs', 'gramo', 'gramos'].includes(u) && Math.abs(n) >= 1000) return `${fmtNum(n / 1000, 3)} kg`;
   if (['l', 'lt', 'lts', 'litro', 'litros'].includes(u) && Math.abs(n) < 1) return `${fmtNum(n * 1000, 0)} ml`;
@@ -91,7 +93,7 @@ export async function render(root, ctx) {
   }
 
   function pintarSeg() {
-    seg.replaceChildren(...[['elaboracion', 'Elaboré'], ['uso', 'Usé hoy']].map(([id, t]) => h('button', {
+    seg.replaceChildren(...[['elaboracion', 'Elaboré'], ['uso', 'Usé hoy'], ['cierre', 'Cierre']].map(([id, t]) => h('button', {
       class: 'seg-b' + (modo === id ? ' is-on' : ''), type: 'button', role: 'tab', 'aria-selected': modo === id ? 'true' : 'false', text: t, 'data-modo': id,
       on: { click: () => { if (modo === id) return; modo = id; pintarSeg(); pintarForm(); } } })));
   }
@@ -153,6 +155,7 @@ export async function render(root, ctx) {
     if (!ctx.alive()) return;
     const hayProds = prodsLocal().length > 0;
     if (!hayProds) { form.replaceChildren(vacio('No hay productos en este local', 'Gerencia los carga en Catálogo.')); return; }
+    if (modo === 'cierre') return pintarCierre();
     const filas = []; const contFilas = h('div', { class: 'el-filas' });
     const inNota = h('input', { class: 'input el-nota', type: 'text', placeholder: modo === 'uso' ? 'Ej.: turno noche' : 'Ej.: para el fin de semana', 'aria-label': 'Nota', autocomplete: 'off' });
     const btnMas = h('button', { class: 'btn btn-ghost el-mas', type: 'button' }, icon('mas', 18), h('span', { text: modo === 'uso' ? 'Agregar otro insumo' : 'Agregar insumo' }));
@@ -234,27 +237,93 @@ export async function render(root, ctx) {
     mount(form, ...cabeza, contFilas, btnMas, pista, h('label', { class: 'field' }, h('span', { class: 'field-l', text: 'Nota (opcional)' }), inNota), btn);
   }
 
+  // Diferencia del cierre: lo que hay de verdad (sobró + se tiró) contra lo que dice el sistema.
+  const textoDif = (d, p) => Math.abs(d) < 0.0005 ? 'Coincide con el sistema'
+    : (d < 0 ? `Faltan ${legible(-d, u(p))}` : `Hay ${legible(d, u(p))} más que en el sistema`);
+
+  // Cierre del servicio: por cada elaborado, cuánto debería quedar, cuánto sobró y cuánto se tiró.
+  function pintarCierre() {
+    const hoy = inicioDia(0).toISOString();
+    const hecho = new Map();
+    historial.filter(x => x.tipo === 'elaboracion' && x.creado_en >= hoy).forEach(x => hecho.set(x.producto_id, (hecho.get(x.producto_id) || 0) + Number(x.cantidad)));
+    const elab = prodsLocal().filter(p => p.es_elaborado);
+    if (!elab.length) { mount(form, vacio('No hay elaborados en este local', 'Gerencia marca los productos como elaborados en Catálogo.')); return; }
+    const activo = (p) => hecho.has(p.id) || (stock.get(p.id) || 0) !== 0;
+    elab.sort((a, b) => (activo(b) - activo(a)) || porTexto(a.nombre, b.nombre));
+    const filas = elab.map(p => {
+      const sis = stock.get(p.id) || 0;
+      const sobro = cantidadCon(p, null, `Sobró de ${p.nombre}`); const tiro = cantidadCon(p, null, `Se tiró de ${p.nombre}`);
+      const dif = h('p', { class: 'el-dif' });
+      const fija = escalasDe(u(p)).length > 1 ? '' : (u(p) && !/^u(n|nid|nidad|nidades)?\.?$/.test(norm(u(p))) ? ` (${u(p)})` : '');
+      const ver = () => {
+        const a = sobro.get(); const t = tiro.get() || 0;
+        if (a === null) { dif.textContent = ''; dif.className = 'el-dif'; return; }
+        const d = a + t - sis; dif.textContent = textoDif(d, p);
+        dif.className = 'el-dif' + (d < -0.0005 ? ' el-mal' : (d > 0.0005 ? ' el-mas-dif' : ' el-bien'));
+      };
+      sobro.inp.addEventListener('input', ver); tiro.inp.addEventListener('input', ver);
+      const el = h('article', { class: 'el-cierre' + (activo(p) ? '' : ' el-cierre-quieto'), 'data-cierre': p.id },
+        h('h3', { class: 'el-reg-n', text: p.nombre }),
+        h('p', { class: 'el-quedan' }, 'Debería quedar ', h('b', { text: legible(sis, u(p)) }), hecho.has(p.id) ? ` · hoy se hizo ${legible(hecho.get(p.id), u(p))}` : ''),
+        h('div', { class: 'el-cierre-2' },
+          h('label', { class: 'field' }, h('span', { class: 'field-l', text: 'Sobró' + fija }), sobro.el),
+          h('label', { class: 'field' }, h('span', { class: 'field-l', text: 'Se tiró' + fija }), tiro.el)),
+        dif);
+      return { p, sis, sobro, tiro, el };
+    });
+    const inNota = h('input', { class: 'input el-nota', type: 'text', placeholder: 'Ej.: cierre turno noche', 'aria-label': 'Nota', autocomplete: 'off' });
+    const btn = h('button', { class: 'btn btn-primary btn-block el-guardar', type: 'button', text: 'Cerrar el servicio' });
+    btn.addEventListener('click', async () => {
+      if (sinSQL) return toast('Falta activar Elaborados en el servidor.', 'error');
+      const items = filas.filter(f => f.sobro.get() !== null).map(f => ({ producto_id: f.p.id, sobro: Math.round(f.sobro.get() * 1000) / 1000, tiro: Math.round((f.tiro.get() || 0) * 1000) / 1000 }));
+      const malo = filas.find(f => f.sobro.get() === null && f.tiro.get());
+      if (malo) { malo.sobro.inp.focus(); return toast(`Poné cuánto sobró de ${malo.p.nombre} (0 si no quedó nada).`, 'error'); }
+      if (!items.length) return toast('Anotá cuánto sobró de al menos un producto (0 si no quedó nada).', 'error');
+      if (items.some(it => it.sobro < 0 || it.tiro < 0)) return toast('Las cantidades no pueden ser negativas.', 'error');
+      btn.disabled = true; btn.textContent = 'Guardando…';
+      try {
+        const id = await cerrarServicio(localId, items, inNota.value.trim(), quien());
+        const det = items.map(it => { const f = filas.find(x => x.p.id === it.producto_id); return { ...it, sistema: f.sis, dif: Math.round((it.sobro + it.tiro - f.sis) * 1000) / 1000 }; });
+        det.forEach(it => { stock.set(it.producto_id, it.sobro); if (ger) G.stock.set(localId + '|' + it.producto_id, it.sobro); });
+        historial = [{ id, tipo: 'cierre', producto_id: null, cantidad: null, items: det, nota: inNota.value.trim() || null, encargado: quien() || null, creado_en: new Date().toISOString() }, ...historial];
+        const faltan = det.filter(x => x.dif < 0).length;
+        toast(faltan ? `Cierre guardado · ${faltan} con faltante` : 'Cierre guardado', faltan ? 'info' : 'ok');
+        pintarForm(); pintarHistorial();
+      } catch (e) { toast(mensajeError(e), 'error'); btn.disabled = false; btn.textContent = 'Cerrar el servicio'; }
+    });
+    mount(form, h('p', { class: 'grupo-t', text: 'Al terminar el servicio' }),
+      h('p', { class: 'el-pista el-ayuda', text: 'Contá lo que sobró de cada elaborado. Lo que sobra queda en stock para mañana; lo que se tira se descuenta como pérdida.' }),
+      h('div', { class: 'el-filas' }, filas.map(f => f.el)),
+      h('label', { class: 'field' }, h('span', { class: 'field-l', text: 'Nota (opcional)' }), inNota), btn);
+  }
+
   function pintarHistorial() {
     if (!ctx.alive()) return;
     const hoy = inicioDia(0).toISOString();
     const tarjeta = (x) => {
       const p = prods.get(x.producto_id);
-      const usados = (x.items || []).map(it => { const i = prods.get(it.insumo_id); return `${legible(it.cantidad, u(i))} ${i ? i.nombre : 'insumo'}`; });
-      const titulo = x.tipo === 'uso' ? 'Uso del día' : `${legible(x.cantidad, u(p))} ${p ? p.nombre : 'Producto'}`;
+      const cierre = x.tipo === 'cierre';
+      const usados = cierre ? [] : (x.items || []).map(it => { const i = prods.get(it.insumo_id); return `${legible(it.cantidad, u(i))} ${i ? i.nombre : 'insumo'}`; });
+      const titulo = cierre ? 'Cierre del servicio' : (x.tipo === 'uso' ? 'Uso del día' : `${legible(x.cantidad, u(p))} ${p ? p.nombre : 'Producto'}`);
+      const lineas = cierre ? (x.items || []).map(it => { const q = prods.get(it.producto_id); const d = Number(it.dif) || 0;
+        return h('li', { class: 'el-cl' + (d < -0.0005 ? ' el-mal' : '') }, h('b', { text: q ? q.nombre : 'Producto' }),
+          h('span', { text: ` sobró ${legible(it.sobro, u(q))}` + (Number(it.tiro) ? ` · se tiró ${legible(it.tiro, u(q))}` : '') + ` · ${textoDif(d, q).replace(' con el sistema', '')}` })); }) : [];
       const puedeBorrar = ger || x.creado_en >= hoy;
       const borrar = puedeBorrar ? h('button', { class: 'icon-btn el-borrar', type: 'button', 'aria-label': `Borrar ${titulo}`, title: 'Borrar (se cargó mal)', on: { click: async (ev) => {
-        if (!window.confirm(`¿Borrar "${titulo}"? Se devuelve lo que había descontado.`)) return;
+        if (!window.confirm(cierre ? '¿Borrar el cierre? El stock vuelve a lo que decía el sistema antes de cerrar.' : `¿Borrar "${titulo}"? Se devuelve lo que había descontado.`)) return;
         ev.currentTarget.disabled = true;
         try {
           await borrarElaboracion(x.id);
-          (x.items || []).forEach(it => stock.set(it.insumo_id, (stock.get(it.insumo_id) || 0) + Number(it.cantidad)));
-          if (x.tipo !== 'uso') stock.set(x.producto_id, (stock.get(x.producto_id) || 0) - Number(x.cantidad));
+          if (cierre) (x.items || []).forEach(it => stock.set(it.producto_id, Number(it.sistema)));
+          else (x.items || []).forEach(it => stock.set(it.insumo_id, (stock.get(it.insumo_id) || 0) + Number(it.cantidad)));
+          if (x.tipo === 'elaboracion') stock.set(x.producto_id, (stock.get(x.producto_id) || 0) - Number(x.cantidad));
           if (ger) stock.forEach((v, k) => G.stock.set(localId + '|' + k, v));
           historial = historial.filter(y => y.id !== x.id); toast('Borrado', 'ok'); pintarHistorial();
         } catch (e) { toast(mensajeError(e), 'error'); }
       } } }, icon('basura', 18)) : null;
-      return h('article', { class: 'el-reg' + (x.tipo === 'uso' ? ' el-reg-uso' : ''), 'data-reg': x.id },
-        h('div', { class: 'el-reg-t' }, h('span', { class: 'el-tag', text: x.tipo === 'uso' ? 'Usé' : 'Elaboré' }), h('h3', { class: 'el-reg-n', text: titulo }), borrar),
+      return h('article', { class: 'el-reg' + (x.tipo === 'uso' ? ' el-reg-uso' : '') + (cierre ? ' el-reg-cierre' : ''), 'data-reg': x.id },
+        h('div', { class: 'el-reg-t' }, h('span', { class: 'el-tag', text: cierre ? 'Cierre' : (x.tipo === 'uso' ? 'Usé' : 'Elaboré') }), h('h3', { class: 'el-reg-n', text: titulo }), borrar),
+        lineas.length ? h('ul', { class: 'el-cls' }, lineas) : null,
         usados.length ? h('p', { class: 'el-reg-u' }, h('span', { text: x.tipo === 'uso' ? 'Sacó ' : 'Usó ' }), h('b', { text: usados.join(' · ') })) : null,
         h('p', { class: 'el-reg-m', text: [hora(x.creado_en), x.encargado, x.nota].filter(Boolean).join(' · ') }));
     };

@@ -158,7 +158,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   const el = read('js/elaborados.js');
   check('elaborados: pestaña del encargado y dentro de Stock en gerencia', /id: 'elaborados'/.test(navEnc) && (m4.match(/'elaborados': \(\) => import\('\.\/elaborados\.js'\)/g) || []).length === 2 && /SUBNAV_STOCK/.test(read('js/g-stock.js')));
   check('elaborados: el SW precachea elaborados.js y no muestra precios', sw.includes('./js/elaborados.js') && !/precio|costo|importe/i.test(el));
-  check('elaborados: migración 0014 con permiso por local, uso del día y borrar', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0014_elaborados.sql'), 'utf8'); return /mi_local\(\) = p_local/.test(q) && /uso_dia/.test(q) && /borrar_elaboracion/.test(q); })());
+  check('elaborados: migración 0014 con permiso por local, uso del día y borrar', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0014_elaborados.sql'), 'utf8'); return /mi_local\(\) = p_local/.test(q) && /uso_dia/.test(q) && /borrar_elaboracion/.test(q) && /cerrar_servicio/.test(q); })());
   check('notas: migración 0010 con RLS por local y aviso Telegram opcional', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0010_notas.sql'), 'utf8'); return /enable row level security/.test(q) && /local_id = public\.mi_local\(\)/.test(q) && /avisar_nota_telegram/.test(q); })());
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
