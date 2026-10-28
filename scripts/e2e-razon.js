@@ -140,6 +140,11 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.goto(BASE + '#/pedidos');
   await g.waitForSelector('[data-vista="proveedor"]');
   await g.locator('[data-vista="proveedor"]').click();
+  const fct = await g.locator('#view .pp-facturar').first().innerText();
+  ok(/Facturar a SPMAR S\.A\.: Shopping/.test(fct) && /SUMA ACTIVA S\.A\.: Gelato, Umo Grill/.test(fct), 'la tarjeta del proveedor dice a qué razón social factura cada local · ' + fct);
+  const lav = g.locator('#view .pp-fila', { hasText: 'Lavandina' });
+  ok(await lav.count() === 1 && (await lav.locator('.pp-cant b').innerText()).trim() === '6' && await lav.locator('.pp-loc-inp').count() === 3, 'el mismo producto de 3 locales va en una sola fila con el total y la cantidad de cada local');
+  await shot(g, '05-proveedor-facturar-pc');
   await g.locator('#view button', { hasText: 'Enviar por WhatsApp' }).first().click();
   await g.waitForSelector('.orden-img img');
   const alt = () => g.locator('.orden-img img').getAttribute('alt');

@@ -562,7 +562,12 @@ a.tb-card:hover { border-color: var(--text-2); }
 .pp-h { display: none; }
 .pp-prod { grid-area: prod; display: flex; flex-direction: column; min-width: 0; }
 .pp-prod b { overflow-wrap: anywhere; }
-.pp-locales { color: var(--text-2); font-size: 13px; }
+.pp-locales { color: var(--text-2); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.pp-loc { display: inline-flex; align-items: center; gap: 6px; }
+.pp-loc b { color: var(--text); }
+.pp-loc-inp { width: 64px; min-height: 34px; padding: 4px 8px; text-align: right; }
+.pp-loc-ok { color: var(--ok-ink); font-weight: 700; }
+.pp-facturar { color: var(--text-2); font-size: 13px; margin: 0; }
 .pp-cant { grid-area: cant; font-size: 17px; white-space: nowrap; }
 .pp-cant .mute { font-size: 13px; font-family: var(--font); }
 .pp-prov { grid-area: prov; }

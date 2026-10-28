@@ -643,6 +643,22 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
   await barcena.evaluate(el => el.scrollIntoView({ block: 'start' }));
   await shot(g, '10e-g-pedidos-destildado-pc');
+  // revisar y aprobar: sin aprobar no se manda ni se imprime; la cantidad de cada local se corrige en la tarjeta
+  ok(await barcena.locator('[data-accion="enviar"]').isDisabled() && await barcena.getByRole('button', { name: 'Imprimir' }).isDisabled(), 'sin aprobar no se puede mandar ni imprimir');
+  ok(/falta aprobar: Trento Café, Umo Grill/.test(await barcena.locator('.pp-falta-aprobar').innerText()), 'la tarjeta dice qué locales faltan aprobar');
+  const itCho = db.items.find(i => i.producto_id === 'p-chorizo');
+  const choAntes = itCho.cantidad_pedida;
+  const inpCho = barcena.getByLabel('Cantidad de Chorizo parrillero para Umo Grill');
+  await inpCho.fill(String(choAntes + 2)); await inpCho.evaluate(el => el.blur());
+  await g.waitForTimeout(700);
+  ok(itCho.cantidad_pedida === choAntes + 2, `corregir la cantidad de un local en la tarjeta del proveedor guarda el ítem (${choAntes} → ${itCho.cantidad_pedida})`);
+  ok((await barcena.locator('.pp-fila[data-prod="p-chorizo"] .pp-cant b').innerText()).trim() === String(choAntes + 2), 'el total del producto se actualiza');
+  await inpCho.fill(String(choAntes)); await inpCho.evaluate(el => el.blur());
+  await g.waitForTimeout(700);
+  await barcena.locator('[data-accion="aprobar"]').click();
+  await g.waitForSelector('.grupo-prov[data-prov="Barcena"] [data-accion="enviar"]:not([disabled])');
+  ok(db.ordenes.filter(o => o.proveedor_id === PV.barcena && VIVAS_E2E.includes(o.estado)).every(o => o.estado === 'aprobada'), 'Aprobar cantidades aprueba lo de todos los locales de ese proveedor');
+  ok(await barcena.locator('.pp-loc-ok').count() > 0 && await barcena.locator('.pp-loc-inp').count() > 0, 'aprobado: muestra la tilde y la cantidad sigue editable hasta enviarlo');
   // imprimir: A4 horizontal con lo tildado; la vista previa se guarda en PDF
   await g.evaluate(() => { window.print = () => { window.__impreso = document.querySelector('.print-area').outerHTML; }; });
   const avisoPrint = new Promise(r => g.once('dialog', async d => { r(d.message()); await d.dismiss(); }));
@@ -650,15 +666,19 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(/Marcar el pedido a Barcena como enviado/.test(await avisoPrint) && /1 producto destildado sale/.test(await avisoPrint), 'después de imprimir pregunta si se marca como enviado');
   const impreso = await g.evaluate(() => window.__impreso || '');
   ok(/Chorizo parrillero/.test(impreso) && /Mozzarella en barra/.test(impreso) && !/Café en grano/.test(impreso) && !/\$/.test(impreso), 'la hoja impresa lleva lo tildado, sin el destildado ni precios');
-  ok(db.ordenes.find(o => o.local_id === L1 && o.proveedor_id === PV.barcena && o.id === ordBar.id).estado === 'borrador', 'si no se confirma, el pedido no cambia');
+  ok(db.ordenes.find(o => o.local_id === L1 && o.proveedor_id === PV.barcena && o.id === ordBar.id).estado === 'aprobada', 'si no se confirma, el pedido no cambia');
   const pdf = async (html, nombre) => {
     await g.evaluate((x) => { document.querySelectorAll('.print-area').forEach(e => e.remove()); const d = document.createElement('div'); d.innerHTML = x; document.body.append(d.firstElementChild); document.body.classList.add('imprimiendo'); }, html);
     await g.pdf({ path: path.join(OUT, nombre + '.pdf'), preferCSSPageSize: true, printBackground: true });
     await g.evaluate(() => { document.querySelectorAll('.print-area').forEach(e => e.remove()); document.body.classList.remove('imprimiendo'); });
   };
+  for (const n of ['Martín De Ridder', 'Distribuidora Demo']) {
+    await g.locator(`.grupo-prov[data-prov="${n}"] [data-accion="aprobar"]`).click();
+    await g.waitForSelector(`.grupo-prov[data-prov="${n}"] [data-accion="enviar"]:not([disabled])`);
+  }
   await g.locator('[data-accion="imprimir-todos"]').click();
   const todos = await g.evaluate(() => window.__impreso);
-  ok((todos.match(/class="pr-prov"/g) || []).length === 4, 'Imprimir todos: una hoja por proveedor (4)');
+  ok((todos.match(/class="pr-prov"/g) || []).length === 3 && !/Distribuidora Florida/.test(todos), 'Imprimir todos: una hoja por proveedor aprobado (3, Florida todavía no)');
   await pdf(todos, 'impresion-todos');
   // lista larga (de prueba) para ver salto de página y numeración
   const largo = await g.evaluate((x) => { const d = document.createElement('div'); d.innerHTML = x; const tb = d.querySelector('tbody'); const base = [...tb.children]; for (let i = 0; i < 14; i++) base.forEach(r => tb.append(r.cloneNode(true))); return d.innerHTML; }, impreso);
@@ -1033,6 +1053,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.locator('a.tab[data-nav="pedidos"]').click();
   await gm.waitForSelector('.ped-tabla');
   await shot(gm, '16-g-pedidos-m');
+  await gm.locator('[data-filtro="aprobados"]').click(); // lo de Trento ya quedó aprobado en la PC
   await gm.locator('.pt-envio', { hasText: 'Angelica' }).locator('.pt-fila').click();
   await gm.waitForSelector('.pt-det');
   await shot(gm, '16b-g-pedidos-detalle-m');
@@ -1044,6 +1065,10 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await barM.getByLabel('Pedir Café en grano').uncheck();
   await gm.waitForSelector('.grupo-prov[data-prov="Barcena"] .pp-fila.is-fuera');
   await shot(gm, '16d-g-pedidos-destildado-m');
+  if (await barM.locator('[data-accion="aprobar"]').count()) {
+    await barM.locator('[data-accion="aprobar"]').click();
+    await gm.waitForSelector('.grupo-prov[data-prov="Barcena"] [data-accion="enviar"]:not([disabled])');
+  }
   await gm.evaluate(() => { window.print = () => {}; });
   gm.once('dialog', d => d.accept());
   const nCafe = db.items.filter(i => i.producto_id === 'p-trento').length;
