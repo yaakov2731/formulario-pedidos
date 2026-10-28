@@ -16,6 +16,7 @@ export function mensajeError(e) {
   if (/proveedores_nombre_key/i.test(m)) return 'Ya hay un proveedor con ese nombre.';
   if (/facturas_proveedor_proveedor_id_numero_key/i.test(m)) return 'Ya cargaste una factura con ese número para este proveedor.';
   if (code === '23505' || /duplicate key/i.test(m)) return 'Ya existe un registro igual (código repetido).';
+  if (/cambiar_presentacion/i.test(m) && (code === 'PGRST202' || code === '42883')) return 'Falta activar el cambio de bulto: pegá el SQL 0015 en Supabase.';
   if (/email not confirmed/i.test(m)) return 'La cuenta todavía no está confirmada. Avisale a gerencia.';
   if (/too many requests|rate limit/i.test(m)) return 'Demasiados intentos. Esperá un minuto.';
   return m || 'Algo salió mal. Probá de nuevo.';
@@ -261,6 +262,9 @@ export const importacionDelDia = async (localId, fecha) =>
 export const importacionesRecientes = async (localId) =>
   ok(await sb.from('ventas_import').select('id,fecha_desde,archivo,n_pedidos,total_productos,creado_en').eq('local_id', localId).order('fecha_desde', { ascending: false }).order('creado_en', { ascending: false }).limit(15));
 export const borrarImportacion = async (id) => ok(await sb.rpc('borrar_importacion', { p_import: id }));
+// Cambia cómo se compra y se mide un producto; p_escala convierte lo ya cargado (0015_presentacion.sql).
+export const cambiarPresentacion = async (productoId, unidadCompra, unidadUso, factor, escala) =>
+  ok(await sb.rpc('cambiar_presentacion', { p_producto: productoId, p_unidad_compra: unidadCompra, p_unidad_uso: unidadUso, p_factor: factor, p_escala: escala }));
 export const borrarTodosLosPedidos = async (confirmacion) => ok(await sb.rpc('borrar_todos_los_pedidos', { p_confirmacion: confirmacion }));
 export const importarVentas = async (localId, fecha, pedidos, items, pagos, archivo) =>
   ok(await sb.rpc('importar_ventas', { p_local: localId, p_fecha: fecha, p_pedidos: pedidos, p_items: items, p_pagos: pagos, p_archivo: archivo || null }));

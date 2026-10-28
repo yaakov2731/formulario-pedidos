@@ -1009,3 +1009,14 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .el-cierre-2 select.el-uni { flex: 0 0 64px; padding: 0 4px; }
 .tandas { padding: 12px 0 4px; }
 @media print { .tandas { display: none; } }
+
+/* ===== Presentación: se compra por bulto y se mide en kg / litro / unidad ===== */
+.pres-txt { margin: -4px 2px 0; color: var(--accent-text); font-weight: 600; }
+.pres-conv { display: grid; gap: 8px; padding: 12px; border: 1.5px solid var(--warn-line); border-radius: var(--r-field); background: var(--warn-soft); }
+.pres-conv[hidden] { display: none; }
+.pres-conv-t { margin: 0; color: var(--warn-ink); font-weight: 600; }
+.pres-op { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 48px; padding: 10px 12px; text-align: left;
+  border: 1.5px solid var(--sep); border-radius: var(--r-field); background: var(--surface); color: var(--text); }
+.pres-op span { color: var(--text-2); font-size: 14px; }
+.pres-op.is-on { border-color: var(--accent-deco); box-shadow: 0 0 0 3px var(--accent-soft); }
+.bulto { color: var(--text-2); font-size: 13px; }

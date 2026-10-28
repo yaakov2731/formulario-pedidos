@@ -1,5 +1,5 @@
 // Gerencia · Cocina · Recetas: insumos y rinde de cada plato y elaborado; platos vendidos sin receta.
-import { mount, h, tokens, coincide, norm, fmtNum, fmtMoney, parseNum, porTexto, esCarta } from './util.js';
+import { mount, h, tokens, coincide, norm, fmtNum, fmtMoney, parseNum, porTexto, esCarta, medidaReceta, esBulto, factorDe } from './util.js';
 import { cargarRecetas, guardarReceta, platosSinReceta, guardarProducto, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, subnav, icon, banner, SUBNAV_COCINA } from './ui.js';
@@ -59,12 +59,15 @@ export async function render(root, ctx) {
       const err = h('div', { class: 'form-err', 'aria-live': 'polite' });
       const filas = r.items.map((it, i) => {
         const ins = G.prods.get(it.insumo_id) || { nombre: 'Insumo' };
-        const inp = h('input', { class: 'input num inp-num', type: 'text', inputmode: 'decimal', value: fmtNum(it.cantidad, 4), 'aria-label': `Cantidad de ${ins.nombre}`, on: { change: (e) => { const n = parseNum(e.target.value); if (n && n > 0) it.cantidad = n; e.target.value = fmtNum(it.cantidad, 4); } } });
+        // Lo que se mide en kilos o litros se escribe en gramos o cc; se guarda en la medida del insumo (200 g → 0,2 kg).
+        const m = medidaReceta(ins); const dec = m.mult > 1 ? 1 : 4;
+        const inp = h('input', { class: 'input num inp-num', type: 'text', inputmode: 'decimal', value: fmtNum(it.cantidad * m.mult, dec), 'aria-label': `Cantidad de ${ins.nombre} en ${m.u}`, on: { change: (e) => { const n = parseNum(e.target.value); if (n && n > 0) it.cantidad = Math.round(n / m.mult * 1e4) / 1e4; e.target.value = fmtNum(it.cantidad * m.mult, dec); verG(); } } });
         const gramos = h('span', { class: 'mute ins-g' });
-        const verG = () => { gramos.textContent = /^(kg|litro|l)$/i.test(ins.unidad_uso || '') ? `= ${fmtNum(it.cantidad * 1000, 0)} ${/^kg$/i.test(ins.unidad_uso) ? 'g' : 'cc'}` : ''; };
-        inp.addEventListener('change', verG); verG();
+        // Si se compra por bulto: "bolsa de 5 kg · rinde 25 platos".
+        const verG = () => { gramos.textContent = esBulto(ins) ? `${ins.unidad_compra} de ${fmtNum(factorDe(ins), 3)} ${ins.unidad_uso}${it.cantidad > 0 ? ` · alcanza para ${fmtNum(Math.floor(factorDe(ins) / it.cantidad * r.rinde), 0)}` : ''}` : ''; };
+        verG();
         return h('div', { class: 'ins' }, h('span', { class: 'ins-n' }, ins.nombre, gramos),
-          h('div', { class: 'ins-c' }, inp, h('span', { class: 'mute', text: ins.unidad_uso || 'unidad' }),
+          h('div', { class: 'ins-c' }, inp, h('span', { class: 'mute', text: m.u }),
             h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Quitar ${ins.nombre}`, on: { click: () => { r.items.splice(i, 1); vistaEditor(); } } }, icon('cerrar', 18))));
       });
       const c = costo(r);
@@ -80,12 +83,12 @@ export async function render(root, ctx) {
           toast('Receta guardada', 'ok'); cerrar(); pintar();
         } catch (e) { err.replaceChildren(document.createTextNode(mensajeError(e))); btn.disabled = false; btn.textContent = 'Guardar receta'; }
       });
-      cuerpo.replaceChildren(
+      cuerpo.replaceChildren(...[
         previa && previa.estimada ? banner('Receta estándar estimada con pesos típicos. Ajustá las cantidades a lo que sirve el local y guardá: deja de ser estimada.', 'warn') : null,
         campo(`Rinde (${unidad(p)})`, inRinde, 'Cuántas unidades salen con estas cantidades.'),
         h('div', { class: 'ins-lista' }, ...(filas.length ? filas : [h('p', { class: 'mute centro', text: 'Todavía no tiene insumos.' })])),
         h('button', { class: 'btn btn-ghost', type: 'button', text: 'Agregar insumo', on: { click: vistaPicker } }),
-        c !== null ? h('p', { class: 'sub', text: `Costo estimado por ${unidad(p)}: ${fmtMoney(c)}` }) : null, err, btn);
+        c !== null ? h('p', { class: 'sub', text: `Costo estimado por ${unidad(p)}: ${fmtMoney(c)}` }) : null, err, btn].filter(Boolean));
     }
 
     function vistaPicker() {
@@ -97,8 +100,8 @@ export async function render(root, ctx) {
         const tk = tokens(t);
         const vis = [...G.prods.values()].filter(x => x.local_id === p.local_id && x.id !== p.id && x.activo !== false && !esCarta(x) && !usados.has(x.id) && coincide(x.nombre + ' ' + x.codigo, tk))
           .sort((a, b) => porTexto(a.nombre, b.nombre)).slice(0, 40);
-        lista.replaceChildren(...(vis.length ? vis.map(x => h('button', { class: 'prod prod-cat', type: 'button', 'aria-label': `Agregar ${x.nombre}`, on: { click: () => { r.items.push({ insumo_id: x.id, cantidad: 1 }); vistaEditor(); } } },
-          h('span', { class: 'prod-n', text: x.nombre }), h('span', { class: 'prod-m' }, h('span', { text: x.categoria || '' }), h('span', { text: x.unidad_uso || '' })))) : [vacio(`No está en el catálogo de ${nombreLocal}`, 'Crealo acá: queda en el catálogo y se suma a la receta.')]));
+        lista.replaceChildren(...(vis.length ? vis.map(x => h('button', { class: 'prod prod-cat', type: 'button', 'aria-label': `Agregar ${x.nombre}`, on: { click: () => { r.items.push({ insumo_id: x.id, cantidad: medidaReceta(x).mult > 1 ? 0.1 : 1 }); vistaEditor(); } } },
+          h('span', { class: 'prod-n', text: x.nombre }), h('span', { class: 'prod-m' }, h('span', { text: x.categoria || '' }), h('span', { text: esBulto(x) ? `${x.unidad_compra} de ${fmtNum(factorDe(x), 3)} ${x.unidad_uso}` : x.unidad_uso || '' })))) : [vacio(`No está en el catálogo de ${nombreLocal}`, 'Crealo acá: queda en el catálogo y se suma a la receta.')]));
         crear.hidden = !t.trim();
         crear.replaceChildren(icon('mas', 18), h('span', { text: `Crear «${t.trim()}» como insumo nuevo` }));
       };
@@ -111,17 +114,27 @@ export async function render(root, ctx) {
     function vistaNuevo(texto) {
       const tk = tokens(texto);
       const igual = [...G.prods.values()].find(x => x.local_id !== p.local_id && !esCarta(x) && !x.es_elaborado && coincide(x.nombre, tk));
-      const base = igual ? { nombre: igual.nombre, unidad: unidadSimple(igual.unidad_uso), categoria: igual.categoria || '', proveedor_id: igual.proveedor_id || '' }
-        : { nombre: mayus(texto.trim()), unidad: 'kg', categoria: '', proveedor_id: '' };
+      const base = igual ? { nombre: igual.nombre, unidad: unidadSimple(igual.unidad_uso), categoria: igual.categoria || '', proveedor_id: igual.proveedor_id || '',
+        bulto: esBulto(igual) && unidadSimple(igual.unidad_uso) === igual.unidad_uso ? igual.unidad_compra : '', cont: factorDe(igual) }
+        : { nombre: mayus(texto.trim()), unidad: 'kg', categoria: '', proveedor_id: '', bulto: '', cont: 1 };
       let unidadSel = base.unidad;
       const inNombre = h('input', { class: 'input', id: 'n-nombre', value: base.nombre, autocomplete: 'off' });
       const seg = h('div', { class: 'seg seg-form', role: 'group', 'aria-label': 'Unidad' });
       const inCant = h('input', { class: 'input num', id: 'n-cant', type: 'text', inputmode: 'decimal', placeholder: '0', autocomplete: 'off' });
       const ayudaCant = h('span', { class: 'field-h' });
+      const labCant = h('span', { class: 'field-l' });
+      // Bulto: "lo compramos por bolsa · cada una trae 5 kg". Vacío = se compra por kilo, litro o unidad.
+      const inBulto = h('input', { class: 'input', id: 'n-bulto', value: base.bulto, placeholder: 'bolsa, caja… (vacío: suelto)', autocomplete: 'off' });
+      const inCont = h('input', { class: 'input num', id: 'n-cont', type: 'text', inputmode: 'decimal', value: base.bulto ? fmtNum(base.cont, 3) : '', placeholder: '5', autocomplete: 'off' });
+      const labCont = h('span', { class: 'field-l' });
       const pintarSeg = () => {
         seg.replaceChildren(...UNIDADES.map(([v, txt]) => h('button', { class: 'seg-b' + (unidadSel === v ? ' is-on' : ''), type: 'button', text: txt, 'aria-pressed': unidadSel === v ? 'true' : 'false', on: { click: () => { unidadSel = v; pintarSeg(); } } })));
-        ayudaCant.textContent = unidadSel === 'kg' ? 'En kilos: 0,15 = 150 g.' : unidadSel === 'litro' ? 'En litros: 0,25 = 250 cc.' : 'En unidades: 2, 0,5…';
+        const m = medidaReceta({ unidad_uso: unidadSel });
+        labCant.textContent = `Cuánto lleva la receta (${m.u})`;
+        ayudaCant.textContent = unidadSel === 'kg' ? 'En gramos: 200 = 200 g.' : unidadSel === 'litro' ? 'En cc: 250 = 250 cc.' : 'En unidades: 2, 0,5…';
+        labCont.textContent = `Cada ${inBulto.value.trim() || 'una'} trae (${unidadSel})`;
       };
+      inBulto.addEventListener('input', pintarSeg);
       pintarSeg();
       const cats = [...new Set([...G.prods.values()].filter(x => !esCarta(x)).map(x => x.categoria).filter(Boolean))].sort(porTexto);
       const inCat = h('input', { class: 'input', id: 'n-cat', value: base.categoria, list: 'dl-ncat', autocomplete: 'off', placeholder: 'Verdulería, Almacén…' });
@@ -133,12 +146,15 @@ export async function render(root, ctx) {
         err.replaceChildren();
         const nombre = inNombre.value.trim();
         const cant = parseNum(inCant.value);
+        const bulto = inBulto.value.trim(); const cont = parseNum(inCont.value);
+        if (bulto && norm(bulto) !== norm(unidadSel) && !(cont > 0)) return err.append(document.createTextNode(`Poné cuánto trae cada ${bulto} (en ${unidadSel}).`));
+        const conBulto = !!bulto && norm(bulto) !== norm(unidadSel);
         if (!nombre) return err.append(document.createTextNode('Poné el nombre del insumo.'));
         if (!cant || cant <= 0) return err.append(document.createTextNode('Poné cuánto lleva la receta.'));
         const repetido = [...G.prods.values()].find(x => x.local_id === p.local_id && norm(x.nombre) === norm(nombre));
         if (repetido) return err.append(document.createTextNode(`«${repetido.nombre}» ya está en el catálogo de ${nombreLocal}. Buscalo y agregalo.`));
         btn.disabled = true; btn.textContent = 'Creando…';
-        const datos = { nombre, local_id: p.local_id, categoria: inCat.value.trim() || null, unidad_compra: unidadSel, unidad_uso: unidadSel, factor_conversion: 1, proveedor_id: selProv.value || null, es_elaborado: false, activo: true };
+        const datos = { nombre, local_id: p.local_id, categoria: inCat.value.trim() || null, unidad_compra: conBulto ? bulto : unidadSel, unidad_uso: unidadSel, factor_conversion: conBulto ? cont : 1, proveedor_id: selProv.value || null, es_elaborado: false, activo: true };
         try {
           let id = null;
           for (let n = 0; !id; n++) {
@@ -146,20 +162,21 @@ export async function render(root, ctx) {
             try { id = await guardarProducto(null, datos); } catch (e) { if (n < 4 && /duplic|unique|23505/i.test(String(e && (e.code || e.message || e)))) continue; throw e; }
           }
           G.prods.set(id, { ...datos, id });
-          r.items.push({ insumo_id: id, cantidad: cant });
+          r.items.push({ insumo_id: id, cantidad: Math.round(cant / medidaReceta(datos).mult * 1e4) / 1e4 });
           toast(`${nombre} quedó en el catálogo de ${nombreLocal}`, 'ok');
           vistaEditor();
         } catch (e) { err.replaceChildren(document.createTextNode(mensajeError(e))); btn.disabled = false; btn.textContent = 'Crear y sumar a la receta'; }
       });
-      cuerpo.replaceChildren(
+      cuerpo.replaceChildren(...[
         h('p', { class: 'sub', text: `Insumo nuevo para el catálogo de ${nombreLocal}.` }),
         igual ? banner(`Copiamos los datos de «${igual.nombre}» de ${(G.locales.find(l => l.id === igual.local_id) || {}).nombre || 'otro local'}. Revisalos antes de crear.`, 'info') : null,
         h('datalist', { id: 'dl-ncat' }, cats.map(c => h('option', { value: c }))),
         campo('Nombre', inNombre),
         h('div', { class: 'field' }, h('span', { class: 'field-l', text: 'Se mide en' }), seg),
-        h('label', { class: 'field' }, h('span', { class: 'field-l', text: 'Cuánto lleva la receta' }), inCant, ayudaCant),
+        h('label', { class: 'field' }, labCant, inCant, ayudaCant),
+        h('div', { class: 'dos' }, campo('Lo compramos por', inBulto), h('label', { class: 'field' }, labCont, inCont)),
         campo('Categoría', inCat), campo('Proveedor (opcional)', selProv), err, btn,
-        h('button', { class: 'btn btn-text', type: 'button', text: 'Volver a buscar', on: { click: vistaPicker } }));
+        h('button', { class: 'btn btn-text', type: 'button', text: 'Volver a buscar', on: { click: vistaPicker } })].filter(Boolean));
       setTimeout(() => inCant.focus(), 50);
     }
     vistaEditor();

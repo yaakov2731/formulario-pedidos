@@ -107,6 +107,44 @@ export function lsGet(k, def = null) { try { const v = localStorage.getItem('sto
 export function lsSet(k, v) { try { localStorage.setItem('stock:' + k, JSON.stringify(v)); } catch (_e) { /* cuota o modo privado */ } }
 export function lsDel(k) { try { localStorage.removeItem('stock:' + k); } catch (_e) { /* nada */ } }
 
+// ---- presentación: se compra por bulto (unidad_compra) y se usa en unidad_uso; cada bulto trae factor_conversion ----
+// Ej. bolsa de papas de 5 kg: unidad_compra 'bolsa', unidad_uso 'kg', factor 5. Stock y recetas van en kg.
+const BASE_U = { kg: ['kg', 1000], kilo: ['kg', 1000], kilos: ['kg', 1000], g: ['kg', 1], gr: ['kg', 1], gramos: ['kg', 1],
+  litro: ['l', 1000], litros: ['l', 1000], l: ['l', 1000], lt: ['l', 1000], cc: ['l', 1], ml: ['l', 1] };
+const baseU = (u) => BASE_U[norm(u || '')] || null;
+export const factorDe = (p) => Number(p && p.factor_conversion) || 1;
+export const esBulto = (p) => !!(p && p.unidad_compra && p.unidad_uso && norm(p.unidad_compra) !== norm(p.unidad_uso));
+// bolsa → bolsas, unidad → unidades, bidón → bidones; abreviaturas y medidas con números quedan igual.
+export function plural(u, n) {
+  const t = String(u || '');
+  if (!t || Number(n) === 1 || !/^[a-záéíóúñ]{3,}$/i.test(t) || baseU(t)) return t;
+  if (/ón$/i.test(t)) return t.slice(0, -2) + 'ones';
+  return /[aeiou]$/i.test(t) ? t + 's' : t + 'es';
+}
+export const cantU = (n, u) => `${fmtNum(n, 2) || '0'}${u ? ' ' + plural(u, n) : ''}`;
+// "2,3 bolsas (11,5 kg)" si se compra por bulto; si no, "11,5 kg".
+export function textoStock(p, s) {
+  const uso = cantU(s, p && p.unidad_uso);
+  return esBulto(p) ? `${cantU(Math.round(s / factorDe(p) * 10) / 10, p.unidad_compra)} (${uso})` : uso;
+}
+// "1 bolsa = 5 kg" o '' si se compra y se usa igual.
+export const textoBulto = (p) => esBulto(p) ? `1 ${p.unidad_compra} = ${fmtNum(factorDe(p), 3)} ${p.unidad_uso}` : '';
+// En recetas lo que se mide en kilos o litros se carga en gramos o cc.
+export function medidaReceta(p) {
+  const u = p && p.unidad_uso;
+  const b = baseU(u);
+  if (b && b[1] === 1000) return { u: b[0] === 'kg' ? 'g' : 'cc', mult: 1000 };
+  return { u: u || 'unidad', mult: 1 };
+}
+// Cuánto multiplicar lo ya cargado al pasar de una unidad de uso a otra. Si las dos son peso o volumen se sabe solo
+// (kg → g = 1000); si no, se toma que el bulto es el mismo (paquete de 5 kg → kg: lo de antes × factor nuevo ÷ viejo).
+export function escalaPresentacion(antes, despues) {
+  if (norm(antes.unidad_uso || '') === norm(despues.unidad_uso || '')) return 1;
+  const a = baseU(antes.unidad_uso), d = baseU(despues.unidad_uso);
+  if (a && d && a[0] === d[0]) return a[1] / d[1];
+  return factorDe(despues) / factorDe(antes);
+}
+
 // ---- reglas de pedido ----
 // Respaldo del sugerido (cantidad ideal menos stock) para cuando el servidor todavía no tiene sugerido_pedido (migración 0003).
 export function sugerido(prod, stock) {
