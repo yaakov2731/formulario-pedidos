@@ -95,6 +95,8 @@ function marcarActivo(id) {
   });
 }
 
+const VERSION_NUEVA = /does not provide an export named|dynamically imported module|Importing a module script failed|error loading dynamically imported|is not a valid JavaScript MIME/i;
+
 async function ruta() {
   if (!ctx) return;
   const [, id] = (location.hash || '').split('/');
@@ -116,6 +118,15 @@ async function ruta() {
     window.scrollTo(0, 0);
   } catch (e) {
     if (mi !== ticket) return;
+    // Se publicó una versión nueva con la app abierta: el navegador mezcla archivos viejos (ya cargados) con nuevos.
+    // Se recarga sola una vez; si vuelve a pasar, se ofrece actualizar a mano.
+    if (VERSION_NUEVA.test(String(e && e.message || e))) {
+      let ultima = 0; try { ultima = Number(sessionStorage.getItem('stock:recarga')) || 0; } catch (_e) { /* nada */ }
+      if (Date.now() - ultima > 60e3) { try { sessionStorage.setItem('stock:recarga', String(Date.now())); } catch (_e) { /* nada */ } location.reload(); return; }
+      $view.replaceChildren(h('section', { class: 'center-card' }, h('h1', { class: 'titulo', text: 'Hay una versión nueva' }),
+        h('p', { class: 'sub', text: 'Tocá Actualizar para cargarla. Si sigue igual, cerrá la app y abrila de nuevo.' }), h('button', { class: 'btn btn-primary', type: 'button', text: 'Actualizar', on: { click: () => location.reload() } })));
+      return;
+    }
     $view.replaceChildren(h('section', { class: 'center-card' }, h('h1', { class: 'titulo', text: 'No se pudo cargar' }),
       h('p', { class: 'sub', text: mensajeError(e) }), h('button', { class: 'btn btn-primary', type: 'button', text: 'Reintentar', on: { click: () => ruta() } })));
   }
