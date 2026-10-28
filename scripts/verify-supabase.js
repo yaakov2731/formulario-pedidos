@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql y 0011_proveedores_datos.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql y 0014_borrar_pedidos.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -77,6 +77,10 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     const faltan = ['razon_social', 'contacto', 'telefono', 'email', 'whatsapp_pagos', 'email_pagos', 'banco'].filter(c => !cols.includes(c));
     check('aplica 0011_proveedores_datos.sql (idempotente) con contacto, email y datos de pago', !faltan.length, faltan.join(', '));
   } catch (e) { check('aplica 0011_proveedores_datos.sql (idempotente)', false, e.message); return finish(); }
+
+  const mig14 = fs.readFileSync(path.join(root, 'supabase/migrations/0014_borrar_pedidos.sql'), 'utf8');
+  try { await db.exec(mig14); await db.exec(mig14); check('aplica 0014_borrar_pedidos.sql (idempotente)', true); }
+  catch (e) { check('aplica 0014_borrar_pedidos.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -640,6 +644,26 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   check('anon NO ejecuta mi_rol()', !!lm.err);
   const sinEnc = await q("select l.codigo from locales l where l.activo and not exists (select 1 from perfiles p where p.local_id = l.id and p.rol = 'encargado')");
   check('Entrar no lista locales sin encargado con usuario', ll.rows && !ll.rows.some(r => sinEnc.some(x => x.codigo === r.codigo)));
+
+  // Borrar todos los pedidos (limpiar pruebas): solo gerencia, con BORRAR, y descuenta lo recibido del stock
+  {
+    const antes = (await q("select (select count(*) from ordenes_compra)::int o, (select count(*) from orden_items)::int i, (select count(*) from movimientos where ref_tipo='orden')::int mo, (select count(*) from movimientos where ref_tipo is distinct from 'orden')::int otros, (select count(*) from precios)::int pr"))[0];
+    const stockSinOrden = async () => (await q("select local_id, producto_id, sum(cantidad)::float s from movimientos where ref_tipo is distinct from 'orden' group by 1,2 order by 1,2")).map(r => `${r.local_id}:${r.producto_id}:${r.s}`).join('|');
+    const st0 = await stockSinOrden();
+    check('hay pedidos con recepciones para probar el borrado', antes.o > 0 && antes.i > 0 && antes.mo > 0, JSON.stringify(antes));
+    const eEnc = await as(U.e1, () => tryq("select borrar_todos_los_pedidos('BORRAR') r"));
+    const eAnon = await (async () => { await db.exec('set role anon'); try { return await tryq("select borrar_todos_los_pedidos('BORRAR') r"); } finally { await db.exec('reset role'); } })();
+    const eSin = await as(U.ger, () => tryq("select borrar_todos_los_pedidos('si') r"));
+    const sigue = (await q('select count(*)::int n from ordenes_compra'))[0].n;
+    check('borrar_todos_los_pedidos: encargado, anon y sin escribir BORRAR no borran nada', !!eEnc.err && !!eAnon.err && !!eSin.err && /BORRAR/.test(eSin.err) && sigue === antes.o, JSON.stringify([eEnc.err, eAnon.err, eSin.err]));
+    const rb = await as(U.ger, () => tryq("select borrar_todos_los_pedidos(' borrar ') r"));
+    const desp = (await q("select (select count(*) from ordenes_compra)::int o, (select count(*) from orden_items)::int i, (select count(*) from orden_item_precios)::int ip, (select count(*) from movimientos where ref_tipo='orden')::int mo, (select count(*) from movimientos where ref_tipo is distinct from 'orden')::int otros, (select count(*) from precios)::int pr"))[0];
+    check('borrar_todos_los_pedidos borra órdenes, productos, precios recibidos y entradas de stock de recepciones',
+      rb.rows && rb.rows[0].r.pedidos === antes.o && rb.rows[0].r.items === antes.i && rb.rows[0].r.movimientos === antes.mo && desp.o === 0 && desp.i === 0 && desp.ip === 0 && desp.mo === 0, JSON.stringify([rb, desp]));
+    check('borrar_todos_los_pedidos no toca otros movimientos, stock por ventas/conteos ni precios de lista', desp.otros === antes.otros && desp.pr === antes.pr && (await stockSinOrden()) === st0);
+    const rb2 = await as(U.ger, () => tryq("select borrar_todos_los_pedidos('BORRAR') r"));
+    check('borrar_todos_los_pedidos sin pedidos devuelve 0', rb2.rows && rb2.rows[0].r.pedidos === 0, JSON.stringify(rb2));
+  }
 
   return finish();
 })().catch(e => { console.error('ERROR inesperado:', e); process.exit(1); });
