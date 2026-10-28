@@ -212,6 +212,23 @@ const hojaShot = async (p, n) => { const d = p.locator('dialog[open]').last(); a
   await shot(e, '05-pedir-bolsa-m');
   await cE.close();
 
+  // ===== Versión nueva publicada con la app abierta: un módulo nuevo pide algo que el util.js ya cargado no tiene =====
+  const { c: cR, p: rr } = await nuevo({ viewport: { width: 1280, height: 900 } }, U_GER, { 'g:local': L1 });
+  await rr.goto(BASE + '#/stock');
+  await rr.waitForSelector('[data-prod]');
+  let roto = 0;
+  await cR.route('**/stock/js/g-catalogo.js', async (route) => {
+    if (roto++ === 0) return route.fulfill({ status: 200, contentType: 'text/javascript', body: "import { noExiste } from './util.js'; export const render = () => noExiste;" });
+    return route.continue();
+  });
+  const nav = rr.waitForEvent('load');
+  await rr.evaluate(() => { location.hash = '#/catalogo'; });
+  await nav;
+  await rr.waitForSelector('[aria-label="Editar Papas en bolsa"]');
+  ok(roto === 2, 'con archivos mezclados la app se recarga sola una vez y abre Catálogo');
+  await cR.close();
+  errores.splice(0, errores.length, ...errores.filter(x => !/noExiste/.test(x)));
+
   await browser.close(); srv.close();
   for (const x of errores) console.log('ERR  ' + x);
   console.log(fallas || errores.length ? `\n${fallas} fallas, ${errores.length} errores` : '\nTodo OK');
