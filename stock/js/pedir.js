@@ -1,5 +1,5 @@
 // Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
-import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
+import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
 import { icon, stepper, esqueleto, vacio, banner, toast, campo } from './ui.js';
 
@@ -46,11 +46,9 @@ export async function render(root, ctx, id) {
   if (id === 'mis-pedidos') return renderMis(root, ctx);
   let pinta;
   const act = rafOnce(() => pinta && pinta());
-  const pre = lsGet('c:cat:' + ctx.perfil.local_id);
   if (S.lid !== ctx.perfil.local_id) { S.lid = null; }
   if (id === 'revisar') pinta = () => pintarRevisar(root, ctx);
   else pinta = () => pintarPedir(root, ctx);
-  if (pre) { /* hay caché: se pinta apenas llegan los datos cacheados */ }
   const p = cargar(ctx, () => { if (ctx.alive()) act(); });
   try { await p; } catch (e) { if (!S.prods.length) throw e; }
   if (ctx.alive()) pinta();
@@ -67,6 +65,7 @@ function cabecera(titulo, sub) {
 let filtro = { q: '', cat: 'todas' };
 const MI_PEDIDO = '__mio__';
 let extraIds = null; // ids que devolvió la búsqueda del servidor
+let listaPrevia = null; // al repintar con datos frescos se mantiene lo que ya se veía
 
 function pintarPedir(root, ctx) {
   const nombreLocal = S.local ? S.local.nombre : '';
@@ -114,7 +113,7 @@ function pintarPedir(root, ctx) {
     return row;
   };
 
-  const pintarLista = () => {
+  const pintarLista = (inicial = 0) => {
     const q = norm(filtro.q);
     let vis = activos;
     // Al buscar se busca en todo el catálogo del local, sin importar la categoría elegida.
@@ -134,14 +133,14 @@ function pintarPedir(root, ctx) {
       if (filtro.cat === MI_PEDIDO && !q) { lista.replaceChildren(vacio('Tu pedido está vacío', 'Buscá un producto o elegí una categoría y sumá con +.')); return; }
       lista.replaceChildren(vacio(q ? 'No encontramos ese producto' : 'Sin productos', q ? 'Probá con otra palabra.' : 'Todavía no hay productos cargados para este local.')); return;
     }
-    if (q || filtro.cat === MI_PEDIDO) { lista.replaceChildren(...vis.sort((a, b) => porTexto(a.nombre, b.nombre)).map(fila)); return; }
+    if (q || filtro.cat === MI_PEDIDO) { porTandas(lista, vis.sort((a, b) => porTexto(a.nombre, b.nombre)).map(p => () => fila(p)), 60, inicial); return; }
     const g = groupBy(vis, p => p.categoria || 'Sin categoría');
     const frag = [];
     for (const k of [...g.keys()].sort(porTexto)) {
-      frag.push(h('h2', { class: 'cat-t', text: k }), ...g.get(k).map(fila));
+      frag.push(() => h('h2', { class: 'cat-t', text: k }), ...g.get(k).map(p => () => fila(p)));
     }
-    if (nOcultos) frag.push(h('p', { class: 'mas-buscar' }, icon('buscar', 16), h('span', { text: `Hay ${nOcultos} productos más que se piden poco. Buscalos por nombre arriba.` })));
-    lista.replaceChildren(...frag);
+    if (nOcultos) frag.push(() => h('p', { class: 'mas-buscar' }, icon('buscar', 16), h('span', { text: `Hay ${nOcultos} productos más que se piden poco. Buscalos por nombre arriba.` })));
+    porTandas(lista, frag, 60, inicial);
   };
 
   const buscarRemoto = debounce(async (q) => {
@@ -149,7 +148,7 @@ function pintarPedir(root, ctx) {
     try {
       const r = await buscarServidor(q, ctx.perfil.local_id);
       if (norm(filtro.q) !== norm(q)) return;
-      extraIds = new Set(r.map(x => x.id)); pintarLista();
+      extraIds = new Set(r.map(x => x.id)); pintarLista(lista._n);
     } catch (_e) { /* la búsqueda local alcanza */ }
   }, 300);
 
@@ -167,13 +166,15 @@ function pintarPedir(root, ctx) {
     ['todas', ...cats].map(c => h('button', { class: 'chip', type: 'button', 'data-cat': c, text: c === 'todas' ? 'Todas' : c, on: { click: () => elegir(c) } })));
   marcar(filtro.cat);
 
-  mount(root, 
+  const previo = listaPrevia && listaPrevia.isConnected ? listaPrevia._n : 0;
+  listaPrevia = lista;
+  mount(root,
     cabecera('Pedir', nombreLocal),
     S.offline ? banner('Sin conexión: mostrando lo último que guardamos.', 'warn') : null,
     aviso.tipo === 'ok' ? h('p', { class: 'aviso-ok', text: aviso.texto }) : banner(aviso.texto, aviso.tipo === 'warn' ? 'warn' : 'info'),
     h('div', { class: 'toolbar toolbar-fija' }, caja, chips),
     estado, lista, pill);
-  pintarLista(); actualizarPill();
+  pintarLista(previo); actualizarPill();
 }
 
 // ---------- Revisar ----------

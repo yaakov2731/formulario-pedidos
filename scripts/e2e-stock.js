@@ -933,6 +933,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
 
   // Proveedores (Catálogo → Proveedores): sin el SQL 0011 la ficha avisa y guarda solo lo de siempre
   db.sin0011 = true;
+  await g.reload(); await g.waitForSelector('.sidebar a[data-nav="catalogo"]'); // los proveedores quedan 2 min en memoria: recargar los vuelve a pedir
   await g.locator('.sidebar a[data-nav="catalogo"]').click();
   await g.locator('.subnav-b', { hasText: 'Proveedores' }).click();
   await g.waitForSelector('.prod-cat[data-prov="Barcena"]');
