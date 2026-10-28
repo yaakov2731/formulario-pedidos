@@ -43,7 +43,7 @@ export async function render(root, ctx) {
   const nav = ger ? subnav(SUBNAV_STOCK, 'elaborados') : null;
   mount(root, cab, nav, esqueleto(4));
 
-  // Datos del local: catálogo (sin precios), stock y recetas (solo gerencia las lee).
+  // Datos del local: catálogo, stock y recetas (solo gerencia las lee).
   let prods = new Map(); let stock = new Map(); let recetas = new Map(); let historial = []; let sinSQL = false;
   let localId = ctx.perfil.local_id; let nombreLocal = '';
   let chips = null;
