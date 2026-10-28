@@ -453,6 +453,13 @@ a.tb-card:hover { border-color: var(--text-2); }
 .borrar-imp { display: flex; flex-direction: column; gap: 14px; }
 .borrar-imp .acciones { display: flex; flex-direction: column; gap: 8px; }
 
+/* ---------- Pedidos: zona de pruebas (borrar todo) ---------- */
+.zona-pruebas { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px 8px 12px 14px; border: 1px dashed var(--bad-line); border-radius: 12px; background: var(--bad-soft); }
+.zona-pruebas > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.zona-pruebas .mute { font-size: 14px; }
+.btn-primary.btn-peligro { background: linear-gradient(180deg, #E8553F 0%, #C4321E 100%); color: #fff; box-shadow: none; }
+
 /* ---------- Pedir: buscador fijo y pedido guardado ---------- */
 .toolbar-fija { position: sticky; top: 0; z-index: 15; margin: 0 calc(var(--gutter) * -1) 14px; padding: 10px var(--gutter); background: var(--bg); box-shadow: 0 1px 0 var(--sep); }
 @media (min-width: 820px) { .toolbar-fija { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; } }

@@ -215,6 +215,7 @@ export const importacionDelDia = async (localId, fecha) =>
 export const importacionesRecientes = async (localId) =>
   ok(await sb.from('ventas_import').select('id,fecha_desde,archivo,n_pedidos,total_productos,creado_en').eq('local_id', localId).order('fecha_desde', { ascending: false }).order('creado_en', { ascending: false }).limit(15));
 export const borrarImportacion = async (id) => ok(await sb.rpc('borrar_importacion', { p_import: id }));
+export const borrarTodosLosPedidos = async (confirmacion) => ok(await sb.rpc('borrar_todos_los_pedidos', { p_confirmacion: confirmacion }));
 export const importarVentas = async (localId, fecha, pedidos, items, pagos, archivo) =>
   ok(await sb.rpc('importar_ventas', { p_local: localId, p_fecha: fecha, p_pedidos: pedidos, p_items: items, p_pagos: pagos, p_archivo: archivo || null }));
 export const ventasPedidosRango = (localId, desde, hasta) => todo(() => sb.from('ventas_pedidos')

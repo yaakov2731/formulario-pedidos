@@ -260,6 +260,14 @@ async function montarApi(ctx) {
       return json(imps().filter(i => i.local_id === l).sort((a, b) => b.fecha.localeCompare(a.fecha))
         .map(i => ({ id: i.id, fecha_desde: i.fecha, archivo: i.archivo, n_pedidos: i.pedidos.length, total_productos: i.items.reduce((s2, it) => s2 + (it.importe || 0), 0), creado_en: new Date().toISOString() })));
     }
+    if (t === 'rpc/borrar_todos_los_pedidos') {
+      const b = body(); db.borradosPedidos = (db.borradosPedidos || 0) + 1;
+      if (rol !== 'gerencia') return json({ code: '42501', message: 'Sin permiso para borrar pedidos' }, 403);
+      if (String(b.p_confirmacion || '').trim().toUpperCase() !== 'BORRAR') return json({ message: 'Escribí BORRAR para confirmar' }, 400);
+      const r = { pedidos: db.ordenes.length, items: db.items.length, movimientos: 3 };
+      db.ordenes.length = 0; db.items.length = 0;
+      return json(r);
+    }
     if (t === 'rpc/borrar_importacion') {
       const b = body(); db.borradas.push(b.p_import);
       const k = imps().findIndex(i => i.id === b.p_import);
@@ -1408,6 +1416,32 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(db.borradas.length === 1 && db.borradas[0] === idBorrar && db.importaciones.length === 0, 'rpc borrar_importacion con el id de esa importación');
   ok(await vb.locator('.imp-fila').count() === 0, 'la importación borrada desaparece de la lista');
   await cV4.close();
+
+  // Pruebas terminadas: gerencia borra todos los pedidos (pide escribir BORRAR)
+  const cP = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
+  const pb = await nuevaPagina(cP, 'pedidos-borrar');
+  await loginGer(pb);
+  await pb.locator('a.tab[data-nav="pedidos"]').click();
+  await pb.waitForSelector('.zona-pruebas');
+  await pb.locator('.zona-pruebas').scrollIntoViewIfNeeded();
+  await shot(pb, '60-g-pedidos-zona-pruebas-m');
+  await pb.locator('[data-accion="borrar-todo"]').click();
+  await pb.waitForSelector('dialog[open] #in-borrar');
+  const siBorrar = pb.locator('[data-accion="borrar-todo-si"]');
+  ok(await siBorrar.isDisabled(), 'borrar todo: el botón arranca desactivado');
+  await pb.locator('#in-borrar').fill('borra');
+  ok(await siBorrar.isDisabled(), 'borrar todo: sigue desactivado si no escribís BORRAR completo');
+  await pb.locator('#in-borrar').fill('borrar');
+  ok(!(await siBorrar.isDisabled()), 'borrar todo: se activa al escribir BORRAR');
+  ok(/No se puede deshacer/.test(await pb.locator('dialog[open]').innerText()), 'borrar todo: avisa que no se puede deshacer');
+  await shot(pb, '61-g-pedidos-borrar-todo-m');
+  const nOrdAntes = db.ordenes.length;
+  await siBorrar.click();
+  await pb.waitForSelector('.toast >> text=Pedidos borrados');
+  ok(nOrdAntes > 0 && db.ordenes.length === 0 && db.log.some(l => l.t === 'rpc/borrar_todos_los_pedidos' && l.b.p_confirmacion === 'borrar'), 'rpc borrar_todos_los_pedidos con la confirmación y sin pedidos después');
+  ok(await pb.locator('.pt-envio').count() === 0, 'la tabla de pedidos queda vacía');
+  await shot(pb, '62-g-pedidos-vacio-m');
+  await cP.close();
 
   await browser.close(); srv.close();
   if (errores.length) { console.log('\nErrores de consola/página:'); errores.forEach(x => console.log(' - ' + x)); fallas += errores.length; }

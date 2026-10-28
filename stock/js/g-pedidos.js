@@ -4,9 +4,9 @@
 // "Por proveedor": arma el envío de cada proveedor sumando todos los locales; cada producto se puede pasar a otro
 //   proveedor (con proveedor sugerido) y se aprueba y manda por WhatsApp.
 import { mount, h, norm, fmtNum, fmtMoney, parseNum, groupBy, porTexto, fechaCorta, lsGet, lsSet, hoyISO, sumarDias, ESTADOS } from './util.js';
-import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, mensajeError } from './api.js';
+import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, borrarTodosLosPedidos, limpiarCache, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, razonLocal } from './datos.js';
-import { esqueleto, vacio, banner, toast, icon, hoja } from './ui.js';
+import { esqueleto, vacio, banner, toast, icon, hoja, campo } from './ui.js';
 import { imagenOrden } from './orden-imagen.js';
 import { puedeCompartirArchivos } from './aviso.js';
 import { urlMail } from './pagos-util.js';
@@ -514,6 +514,36 @@ export async function render(root, ctx) {
     ];
   }
 
+  // ---------- borrar todos los pedidos (pruebas) ----------
+  function pedirBorrarTodo() {
+    const conf = h('input', { class: 'input', id: 'in-borrar', type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', placeholder: 'BORRAR' });
+    const si = h('button', { class: 'btn btn-primary btn-peligro btn-block', type: 'button', 'data-accion': 'borrar-todo-si', disabled: true, text: 'Borrar todos los pedidos' });
+    conf.addEventListener('input', () => { si.disabled = conf.value.trim().toUpperCase() !== 'BORRAR'; });
+    const { cerrar } = hoja('Borrar todos los pedidos', h('div', { class: 'borrar-imp' },
+      h('p', { text: 'Se borran todos los pedidos de todos los locales, en cualquier estado: por revisar, aprobados, enviados y recibidos.' }),
+      banner('Lo que entró al stock al recibir esos pedidos se descuenta. El catálogo, los proveedores, las ventas, las recetas y los pagos no se tocan. No se puede deshacer.', 'error'),
+      campo('Escribí BORRAR para confirmar', conf),
+      h('div', { class: 'acciones' }, si, h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'No, dejarlos', on: { click: () => cerrar() } }))));
+    conf.focus();
+    si.addEventListener('click', async () => {
+      si.disabled = true; si.textContent = 'Borrando…';
+      for (const p of pend.values()) clearTimeout(p.timer);
+      pend.clear();
+      try {
+        const r = await borrarTodosLosPedidos(conf.value.trim());
+        cerrar();
+        ordenes = []; fuera = new Set(); lsSet('g:ped:fuera', []); abiertos.clear();
+        limpiarCache();   // el stock también cambió
+        toast(`Pedidos borrados: ${r.pedidos}${r.movimientos ? ` · ${r.movimientos} entradas de stock descontadas` : ''}`, 'ok');
+        pintar();
+      } catch (e) { toast(mensajeError(e), 'error'); si.disabled = false; si.textContent = 'Borrar todos los pedidos'; }
+    });
+  }
+
+  const zonaPruebas = () => h('section', { class: 'zona-pruebas', 'aria-label': 'Pruebas' },
+    h('div', null, h('b', { text: 'Pruebas' }), h('span', { class: 'mute', text: 'Dejá la app limpia antes de empezar a usarla en serio.' })),
+    h('button', { class: 'btn btn-text btn-danger', type: 'button', 'data-accion': 'borrar-todo', on: { click: pedirBorrarTodo } }, 'Borrar todos los pedidos'));
+
   // ---------- pantalla ----------
   function cambiarVista(v) { vista = v; lsSet('g:ped:vista', v); window.scrollTo(0, 0); pintar(); }
 
@@ -530,7 +560,8 @@ export async function render(root, ctx) {
         h('p', { class: 'sub', text: vista === 'locales' ? 'Qué pidió cada local, quién y cuándo' : 'Lo pendiente de todos los locales, sumado por proveedor para mandar' }),
         h('a', { class: 'btn btn-ghost btn-cargar', href: '#/cargar', 'data-accion': 'cargar' }, icon('mas', 18), h('span', { text: 'Cargar pedido para un local' }))),
       seg,
-      ...(vista === 'locales' ? vistaLocales() : vistaProveedor()));
+      ...(vista === 'locales' ? vistaLocales() : vistaProveedor()),
+      zonaPruebas());
   }
 
   mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pedidos' })), esqueleto(3));
