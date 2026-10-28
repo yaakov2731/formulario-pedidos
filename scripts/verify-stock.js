@@ -17,7 +17,7 @@ const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'c
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-catalogo.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
-  'js/g-tablero.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
+  'js/g-tablero.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -155,6 +155,10 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
     const a = { autor_rol: 'encargado', para: 'gerencia' }, b = { autor_rol: 'encargado', para: 'equipo' }, c = { autor_rol: 'gerencia', para: 'equipo' }, r = { ...a, resuelta_en: 'x' };
     return NT.enCarpeta(a, 'gerencia') && !NT.enCarpeta(b, 'gerencia') && NT.enCarpeta(b, 'equipo') && NT.enCarpeta(c, 'de-gerencia') && !NT.enCarpeta(r, 'todas') && NT.enCarpeta(r, 'resueltas');
   })());
+  const el = read('js/elaborados.js');
+  check('elaborados: pestaña del encargado y dentro de Stock en gerencia', /id: 'elaborados'/.test(navEnc) && (m4.match(/'elaborados': \(\) => import\('\.\/elaborados\.js'\)/g) || []).length === 2 && /SUBNAV_STOCK/.test(read('js/g-stock.js')));
+  check('elaborados: el SW precachea elaborados.js y no muestra precios', sw.includes('./js/elaborados.js') && !/precio|costo|importe/i.test(el));
+  check('elaborados: migración 0014 con permiso por local, uso del día y borrar', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0014_elaborados.sql'), 'utf8'); return /mi_local\(\) = p_local/.test(q) && /uso_dia/.test(q) && /borrar_elaboracion/.test(q); })());
   check('notas: migración 0010 con RLS por local y aviso Telegram opcional', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0010_notas.sql'), 'utf8'); return /enable row level security/.test(q) && /local_id = public\.mi_local\(\)/.test(q) && /avisar_nota_telegram/.test(q); })());
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
