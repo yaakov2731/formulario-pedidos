@@ -26,24 +26,68 @@ async function ok(res) {
   return res.data;
 }
 
-// Trae todas las filas de a 1000 (límite de PostgREST).
+// Trae todas las filas de a 1000 (límite de PostgREST): la primera página sola y, si vino llena, las siguientes de a 4 en paralelo.
+// El orden de `build` tiene que ser único (desempatar por id): si no, entre páginas se repiten filas y faltan otras.
+const PAG = 1000, EN_PARALELO = 4;
 export async function todo(build) {
-  const out = [];
-  for (let from = 0; ; from += 1000) {
-    const rows = await ok(await build().range(from, from + 999));
-    out.push(...rows);
-    if (rows.length < 1000) break;
+  const pagina = async (from) => ok(await build().range(from, from + PAG - 1));
+  const out = await pagina(0);
+  if (out.length < PAG) return out;
+  for (let from = PAG; ; from += PAG * EN_PARALELO) {
+    const pags = await Promise.all(Array.from({ length: EN_PARALELO }, (_, i) => pagina(from + i * PAG)));
+    for (const rows of pags) out.push(...rows);
+    if (pags.some(rows => rows.length < PAG)) return out;
   }
-  return out;
+}
+
+// ---- caché del celular ----
+// En IndexedDB: localStorage tiene ~5 MB y con miles de productos se llenaba (y entonces cada pantalla volvía a bajar todo).
+// Si IndexedDB no está (modo privado viejo) o tarda, usa localStorage como antes.
+let dbP = null;
+function idb() {
+  if (dbP) return dbP;
+  dbP = new Promise((res) => {
+    const t = setTimeout(() => res(null), 1500);
+    const fin = (v) => { clearTimeout(t); res(v); };
+    try {
+      const r = indexedDB.open('stock-cache', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('c');
+      r.onsuccess = () => fin(r.result);
+      r.onerror = r.onblocked = () => fin(null);
+    } catch (_e) { fin(null); }
+  });
+  return dbP;
+}
+function tx(db, modo, fn) {
+  return new Promise((res) => {
+    try {
+      const t = db.transaction('c', modo);
+      const r = fn(t.objectStore('c'));
+      t.oncomplete = () => res(r && r.result);
+      t.onerror = t.onabort = () => res(undefined);
+    } catch (_e) { res(undefined); }
+  });
+}
+async function cacheGet(clave) {
+  const db = await idb();
+  const v = db ? await tx(db, 'readonly', s => s.get(clave)) : undefined;
+  return v !== undefined ? v : lsGet('c:' + clave); // lo guardado antes en localStorage sirve para el primer arranque
+}
+async function cacheSet(clave, v) {
+  const db = await idb();
+  if (db && await tx(db, 'readwrite', s => { s.put(v, clave); return null; }) !== undefined) { lsDel('c:' + clave); return; }
+  lsSet('c:' + clave, v);
 }
 
 // SWR: entrega primero lo cacheado (onData(datos, true)) y después lo fresco (onData(datos, false)).
 export async function swr(clave, fetcher, onData) {
-  const hit = lsGet('c:' + clave);
+  const fresco = fetcher(); // la red arranca ya, mientras se lee la caché
+  fresco.catch(() => {});
+  const hit = await cacheGet(clave);
   if (hit && hit.d !== undefined) onData(hit.d, true);
   try {
-    const d = await fetcher();
-    lsSet('c:' + clave, { t: Date.now(), d });
+    const d = await fresco;
+    cacheSet(clave, { t: Date.now(), d });
     onData(d, false);
     return d;
   } catch (e) {
@@ -53,6 +97,7 @@ export async function swr(clave, fetcher, onData) {
 }
 export function limpiarCache() {
   try { Object.keys(localStorage).filter(k => k.startsWith('stock:c:')).forEach(k => localStorage.removeItem(k)); } catch (_e) { /* nada */ }
+  idb().then(db => db && tx(db, 'readwrite', s => { s.clear(); return null; }));
 }
 
 // ---- sesión ----
@@ -67,6 +112,7 @@ export async function entrarAdmin(email, password) {
 }
 export async function salir() {
   limpiarCache(); lsDel('perfil');
+  window.dispatchEvent(new Event('stock:salir'));
   try { await sb.auth.signOut(); } catch (_e) { /* sin red: igual limpiamos */ }
 }
 export async function perfilActual() {
@@ -99,7 +145,7 @@ const COLS_PROD = 'id,codigo,nombre,local_id,categoria,unidad_compra,unidad_uso,
 // productos.oculto (migración 0012): no se muestra en Pedir salvo al buscar. Si la columna todavía no existe, se lee sin ella.
 let hayOculto = true;
 const catalogo = (localId) => todo(() => {
-  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '')).order('nombre');
+  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '')).order('nombre').order('id');
   if (localId) q = q.eq('local_id', localId).eq('activo', true);
   return q;
 });
@@ -112,7 +158,7 @@ export async function cargarCatalogo(localId) {
   }
 }
 export const cargarStock = (localId) => todo(() => {
-  let q = sb.from('stock_actual').select('local_id,producto_id,stock').order('producto_id');
+  let q = sb.from('stock_actual').select('local_id,producto_id,stock').order('producto_id').order('local_id');
   if (localId) q = q.eq('local_id', localId);
   return q;
 });
@@ -226,10 +272,10 @@ export const ventasItemsRango = (localId, desde, hasta) => todo(() => sb.from('v
   .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('id'));
 // Salidas de stock de un local desde una fecha (ventas, producción y merma), para las métricas de Stock.
 export const movimientosLocal = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,creado_en')
-  .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma', 'uso_dia']).order('creado_en'));
+  .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma', 'uso_dia']).order('creado_en').order('id'));
 // Todos los movimientos de un local desde una fecha (para Inicio / Ahora / Dif. y los últimos ajustes en Stock).
 export const movimientosDesde = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,nota,creado_en')
-  .eq('local_id', localId).gte('creado_en', desde).order('creado_en'));
+  .eq('local_id', localId).gte('creado_en', desde).order('creado_en').order('id'));
 // Ajuste a mano de gerencia: merma con motivo (cantidad negativa) o entrada sin pedido (positiva).
 export const registrarAjuste = async (m) => ok(await sb.from('movimientos').insert([m]));
 export const ultimaVentaSubida = async (localId) => (await ok(await sb.from('ventas_import').select('fecha_desde,creado_en')
@@ -257,7 +303,7 @@ const COLS_FAC = 'id,proveedor_id,numero,fecha,vencimiento,total,archivo,imputad
 const COLS_PAGO = 'id,proveedor_id,monto,fecha,numero_operacion,cuenta_origen,banco,cuit_destino,banco_destino,cuenta_destino,concepto,descripcion,comprobante_path,avisado_en,creado_en';
 export const cuentaCorriente = async () => ok(await sb.from('cuenta_corriente').select('proveedor_id,nombre,facturado,pagado,saldo').order('saldo', { ascending: false }));
 export const facturasLista = (soloPendientes) => todo(() => {
-  let q = sb.from('facturas_pendientes').select(COLS_FAC).order('fecha', { ascending: true }).order('numero', { ascending: true });
+  let q = sb.from('facturas_pendientes').select(COLS_FAC).order('fecha', { ascending: true }).order('numero', { ascending: true }).order('id');
   if (soloPendientes) q = q.gt('pendiente', 0);
   return q;
 });

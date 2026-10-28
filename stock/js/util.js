@@ -17,7 +17,15 @@ export function h(tag, attrs, ...kids) {
 
 export function mount(el, ...kids) { el.replaceChildren(...kids.flat().filter(k => k !== null && k !== undefined && k !== false)); }
 
-export const norm = (t) => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const normar = (t) => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+// Memoriza: con miles de productos, el buscador normaliza los mismos nombres en cada tecla.
+const NORM = new Map();
+export const norm = (t) => {
+  if (typeof t !== 'string') return normar(t);
+  let v = NORM.get(t);
+  if (v === undefined) { if (NORM.size > 50000) NORM.clear(); v = normar(t); NORM.set(t, v); }
+  return v;
+};
 
 // Búsqueda tolerante: sin acentos ni mayúsculas y en singular (limones → limon, nueces → nuez, papas → papa).
 const raiz = (w) => w.length > 4 && w.endsWith('ces') ? w.slice(0, -3) + 'z' : w.length > 4 && /[^aeiou]es$/.test(w) ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w;
@@ -48,7 +56,36 @@ export function groupBy(arr, fn) {
   for (const x of arr) { const k = fn(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }
   return m;
 }
-export const porTexto = (a, b) => String(a).localeCompare(String(b), 'es', { sensitivity: 'base' });
+// Un solo Intl.Collator: localeCompare con idioma arma uno nuevo en cada comparación y ordenar miles de nombres se traba.
+const COLL = new Intl.Collator('es', { sensitivity: 'base' });
+export const porTexto = (a, b) => COLL.compare(String(a), String(b));
+
+// Pinta una lista larga por tandas: los primeros `tanda` nodos ya, y el resto a medida que se acerca el final al scrollear.
+// `nodos` son funciones que crean cada nodo (se crean solo cuando se muestran). `inicial`: cuántos mostrar de entrada como mínimo
+// (al repintar en el lugar se pasa lista._n, lo que ya se veía, para no perder la posición del scroll).
+export function porTandas(lista, nodos, tanda = 60, inicial = 0) {
+  if (lista._tandas) lista._tandas.disconnect();
+  lista._tandas = null;
+  let i = 0;
+  const sig = (n = tanda) => { const out = []; const fin = Math.min(nodos.length, i + n); for (; i < fin; i++) out.push(nodos[i]()); lista._n = i; return out; };
+  const primera = sig(Math.max(tanda, inicial || 0));
+  if (i >= nodos.length) { lista.replaceChildren(...primera); return; }
+  const mas = h('button', { class: 'btn btn-ghost btn-block tandas-mas', type: 'button', text: 'Ver más' });
+  const centinela = h('div', { class: 'tandas' }, mas);
+  const seguir = () => {
+    centinela.before(...sig());
+    const io = lista._tandas;
+    if (i >= nodos.length) { centinela.remove(); if (io) io.disconnect(); return; }
+    if (io) { io.unobserve(centinela); io.observe(centinela); } // si el final sigue a la vista, vuelve a avisar
+  };
+  mas.addEventListener('click', seguir);
+  lista.replaceChildren(...primera, centinela);
+  if (typeof IntersectionObserver === 'function') {
+    const io = new IntersectionObserver((es) => { if (es.some(e => e.isIntersecting)) seguir(); }, { rootMargin: '800px 0px' });
+    io.observe(centinela);
+    lista._tandas = io;
+  }
+}
 
 export function debounce(fn, ms) {
   let t;
