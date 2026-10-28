@@ -1,5 +1,5 @@
 // Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
-import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS } from './util.js';
+import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS, esBulto, factorDe, textoStock } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
 import { icon, stepper, esqueleto, vacio, banner, toast, campo } from './ui.js';
 
@@ -108,7 +108,8 @@ function pintarPedir(root, ctx) {
     } });
     const row = h('article', { class: 'prod' + (q > 0 ? ' is-on' : ''), 'data-id': p.id },
       h('h3', { class: 'prod-n', text: p.nombre }),
-      h('p', { class: 'prod-m' }, p.unidad_compra ? h('span', { class: 'prod-u', text: p.unidad_compra }) : null, h('span', { class: 'quedan' }, 'Quedan ', h('b', { class: 'num', text: fmtNum(quedan(p), 2) || '0' }))),
+      h('p', { class: 'prod-m' }, p.unidad_compra ? h('span', { class: 'prod-u', text: esBulto(p) ? `${p.unidad_compra} de ${fmtNum(factorDe(p), 3)} ${p.unidad_uso}` : p.unidad_compra }) : null,
+        h('span', { class: 'quedan' }, 'Quedan ', h('b', { class: 'num', text: esBulto(p) ? textoStock(p, quedan(p)) : fmtNum(quedan(p), 2) || '0' }))),
       h('div', { class: 'prod-p' }, h('span', { class: 'prod-pl', text: 'Pedir' }), st.el));
     return row;
   };

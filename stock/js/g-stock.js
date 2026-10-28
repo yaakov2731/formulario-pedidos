@@ -1,7 +1,7 @@
 // Gerencia · Stock por local. Vista "Productos": resumen por estado (tocable como filtro), categorías, una tarjeta por
 // producto con Inicio / Ahora / Dif. del período, estado por color, Contar y Ajuste con motivo, e impresión A4 (o PDF).
 // Vista "Métricas": valor del stock, consumo con días de cobertura, producción disponible y platos que se pueden servir.
-import { mount, h, tokens, coincide, fmtNum, fmtMoney, parseNum, groupBy, porTexto, porTandas, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, sugerido } from './util.js';
+import { mount, h, tokens, coincide, fmtNum, fmtMoney, parseNum, groupBy, porTexto, porTandas, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, sugerido, esBulto, factorDe, plural, textoBulto } from './util.js';
 import { contarProducto, registrarAjuste, movimientosDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_STOCK } from './ui.js';
@@ -30,6 +30,8 @@ export async function render(root, ctx) {
   const quedan = (p) => G.stock.get(p.local_id + '|' + p.id) || 0;
   const u = (p) => p.unidad_uso ? ' ' + p.unidad_uso : '';
   const n2 = (n) => fmtNum(n, 2) || '0';
+  // Productos que se compran por bulto: "2,3 bolsas" (para pedir, redondeado para arriba).
+  const enBultos = (p, n, entero) => { const b = entero ? Math.ceil(n / factorDe(p) - 1e-9) : Math.round(n / factorDe(p) * 10) / 10; return `${fmtNum(b, 1) || '0'} ${plural(p.unidad_compra, b)}`; };
   const desdeISO = () => { if (periodo === 'hoy') { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); } return new Date(Date.now() - 7 * 864e5).toISOString(); };
   // Lo oculto (resto de la lista de un mayorista) solo se lista si hay stock.
   const prodsLocal = () => [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && !esCarta(p) && (!p.oculto || quedan(p) !== 0));
@@ -72,7 +74,7 @@ export async function render(root, ctx) {
     const seg = h('div', { class: 'seg seg-form', role: 'tablist', 'aria-label': 'Tipo de ajuste' });
     const zona = h('div', { class: 'form' });
     const { cerrar } = hoja(`Ajuste · ${p.nombre}`, h('div', { class: 'form' },
-      h('p', { class: 'sub stk-ahora' }, 'Ahora figuran ', h('b', { class: 'num', text: n2(quedan(p)) + u(p) })), seg, zona));
+      h('p', { class: 'sub stk-ahora' }, 'Ahora figuran ', h('b', { class: 'num', text: n2(quedan(p)) + u(p) }), esBulto(p) ? ` · ${enBultos(p, quedan(p))}` : null), seg, zona));
     const pintar = () => {
       seg.replaceChildren(...[['contar', 'Conté'], ['merma', 'Se perdió'], ['entrada', 'Entró']].map(([id, t]) => h('button', {
         class: 'seg-b' + (modo === id ? ' is-on' : ''), type: 'button', role: 'tab', 'aria-selected': modo === id ? 'true' : 'false', text: t, 'data-modo': id,
@@ -88,7 +90,7 @@ export async function render(root, ctx) {
       const btn = h('button', { class: 'btn btn-primary btn-block', type: 'button', text: texto });
       zona.replaceChildren(
         campo(modo === 'contar' ? `Cuánto hay${u(p) ? ' (' + p.unidad_uso + ')' : ''}` : `Cantidad${u(p) ? ' (' + p.unidad_uso + ')' : ''}`, inp,
-          modo === 'contar' ? 'La diferencia con lo que figura queda registrada.' : null),
+          [modo === 'contar' ? 'La diferencia con lo que figura queda registrada.' : '', textoBulto(p)].filter(Boolean).join(' · ') || null),
         chipsM ? h('div', { class: 'field' }, h('span', { class: 'field-l', text: 'Motivo' }), chipsM) : null, nota, btn);
       setTimeout(() => inp.select(), 50);
       btn.addEventListener('click', async () => {
@@ -136,10 +138,11 @@ export async function render(root, ctx) {
         fila(periodo === 'hoy' ? 'Al abrir' : 'Hace 7 días', n2(s - dif)),
         fila('Quedan', n2(s), 'stk-c-ahora', p.unidad_uso),
         fila('Dif.', signo(dif), dif < 0 ? 'stk-c-menos' : dif > 0 ? 'stk-c-mas' : '')),
+      esBulto(p) ? h('p', { class: 'bulto', text: `Quedan ${enBultos(p, s)} de ${n2(factorDe(p))} ${p.unidad_uso}` }) : null,
       r && (r.entro || r.salio) ? h('p', { class: 'stk-mov', text: [r.entro ? `Entró ${n2(r.entro)}` : '', r.salio ? `Salió ${n2(r.salio)}` : ''].filter(Boolean).join(' · ') }) : null,
       aj ? h('p', { class: 'stk-aj', text: aj }) : null,
       h('div', { class: 'stk-acc' },
-        pedir ? h('span', { class: 'stk-pedir', text: `Pedir ${n2(pedir)}${u(p)}` }) : null,
+        pedir ? h('span', { class: 'stk-pedir', text: esBulto(p) ? `Pedir ${enBultos(p, pedir, true)}` : `Pedir ${n2(pedir)}${u(p)}` }) : null,
         h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'Contar', 'aria-label': `Contar ${p.nombre}`, on: { click: () => ajustar(p, 'contar') } }),
         h('button', { class: 'btn btn-ghost btn-sm stk-ajuste', type: 'button', 'aria-label': `Ajuste de ${p.nombre}`, on: { click: () => ajustar(p, s > 0 ? 'merma' : 'contar') } }, icon('ajuste', 18), h('span', { text: 'Ajuste' }))));
   }

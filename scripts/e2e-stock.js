@@ -824,7 +824,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('#f-nombre').fill('Provoleta');
   await g.locator('#f-codigo').fill('UMO-050');
   await g.locator('#f-uc').fill('kg');
-  await g.locator('#f-uu').fill('kg');
+  await g.locator('#f-uu').selectOption('kg');
   await g.locator('#f-prov').selectOption(PV.barcena);
   await g.getByRole('button', { name: 'Crear producto' }).click();
   await g.waitForSelector('.toast-ok >> text=Producto creado');
@@ -1255,12 +1255,12 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.getByRole('button', { name: 'Agregar insumo' }).click();
   await v.locator('dialog input[type=search]').fill('chori');
   await v.getByRole('button', { name: 'Agregar Chorizo parrillero' }).click();
-  await v.getByLabel('Cantidad de Chorizo parrillero').fill('0,25');
+  await v.getByLabel('Cantidad de Chorizo parrillero').fill('250');
   await v.getByLabel('Cantidad de Chorizo parrillero').press('Tab');
   await v.getByRole('button', { name: 'Agregar insumo' }).click();
   await v.locator('dialog input[type=search]').fill('queso');
   await v.getByRole('button', { name: 'Agregar Queso cremoso' }).click();
-  await v.getByLabel('Cantidad de Queso cremoso').fill('0,1');
+  await v.getByLabel('Cantidad de Queso cremoso').fill('100');
   await v.getByLabel('Cantidad de Queso cremoso').press('Tab');
   // Insumo que no está en el catálogo del local: búsqueda tolerante (limones → Limón) y alta en el momento
   await v.getByRole('button', { name: 'Agregar insumo' }).click();
@@ -1278,7 +1278,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.waitForSelector('#n-nombre');
   ok(await v.locator('#n-nombre').inputValue() === 'Limones' && await v.locator('#n-cat').inputValue() === 'Verdulería', 'Insumo nuevo: copia nombre y categoría del mismo insumo de otro local');
   ok(/Copiamos los datos de «Limones» de Trento/.test(await v.locator('dialog .banner').innerText()), 'Insumo nuevo: avisa de dónde copió los datos');
-  await v.locator('#n-cant').fill('0,15');
+  await v.locator('#n-cant').fill('150');
   await shot(v, '25b-g-insumo-nuevo-m');
   await v.setViewportSize({ width: 1366, height: 900 });
   await shot(v, '25b-g-insumo-nuevo-pc');
@@ -1286,7 +1286,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.waitForSelector('.toast-ok >> text=Limones quedó en el catálogo de Umo');
   const limUmo = db.productos.find(x => x.local_id === L1 && x.nombre === 'Limones');
   ok(limUmo && /^UMO-\d{3}$/.test(limUmo.codigo) && limUmo.unidad_uso === 'kg' && limUmo.factor_conversion === 1 && limUmo.es_elaborado === false && db.productos.filter(x => x.codigo === limUmo.codigo).length === 1, 'Insumo nuevo: queda en el catálogo del local con código libre y unidad ' + JSON.stringify(limUmo));
-  ok(await v.getByLabel('Cantidad de Limones').inputValue() === '0,15', 'Insumo nuevo: se suma a la receta con la cantidad cargada');
+  ok(await v.getByLabel('Cantidad de Limones').inputValue() === '150', 'Insumo nuevo: se suma a la receta con la cantidad cargada (150 g)');
   ok((await v.locator('dialog .sub').innerText()).includes('Costo estimado'), 'la receta muestra el costo estimado');
   await shot(v, '25-g-receta-editar-pc');
   await v.getByRole('button', { name: 'Guardar receta' }).click();
@@ -1301,7 +1301,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.locator('#f-nombre').fill('Salsa criolla');
   await v.locator('#f-codigo').fill('UMO-060');
   await v.locator('#f-categoria, #f-cat').first().fill('Elaborados');
-  await v.locator('#f-uu').fill('litro');
+  await v.locator('#f-uu').selectOption('litro');
   await v.locator('#f-elab').check();
   await v.getByRole('button', { name: 'Crear producto' }).click();
   await v.waitForSelector('.toast-ok >> text=Producto creado');
@@ -1357,7 +1357,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.locator('#lista-rec .prod-cat').first().click();
   await v.waitForSelector('dialog[open] .banner');
   ok(/estimada/i.test(await v.locator('dialog[open] .banner').first().innerText()), 'Recetas: al abrir una estimada avisa que hay que revisar los pesos');
-  ok(/= \d+ (g|cc)/.test(await v.locator('dialog[open] .ins-lista').innerText()), 'Recetas: muestra el equivalente en gramos');
+  ok(/\n(g|cc)\b/.test(await v.locator('dialog[open] .ins-lista').innerText()), 'Recetas: lo que va en kilos o litros se carga en gramos o cc');
   await shot(v, '28c-g-receta-estimada-pc');
   await v.keyboard.press('Escape');
   // Análisis
