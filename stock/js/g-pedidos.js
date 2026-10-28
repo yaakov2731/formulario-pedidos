@@ -63,6 +63,8 @@ export async function render(root, ctx) {
   const prodDe = (it) => G.prods.get(it.producto_id);
   const unidad = (it) => { const p = prodDe(it); return p ? p.unidad_compra : ''; };
   const nombreProd = (it) => { const p = prodDe(it); return p ? p.nombre : 'Producto'; };
+  // Código del proveedor: los productos del mayorista se guardan como LOCAL-DS-<código de su lista> (-B si se repetía).
+  const codProv = (it) => { const m = /^[A-Z]{3}-DS-(.+?)(-B)?$/.exec((prodDe(it) || {}).codigo || ''); return m ? m[1] : ''; };
   const nombreProv = (id) => (id && G.provs.get(id) ? G.provs.get(id).nombre : 'Sin proveedor');
   const provsActivos = () => [...G.provs.values()].filter(p => p.activo !== false).sort((a, b) => porTexto(a.nombre, b.nombre));
   const vivas = () => ordenes.filter(o => VIVAS.includes(o.estado) && o.orden_items.length);
@@ -263,14 +265,14 @@ export async function render(root, ctx) {
       const m = new Map();
       for (const o of lista) for (const i of o.orden_items) {
         // Todo junto: el mismo producto de distintos locales (cada local tiene su ficha) va en una sola línea.
-        const k = junto ? norm(nombreProd(i)) + '|' + norm(unidad(i) || '') : i.producto_id;
+        const k = junto ? (codProv(i) || norm(nombreProd(i))) + '|' + norm(unidad(i) || '') : i.producto_id;
         const x = m.get(k) || { producto_id: i.producto_id, cant: 0, porLocal: new Map() };
         x.cant += Number(i.cantidad_pedida);
         x.porLocal.set(o.local_id, (x.porLocal.get(o.local_id) || 0) + Number(i.cantidad_pedida));
         m.set(k, x);
       }
       return [...m.values()].sort((a, b) => porTexto(nombreProd(a), nombreProd(b))).map(x => ({
-        cant: fmtNum(x.cant, 3), unidad: unidad(x), nombre: nombreProd(x),
+        cant: fmtNum(x.cant, 3), unidad: unidad(x), nombre: nombreProd(x), codigo: codProv(x),
         detalle: junto && x.porLocal.size > 1 ? [...x.porLocal].map(([lid, c]) => `${nombreLocal(lid)} ${fmtNum(c, 3)}`).sort(porTexto).join(' · ') : '',
       }));
     };
@@ -291,7 +293,7 @@ export async function render(root, ctx) {
   };
 
   const textoWA = (prov, bloques, fecha) => {
-    const partes = bloques.map(b => `*${b.titulo}*${b.factura ? `\n_${b.factura}_` : ''}\n${b.lineas.map(l => `• ${l.cant} ${l.unidad || ''} ${l.nombre}`.replace(/\s+/g, ' ') + (l.detalle ? ` (${l.detalle})` : '')).join('\n')}`);
+    const partes = bloques.map(b => `*${b.titulo}*${b.factura ? `\n_${b.factura}_` : ''}\n${b.lineas.map(l => `• ${l.cant} ${l.unidad || ''} ${l.nombre}`.replace(/\s+/g, ' ') + (l.codigo ? ` · Cód. ${l.codigo}` : '') + (l.detalle ? ` (${l.detalle})` : '')).join('\n')}`);
     const n = bloques.reduce((a, b) => a + b.lineas.length, 0);
     return `Hola ${prov.contacto || prov.nombre}! Te paso el pedido de *Docks del Puerto* del ${fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n${partes.join('\n\n')}\n\nTotal: ${n} ${n === 1 ? 'producto' : 'productos'}. ¡Gracias!`;
   };
@@ -400,7 +402,7 @@ export async function render(root, ctx) {
           h('thead', {},
             h('tr', {}, h('th', { class: 'pr-local', colspan: '4' }, h('b', { text: nombreLocal(lid) }), quien ? h('span', { text: ' · pidió ' + quien }) : null, notas ? h('span', { class: 'pr-nota', text: ' · Nota: ' + notas }) : null, razonLocal(lid) ? h('span', { class: 'pr-factura', text: facturaDe(razonLocal(lid)) }) : null, h('span', { class: 'pr-para', text: 'Pedido a ' + prov.nombre }))),
             h('tr', {}, h('th', { text: 'Producto' }), h('th', { class: 'pr-num', text: 'Cantidad' }), h('th', { text: 'Unidad' }), h('th', { class: 'pr-ok', text: 'Recibido' }))),
-          h('tbody', {}, filas.map(x => h('tr', {}, h('td', { text: nombreProd(x) }), h('td', { class: 'pr-num', text: fmtNum(x.cant, 3) }), h('td', { text: unidad(x) || '' }), h('td', { class: 'pr-ok' })))));
+          h('tbody', {}, filas.map(x => h('tr', {}, h('td', {}, codProv(x) ? h('span', { class: 'pr-cod', text: codProv(x) }) : null, nombreProd(x)), h('td', { class: 'pr-num', text: fmtNum(x.cant, 3) }), h('td', { text: unidad(x) || '' }), h('td', { class: 'pr-ok' })))));
       }));
   }
   function imprimir(lista) {
