@@ -1,6 +1,7 @@
 // Copia del pedido en imagen (PNG) para mandarle al proveedor: logo de Docks del Puerto, proveedor, fecha
 // y los productos, separados por local o todo junto. Sin precios.
-// orden: { proveedor, fecha: Date, bloques: [{ titulo, lineas: [{ cant, unidad, nombre, detalle }] }] }
+// orden: { proveedor, fecha: Date, bloques: [{ titulo, factura, lineas: [{ cant, unidad, nombre, detalle }] }] }
+// factura: "Facturar a SUMA ACTIVA S.A." (razón social del local), debajo del título del bloque.
 
 const W = 1080, PAD = 72;
 const COLORES = ['#EB4537', '#F4842A', '#F8B600', '#4688F4'];
@@ -67,10 +68,12 @@ function pintar(ctx, orden, medir) {
   let total = 0;
   for (const b of orden.bloques) {
     y += 28;
-    if (!medir) { ctx.fillStyle = FONDO_BLOQUE; ctx.fillRect(PAD, y, W - PAD * 2, 54); ctx.fillStyle = COLORES[3]; ctx.fillRect(PAD, y, 6, 54); }
+    const altoCab = b.factura ? 86 : 54;
+    if (!medir) { ctx.fillStyle = FONDO_BLOQUE; ctx.fillRect(PAD, y, W - PAD * 2, altoCab); ctx.fillStyle = COLORES[3]; ctx.fillRect(PAD, y, 6, altoCab); }
     t(b.titulo.toUpperCase(), PAD + 26, y + 36, `700 22px ${SANS}`, TINTA);
     t(`${b.lineas.length} ${b.lineas.length === 1 ? 'producto' : 'productos'}`, W - PAD - 22, y + 36, `500 18px ${SANS}`, GRIS, 'right');
-    y += 54;
+    if (b.factura) t(b.factura, PAD + 26, y + 68, `700 19px ${SANS}`, TINTA);
+    y += altoCab;
     for (const l of b.lineas) {
       total++;
       ctx.font = `600 25px ${SANS}`;

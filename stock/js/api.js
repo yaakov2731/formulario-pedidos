@@ -125,7 +125,13 @@ export async function cargarProveedores() {
   if (r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''))) return ok(await sb.from('proveedores').select(COLS_PROV).order('nombre'));
   return ok(r);
 }
-export const cargarLocales = async () => ok(await sb.from('locales').select('id,codigo,nombre,encargados,activo').order('nombre'));
+// Sin 0013_locales_razon_social.sql trae los locales sin razón social ni CUIT.
+export async function cargarLocales() {
+  const r = await sb.from('locales').select('id,codigo,nombre,encargados,activo,razon_social,cuit').order('nombre');
+  if (r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''))) return ok(await sb.from('locales').select('id,codigo,nombre,encargados,activo').order('nombre'));
+  return ok(r);
+}
+export const guardarLocal = async (id, datos) => ok(await sb.from('locales').update(datos).eq('id', id).select('id'));
 export const cargarPrecios = async () => ok(await sb.from('precio_actual').select('producto_id,precio'));
 export const buscarServidor = async (q, localId) => ok(await sb.rpc('buscar_productos', { q, p_local: localId || null }));
 

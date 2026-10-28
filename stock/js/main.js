@@ -30,7 +30,7 @@ const VISTAS = {
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
-    'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'),
+    'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'),
     'stock': () => import('./g-stock.js'), 'catalogo': () => import('./g-catalogo.js'),
     'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
@@ -86,7 +86,7 @@ function construirShell(c) {
 }
 
 function marcarActivo(id) {
-  const act = ({ revisar: 'pedir', analisis: 'ventas', merma: 'ventas', produccion: 'recetas', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos' })[id] || id;
+  const act = ({ revisar: 'pedir', analisis: 'ventas', merma: 'ventas', produccion: 'recetas', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
     a.classList.toggle('is-active', on);

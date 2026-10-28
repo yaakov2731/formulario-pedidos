@@ -662,6 +662,7 @@ a.tb-card:hover { border-color: var(--text-2); }
   .pr-local span { font-weight: 400; }
   .pr-nota { font-style: italic; }
   .pr-para { float: right; font-size: 11pt; color: #333; }
+  .pr-factura { display: block; font-size: 11pt; font-weight: 700 !important; color: #000; margin-top: 2pt; }
   .pr-num { text-align: right !important; font-variant-numeric: tabular-nums; width: 14%; font-weight: 700; }
   .pr-tabla td:nth-child(3), .pr-tabla th:nth-child(3) { width: 18%; }
   .pr-ok { width: 12%; }

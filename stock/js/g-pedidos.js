@@ -5,7 +5,7 @@
 //   proveedor (con proveedor sugerido) y se aprueba y manda por WhatsApp.
 import { mount, h, norm, fmtNum, fmtMoney, parseNum, groupBy, porTexto, fechaCorta, lsGet, lsSet, hoyISO, sumarDias, ESTADOS } from './util.js';
 import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, mensajeError } from './api.js';
-import { G, cargarG, nombreLocal } from './datos.js';
+import { G, cargarG, nombreLocal, razonLocal } from './datos.js';
 import { esqueleto, vacio, banner, toast, icon, hoja } from './ui.js';
 import { imagenOrden } from './orden-imagen.js';
 import { puedeCompartirArchivos } from './aviso.js';
@@ -262,23 +262,36 @@ export async function render(root, ctx) {
     const sumar = (lista) => {
       const m = new Map();
       for (const o of lista) for (const i of o.orden_items) {
-        const x = m.get(i.producto_id) || { producto_id: i.producto_id, cant: 0, porLocal: new Map() };
+        // Todo junto: el mismo producto de distintos locales (cada local tiene su ficha) va en una sola línea.
+        const k = junto ? norm(nombreProd(i)) + '|' + norm(unidad(i) || '') : i.producto_id;
+        const x = m.get(k) || { producto_id: i.producto_id, cant: 0, porLocal: new Map() };
         x.cant += Number(i.cantidad_pedida);
         x.porLocal.set(o.local_id, (x.porLocal.get(o.local_id) || 0) + Number(i.cantidad_pedida));
-        m.set(i.producto_id, x);
+        m.set(k, x);
       }
       return [...m.values()].sort((a, b) => porTexto(nombreProd(a), nombreProd(b))).map(x => ({
         cant: fmtNum(x.cant, 3), unidad: unidad(x), nombre: nombreProd(x),
-        detalle: junto && x.porLocal.size > 1 ? [...x.porLocal].map(([lid, c]) => `${nombreLocal(lid)} ${fmtNum(c, 3)}`).join(' · ') : '',
+        detalle: junto && x.porLocal.size > 1 ? [...x.porLocal].map(([lid, c]) => `${nombreLocal(lid)} ${fmtNum(c, 3)}`).sort(porTexto).join(' · ') : '',
       }));
     };
-    if (junto) return [{ titulo: 'Pedido total', lineas: sumar(os) }];
+    // "Todo junto" suma por razón social: cada empresa recibe su propia factura.
+    if (junto) {
+      const grupos = [...groupBy(os, o => razonLocal(o.local_id))].sort((a, b) => porTexto(a[0], b[0]));
+      const nombres = (lista) => [...new Set(lista.map(o => nombreLocal(o.local_id)))].sort(porTexto).join(' + ');
+      return grupos.map(([razon, lista]) => ({ titulo: grupos.length > 1 ? nombres(lista) : 'Pedido total', factura: facturaDe(razon), lineas: sumar(lista) }));
+    }
     return [...groupBy(os, o => o.local_id)].sort((a, b) => porTexto(nombreLocal(a[0]), nombreLocal(b[0])))
-      .map(([lid, lista]) => ({ titulo: nombreLocal(lid), lineas: sumar(lista) }));
+      .map(([lid, lista]) => ({ titulo: nombreLocal(lid), factura: facturaDe(razonLocal(lid)), lineas: sumar(lista) }));
+  };
+  // "Facturar a SUMA ACTIVA S.A. · CUIT …" (vacío si el local no tiene razón social).
+  const facturaDe = (razon) => {
+    if (!razon) return '';
+    const l = G.locales.find(x => x.razon_social === razon && x.cuit);
+    return 'Facturar a ' + razon + (l ? ' · CUIT ' + l.cuit : '');
   };
 
   const textoWA = (prov, bloques, fecha) => {
-    const partes = bloques.map(b => `*${b.titulo}*\n${b.lineas.map(l => `• ${l.cant} ${l.unidad || ''} ${l.nombre}`.replace(/\s+/g, ' ') + (l.detalle ? ` (${l.detalle})` : '')).join('\n')}`);
+    const partes = bloques.map(b => `*${b.titulo}*${b.factura ? `\n_${b.factura}_` : ''}\n${b.lineas.map(l => `• ${l.cant} ${l.unidad || ''} ${l.nombre}`.replace(/\s+/g, ' ') + (l.detalle ? ` (${l.detalle})` : '')).join('\n')}`);
     const n = bloques.reduce((a, b) => a + b.lineas.length, 0);
     return `Hola ${prov.contacto || prov.nombre}! Te paso el pedido de *Docks del Puerto* del ${fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n${partes.join('\n\n')}\n\nTotal: ${n} ${n === 1 ? 'producto' : 'productos'}. ¡Gracias!`;
   };
@@ -385,7 +398,7 @@ export async function render(root, ctx) {
         const notas = [...new Set(lista.map(o => o.nota).filter(Boolean))].join(' · ');
         return h('table', { class: 'pr-tabla' + (filas.length <= 12 ? ' pr-junta' : '') },
           h('thead', {},
-            h('tr', {}, h('th', { class: 'pr-local', colspan: '4' }, h('b', { text: nombreLocal(lid) }), quien ? h('span', { text: ' · pidió ' + quien }) : null, notas ? h('span', { class: 'pr-nota', text: ' · Nota: ' + notas }) : null, h('span', { class: 'pr-para', text: 'Pedido a ' + prov.nombre }))),
+            h('tr', {}, h('th', { class: 'pr-local', colspan: '4' }, h('b', { text: nombreLocal(lid) }), quien ? h('span', { text: ' · pidió ' + quien }) : null, notas ? h('span', { class: 'pr-nota', text: ' · Nota: ' + notas }) : null, razonLocal(lid) ? h('span', { class: 'pr-factura', text: facturaDe(razonLocal(lid)) }) : null, h('span', { class: 'pr-para', text: 'Pedido a ' + prov.nombre }))),
             h('tr', {}, h('th', { text: 'Producto' }), h('th', { class: 'pr-num', text: 'Cantidad' }), h('th', { text: 'Unidad' }), h('th', { class: 'pr-ok', text: 'Recibido' }))),
           h('tbody', {}, filas.map(x => h('tr', {}, h('td', { text: nombreProd(x) }), h('td', { class: 'pr-num', text: fmtNum(x.cant, 3) }), h('td', { text: unidad(x) || '' }), h('td', { class: 'pr-ok' })))));
       }));
@@ -432,7 +445,7 @@ export async function render(root, ctx) {
       return h('div', { class: 'pp-fila' + (chk ? ' con-chk' : '') + (off ? ' is-fuera' : ''), 'data-prod': x.producto_id },
         chk ? h('label', { class: 'pp-sel', title: off ? 'No se pide' : 'Se pide' }, chk) : null,
         h('div', { class: 'pp-prod' }, h('b', { text: nombreProd(x) }),
-          h('span', { class: 'pp-locales', text: [...x.porLocal].map(([lid, c]) => `${nombreLocal(lid)} ${fmtNum(c, 3)}`).join(' · ') })),
+          h('span', { class: 'pp-locales', text: [...x.porLocal].map(([lid, c]) => `${nombreLocal(lid)} ${fmtNum(c, 3)}`).sort(porTexto).join(' · ') })),
         h('div', { class: 'pp-cant num' }, h('b', { text: fmtNum(x.cant, 3) }), h('span', { class: 'mute', text: ' ' + (unidad(x) || '') })),
         h('div', { class: 'pp-prov' },
           selectorProv(sinProv ? null : provId, (v, sel) => moverYAvisar(x.pares, v, sel), sinProv ? `Proveedor de ${nombreProd(x)}` : `Pasar ${nombreProd(x)} a otro proveedor`),
