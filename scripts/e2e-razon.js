@@ -147,16 +147,18 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await shot(g, '05-proveedor-facturar-pc');
   await g.locator('#view button', { hasText: 'Enviar por WhatsApp' }).first().click();
   await g.waitForSelector('.orden-img img');
-  let msg = await g.locator('[data-aviso]').innerText();
-  ok(/\*Umo Grill\*\n_Facturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8_/.test(msg), 'mensaje: Umo factura a SUMA ACTIVA con CUIT');
-  ok(/\*Gelato\*\n_Facturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8_/.test(msg) && /\*Shopping\*\n_Facturar a SPMAR S\.A\._/.test(msg), 'mensaje: Gelato a SUMA ACTIVA y Shopping a SPMAR');
+  const alt = () => g.locator('.orden-img img').getAttribute('alt');
+  ok(/^Hola .*Docks del Puerto.*\(Gelato, Shopping, Umo Grill\)\. Va todo en la imagen\. ¡Gracias!$/.test(await g.locator('[data-aviso]').innerText()), 'mensaje: solo el saludo con los locales, sin la lista');
+  let msg = await alt();
+  ok(/Umo Grill\nFacturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8/.test(msg), 'mensaje: Umo factura a SUMA ACTIVA con CUIT');
+  ok(/Gelato\nFacturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8/.test(msg) && /Shopping\nFacturar a SPMAR S\.A\./.test(msg), 'mensaje: Gelato a SUMA ACTIVA y Shopping a SPMAR');
   ok(/• 2 bidón Lavandina x 5 litros · Cód\. LAVAN\n/.test(msg) && /Pote térmico 1 kg x 25 · Cód\. POTE1/.test(msg) && /Cód\. PANU6\n/.test(msg), 'mensaje: cada producto lleva el código del mayorista (sin LOCAL-DS- ni -B)');
   await guardarImagen(g, '03-orden-imagen-por-local');
   await shot(g, '04-enviar-por-local-pc');
   await g.locator('.sheet .seg-b', { hasText: 'Todo junto' }).click();
-  await g.waitForTimeout(600);
-  msg = await g.locator('[data-aviso]').innerText();
-  ok(/\*Shopping\*\n_Facturar a SPMAR S\.A\._/.test(msg) && /\*Gelato \+ Umo Grill\*\n_Facturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8_/.test(msg), 'Todo junto: un bloque por razón social');
+  await g.waitForFunction(() => /Gelato \+ Umo Grill/.test((document.querySelector('.orden-img img') || {}).alt || ''));
+  msg = await alt();
+  ok(/Shopping\nFacturar a SPMAR S\.A\./.test(msg) && /Gelato \+ Umo Grill\nFacturar a SUMA ACTIVA S\.A\. · CUIT 30-71234567-8/.test(msg), 'Todo junto: un bloque por razón social');
   ok(/3 bidón Lavandina x 5 litros · Cód\. LAVAN \(Gelato 1 · Umo Grill 2\)/.test(msg) && /• 3 bidón Lavandina x 5 litros · Cód\. LAVAN\n/.test(msg), 'Todo junto: suma solo dentro de la misma razón social · ' + (msg.match(/.*Lavandina.*/g) || []).join(' | '));
   await guardarImagen(g, '05-orden-imagen-todo-junto');
   await g.keyboard.press('Escape');
@@ -191,7 +193,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.locator('[data-vista="proveedor"]').click();
   await v.locator('#view button', { hasText: 'Enviar por WhatsApp' }).first().click();
   await v.waitForSelector('.orden-img img');
-  ok(!/Facturar/.test(await v.locator('[data-aviso]').innerText()), 'sin 0013 el mensaje sale como antes');
+  ok(!/Facturar/.test(await v.locator('.orden-img img').getAttribute('alt')), 'sin 0013 el pedido sale como antes');
   await cV.close();
 
   await browser.close(); srv.close();

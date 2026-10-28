@@ -1007,3 +1007,5 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .el-cls .el-mal span { color: var(--bad-ink); }
 .el-cierre-2 .el-uni-fija { display: none; }
 .el-cierre-2 select.el-uni { flex: 0 0 64px; padding: 0 4px; }
+.tandas { padding: 12px 0 4px; }
+@media print { .tandas { display: none; } }

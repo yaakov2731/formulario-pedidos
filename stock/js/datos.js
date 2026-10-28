@@ -6,14 +6,23 @@ export const G = { prods: new Map(), provs: new Map(), locales: [], precios: new
 const jj = {};
 const pon = (k, fn, aviso) => (d) => { const j = JSON.stringify(d); if (jj[k] === j) return; jj[k] = j; fn(d); if (aviso) aviso(); };
 
+// Lo bajado hace poco se reusa de memoria al cambiar de pantalla (antes cada pantalla volvía a bajar miles de productos y precios).
+// Lo que gerencia edita se actualiza en G en el momento; el stock cambia por otros (ventas, recepciones) y se renueva más seguido.
+const VIGENCIA = { prods: 120e3, provs: 120e3, locales: 120e3, precios: 120e3, stock: 30e3 };
+const bajado = {};
+const vigente = (k) => bajado[k] && Date.now() - bajado[k] < VIGENCIA[k];
+window.addEventListener('stock:salir', () => { for (const k of Object.keys(bajado)) delete bajado[k]; });
+const marca = (k, fn) => (d, cache, err) => { if (!cache && !err) bajado[k] = Date.now(); fn(d, cache, err); };
+
 // quiere: subconjunto de ['prods','provs','locales','precios','stock']
 export async function cargarG(quiere, alCambiar) {
   const t = [];
-  if (quiere.includes('prods')) t.push(swr('g:cat', () => cargarCatalogo(null), pon('prods', d => { G.prods = new Map(d.map(p => [p.id, p])); }, alCambiar)));
-  if (quiere.includes('provs')) t.push(swr('g:prov', cargarProveedores, pon('provs', d => { G.provs = new Map(d.map(p => [p.id, p])); }, alCambiar)));
-  if (quiere.includes('locales')) t.push(swr('g:loc', cargarLocales, pon('locales', d => { G.locales = d; }, alCambiar)));
-  if (quiere.includes('precios')) t.push(swr('g:prec', cargarPrecios, pon('precios', d => { G.precios = new Map(d.map(r => [r.producto_id, Number(r.precio)])); }, alCambiar)));
-  if (quiere.includes('stock')) t.push(swr('g:stk', () => cargarStock(null), pon('stock', d => { G.stock = new Map(d.map(r => [r.local_id + '|' + r.producto_id, Number(r.stock)])); }, alCambiar)));
+  const pide = (k) => quiere.includes(k) && !vigente(k);
+  if (pide('prods')) t.push(swr('g:cat', () => cargarCatalogo(null), marca('prods', pon('prods', d => { G.prods = new Map(d.map(p => [p.id, p])); }, alCambiar))));
+  if (pide('provs')) t.push(swr('g:prov', cargarProveedores, marca('provs', pon('provs', d => { G.provs = new Map(d.map(p => [p.id, p])); }, alCambiar))));
+  if (pide('locales')) t.push(swr('g:loc', cargarLocales, marca('locales', pon('locales', d => { G.locales = d; }, alCambiar))));
+  if (pide('precios')) t.push(swr('g:prec', cargarPrecios, marca('precios', pon('precios', d => { G.precios = new Map(d.map(r => [r.producto_id, Number(r.precio)])); }, alCambiar))));
+  if (pide('stock')) t.push(swr('g:stk', () => cargarStock(null), marca('stock', pon('stock', d => { G.stock = new Map(d.map(r => [r.local_id + '|' + r.producto_id, Number(r.stock)])); }, alCambiar))));
   const res = await Promise.allSettled(t);
   G.listo = true;
   const f = res.find(r => r.status === 'rejected');

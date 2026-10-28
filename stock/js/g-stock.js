@@ -1,7 +1,7 @@
 // Gerencia · Stock por local. Vista "Productos": resumen por estado (tocable como filtro), categorías, una tarjeta por
 // producto con Inicio / Ahora / Dif. del período, estado por color, Contar y Ajuste con motivo, e impresión A4 (o PDF).
 // Vista "Métricas": valor del stock, consumo con días de cobertura, producción disponible y platos que se pueden servir.
-import { mount, h, tokens, coincide, fmtNum, fmtMoney, parseNum, groupBy, porTexto, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, sugerido } from './util.js';
+import { mount, h, tokens, coincide, fmtNum, fmtMoney, parseNum, groupBy, porTexto, porTandas, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, sugerido } from './util.js';
 import { contarProducto, registrarAjuste, movimientosDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_STOCK } from './ui.js';
@@ -111,7 +111,7 @@ export async function render(root, ctx) {
             movs.push({ producto_id: p.id, tipo: modo === 'merma' ? 'merma' : 'recepcion', cantidad: cant, nota: txt, creado_en: ahora });
             toast(modo === 'merma' ? `Se descontó ${fmtNum(n, 3)}${u(p)}.` : `Se sumó ${fmtNum(n, 3)}${u(p)}.`, 'ok');
           }
-          cerrar(); pintarProductos();
+          cerrar(); pintarProductos(true);
         } catch (e) { toast(mensajeError(e), 'error'); btn.disabled = false; btn.textContent = texto; }
       });
     };
@@ -146,7 +146,7 @@ export async function render(root, ctx) {
 
   // Calcula todo una vez y pinta estados, categorías y lista. Devuelve lo visible (para imprimir).
   let visibles = [];
-  function pintarProductos() {
+  function pintarProductos(mantener) {
     if (vista !== 'productos') return;
     const cons = consumo7(); const pp = porProducto(); const t = tokens(q);
     const todos = prodsLocal().map(p => ({ p, est: estadoDe(p, cons), r: pp.get(p.id) }));
@@ -175,10 +175,10 @@ export async function render(root, ctx) {
     const g = groupBy(visibles, x => x.p.categoria || 'Sin categoría');
     const out = [];
     for (const k of [...g.keys()].sort(porTexto)) {
-      out.push(h('h2', { class: 'cat-t', text: k }));
-      for (const x of g.get(k).sort((a, b) => orden[a.est] - orden[b.est] || porTexto(a.p.nombre, b.p.nombre))) out.push(tarjeta(x.p, x.est, x.r));
+      out.push(() => h('h2', { class: 'cat-t', text: k }));
+      for (const x of g.get(k).sort((a, b) => orden[a.est] - orden[b.est] || porTexto(a.p.nombre, b.p.nombre))) out.push(() => tarjeta(x.p, x.est, x.r));
     }
-    lista.replaceChildren(...out);
+    porTandas(lista, out, 40, mantener ? lista._n : 0);
   }
 
   // Hoja A4 con lo que está en pantalla y una columna vacía para anotar el conteo a mano. Desde el diálogo se guarda como PDF.
@@ -261,7 +261,7 @@ export async function render(root, ctx) {
           platos.some(x => x.estimada) ? h('p', { class: 'kpi-n', text: '* receta estimada: revisala en Cocina → Recetas' }) : null)));
   }
 
-  await cargarG(['prods', 'locales', 'stock', 'precios'], () => { if (ctx.alive() && lista.isConnected) pintarProductos(); });
+  await cargarG(['prods', 'locales', 'stock', 'precios'], () => { if (ctx.alive() && lista.isConnected) pintarProductos(true); });
   if (!ctx.alive()) return;
   const locales = G.locales.filter(l => l.activo);
   if (!locales.some(l => l.id === localId)) localId = (locales[0] || {}).id;
@@ -292,7 +292,7 @@ export async function render(root, ctx) {
     cuerpo.replaceChildren(vista === 'productos' ? zonaProd : resumen);
   };
   async function refrescar() {
-    if (vista === 'productos') { pintarProductos(); await cargarMovs(); if (ctx.alive()) pintarProductos(); }
+    if (vista === 'productos') { pintarProductos(); await cargarMovs(); if (ctx.alive()) pintarProductos(true); }
     else { resumen.replaceChildren(esqueleto(3)); await pintarResumen(); }
   }
   ponerSub(); pintarVista();

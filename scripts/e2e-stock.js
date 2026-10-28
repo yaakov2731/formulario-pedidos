@@ -705,15 +705,18 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   fs.writeFileSync(path.join(OUT, '11d-copia-pedido.png'), Buffer.from(imgOrden, 'base64'));
   if (await g.locator('.sheet .seg').count()) {
     await g.locator('.sheet').getByRole('tab', { name: 'Todo junto' }).click();
-    await g.waitForFunction(() => /Pedido total/.test(document.querySelector('.sheet [data-aviso]').textContent));
+    await g.waitForFunction(() => /Pedido total/.test((document.querySelector('.sheet .orden-img img') || {}).alt || ''));
     ok(true, 'Todo junto suma los productos de todos los locales');
     await g.locator('.sheet').getByRole('tab', { name: 'Separado por local' }).click();
   }
+  const dl = []; g.on('download', d => dl.push(d.suggestedFilename()));
+  ok(/Bajar la imagen y abrir WhatsApp/.test(await g.locator('.sheet [data-accion="wa"]').innerText()), 'escritorio: el botón baja la imagen y abre WhatsApp');
   const [popup] = await Promise.all([cGer.waitForEvent('page'), g.locator('.sheet [data-accion="wa"]').click()]);
   const urlWA = popup.url();
   ok(urlWA.startsWith('https://wa.me/5491155550001?text='), `URL de WhatsApp con número solo dígitos: ${urlWA.slice(0, 48)}…`);
   const textoWA = decodeURIComponent(urlWA.split('?text=')[1]);
-  ok(/^Hola Hernán!/.test(textoWA) && /Umo Grill/.test(textoWA) && /Cerveza rubia/.test(textoWA) && /Gaseosa cola/.test(textoWA), 'el texto lista local y productos');
+  ok(/^Hola Hernán!/.test(textoWA) && /Umo Grill/.test(textoWA) && /Va todo en la imagen/.test(textoWA) && !/Cerveza rubia|Gaseosa cola/.test(textoWA), 'el texto es solo un saludo con el local, sin repetir los productos');
+  ok(dl.some(d => /^pedido-distribuidora-florida-.*\.png$/.test(d)), 'en la computadora se descarga la imagen para adjuntarla: ' + dl.join(', '));
   await popup.close();
   await g.waitForTimeout(500);
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'enviada', 'marca la orden como "enviada"');
@@ -950,6 +953,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
 
   // Proveedores (Catálogo → Proveedores): sin el SQL 0011 la ficha avisa y guarda solo lo de siempre
   db.sin0011 = true;
+  await g.reload(); await g.waitForSelector('.sidebar a[data-nav="catalogo"]'); // los proveedores quedan 2 min en memoria: recargar los vuelve a pedir
   await g.locator('.sidebar a[data-nav="catalogo"]').click();
   await g.locator('.subnav-b', { hasText: 'Proveedores' }).click();
   await g.waitForSelector('.prod-cat[data-prov="Barcena"]');

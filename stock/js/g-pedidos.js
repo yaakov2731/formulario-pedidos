@@ -299,7 +299,12 @@ export async function render(root, ctx) {
     return `Hola ${prov.contacto || prov.nombre}! Te paso el pedido de *Docks del Puerto* del ${fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n${partes.join('\n\n')}\n\nTotal: ${n} ${n === 1 ? 'producto' : 'productos'}. ¡Gracias!`;
   };
 
-  // Hoja para mandar el pedido al proveedor: imagen con el logo + mensaje. Lo envía siempre una persona.
+  // Con la imagen alcanza: el mensaje es solo un saludo con los locales (el detalle y la factura van en la imagen).
+  const textoCorto = (prov, os, fecha) =>
+    `Hola ${prov.contacto || prov.nombre}! Te paso el pedido de *Docks del Puerto* del ${fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })} (${[...new Set(os.map(o => nombreLocal(o.local_id)))].sort(porTexto).join(', ')}). Va todo en la imagen. ¡Gracias!`;
+  const bajar = (url, nombre) => { const a = h('a', { href: url, download: nombre }); document.body.append(a); a.click(); a.remove(); };
+
+  // Hoja para mandar el pedido al proveedor: imagen con el logo + saludo corto (el texto completo solo si falla la imagen). Lo envía siempre una persona.
   function abrirEnvio(prov, os, alEnviar, sacados = 0) {
     const locales = new Set(os.map(o => o.local_id)).size;
     const fecha = new Date();
@@ -323,8 +328,9 @@ export async function render(root, ctx) {
         class: 'seg-b' + (junto === j ? ' is-on' : ''), type: 'button', role: 'tab', 'aria-selected': junto === j ? 'true' : 'false', text: t,
         on: { click: () => { if (junto !== j) { junto = j; armar(); } } } })));
       const bloques = armarBloques(os, junto);
-      const texto = textoWA(prov, bloques, fecha);
-      txt.textContent = texto;
+      txt.textContent = textoCorto(prov, os, fecha);
+      // El pedido escrito queda como texto alternativo de la imagen y como mensaje si la imagen falla.
+      const completo = textoWA(prov, bloques, fecha);
       file = null;
       try {
         const blob = await imagenOrden({ proveedor: prov.nombre, fecha, bloques });
@@ -332,8 +338,12 @@ export async function render(root, ctx) {
         file = new File([blob], nombreArchivo, { type: 'image/png' });
         if (urlImg) URL.revokeObjectURL(urlImg);
         urlImg = URL.createObjectURL(file);
-        vistaImg.replaceChildren(h('img', { src: urlImg, alt: `Copia del pedido para ${prov.nombre}` }));
-      } catch (_e) { if (v === version) vistaImg.replaceChildren(banner('No se pudo armar la imagen. Podés mandar solo el mensaje.', 'warn')); }
+        vistaImg.replaceChildren(h('img', { src: urlImg, alt: completo.replace(/[*_]/g, '') }));
+      } catch (_e) { if (v === version) vistaImg.replaceChildren(banner('No se pudo armar la imagen: va el pedido escrito en el mensaje.', 'warn')); }
+      if (v !== version) return;
+      const texto = file ? textoCorto(prov, os, fecha) : completo;
+      txt.textContent = texto;
+      vistaImg.dataset.lista = file ? 'imagen' : 'texto';
 
       const lista = [];
       if (puedeCompartirArchivos(file)) {
@@ -346,13 +356,16 @@ export async function render(root, ctx) {
         const digitos = String(prov.whatsapp || '').replace(/\D/g, '');
         if (!digitos) lista.push(banner(`${prov.nombre} no tiene WhatsApp cargado.${prov.email ? ' Podés mandarlo por email.' : ' Cargalo en Proveedores.'}`, 'warn'));
         lista.push(h('button', { class: 'btn btn-primary btn-block btn-lg', type: 'button', disabled: !digitos, 'data-accion': 'wa', on: { click: async () => {
+          if (file) bajar(urlImg, nombreArchivo);
           window.open(`https://wa.me/${digitos}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
           await enviado();
-        } } }, icon('whatsapp', 20), h('span', { text: 'Abrir WhatsApp con el mensaje' })));
-        if (file) lista.push(banner('En la computadora WhatsApp no recibe la imagen sola: descargala y adjuntala en el chat.', 'info'));
+        } } }, icon('whatsapp', 20), h('span', { text: file ? 'Bajar la imagen y abrir WhatsApp' : 'Abrir WhatsApp con el mensaje' })));
+        if (file) lista.push(banner('En la computadora WhatsApp no recibe la imagen sola: se descarga y la adjuntás en el chat (arrastrala o clip → Fotos).', 'info'));
       }
-      const urlM = urlMail(prov.email, `Pedido de Docks del Puerto · ${fecha.toLocaleDateString('es-AR')}`, texto.replace(/\*/g, ''));
+      const urlM = urlMail(prov.email, `Pedido de Docks del Puerto · ${fecha.toLocaleDateString('es-AR')}`,
+        (file ? texto.replace('Va todo en la imagen.', 'Te adjunto la imagen con el pedido.') : texto).replace(/\*/g, ''));
       if (urlM) lista.push(h('button', { class: 'btn btn-ghost btn-block', type: 'button', 'data-accion': 'mail', on: { click: async () => {
+        if (file) { bajar(urlImg, nombreArchivo); toast('Adjuntá la imagen que se descargó al email.', 'info'); }
         window.location.href = urlM;
         await enviado();
       } } }, icon('mail', 20), h('span', { text: `Mandar por email a ${prov.email}` })));
