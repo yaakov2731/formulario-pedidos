@@ -256,6 +256,9 @@ export const cargarSugerido = async (localId) => ok(await sb.rpc('sugerido_pedid
 export const cargarAliasNucleo = (localId) => todo(() => sb.from('producto_alias').select('id,producto_id,alias,cantidad_por_venta').eq('origen', 'nucleo').eq('local_id', localId).order('id'));
 export const asociarNucleo = async (productoId, codigo, cantidadPorVenta = 1) =>
   ok(await sb.rpc('asociar_nucleo', { p_producto: productoId, p_codigo: codigo, p_cantidad_por_venta: cantidadPorVenta }));
+// Plato que en realidad se vende tal cual: su código de Núcleo pasa a descontar un producto del stock (sin producto: el plato pasa a tener stock).
+export const venderTalCual = async (platoId, productoId = null, cantidad = 1) =>
+  ok(await sb.rpc('vender_tal_cual', { p_plato: platoId, p_producto: productoId, p_cantidad: cantidad }));
 export const crearPlato = async (localId, codigo, nombre) => ok(await sb.rpc('crear_plato', { p_local: localId, p_codigo: codigo || '', p_nombre: nombre }));
 export const importacionDelDia = async (localId, fecha) =>
   ok(await sb.from('ventas_import').select('id,archivo,n_pedidos,total_productos,creado_en').eq('local_id', localId).eq('fecha_desde', fecha).eq('fecha_hasta', fecha).limit(1));

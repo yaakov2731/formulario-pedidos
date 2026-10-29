@@ -1,6 +1,6 @@
 // Gerencia · Cocina · Recetas: insumos y rinde de cada plato y elaborado; platos vendidos sin receta.
 import { mount, h, tokens, coincide, norm, fmtNum, fmtMoney, parseNum, porTexto, esCarta, medidaReceta, esBulto, factorDe } from './util.js';
-import { cargarRecetas, guardarReceta, platosSinReceta, guardarProducto, mensajeError } from './api.js';
+import { cargarRecetas, guardarReceta, platosSinReceta, guardarProducto, venderTalCual, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, subnav, icon, banner, SUBNAV_COCINA } from './ui.js';
 
@@ -88,7 +88,54 @@ export async function render(root, ctx) {
         campo(`Rinde (${unidad(p)})`, inRinde, 'Cuántas unidades salen con estas cantidades.'),
         h('div', { class: 'ins-lista' }, ...(filas.length ? filas : [h('p', { class: 'mute centro', text: 'Todavía no tiene insumos.' })])),
         h('button', { class: 'btn btn-ghost', type: 'button', text: 'Agregar insumo', on: { click: vistaPicker } }),
-        c !== null ? h('p', { class: 'sub', text: `Costo estimado por ${unidad(p)}: ${fmtMoney(c)}` }) : null, err, btn].filter(Boolean));
+        c !== null ? h('p', { class: 'sub', text: `Costo estimado por ${unidad(p)}: ${fmtMoney(c)}` }) : null, err, btn,
+        esCarta(p) ? h('div', { class: 'tal-cual' },
+          h('p', { class: 'sub', text: '¿No se cocina? Pulseras, aguas, gaseosas: cada venta descuenta 1 del stock.' }),
+          h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'Se vende tal cual', on: { click: vistaTalCual } })) : null].filter(Boolean));
+    }
+
+    // El plato en realidad es un producto que se vende tal cual: sus ventas pasan a descontar un producto del stock.
+    function vistaTalCual() {
+      let t = (p.nombre.split(/[^\p{L}\p{N}]+/u).find(w => w.length >= 3) || '');   // PULSERA-PASE → busca «PULSERA»
+      const lista = h('div', { class: 'lista lista-sheet' });
+      const pintarOpc = () => {
+        const tk = tokens(t);
+        const vis = [...G.prods.values()].filter(x => x.local_id === p.local_id && !x.es_elaborado && !esCarta(x) && coincide(x.nombre + ' ' + x.codigo, tk))
+          .sort((a, b) => (b.activo !== false) - (a.activo !== false) || porTexto(a.nombre, b.nombre)).slice(0, 40);
+        lista.replaceChildren(...(vis.length ? vis.map(x => h('button', { class: 'prod prod-cat', type: 'button', 'aria-label': `Descontar ${x.nombre}`, on: { click: () => confirmarTalCual(x) } },
+          h('span', { class: 'prod-n', text: x.nombre }), h('span', { class: 'prod-m' }, h('span', { class: 'num', text: x.codigo }), h('span', { text: x.categoria || '' }), h('span', { text: x.unidad_uso || '' })))) : [vacio(`No está en el catálogo de ${nombreLocal}`, 'Probá con otra palabra, o convertí el plato en producto con stock.')]));
+      };
+      const buscador = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar producto del stock', 'aria-label': 'Buscar producto del stock', autocomplete: 'off', value: t, on: { input: (e) => { t = e.target.value; pintarOpc(); } } });
+      cuerpo.replaceChildren(
+        h('p', { class: 'sub', text: `¿Qué producto del stock descuenta cada venta de ${p.nombre}?` }), buscador, lista,
+        h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'No está: que este mismo tenga stock', on: { click: () => confirmarTalCual(null) } }),
+        h('button', { class: 'btn btn-text', type: 'button', text: 'Volver a la receta', on: { click: vistaEditor } }));
+      pintarOpc(); setTimeout(() => buscador.focus(), 50);
+    }
+
+    function confirmarTalCual(x) {
+      const inCpv = h('input', { class: 'input num', id: 'tc-cpv', type: 'text', inputmode: 'decimal', value: '1', 'aria-label': 'Cantidad que descuenta cada venta' });
+      const err = h('div', { class: 'form-err', 'aria-live': 'polite' });
+      const btn = h('button', { class: 'btn btn-primary btn-block', type: 'button', text: 'Confirmar' });
+      const vendidos = (sinReceta.find(s => s.producto_id === p.id) || {}).vendidos;
+      cuerpo.replaceChildren(
+        h('p', { class: 'sub', text: x ? `Cada venta de ${p.nombre} va a descontar ${x.nombre}. El plato se oculta.` : `${p.nombre} deja de ser plato: pasa a tener stock propio, se cuenta en Stock y se pide en Pedir.` }),
+        x ? campo(`Cuánto descuenta cada venta (${x.unidad_uso || 'unidad'})`, inCpv, 'Casi siempre es 1.') : null,
+        vendidos ? banner(`Las ${fmtNum(vendidos, 3)} ventas ya subidas también se descuentan.`, 'info') : null,
+        err, btn, h('button', { class: 'btn btn-text', type: 'button', text: 'Elegir otro', on: { click: vistaTalCual } }));
+      btn.addEventListener('click', async () => {
+        const n = x ? parseNum(inCpv.value) : 1;
+        if (!(n > 0)) return err.replaceChildren(document.createTextNode('La cantidad tiene que ser mayor a cero.'));
+        btn.disabled = true; btn.textContent = 'Guardando…';
+        try {
+          await venderTalCual(p.id, x ? x.id : null, n);
+          if (x) { G.prods.set(p.id, { ...p, activo: false }); G.prods.set(x.id, { ...x, activo: true }); }
+          else G.prods.set(p.id, { ...p, es_elaborado: false, categoria: 'Reventa', unidad_uso: p.unidad_uso === 'porción' ? 'unidad' : p.unidad_uso, unidad_compra: p.unidad_compra && p.unidad_compra !== 'porción' ? p.unidad_compra : 'unidad', activo: true });
+          recetas.delete(p.id);
+          sinReceta = sinReceta.filter(s => s.producto_id !== p.id);
+          toast(x ? `Listo: ${p.nombre} descuenta ${x.nombre}` : `Listo: ${p.nombre} ya tiene stock`, 'ok'); cerrar(); pintar();
+        } catch (e) { err.replaceChildren(document.createTextNode(mensajeError(e))); btn.disabled = false; btn.textContent = 'Confirmar'; }
+      });
     }
 
     function vistaPicker() {
@@ -206,7 +253,7 @@ export async function render(root, ctx) {
     };
     mount(zona,
       sinReceta.length ? h('section', { class: 'bloque' }, h('h2', { class: 'bloque-t', text: `Vendidos sin receta · ${sinReceta.length}` }),
-        h('p', { class: 'sub', text: 'Mientras no tengan receta, sus ventas no descuentan insumos.' }),
+        h('p', { class: 'sub', text: 'Mientras no tengan receta, sus ventas no descuentan insumos. Si se venden tal cual (pulseras, aguas, gaseosas), abrilos y tocá «Se vende tal cual».' }),
         h('ul', { class: 'barras sr' }, sinReceta.slice(0, 12).map(s => h('li', { class: 'bfila' },
           h('button', { class: 'sr-b', type: 'button', 'aria-label': `Cargar receta de ${s.nombre}`, on: { click: () => { const p = G.prods.get(s.producto_id); if (p) editar(p); } } },
             h('span', { class: 'bfila-k', text: s.nombre }), h('b', { class: 'num', text: `${fmtNum(s.vendidos, 3)} vendidos` })))))) : null,

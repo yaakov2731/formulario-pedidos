@@ -1105,3 +1105,4 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .pres-op span { color: var(--text-2); font-size: 14px; }
 .pres-op.is-on { border-color: var(--accent-deco); box-shadow: 0 0 0 3px var(--accent-soft); }
 .bulto { color: var(--text-2); font-size: 13px; }
+.tal-cual { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--sep); display: grid; gap: 8px; }
