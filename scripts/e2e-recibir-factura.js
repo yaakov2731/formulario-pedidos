@@ -47,14 +47,15 @@ const P = {
 };
 const FACTURA = {
   es_factura: true, proveedor: 'DISTRIBUIDORA FLORIDA S.A.', cuit: '30-71111111-1', tipo: 'Factura A', numero: '0004-00228899',
-  fecha: '2026-10-28', vencimiento: '2026-11-07', subtotal: 98500, total: 119185, observaciones: null,
+  fecha: '2026-10-28', vencimiento: '2026-11-07', subtotal: 98500, total: 119185,
   renglones: [
     { codigo: '1020', descripcion: 'TOMATE PERITA X KG', cantidad: 8, unidad: 'kg', precio_unitario: 2100, importe: 16800 },
     { codigo: '2210', descripcion: 'LECHE ENT. LS 1L CJ X12', cantidad: 2, unidad: 'cj', precio_unitario: 14400, importe: 28800 },
     { codigo: '4410', descripcion: 'LAVANDINA CONCENTRADA BIDON 5L', cantidad: 3, unidad: 'un', precio_unitario: 5300, importe: 15900 },
     { codigo: '3300', descripcion: 'MUZZARELLA HORMA LA PAULINA', cantidad: 4.2, unidad: 'kg', precio_unitario: 7500, importe: 31500 },
     { codigo: null, descripcion: 'FLETE', cantidad: 1, unidad: null, precio_unitario: 5500, importe: 5500 }
-  ]
+  ],
+  observaciones: null
 };
 const db = {
   alias: [{ id: 'a1', producto_id: P.leche.id, alias: 'LECHE ENT. LS 1L CJ X12' }],
@@ -87,7 +88,11 @@ async function montarApi(ctx, { falla = null } = {}) {
       const b = body(); db.lecturas.push(b);
       await new Promise(r => setTimeout(r, 400));
       if (falla) return json({ error: falla }, 503);
-      return json({ factura: FACTURA, modelo: 'claude-opus-5-5', uso: { entrada: 3200, salida: 900 } });
+      // Como la función real: líneas JSON con pedazos del texto y una línea final.
+      const txt = JSON.stringify(FACTURA); const lineas = [];
+      for (let i = 0; i < txt.length; i += 40) lineas.push(JSON.stringify({ t: txt.slice(i, i + 40) }));
+      lineas.push(JSON.stringify({ fin: true, modelo: 'claude-sonnet-5-5', uso: { entrada: 3200, salida: 900 }, ms: 6100 }));
+      return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/x-ndjson' }, body: lineas.join('\n') + '\n' });
     }
     if (u.pathname.startsWith('/storage/v1/object/comprobantes/')) { db.subidas.push({ ruta: u.pathname.replace('/storage/v1/object/comprobantes/', ''), bytes: (req.postDataBuffer() || Buffer.alloc(0)).length }); return json({ Key: 'comprobantes/x', Id: 'x' }); }
     if (t === 'perfiles') return json([{ id: U_GER, nombre: 'Jacobo', rol: 'gerencia', local_id: null }]);

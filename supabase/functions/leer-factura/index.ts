@@ -3,9 +3,12 @@
 //
 // Secretos (Supabase → Edge Functions → Secrets):
 //   ANTHROPIC_API_KEY   clave de console.anthropic.com (obligatoria)
-//   MODELO_FACTURAS     opcional: claude-opus-5-5 (por defecto), claude-sonnet-5-5 o claude-haiku-5-5
+//   MODELO_FACTURAS     opcional: claude-sonnet-5-5 (por defecto, rápido), claude-opus-5-5 o claude-haiku-5-5
 // Pedido:  POST { archivos: [{ data: <base64 sin "data:">, tipo: "image/jpeg" | "image/png" | "image/webp" | "application/pdf" }] }
-// Respuesta: { factura: {...}, modelo, uso: { entrada, salida } }  ·  error: { error: "texto para mostrar" }
+// Respuesta: líneas JSON (application/x-ndjson) a medida que se lee, para que la app muestre los renglones al llegar:
+//   { t: "<pedazo del JSON de la factura>" } ... y al final { fin: true, modelo, uso: { entrada, salida }, ms }
+//   o { error: "texto para mostrar" }. Los errores previos a leer (permiso, clave, archivo) vuelven como JSON con status.
+// Cada lectura deja en los logs de la función: modelo, ms hasta el primer texto, ms total y tokens.
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -26,6 +29,7 @@ const ESQUEMA = {
   type: "object",
   additionalProperties: false,
   required: ["es_factura", "proveedor", "cuit", "tipo", "numero", "fecha", "vencimiento", "subtotal", "total", "renglones", "observaciones"],
+  // Orden pensado para la lectura en vivo: primero el encabezado, después los renglones, al final las observaciones.
   properties: {
     es_factura: { type: "boolean" },
     proveedor: txt,
@@ -36,7 +40,6 @@ const ESQUEMA = {
     vencimiento: txt,
     subtotal: num,
     total: num,
-    observaciones: txt,
     renglones: {
       type: "array",
       items: {
@@ -46,6 +49,7 @@ const ESQUEMA = {
         properties: { codigo: txt, descripcion: { type: "string" }, cantidad: num, unidad: txt, precio_unitario: num, importe: num },
       },
     },
+    observaciones: txt,
   },
 };
 
@@ -86,30 +90,51 @@ Deno.serve(async (req) => {
   }
   bloques.push({ type: "text", text: INSTRUCCIONES });
 
-  const modelo = Deno.env.get("MODELO_FACTURAS") || "claude-opus-5-5";
+  const modelo = Deno.env.get("MODELO_FACTURAS") || "claude-sonnet-5-5";
+  // Pasar una factura a JSON no necesita razonar: sin "pensar" y con esfuerzo bajo responde mucho antes.
+  // Sonnet 5.5 apaga el pensamiento con between_tools; Opus 5.5 no lo permite y se queda con esfuerzo bajo.
+  const thinking = modelo.startsWith("claude-sonnet") ? { thinking: { type: "between_tools" as const } } : {};
   // Si el modelo declina por política, la API reintenta sola con otro modelo (no existe para Haiku).
   const conRespaldo = !modelo.startsWith("claude-haiku");
   const client = new Anthropic({ apiKey: clave });
-  try {
-    const r = await client.beta.messages.create({
-      model: modelo,
-      max_tokens: 16000,
-      ...(conRespaldo ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {}),
-      output_config: { effort: "medium", format: { type: "json_schema", schema: ESQUEMA } },
-      messages: [{ role: "user", content: bloques }],
-    });
-    if (r.stop_reason === "refusal") return responder({ error: "No se pudo leer este archivo. Probá con otra foto." }, 422);
-    if (r.stop_reason === "max_tokens") return responder({ error: "La factura es demasiado larga para leerla de una vez. Subila en partes." }, 422);
-    const texto = r.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
-    const factura = JSON.parse(texto);
-    return responder({ factura, modelo: r.model, uso: { entrada: r.usage.input_tokens, salida: r.usage.output_tokens } });
-  } catch (e) {
-    if (e instanceof Anthropic.AuthenticationError) return responder({ error: "La clave de Anthropic no es válida. Revisala en Supabase." }, 503);
-    if (e instanceof Anthropic.PermissionDeniedError) return responder({ error: "La cuenta de Anthropic no tiene permiso (¿falta cargar crédito?)." }, 503);
-    if (e instanceof Anthropic.RateLimitError) return responder({ error: "Demasiadas facturas seguidas. Esperá un minuto." }, 429);
-    if (e instanceof Anthropic.BadRequestError && /credit|billing/i.test(e.message)) return responder({ error: "La cuenta de Anthropic se quedó sin crédito." }, 503);
-    if (e instanceof Anthropic.APIError) return responder({ error: "El servicio que lee facturas falló. Probá de nuevo en un rato." }, 502);
-    if (e instanceof SyntaxError) return responder({ error: "No se pudo interpretar la factura. Probá con otra foto." }, 422);
-    return responder({ error: "Algo salió mal al leer la factura." }, 500);
-  }
+  const enc = new TextEncoder();
+  const t0 = Date.now();
+  const cuerpo = new ReadableStream({
+    async start(ctrl) {
+      const enviar = (o: unknown) => ctrl.enqueue(enc.encode(JSON.stringify(o) + "\n"));
+      let tPrimero = 0;
+      try {
+        const stream = client.beta.messages.stream({
+          model: modelo,
+          max_tokens: 16000,
+          ...thinking,
+          ...(conRespaldo ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {}),
+          output_config: { effort: "low", format: { type: "json_schema", schema: ESQUEMA } },
+          messages: [{ role: "user", content: bloques }],
+        });
+        stream.on("text", (t) => { if (!tPrimero) tPrimero = Date.now(); enviar({ t }); });
+        const r = await stream.finalMessage();
+        const ms = Date.now() - t0;
+        console.log(JSON.stringify({ evento: "leer-factura", modelo: r.model, ms_primer_texto: tPrimero ? tPrimero - t0 : null, ms_total: ms,
+          entrada: r.usage.input_tokens, salida: r.usage.output_tokens, archivos: archivos.length, fin: r.stop_reason }));
+        if (r.stop_reason === "refusal") enviar({ error: "No se pudo leer este archivo. Probá con otra foto." });
+        else if (r.stop_reason === "max_tokens") enviar({ error: "La factura es demasiado larga para leerla de una vez. Subila en partes." });
+        else enviar({ fin: true, modelo: r.model, uso: { entrada: r.usage.input_tokens, salida: r.usage.output_tokens }, ms });
+      } catch (e) {
+        console.log(JSON.stringify({ evento: "leer-factura-error", modelo, ms_total: Date.now() - t0, error: String(e) }));
+        enviar({ error: mensajeError(e) });
+      }
+      ctrl.close();
+    },
+  });
+  return new Response(cuerpo, { headers: { ...CORS, "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });
 });
+
+function mensajeError(e: unknown): string {
+  if (e instanceof Anthropic.AuthenticationError) return "La clave de Anthropic no es válida. Revisala en Supabase.";
+  if (e instanceof Anthropic.PermissionDeniedError) return "La cuenta de Anthropic no tiene permiso (¿falta cargar crédito?).";
+  if (e instanceof Anthropic.RateLimitError) return "Demasiadas facturas seguidas. Esperá un minuto.";
+  if (e instanceof Anthropic.BadRequestError && /credit|billing/i.test(e.message)) return "La cuenta de Anthropic se quedó sin crédito.";
+  if (e instanceof Anthropic.APIError) return "El servicio que lee facturas falló. Probá de nuevo en un rato.";
+  return "Algo salió mal al leer la factura.";
+}

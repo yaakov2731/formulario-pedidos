@@ -243,17 +243,42 @@ export async function registrarRecepcion(orden, lineas) {
 }
 
 // ---- recibir con factura (0018_recibir_factura.sql + Edge Function leer-factura) ----
-// archivos: [{ data: base64, tipo }]. Devuelve { factura, modelo, uso } o lanza un error con el texto para mostrar.
-export async function leerFactura(archivos) {
-  const { data, error } = await sb.functions.invoke('leer-factura', { body: { archivos } });
-  if (error) {
+// archivos: [{ data: base64, tipo }]. La función responde de a pedazos (una línea JSON por pedazo): alPedazo(textoHastaAhora)
+// se llama con todo lo leído, para mostrar los renglones a medida que llegan. Devuelve { factura, modelo, uso, ms }.
+export async function leerFactura(archivos, alPedazo) {
+  const { data: { session } } = await sb.auth.getSession();
+  let res;
+  try {
+    res = await fetch(CFG.SUPABASE_URL + '/functions/v1/leer-factura', {
+      method: 'POST', body: JSON.stringify({ archivos }),
+      headers: { 'content-type': 'application/json', apikey: CFG.SUPABASE_KEY, authorization: 'Bearer ' + ((session && session.access_token) || CFG.SUPABASE_KEY) }
+    });
+  } catch (_e) { throw new Error('Sin conexión. Revisá internet e intentá de nuevo.'); }
+  if (!res.ok) {
     let msg = '';
-    try { msg = (await error.context.json()).error || ''; } catch (_e) { /* sin cuerpo */ }
-    if (!msg && /FunctionsFetchError|Failed to send/i.test(error.name + ' ' + error.message)) msg = 'Sin conexión, o falta publicar la función que lee facturas en Supabase.';
-    if (!msg && error.context && error.context.status === 404) msg = 'Falta publicar la función que lee facturas en Supabase.';
+    try { msg = (await res.json()).error || ''; } catch (_e) { /* sin cuerpo */ }
+    if (!msg && res.status === 404) msg = 'Falta publicar la función que lee facturas en Supabase.';
     throw new Error(msg || 'No se pudo leer la factura.');
   }
-  return data;
+  const lector = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', texto = '', fin = null;
+  for (;;) {
+    const { value, done } = await lector.read();
+    if (value) buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const linea = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!linea) continue;
+      const o = JSON.parse(linea);
+      if (o.error) throw new Error(o.error);
+      if (o.t) { texto += o.t; if (alPedazo) alPedazo(texto); }
+      if (o.fin) fin = o;
+    }
+    if (done) break;
+  }
+  if (!fin) throw new Error('Se cortó la lectura. Probá de nuevo.');
+  return { factura: JSON.parse(texto), modelo: fin.modelo, uso: fin.uso, ms: fin.ms };
 }
 export const aliasProveedor = (localId) => todo(() => sb.from('producto_alias').select('id,producto_id,alias').eq('origen', 'proveedor').eq('local_id', localId).order('id'));
 export const recibirConFactura = async (localId, proveedorId, items, factura, ordenId) =>
