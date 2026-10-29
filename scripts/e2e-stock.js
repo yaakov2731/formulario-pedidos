@@ -1244,7 +1244,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.getByRole('button', { name: 'Usar Cerveza rubia lata 473 ml para Cerveza Rubia Lata' }).click();
   await v.waitForSelector('.asoc[data-clave="beb-901"].asoc-ok', { state: 'attached' });
   ok(db.asociaciones.some(a => a.p_producto === 'p-cerveza' && a.p_codigo === 'BEB-901' && a.p_cantidad_por_venta === 1), 'asociar_nucleo guarda el código de Núcleo del producto');
-  await v.getByRole('button', { name: 'Elegir producto para Agua Demo 500' }).click();
+  await v.getByRole('button', { name: 'Elegir producto del stock para Agua Demo 500' }).click();
   await v.waitForSelector('dialog[open]');
   await v.locator('dialog input[type=search]').fill('agua');
   await shot(v, '21-g-ventas-elegir-pc');
@@ -1316,7 +1316,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const limUmo = db.productos.find(x => x.local_id === L1 && x.nombre === 'Limones');
   ok(limUmo && /^UMO-\d{3}$/.test(limUmo.codigo) && limUmo.unidad_uso === 'kg' && limUmo.factor_conversion === 1 && limUmo.es_elaborado === false && db.productos.filter(x => x.codigo === limUmo.codigo).length === 1, 'Insumo nuevo: queda en el catálogo del local con código libre y unidad ' + JSON.stringify(limUmo));
   ok(await v.getByLabel('Cantidad de Limones').inputValue() === '150', 'Insumo nuevo: se suma a la receta con la cantidad cargada (150 g)');
-  ok((await v.locator('dialog .sub').innerText()).includes('Costo estimado'), 'la receta muestra el costo estimado');
+  ok((await v.locator('dialog .sub').first().innerText()).includes('Costo estimado'), 'la receta muestra el costo estimado');
   await shot(v, '25-g-receta-editar-pc');
   await v.getByRole('button', { name: 'Guardar receta' }).click();
   await v.waitForSelector('.toast-ok >> text=Receta guardada');

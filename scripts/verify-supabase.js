@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql y 0016_facturas_saldo.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql, 0016_facturas_saldo.sql y 0017_vender_tal_cual.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -84,6 +84,9 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig16 = fs.readFileSync(path.join(root, 'supabase/migrations/0016_facturas_saldo.sql'), 'utf8');
   try { await db.exec(mig16); await db.exec(mig16); check('aplica 0016_facturas_saldo.sql (idempotente)', true); }
   catch (e) { check('aplica 0016_facturas_saldo.sql (idempotente)', false, e.message); return finish(); }
+  const mig17 = fs.readFileSync(path.join(root, 'supabase/migrations/0017_vender_tal_cual.sql'), 'utf8');
+  try { await db.exec(mig17); await db.exec(mig17); check('aplica 0017_vender_tal_cual.sql (idempotente)', true); }
+  catch (e) { check('aplica 0017_vender_tal_cual.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -395,6 +398,32 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     check('borrar_importacion borra pedidos y pagos en cascada', cascada.p === 0 && cascada.g === 0, JSON.stringify(cascada));
     await q('rollback');
 
+    // Se vende tal cual: el plato SAN-2 (2 vendidos hoy, sin receta) pasa a descontar un producto del stock. Todo se deshace al final.
+    await q('begin');
+    const pul = (await q("insert into productos(codigo,nombre,local_id,categoria,unidad_uso,es_elaborado) values ('ZZ1-110','Pulsera Test',$1,'Varios','unidad',false) returning id", [l1.id]))[0].id;
+    await db.query("insert into movimientos(local_id,producto_id,tipo,cantidad) values ($1,$2,'inicial',50)", [l1.id, pul]);
+    const stCervT = await stockDe(cerv), stQuesoT = await stockDe(queso);
+    const vt = (await q('select vender_tal_cual($1,$2,1) r', [pla2, pul]))[0].r;
+    const vtAl = await q("select producto_id from producto_alias where origen='nucleo' and alias='SAN-2'");
+    const vtPla = (await q('select activo from productos where id=$1', [pla2]))[0];
+    check('vender_tal_cual: las ventas ya importadas descuentan el producto (50 - 2 = 48)', (await stockDe(pul)) === 48 && vt.items === 1 && vt.importaciones === 1, JSON.stringify(vt) + ' ' + await stockDe(pul));
+    check('vender_tal_cual: el código de Núcleo pasa al producto y el plato queda inactivo', vtAl.length === 1 && vtAl[0].producto_id === pul && vtPla.activo === false, JSON.stringify(vtAl));
+    check('vender_tal_cual: no cambia lo que descontó el resto de la importación', (await stockDe(cerv)) === stCervT && Math.abs((await stockDe(queso)) - stQuesoT) < 1e-9);
+    await q('select vender_tal_cual($1,$2,1)', [pla2, pul]);
+    check('vender_tal_cual: repetirlo no descuenta dos veces', (await stockDe(pul)) === 48);
+    const vtImp = (await q("select importar_ventas($1,current_date - 42,'[]'::jsonb,$2::jsonb,'[]'::jsonb,'pulseras.xlsx') r", [l1.id, JSON.stringify([{ codigo: 'SAN-2', nombre: 'Plato sin receta', cantidad: 5, importe: 50 }])]))[0].r;
+    check('vender_tal_cual: la próxima importación descuenta directo (48 - 5 = 43)', (await stockDe(pul)) === 43 && vtImp.sin_receta.length === 0, JSON.stringify(vtImp));
+    await q('select borrar_importacion($1)', [vtImp.import_id]);
+    const pla4 = (await q("select crear_plato($1,'AGU-1','Agua Test') id", [l1.id]))[0].id;
+    await q('select vender_tal_cual($1)', [pla4]);
+    const p4 = (await q('select es_elaborado, categoria, unidad_uso, activo from productos where id=$1', [pla4]))[0];
+    check('vender_tal_cual sin producto: el plato pasa a producto con stock (Reventa, unidad)', p4.es_elaborado === false && p4.categoria === 'Reventa' && p4.unidad_uso === 'unidad' && p4.activo === true, JSON.stringify(p4));
+    await q('rollback');
+    const vtBad = await tryq('select vender_tal_cual($1,$2,1)', [pla, salsa]);
+    check('vender_tal_cual rechaza un elaborado como destino', !!vtBad.err && /elaborado/.test(vtBad.err), vtBad.err);
+    const vtOtro = await tryq('select vender_tal_cual($1,$2,1)', [pla, ajeno2]);
+    check('vender_tal_cual rechaza un producto de otro local', !!vtOtro.err, vtOtro.err);
+
     // Producción
     const stSalsa0 = await stockDe(salsa), stQ1 = await stockDe(queso);
     await q("select registrar_produccion($1,$2,4,'tanda 1')", [l1.id, salsa]);
@@ -440,6 +469,7 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
       ['guardar_receta', "select guardar_receta($1,1,'[]'::jsonb)", [pla]],
       ['crear_plato', "select crear_plato($1,'X','X')", [l1.id]],
       ['asociar_nucleo', "select asociar_nucleo($1,'X',1)", [cerv]],
+      ['vender_tal_cual', 'select vender_tal_cual($1)', [pla]],
       ['borrar_importacion', "select borrar_importacion((select id from ventas_import limit 1))", []]]) {
       const r = await tryq(sql, par);
       check('encargado NO ejecuta ' + nom, !!r.err);

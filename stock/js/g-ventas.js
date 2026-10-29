@@ -87,7 +87,7 @@ export async function render(root, ctx) {
         if (!ctx.alive()) break;
         if (estadoDe(r) !== 'falta' || E.sugerencias.has(r.k)) continue;
         let top = null;
-        try { const res = await buscarServidor(r.nombre, E.localId); top = res.slice().sort((a, b) => b.score - a.score)[0] || null; } catch (_e) { top = null; }
+        try { const res = await buscarServidor(r.nombre.replace(/[^\p{L}\p{N}]+/gu, ' ').trim() || r.nombre, E.localId); top = res.slice().sort((a, b) => b.score - a.score)[0] || null; } catch (_e) { top = null; }
         E.sugerencias.set(r.k, top && top.score >= 0.3 ? { id: top.id, nombre: top.nombre } : null);
         pintarLista();
       }
@@ -190,17 +190,19 @@ export async function render(root, ctx) {
       cuerpo = [h('p', { class: 'asoc-a mute', text: 'No se descuenta del stock' }),
         h('div', { class: 'asoc-b' }, h('button', { class: 'btn btn-text', type: 'button', text: 'Descontar', 'aria-label': `Descontar ${r.nombre}`, on: { click: () => { E.nd.delete(r.k); pintar(); } } }))];
     } else {
-      const esPlato = !/^bebida/i.test(r.rubro || '');
+      // Si la sugerencia es un producto del stock (pulseras, aguas…), lo más probable es que se venda tal cual: no es un plato.
+      const sugStock = sug && G.prods.get(sug.id) && !G.prods.get(sug.id).es_elaborado;
+      const esPlato = !sugStock && !/^bebida/i.test(r.rubro || '');
       const btnPlato = h('button', { class: 'btn ' + (esPlato ? 'btn-primary' : 'btn-ghost'), type: 'button', text: 'Crear plato', 'aria-label': `Crear plato ${r.nombre}` });
       btnPlato.addEventListener('click', () => nuevoPlato(r, btnPlato));
       cuerpo = [
         sug ? h('p', { class: 'asoc-s' }, h('span', { text: `¿Es ${sug.nombre}?` }),
-          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'Sí', 'aria-label': `Usar ${sug.nombre} para ${r.nombre}`, on: { click: async (e) => {
+          h('button', { class: 'btn ' + (sugStock ? 'btn-primary' : 'btn-ghost') + ' btn-sm', type: 'button', text: 'Sí', 'aria-label': `Usar ${sug.nombre} para ${r.nombre}`, on: { click: async (e) => {
             e.currentTarget.disabled = true;
             try { await asociarA(r, sug.id, 1); pintar(); } catch (x) { toast(mensajeError(x), 'error'); e.currentTarget.disabled = false; }
           } } })) : null,
         h('div', { class: 'asoc-b' },
-          h('button', { class: 'btn ' + (esPlato ? 'btn-ghost' : 'btn-primary'), type: 'button', text: 'Elegir producto', 'aria-label': `Elegir producto para ${r.nombre}`, on: { click: () => elegirProducto(r) } }),
+          h('button', { class: 'btn ' + (esPlato ? 'btn-ghost' : 'btn-primary'), type: 'button', text: 'Producto del stock', 'aria-label': `Elegir producto del stock para ${r.nombre}`, on: { click: () => elegirProducto(r) } }),
           btnPlato,
           h('button', { class: 'btn btn-text', type: 'button', text: 'No descontar', 'aria-label': `No descontar ${r.nombre}`, on: { click: () => { E.nd.add(r.k); pintar(); } } }))];
     }
@@ -266,7 +268,8 @@ export async function render(root, ctx) {
     const faltan = rs.filter(r => estadoDe(r) === 'falta'); const hechos = rs.filter(r => estadoDe(r) !== 'falta');
     zonaLista.replaceChildren(
       h('h2', { class: 'cat-t', text: faltan.length ? `Faltan asociar · ${faltan.length}` : 'Todo asociado' }),
-      ...(faltan.length ? [h('div', { class: 'lista' }, faltan.map(filaAsoc))] : []),
+      ...(faltan.length ? [h('p', { class: 'sub', text: '¿Se vende tal cual (pulseras, aguas, gaseosas)? Tocá «Producto del stock» y elegilo: cada venta descuenta 1. ¿Se cocina? «Crear plato» y después cargale la receta.' }),
+        h('div', { class: 'lista' }, faltan.map(filaAsoc))] : []),
       ...(hechos.length ? [h('details', { class: 'asoc-hechos', open: !faltan.length }, h('summary', { text: `Asociados · ${hechos.length}` }), h('div', { class: 'lista' }, hechos.map(filaAsoc)))] : []));
   }
 
@@ -322,7 +325,7 @@ export async function render(root, ctx) {
           kpi('Productos', fmtMoney(r.resumen.totalProductos), `${r.items} renglones`), kpi('Pedidos', fmtNum(r.pedidos, 0)),
           kpi('Movimientos de stock', fmtNum(r.movimientos, 0)), kpi('Sin descontar', fmtNum(r.no_descontados, 0))),
         r.sin_receta && r.sin_receta.length ? h('div', { class: 'res-sr' },
-          banner(`${r.sin_receta.length} ${r.sin_receta.length === 1 ? 'plato vendido no tiene' : 'platos vendidos no tienen'} receta: no descontaron insumos.`, 'warn'),
+          banner(`${r.sin_receta.length} ${r.sin_receta.length === 1 ? 'plato vendido no tiene' : 'platos vendidos no tienen'} receta: no descontaron insumos. Si alguno se vende tal cual (pulseras, aguas), abrilo en Recetas y tocá «Se vende tal cual».`, 'warn'),
           h('ul', { class: 'barras' }, r.sin_receta.slice(0, 8).map(p => h('li', { class: 'bfila' }, h('div', { class: 'bfila-t' }, h('span', { class: 'bfila-k', text: p.nombre }), h('b', { class: 'num', text: fmtNum(p.cantidad, 3) }))))),
           h('a', { class: 'btn btn-primary', href: '#/recetas', text: 'Cargar recetas' })) : banner('Todos los platos vendidos tienen receta.', 'info'),
         h('div', { class: 'acciones' }, h('a', { class: 'btn btn-ghost', href: '#/analisis', text: 'Ver análisis' }),
