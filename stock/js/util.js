@@ -51,6 +51,8 @@ export function parseNum(s) {
   return Number.isFinite(v) ? v : null;
 }
 
+// Montos en pesos: "480.000" son 480 mil (punto de miles sin coma decimal); el resto como parseNum.
+export const parseMonto = (s) => (/^\$?\s*\d{1,3}(\.\d{3})+$/.test(String(s == null ? '' : s).trim()) ? Number(String(s).replace(/[^\d]/g, '')) : parseNum(String(s == null ? '' : s).replace(/^\$\s*/, '')));
 export function groupBy(arr, fn) {
   const m = new Map();
   for (const x of arr) { const k = fn(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }

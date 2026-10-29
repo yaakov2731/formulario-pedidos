@@ -198,6 +198,11 @@ async function montarApi(ctx) {
       if ((q.get('pendiente') || '').startsWith('gte.')) r = r.filter(f => f.pendiente >= Number(q.get('pendiente').slice(4)));
       return json(r.sort((a, b) => a.fecha.localeCompare(b.fecha)));
     }
+    if (t === 'gastos_compras') {
+      return json(db.facturas.map(conSaldo).map(f => ({ ...f, proveedor: (db.proveedores.find(p => p.id === f.proveedor_id) || {}).nombre || 'Proveedor',
+        tipo: f.tipo || 'Factura', es_x: f.tipo === 'Recibo X', local_id: f.local_id || null, local: null, razon_social: 'Sin razón social', categoria: f.categoria || 'Sin categoría',
+        pagada: f.pendiente < 1, creado_en: f.fecha })).sort((a, b) => a.fecha.localeCompare(b.fecha)));
+    }
     if (t === 'rpc/borrar_factura') {
       if (rol !== 'gerencia') return json({ code: '42501', message: 'Solo gerencia puede borrar facturas' }, 403);
       const id = body().p_id; const f = db.facturas.find(x => x.id === id); db.facturas = db.facturas.filter(x => x.id !== id); db.facturasBorradas.push(id);

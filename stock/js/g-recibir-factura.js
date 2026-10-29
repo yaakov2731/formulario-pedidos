@@ -7,7 +7,7 @@ import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subir
 import { G, cargarG, nombreLocal, refrescarPrecio } from './datos.js';
 import { esqueleto, banner, campo, hoja, toast, icon, vacio } from './ui.js';
 import { proveedorDe, cruzarRenglones, compararConPedido, facturaParcial } from './factura-match.js';
-import { rutaFactura, fechaDMA } from './pagos-util.js';
+import { rutaFactura, fechaDMA, TIPOS_COMPROBANTE, tipoComprobante, numeroReciboX } from './pagos-util.js';
 
 const LADO_MAX = 1568;           // px del lado largo: Claude achica a esto igual, más grande solo tarda más en subir
 const PDF_MAX = 9 * 1024 * 1024;
@@ -146,7 +146,9 @@ export async function render(root, ctx) {
       fecha: h('input', { class: 'input', id: 'rf-fecha', type: 'date', value: isoValido(fac.fecha) || hoyISO() }),
       venc: h('input', { class: 'input', id: 'rf-venc', type: 'date', value: isoValido(fac.vencimiento) }),
       total: h('input', { class: 'input num', id: 'rf-total', inputmode: 'decimal', value: fac.total != null ? String(fac.total).replace('.', ',') : '' }),
-      guardar: h('input', { type: 'checkbox', id: 'rf-guardar', checked: true })
+      guardar: h('input', { type: 'checkbox', id: 'rf-guardar', checked: true }),
+      tipo: h('select', { class: 'input', id: 'rf-tipo', 'aria-label': 'Tipo de comprobante' }, h('option', { value: '', text: 'Sin indicar' }),
+        TIPOS_COMPROBANTE.map(t => h('option', { value: t, text: t, selected: t === tipoComprobante(fac.tipo) })))
     };
     const avisoProv = h('p', { class: 'field-h rf-prov-h' });
     const pedidoBox = h('div', { class: 'rf-pedido' });
@@ -243,7 +245,7 @@ export async function render(root, ctx) {
       if (!act.length) return (err.textContent = 'No hay productos para recibir.');
       if (act.some(x => !x.producto)) return (err.textContent = 'Elegí el producto de cada renglón, o destildá los que no se reciben.');
       const total = parseNum(f.total.value);
-      if (f.guardar.checked && f.numero.value.trim() && (total === null || total < 0)) return (err.textContent = 'Poné el total de la factura para guardarla en Pagos.');
+      if (f.guardar.checked && (f.numero.value.trim() || f.tipo.value === 'Recibo X') && (total === null || total < 0)) return (err.textContent = 'Poné el total de la factura para guardarla en Pagos.');
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {
         let archivo = null;
@@ -253,7 +255,9 @@ export async function render(root, ctx) {
           archivo = await subirComprobante(rutaFactura(f.prov.value, nombre), new File([blob], nombre, { type: blob.type }));
         } catch (_e) { /* sin archivo igual se recibe */ }
         const items = act.map(x => ({ producto_id: x.producto.id, cantidad: x.cantidad, precio_unitario: x.precio == null ? null : Math.round(x.precio * 100) / 100, alias: x.r.descripcion || x.r.codigo || null }));
-        const factura = f.numero.value.trim() ? { numero: f.numero.value.trim(), fecha: f.fecha.value || null, vencimiento: f.venc.value || null, total, archivo, guardar: f.guardar.checked } : (archivo ? { archivo } : null);
+        // Un recibo X sin número igual se guarda en Pagos (con un número armado) para que sume al gasto.
+        const numero = f.numero.value.trim() || (f.tipo.value === 'Recibo X' && f.guardar.checked && total !== null ? numeroReciboX() : '');
+        const factura = numero ? { numero, tipo: f.tipo.value || null, fecha: f.fecha.value || null, vencimiento: f.venc.value || null, total, archivo, guardar: f.guardar.checked } : (archivo ? { archivo } : null);
         const r = await recibirConFactura(localId, f.prov.value, items, factura, ordenSel && ordenSel.id);
         items.forEach(x => { if (x.precio_unitario !== null) refrescarPrecio(x.producto_id, x.precio_unitario); });
         toast(`Recepción guardada: ${r.items} productos sumados al stock de ${nombreLocal(localId)}` + (r.estado_orden === 'parcial' ? ' (el pedido quedó parcial)' : ''), 'ok');
@@ -269,7 +273,8 @@ export async function render(root, ctx) {
       h('section', { class: 'bloque rf-cab' },
         h('p', { class: 'rf-local', text: `Recibe: ${nombreLocal(localId)}` }),
         campo('Proveedor', f.prov), avisoProv,
-        h('div', { class: 'dos' }, campo('Número de factura', f.numero), campo('Total ($)', f.total)),
+        h('div', { class: 'dos' }, campo('Tipo', f.tipo), campo('Número', f.numero)),
+        campo('Total ($)', f.total),
         h('div', { class: 'dos' }, campo('Fecha', f.fecha), campo('Vencimiento', f.venc)),
         h('label', { class: 'rf-check' }, f.guardar, h('span', { text: 'Guardar también la factura en Pagos (si ya estaba cargada, se usa esa)' })),
         pedidoBox),

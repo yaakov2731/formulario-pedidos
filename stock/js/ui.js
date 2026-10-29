@@ -110,7 +110,7 @@ export function barraFila(etiqueta, valorTexto, fraccion, detalle) {
 }
 
 export const SUBNAV_VENTAS = [['resumen', 'Resumen'], ['ventas', 'Importar'], ['analisis', 'Análisis'], ['merma', 'Merma']];
-export const SUBNAV_PAGOS = [['pagos', 'Cuentas'], ['facturas', 'Facturas'], ['historial', 'Pagos'], ['cargar-pago', 'Cargar']];
+export const SUBNAV_PAGOS = [['gasto', 'Gasto'], ['pagos', 'Cuentas'], ['facturas', 'Facturas'], ['historial', 'Pagos'], ['cargar-pago', 'Cargar']];
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
 export const SUBNAV_STOCK = [['stock', 'Stock'], ['elaborados', 'Elaborados']];
 export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción']];
