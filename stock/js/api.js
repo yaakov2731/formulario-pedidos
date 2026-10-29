@@ -146,17 +146,20 @@ export async function localesLogin() {
 const COLS_PROD = 'id,codigo,nombre,local_id,categoria,unidad_compra,unidad_uso,factor_conversion,proveedor_id,par,es_elaborado,activo';
 // productos.oculto (migración 0012): no se muestra en Pedir salvo al buscar. Si la columna todavía no existe, se lee sin ella.
 let hayOculto = true;
+// productos.codigo_proveedor (migración 0021): código del artículo en la lista del proveedor. Si falta, se lee sin él.
+let hayCodProv = true;
 const catalogo = (localId) => todo(() => {
-  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '')).order('nombre').order('id');
+  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '') + (hayCodProv ? ',codigo_proveedor' : '')).order('nombre').order('id');
   if (localId) q = q.eq('local_id', localId).eq('activo', true);
   return q;
 });
 export const hayColumnaOculto = () => hayOculto;
 export async function cargarCatalogo(localId) {
   try { return await catalogo(localId); } catch (e) {
+    if (hayCodProv && e && /codigo_proveedor/.test(e.message || '')) { hayCodProv = false; return cargarCatalogo(localId); }
     if (!hayOculto || !(e && (e.code === '42703' || /oculto/.test(e.message || '')))) throw e;
     hayOculto = false;
-    return catalogo(localId);
+    return cargarCatalogo(localId);
   }
 }
 export const cargarStock = (localId) => todo(() => {
