@@ -365,6 +365,14 @@ export const facturasLista = (soloPendientes) => todo(() => {
 });
 export const facturasPendientesDe = async (proveedorId) =>
   ok(await sb.from('facturas_pendientes').select(COLS_FAC).eq('proveedor_id', proveedorId).gte('pendiente', 1).order('fecha', { ascending: true }).order('numero', { ascending: true }));
+// Gasto en compras (vista gastos_compras, SQL 0019): facturas y recibos X con tipo, local, razón social, categoría y saldo.
+const COLS_GASTO = 'id,proveedor_id,proveedor,numero,tipo,es_x,fecha,vencimiento,total,archivo,creado_en,local_id,local,razon_social,categoria,imputado,pendiente,pagada,vencida';
+export const gastosCompras = (desde, hasta) => todo(() => {
+  let q = sb.from('gastos_compras').select(COLS_GASTO).order('fecha', { ascending: true }).order('id');
+  if (desde) q = q.gte('fecha', desde);
+  if (hasta) q = q.lte('fecha', hasta);
+  return q;
+});
 export const borrarFactura = async (id) => ok(await sb.rpc('borrar_factura', { p_id: id }));
 export const crearFactura = async (f) => { const [r] = await ok(await sb.from('facturas_proveedor').insert(f).select('id')); return r.id; };
 export const pagosLista = async (limite = 80) => ok(await sb.from('pagos').select(COLS_PAGO).order('fecha', { ascending: false }).order('creado_en', { ascending: false }).limit(limite));

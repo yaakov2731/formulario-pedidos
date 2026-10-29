@@ -783,6 +783,38 @@ a.tb-card:hover { border-color: var(--text-2); }
 .vg-r-loc > span { display: inline-flex; align-items: center; }
 .vg-r-loc .vg-dot { width: 8px; height: 8px; margin-right: 4px; }
 
+/* ---------- Pagos · Gasto en compras (reusa los bloques de Ventas · Resumen) ---------- */
+.gc-seg { margin: 0 0 12px; }
+.gc-fechas { margin-bottom: 12px; }
+.gc-fac { background: var(--accent-deco); }
+.gc-x { background: #a58bff; }
+.gc-share { height: 12px; }
+.gc-mix { gap: 10px; }
+.gc-mix-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gc-mix-l li { display: flex; align-items: center; gap: 8px; }
+.gc-mix-l li .vg-dot { margin-right: 0; }
+.gc-mix-l li > span:nth-child(2) { flex: 1; min-width: 0; }
+.gc-p { min-width: 40px; text-align: right; color: var(--text-2); font-size: 14px; }
+.kpi-mal { border-color: var(--bad-ink); }
+.kpi-mal .kpi-n { color: var(--bad-ink); font-weight: 600; }
+.gc-bar { background: var(--accent-deco); }
+.gc-l .gc-f { cursor: default; }
+.gc-det { margin-top: 4px; }
+.gc-det .gc-l { margin-top: 8px; }
+.gc-nota { margin-top: 2px; }
+.gc-dos > div { display: flex; flex-direction: column; min-width: 0; }
+@media (min-width: 1100px) { .gc-dos { grid-template-columns: 1fr 1fr; } }
+.gc-ult { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.gc-u { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-top: 1px solid var(--sep); text-align: left; }
+.gc-u:first-child { border-top: 0; }
+.gc-u-t { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.gc-u-n { font-weight: 600; overflow-wrap: anywhere; }
+.gc-u-t b { font-weight: 600; white-space: nowrap; }
+.gc-u-d { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; color: var(--text-2); }
+.gc-tipo-f { background: var(--accent-soft); color: var(--accent-text); }
+.gc-tipo-x { background: rgba(165, 139, 255, 0.18); color: #c9b8ff; }
+.fac-x { border-left: 3px solid #a58bff; }
+
 @media print {
   html, body, .app, .main { position: static !important; height: auto !important; overflow: visible !important; }
   body.imprimiendo { background: #fff !important; }

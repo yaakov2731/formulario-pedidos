@@ -55,12 +55,12 @@ const ESQUEMA = {
 
 const INSTRUCCIONES = `Sos el asistente de compras de un grupo de restaurantes en Argentina. Te paso la factura, remito o ticket de un proveedor (puede venir en varias fotos, en orden). Extraé los datos tal como figuran:
 - proveedor: razón social o nombre de fantasía del EMISOR (quien vende), no del cliente. cuit: el CUIT del emisor (11 dígitos con o sin guiones).
-- tipo: "Factura A", "Factura B", "Factura C", "Remito", "Ticket" o lo que diga. numero: punto de venta y número, ej. "0004-00226381".
+- tipo: "Factura A", "Factura B", "Factura C", "Recibo X" (comprobante no fiscal: letra X, "Documento no válido como factura", presupuesto o remito X), "Remito", "Ticket" o lo que diga. numero: punto de venta y número, ej. "0004-00226381".
 - fecha y vencimiento (vencimiento de pago, NO el vencimiento del CAE) en formato AAAA-MM-DD; null si no figura.
 - subtotal (neto sin IVA si figura) y total final a pagar, como números (sin $ ni separadores de miles; usá punto decimal).
 - renglones: uno por producto, en el orden de la factura. codigo del artículo si figura; descripcion tal cual; cantidad; unidad (kg, un, caja, bulto…) si figura; precio_unitario = precio por unidad ya con descuentos o bonificaciones aplicados, tal como lo cobra el renglón (sin IVA en factura A); importe = total del renglón.
 - No inventes: si un dato no se lee, poné null. No incluyas como renglones los subtotales, impuestos, percepciones, fletes ni descuentos generales; si hay flete o descuento general, mencionalo en observaciones.
-- es_factura = false si la imagen no es un comprobante de compra.
+- es_factura = false si la imagen no es un comprobante de compra (un recibo X, remito o presupuesto de compra SÍ lo es).
 - observaciones: algo que convenga revisar (foto cortada, renglón ilegible, total que no coincide con la suma), o null.`;
 
 Deno.serve(async (req) => {
