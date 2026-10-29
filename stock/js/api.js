@@ -17,6 +17,7 @@ export function mensajeError(e) {
   if (/facturas_proveedor_proveedor_id_numero_key/i.test(m)) return 'Ya cargaste una factura con ese número para este proveedor.';
   if (code === '23505' || /duplicate key/i.test(m)) return 'Ya existe un registro igual (código repetido).';
   if (/cambiar_presentacion/i.test(m) && (code === 'PGRST202' || code === '42883')) return 'Falta activar el cambio de bulto: pegá el SQL 0015 en Supabase.';
+  if (/recibir_con_factura/i.test(m) && (code === 'PGRST202' || code === '42883')) return 'Falta activar Recibir con factura: pegá el SQL 0018 en Supabase.';
   if (/email not confirmed/i.test(m)) return 'La cuenta todavía no está confirmada. Avisale a gerencia.';
   if (/too many requests|rate limit/i.test(m)) return 'Demasiados intentos. Esperá un minuto.';
   return m || 'Algo salió mal. Probá de nuevo.';
@@ -240,6 +241,23 @@ export async function registrarRecepcion(orden, lineas) {
     p_items: lineas.map(l => ({ orden_item_id: l.item.id, cantidad_recibida: l.qty, precio_unitario: l.precio }))
   }));
 }
+
+// ---- recibir con factura (0018_recibir_factura.sql + Edge Function leer-factura) ----
+// archivos: [{ data: base64, tipo }]. Devuelve { factura, modelo, uso } o lanza un error con el texto para mostrar.
+export async function leerFactura(archivos) {
+  const { data, error } = await sb.functions.invoke('leer-factura', { body: { archivos } });
+  if (error) {
+    let msg = '';
+    try { msg = (await error.context.json()).error || ''; } catch (_e) { /* sin cuerpo */ }
+    if (!msg && /FunctionsFetchError|Failed to send/i.test(error.name + ' ' + error.message)) msg = 'Sin conexión, o falta publicar la función que lee facturas en Supabase.';
+    if (!msg && error.context && error.context.status === 404) msg = 'Falta publicar la función que lee facturas en Supabase.';
+    throw new Error(msg || 'No se pudo leer la factura.');
+  }
+  return data;
+}
+export const aliasProveedor = (localId) => todo(() => sb.from('producto_alias').select('id,producto_id,alias').eq('origen', 'proveedor').eq('local_id', localId).order('id'));
+export const recibirConFactura = async (localId, proveedorId, items, factura, ordenId) =>
+  ok(await sb.rpc('recibir_con_factura', { p_local: localId, p_proveedor: proveedorId, p_items: items, p_factura: factura, p_orden: ordenId || null }));
 
 export async function guardarProducto(id, datos) {
   if (id) { await ok(await sb.from('productos').update(datos).eq('id', id).select('id')); return id; }

@@ -2,11 +2,13 @@
 import { mount, h, fmtNum, fmtMoney, parseNum, porTexto, fechaCorta, ESTADOS } from './util.js';
 import { swr, ordenesPorEstado, registrarRecepcion, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, refrescarPrecio } from './datos.js';
-import { esqueleto, vacio, toast } from './ui.js';
+import { esqueleto, vacio, toast, icon } from './ui.js';
 
 export async function render(root, ctx) {
   let ordenes = [];
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir' }), h('p', { class: 'sub', text: 'Pedidos enviados que esperan mercadería' }));
+  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir' }), h('p', { class: 'sub', text: 'Pedidos enviados que esperan mercadería' }),
+    h('a', { class: 'btn btn-primary rec-factura', href: '#/recibir-factura' }, icon('recibir', 18), h('span', { text: 'Recibir con factura' })),
+    h('p', { class: 'sub rec-factura-h', text: 'Foto o PDF de la factura: sirve también para lo que se pidió fuera de la app.' }));
 
   function tarjeta(o) {
     const prov = G.provs.get(o.proveedor_id);
@@ -48,7 +50,7 @@ export async function render(root, ctx) {
 
   function pintar() {
     if (!ctx.alive()) return;
-    mount(root, cab, ...(ordenes.length ? ordenes.map(tarjeta) : [vacio('Nada para recibir', 'Los pedidos enviados por WhatsApp aparecen acá.')]));
+    mount(root, cab, ...(ordenes.length ? ordenes.map(tarjeta) : [vacio('Nada para recibir', 'Los pedidos enviados por WhatsApp aparecen acá. Si llegó algo pedido por fuera, usá «Recibir con factura».')]));
   }
   mount(root, cab, esqueleto(3));
   await cargarG(['prods', 'provs', 'locales', 'precios'], () => {});
