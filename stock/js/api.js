@@ -274,6 +274,12 @@ export const ventasPedidosRango = (localId, desde, hasta) => todo(() => sb.from(
 export const ventasItemsRango = (localId, desde, hasta) => todo(() => sb.from('ventas_items')
   .select('id,pedido_numero,fecha,fecha_hora,codigo_origen,nombre_origen,cantidad,importe,rubro,subrubro,tipo_pedido,sector,producto_id')
   .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('id'));
+// Todos los locales juntos (Ventas · Resumen): renglones y pedidos de un rango, sin filtrar por local.
+export const ventasItemsTodos = (desde, hasta) => todo(() => sb.from('ventas_items')
+  .select('id,local_id,fecha,codigo_origen,nombre_origen,cantidad,importe')
+  .gte('fecha', desde).lte('fecha', hasta).order('id'));
+export const ventasPedidosTodos = (desde, hasta) => todo(() => sb.from('ventas_pedidos')
+  .select('local_id,numero,fecha').gte('fecha', desde).lte('fecha', hasta).order('local_id').order('numero'));
 // Salidas de stock de un local desde una fecha (ventas, producción y merma), para las métricas de Stock.
 export const movimientosLocal = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,creado_en')
   .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma', 'uso_dia']).order('creado_en').order('id'));

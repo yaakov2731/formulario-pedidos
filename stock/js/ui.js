@@ -109,7 +109,7 @@ export function barraFila(etiqueta, valorTexto, fraccion, detalle) {
     detalle ? h('span', { class: 'bfila-d', text: detalle }) : null);
 }
 
-export const SUBNAV_VENTAS = [['ventas', 'Importar'], ['analisis', 'Análisis'], ['merma', 'Merma']];
+export const SUBNAV_VENTAS = [['resumen', 'Resumen'], ['ventas', 'Importar'], ['analisis', 'Análisis'], ['merma', 'Merma']];
 export const SUBNAV_PAGOS = [['pagos', 'Cuentas'], ['facturas', 'Facturas'], ['historial', 'Pagos'], ['cargar-pago', 'Cargar']];
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
 export const SUBNAV_STOCK = [['stock', 'Stock'], ['elaborados', 'Elaborados']];

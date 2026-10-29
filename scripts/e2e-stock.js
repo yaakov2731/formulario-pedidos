@@ -1194,6 +1194,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await loginGer(v);
   ok(await v.locator('.sidebar .side-link').count() === 10, 'gerencia: Ventas y Cocina en la barra lateral');
   await v.getByRole('link', { name: 'Ventas', exact: true }).click();
+  await v.waitForSelector('.subnav-b');
+  await v.locator('.subnav-b', { hasText: 'Importar' }).click();
   await v.waitForSelector('#f-archivo', { state: 'attached' });
   ok(await v.locator('h1').first().innerText() === 'Ventas', 'pantalla Ventas');
   await shot(v, '19-g-ventas-vacio-pc');
@@ -1394,6 +1396,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await vm.locator('.tab').count() === 10, 'celular: barra inferior con 9 secciones + Salir (se desplaza)');
   await shot(vm, '31-g-barra-m');
   await vm.getByRole('link', { name: 'Ventas', exact: true }).click();
+  await vm.waitForSelector('.subnav-b');
+  await vm.locator('.subnav-b', { hasText: 'Importar' }).click();
   await vm.waitForSelector('#f-archivo', { state: 'attached' });
   await shot(vm, '32-g-ventas-vacio-m');
   await vm.setInputFiles('#f-archivo', ARCH.slice(0, 2));
@@ -1431,6 +1435,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const vb = await nuevaPagina(cV4, 'ventas-borrar');
   await loginGer(vb);
   await vb.getByRole('link', { name: 'Ventas', exact: true }).click();
+  await vb.waitForSelector('.subnav-b');
+  await vb.locator('.subnav-b', { hasText: 'Importar' }).click();
   await vb.waitForSelector('.imp-fila');
   ok(await vb.locator('.imp-fila').count() === 1 && /24 de octubre/i.test(await vb.locator('.imp-fila').innerText()), 'Ventas lista las ventas ya subidas del local');
   await vb.locator('.imp-subidas').scrollIntoViewIfNeeded();
