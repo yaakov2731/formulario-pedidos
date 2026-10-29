@@ -64,8 +64,8 @@ export async function render(root, ctx) {
   const prodDe = (it) => G.prods.get(it.producto_id);
   const unidad = (it) => { const p = prodDe(it); return p ? p.unidad_compra : ''; };
   const nombreProd = (it) => { const p = prodDe(it); return p ? p.nombre : 'Producto'; };
-  // Código del proveedor: los productos del mayorista se guardan como LOCAL-DS-<código de su lista> (-B si se repetía).
-  const codProv = (it) => { const m = /^[A-Z]{3}-DS-(.+?)(-B)?$/.exec((prodDe(it) || {}).codigo || ''); return m ? m[1] : ''; };
+  // Código del proveedor: productos.codigo_proveedor (0021) o, en el mayorista, LOCAL-DS-<código de su lista> (-B si se repetía).
+  const codProv = (it) => { const p = prodDe(it) || {}; if (p.codigo_proveedor) return p.codigo_proveedor; const m = /^[A-Z]{3}-DS-(.+?)(-B)?$/.exec(p.codigo || ''); return m ? m[1] : ''; };
   const nombreProv = (id) => (id && G.provs.get(id) ? G.provs.get(id).nombre : 'Sin proveedor');
   const provsActivos = () => [...G.provs.values()].filter(p => p.activo !== false).sort((a, b) => porTexto(a.nombre, b.nombre));
   const vivas = () => ordenes.filter(o => VIVAS.includes(o.estado) && o.orden_items.length);
