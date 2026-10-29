@@ -191,18 +191,19 @@ export async function misOrdenes(localId) {
     .select('id,estado,creado_en,cargado_por_nombre,nota,proveedor_id,orden_items(producto_id,cantidad_pedida)')
     .eq('local_id', localId).order('creado_en', { ascending: false }).limit(60));
 }
-// orden_items.excluido (migración 0009): producto destildado por gerencia. Si la columna todavía no existe, se lee sin ella.
-const COLS_ORD = 'id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida,excluido)';
+// orden_items.excluido (migración 0009): producto destildado por gerencia. agregado / no_vino (migración 0020): lo que llegó
+// sin estar pedido y lo que no vino al recibir. Si esas columnas todavía no existen, se lee sin ellas.
+const COLS_ORD = 'id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida,excluido,agregado,no_vino)';
+const PRUEBAS_ORD = [COLS_ORD, COLS_ORD.replace(',agregado,no_vino', ''), COLS_ORD.replace(',excluido,agregado,no_vino', '')];
+let desdeOrd = 0;
 let hayExcluido = true;
-const faltaColumna = (e) => e && (e.code === '42703' || /excluido/.test(e.message || ''));
+const faltaColumna = (e) => e && (e.code === '42703' || /excluido|agregado|no_vino/.test(e.message || ''));
 async function selOrdenes(armar) {
-  if (hayExcluido) {
-    const r = await armar(COLS_ORD);
-    if (!r.error) return r.data;
-    if (!faltaColumna(r.error)) throw r.error;
-    hayExcluido = false;
+  for (let i = desdeOrd; i < PRUEBAS_ORD.length; i++) {
+    const r = await armar(PRUEBAS_ORD[i]);
+    if (!r.error) { desdeOrd = i; hayExcluido = PRUEBAS_ORD[i].includes('excluido'); return r.data; }
+    if (!faltaColumna(r.error) || i === PRUEBAS_ORD.length - 1) throw r.error;
   }
-  return ok(await armar(COLS_ORD.replace(',excluido', '')));
 }
 export const guardaExcluidos = () => hayExcluido;
 export async function ordenesPorEstado(estados) {
@@ -238,11 +239,20 @@ export const contarProducto = async (localId, productoId, cantidad) =>
   ok(await sb.rpc('registrar_conteo', { p_local: localId, p_producto: productoId, p_cantidad_contada: cantidad }));
 
 // Recepción de una orden: una sola función SQL transaccional (todo o nada). Devuelve el estado final.
-export async function registrarRecepcion(orden, lineas) {
-  return ok(await sb.rpc('recibir_orden', {
+// lineas: [{ item, qty, precio, noVino }]; item sin id = producto agregado al recibir ({ producto_id }).
+// cerrar = lo que llegó de menos no va a venir. Con agregados, "no vino" o cerrar hace falta la migración 0020.
+export async function registrarRecepcion(orden, lineas, cerrar = false) {
+  const args = {
     p_orden: orden.id,
-    p_items: lineas.map(l => ({ orden_item_id: l.item.id, cantidad_recibida: l.qty, precio_unitario: l.precio }))
-  }));
+    p_items: lineas.map(l => ({ ...(l.item.id ? { orden_item_id: l.item.id } : { producto_id: l.item.producto_id }), cantidad_recibida: l.qty, precio_unitario: l.precio, ...(l.noVino ? { no_vino: true } : {}) }))
+  };
+  if (cerrar) args.p_cerrar = true;
+  const r = await sb.rpc('recibir_orden', args);
+  const sin0020 = r.error && (r.error.code === 'PGRST202' || /orden_item_id|p_cerrar|could not find the function/i.test(r.error.message || ''));
+  if (sin0020 && (cerrar || lineas.some(l => !l.item.id || l.noVino))) {
+    throw new Error('Para agregar o sacar productos al recibir falta pegar el SQL de 0020 en Supabase.');
+  }
+  return ok(r);
 }
 
 // ---- recibir con factura (0018_recibir_factura.sql + Edge Function leer-factura) ----

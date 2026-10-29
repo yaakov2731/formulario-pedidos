@@ -331,7 +331,7 @@ async function montarApi(ctx) {
       let r = db.ordenes; const est = enLista(q.get('estado')); if (est) r = r.filter(o => est.includes(o.estado));
       if (eq(q.get('local_id'))) r = r.filter(o => o.local_id === eq(q.get('local_id')));
       if (rol === 'encargado') r = r.filter(o => o.local_id === L1);
-      r = r.map(o => ({ ...o, orden_items: db.items.filter(i => i.orden_id === o.id).map(i => ({ id: i.id, producto_id: i.producto_id, cantidad_pedida: i.cantidad_pedida, cantidad_recibida: i.cantidad_recibida, excluido: !!i.excluido })) }));
+      r = r.map(o => ({ ...o, orden_items: db.items.filter(i => i.orden_id === o.id).map(i => ({ id: i.id, producto_id: i.producto_id, cantidad_pedida: i.cantidad_pedida, cantidad_recibida: i.cantidad_recibida, excluido: !!i.excluido, agregado: !!i.agregado, no_vino: !!i.no_vino })) }));
       r.sort((a, b) => (q.get('order') || '').includes('desc') ? b.creado_en.localeCompare(a.creado_en) : a.creado_en.localeCompare(b.creado_en));
       return json(r);
     }
@@ -351,14 +351,22 @@ async function montarApi(ctx) {
       const b = body(); db.recepciones.push(b);
       const o = db.ordenes.find(x => x.id === b.p_orden);
       for (const it of b.p_items) {
-        const item = db.items.find(i => i.id === it.orden_item_id); const p = db.productos.find(x => x.id === item.producto_id);
+        let item = it.orden_item_id ? db.items.find(i => i.id === it.orden_item_id) : db.items.find(i => i.orden_id === o.id && i.producto_id === it.producto_id);
+        if (!item) {
+          if (!(it.cantidad_recibida > 0)) continue;
+          if (db.productos.find(x => x.id === it.producto_id).local_id !== o.local_id) return json({ message: 'El producto es de otro local' }, 400);
+          item = { id: nid('oi'), orden_id: o.id, producto_id: it.producto_id, cantidad_pedida: 0, cantidad_recibida: 0, agregado: true }; db.items.push(item);
+        }
+        if (it.no_vino) item.no_vino = true;
+        const p = db.productos.find(x => x.id === item.producto_id);
         if (it.cantidad_recibida > 0) {
           db.movimientos.push({ local_id: o.local_id, producto_id: item.producto_id, tipo: 'recepcion', cantidad: it.cantidad_recibida * p.factor_conversion, ref_id: o.id });
           item.cantidad_recibida = (item.cantidad_recibida || 0) + it.cantidad_recibida;
           if (it.precio_unitario !== null && it.precio_unitario !== db.precios[item.producto_id]) { db.preciosNuevos.push({ producto_id: item.producto_id, precio: it.precio_unitario, origen: 'recepcion' }); db.precios[item.producto_id] = it.precio_unitario; }
         }
       }
-      o.estado = db.items.filter(i => i.orden_id === o.id).every(i => (i.cantidad_recibida || 0) >= i.cantidad_pedida) ? 'recibida' : 'parcial';
+      if (b.p_cerrar) db.items.filter(i => i.orden_id === o.id && (i.cantidad_recibida || 0) < i.cantidad_pedida).forEach(i => { i.no_vino = true; });
+      o.estado = db.items.filter(i => i.orden_id === o.id).every(i => i.no_vino || (i.cantidad_recibida || 0) >= i.cantidad_pedida) ? 'recibida' : 'parcial';
       return json(o.estado);
     }
     if (t === 'orden_item_precios') { const b = body(); db.itemPrecios.push(b); return json([b], 201); }
@@ -769,6 +777,33 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(mov && mov.tipo === 'recepcion' && mov.cantidad === 12, `movimiento de recepción = cantidad × factor (2 cajas × 6 = ${mov && mov.cantidad})`);
   ok(db.preciosNuevos.some(p => p.producto_id === 'p-cerveza' && p.precio === 10500), 'precio nuevo guardado al cambiar');
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'parcial', 'faltó la gaseosa: orden "parcial"');
+  // Recibir: corregir con lo que realmente trajo (no vino / agregar producto que no estaba)
+  await g.waitForSelector('.grupo-prov[data-orden] [aria-label="No vino Gaseosa cola 1,5 l"]');
+  ok(await g.locator('.grupo-prov[data-orden]').count() === 1, 'la orden parcial sigue esperando la gaseosa');
+  await g.getByRole('button', { name: 'No vino Gaseosa cola 1,5 l' }).click();
+  ok(/quedan 1 pack x 6 como faltante|quedan [\d,]+ .* como faltante/.test(await g.locator('.prod-rec.is-off').innerText()), 'No vino: muestra lo que queda como faltante');
+  await g.getByRole('button', { name: 'Agregar producto que no estaba en el pedido' }).click();
+  await g.waitForSelector('.sheet input[type=search]');
+  ok(await g.locator('.sheet .prod-cat', { hasText: 'Agua sin gas 500 ml' }).count() === 1, 'Agregar: sin buscar muestra los productos del mismo proveedor');
+  await g.locator('.sheet input[type=search]').fill('café');
+  ok(await g.locator('.sheet .prod-cat').count() === 0, 'Agregar: solo busca en el catálogo del local de la orden');
+  await g.locator('.sheet input[type=search]').fill('agua');
+  await g.getByRole('button', { name: 'Agregar Agua sin gas 500 ml' }).click();
+  await g.getByLabel('Cantidad recibida de Agua sin gas 500 ml').fill('2');
+  await g.getByLabel('Costo unitario de Agua sin gas 500 ml').fill('5100');
+  ok(/1 producto no vino · 1 agregado/.test(await g.locator('.rec-resumen').innerText()), 'resumen: no vino y agregado ' + await g.locator('.rec-resumen').innerText());
+  await shot(g, '12b-g-recibir-corregir-pc');
+  const nRec = db.recepciones.length;
+  await g.getByRole('button', { name: 'Confirmar recepción' }).click();
+  await g.waitForSelector('.toast-ok >> text=Recepción completa');
+  const rc = db.recepciones[nRec];
+  ok(rc && rc.p_items.some(i => i.producto_id === 'p-agua' && !i.orden_item_id && i.cantidad_recibida === 2 && i.precio_unitario === 5100), 'el agregado viaja con producto_id, cantidad y costo');
+  ok(rc && rc.p_items.some(i => i.orden_item_id && i.no_vino === true && i.cantidad_recibida === 0), 'la gaseosa viaja como no vino');
+  const ordFlo = db.ordenes.find(o => o.proveedor_id === PV.florida);
+  ok(ordFlo.estado === 'recibida', 'con lo que no vino marcado, la orden queda recibida');
+  ok(db.items.some(i => i.orden_id === ordFlo.id && i.producto_id === 'p-agua' && i.agregado && i.cantidad_pedida === 0), 'el agua queda registrada como agregada al recibir (pedido 0)');
+  ok(db.items.some(i => i.orden_id === ordFlo.id && i.producto_id === 'p-gaseosa' && i.no_vino && i.cantidad_pedida > 0), 'la gaseosa queda pedida y marcada como faltante');
+  ok(db.movimientos.some(m => m.producto_id === 'p-agua' && m.tipo === 'recepcion' && m.cantidad === 24), 'el agua suma stock (2 packs × 12)');
   // Stock
   await g.locator('.sidebar a[data-nav="stock"]').click();
   await g.waitForSelector('.prod-stk');
