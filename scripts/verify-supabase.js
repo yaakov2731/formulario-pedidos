@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql, 0016_facturas_saldo.sql y 0017_vender_tal_cual.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql, 0016_facturas_saldo.sql, 0017_vender_tal_cual.sql y 0018_recibir_factura.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -87,6 +87,10 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig17 = fs.readFileSync(path.join(root, 'supabase/migrations/0017_vender_tal_cual.sql'), 'utf8');
   try { await db.exec(mig17); await db.exec(mig17); check('aplica 0017_vender_tal_cual.sql (idempotente)', true); }
   catch (e) { check('aplica 0017_vender_tal_cual.sql (idempotente)', false, e.message); return finish(); }
+
+  const mig18 = fs.readFileSync(path.join(root, 'supabase/migrations/0018_recibir_factura.sql'), 'utf8');
+  try { await db.exec(mig18); await db.exec(mig18); check('aplica 0018_recibir_factura.sql (idempotente)', true); }
+  catch (e) { check('aplica 0018_recibir_factura.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -731,6 +735,41 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     const pagos = (await q("select count(*)::int n from pagos where proveedor_id=$1", [pv.id]))[0].n;
     const d = (await vista()).find(x => x.numero === 'D');
     check('0016: borrar una factura pagada no borra el pago; su saldo se aplica a otra pendiente', pagos === 2 && d.p === 0 && d.vencida === false, JSON.stringify([pagos, d]));
+  }
+
+  // ===================== 0018: recibir con factura (con y sin pedido previo) =====================
+  {
+    const [pv] = await q("insert into proveedores(nombre) values ('Prov Factura') returning id");
+    const mk = async (cod, nom, fac = 1) => (await q("insert into productos(codigo,nombre,local_id,unidad_compra,unidad_uso,factor_conversion,proveedor_id) values ($1,$2,$3,'caja','unidad',$4,$5) returning id", [cod, nom, l1.id, fac, pv.id]))[0].id;
+    const tom = await mk('ZZ1-F01', 'Tomate perita', 1), lec = await mk('ZZ1-F02', 'Leche entera', 12);
+    const st = async (pid) => Number((await q('select coalesce(sum(cantidad),0) s from movimientos where local_id=$1 and producto_id=$2', [l1.id, pid]))[0].s);
+    const items = JSON.stringify([{ producto_id: tom, cantidad: 5, precio_unitario: 1500, alias: 'TOMATE PERITA X KG' }, { producto_id: lec, cantidad: 2, precio_unitario: 9000, alias: 'LECHE ENT LS 1L CJ12' }]);
+    const fac = JSON.stringify({ numero: '0003-00001234', fecha: '2026-10-28', vencimiento: '2026-11-07', total: 25500, archivo: 'facturas/x/1.jpg' });
+    const eEnc = await as(U.e1, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,$4::jsonb) r', [l1.id, pv.id, items, fac]));
+    check('0018: encargado no puede recibir con factura', !!eEnc.err && (await st(tom)) === 0, eEnc.err);
+    const r1 = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,$4::jsonb) r', [l1.id, pv.id, items, fac]));
+    check('0018: sin pedido previo suma stock (5 cajas de tomate = 5; 2 cajas de leche x12 = 24)', !r1.err && (await st(tom)) === 5 && (await st(lec)) === 24, JSON.stringify(r1));
+    const f = await q('select total::float t, vencimiento::text v, archivo from facturas_proveedor where proveedor_id=$1', [pv.id]);
+    check('0018: deja la factura cargada en Pagos con total, vencimiento y archivo', f.length === 1 && f[0].t === 25500 && f[0].v === '2026-11-07' && f[0].archivo === 'facturas/x/1.jpg', JSON.stringify(f));
+    const pr = await q("select precio::float p from precio_actual where producto_id=$1", [tom]);
+    check('0018: guarda el precio de la factura', pr.length && pr[0].p === 1500, JSON.stringify(pr));
+    const al = await q("select alias from producto_alias where origen='proveedor' and local_id=$1 and producto_id=$2", [l1.id, lec]);
+    check('0018: aprende cómo figura el producto en la factura (alias del proveedor)', al.length === 1 && al[0].alias === 'LECHE ENT LS 1L CJ12', JSON.stringify(al));
+    const r2 = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,$4::jsonb) r', [l1.id, pv.id, items, fac]));
+    check('0018: la misma factura no se recibe dos veces', !!r2.err && /ya se recibió/.test(r2.err) && (await st(tom)) === 5, r2.err);
+    const otro = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb) r', [l1.id, pv.id, JSON.stringify([{ producto_id: ajeno.id, cantidad: 1 }])]));
+    check('0018: rechaza un producto de otro local', !!otro.err && /otro local/.test(otro.err), otro.err);
+    // Con pedido abierto: lo pedido queda recibido (parcial si faltó algo) y lo que vino de más igual suma.
+    const [o] = await q("insert into ordenes_compra(local_id,proveedor_id,estado) values ($1,$2,'enviada') returning id", [l1.id, pv.id]);
+    await q("insert into orden_items(orden_id,producto_id,cantidad_pedida) values ($1,$2,10),($1,$3,1)", [o.id, tom, lec]);
+    const it2 = JSON.stringify([{ producto_id: tom, cantidad: 6, precio_unitario: 1600 }]);
+    const r3 = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,$4::jsonb,$5) r', [l1.id, pv.id, it2, JSON.stringify({ numero: '0003-00001300', total: 9600 }), o.id]));
+    const oi = await q('select cantidad_recibida::float r from orden_items where orden_id=$1 and producto_id=$2', [o.id, tom]);
+    check('0018: con pedido, suma lo recibido al pedido y queda parcial', !r3.err && r3.rows[0].r.estado_orden === 'parcial' && oi[0].r === 6 && (await st(tom)) === 11, JSON.stringify([r3, oi]));
+    const mv = await q("select ref_tipo, ref_id from movimientos where producto_id=$1 order by creado_en desc limit 1", [tom]);
+    check('0018: el movimiento del pedido queda ligado a la orden (lo borra "Borrar pedidos de prueba")', mv[0].ref_tipo === 'orden' && mv[0].ref_id === o.id, JSON.stringify(mv));
+    const r4 = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,null,$4) r', [l1.id, prov.id, it2, o.id]));
+    check('0018: rechaza un pedido de otro proveedor', !!r4.err, r4.err);
   }
 
   return finish();
