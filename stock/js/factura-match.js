@@ -69,3 +69,25 @@ export function compararConPedido(orden, recibido) {
   const deMas = [...vino.keys()].filter(id => !enPedido.has(id));
   return { faltan, deMas };
 }
+
+// Lectura en vivo: del JSON a medio llegar saca el proveedor y los renglones ya completos (para mostrarlos mientras se lee).
+export function facturaParcial(texto) {
+  const m = /"proveedor"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(texto);
+  let proveedor = null;
+  if (m) { try { proveedor = JSON.parse('"' + m[1] + '"'); } catch (_e) { proveedor = m[1]; } }
+  const renglones = [];
+  const k = texto.indexOf('"renglones"');
+  if (k >= 0) {
+    const ini = texto.indexOf('[', k);
+    let prof = 0, enTexto = false, esc = false, desde = -1;
+    for (let i = ini + 1; ini >= 0 && i < texto.length; i++) {
+      const c = texto[i];
+      if (enTexto) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') enTexto = false; continue; }
+      if (c === '"') enTexto = true;
+      else if (c === '{') { if (prof++ === 0) desde = i; }
+      else if (c === '}') { if (--prof === 0 && desde >= 0) { try { renglones.push(JSON.parse(texto.slice(desde, i + 1))); } catch (_e) { /* incompleto */ } desde = -1; } }
+      else if (c === ']' && prof === 0) break;
+    }
+  }
+  return { proveedor, renglones };
+}

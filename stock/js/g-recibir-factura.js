@@ -6,10 +6,10 @@ import { mount, h, fmtNum, fmtMoney, parseNum, porTexto, hoyISO, esCarta, tokens
 import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subirComprobante, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, refrescarPrecio } from './datos.js';
 import { esqueleto, banner, campo, hoja, toast, icon, vacio } from './ui.js';
-import { proveedorDe, cruzarRenglones, compararConPedido } from './factura-match.js';
+import { proveedorDe, cruzarRenglones, compararConPedido, facturaParcial } from './factura-match.js';
 import { rutaFactura, fechaDMA } from './pagos-util.js';
 
-const LADO_MAX = 1800;           // px del lado largo de cada foto que se manda a leer
+const LADO_MAX = 1568;           // px del lado largo: Claude achica a esto igual, más grande solo tarda más en subir
 const PDF_MAX = 9 * 1024 * 1024;
 
 // Foto del celular → JPEG más liviano (las de 12 MP pesan 4–6 MB). Devuelve { data (base64), tipo, img }.
@@ -21,7 +21,7 @@ async function achicarFoto(file) {
     const c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    const dataUrl = c.toDataURL('image/jpeg', 0.85);
+    const dataUrl = c.toDataURL('image/jpeg', 0.8);
     return { data: dataUrl.split(',')[1], tipo: 'image/jpeg', canvas: c };
   } finally { URL.revokeObjectURL(url); }
 }
@@ -96,17 +96,39 @@ export async function render(root, ctx) {
 
   // ===== Paso 2: leer =====
   async function leyendo() {
-    mount(root, cab, h('section', { class: 'bloque rf-leyendo', role: 'status' }, h('div', { class: 'rf-spin', 'aria-hidden': 'true' }),
-      h('p', { class: 'rf-leyendo-t', text: 'Leyendo la factura…' }), h('p', { class: 'sub', text: 'Tarda entre 10 y 40 segundos.' })));
+    // Lectura en vivo: contador de segundos, el proveedor apenas se lee y cada renglón a medida que llega.
+    const t0 = Date.now();
+    const seg = h('span', { class: 'num', text: '0 s' });
+    const quien = h('p', { class: 'rf-vivo-prov' });
+    const vivos = h('ol', { class: 'rf-vivo' });
+    const titulo = h('p', { class: 'rf-leyendo-t', text: 'Leyendo la factura…' });
+    let leyendoAun = true;   // reloj de pantalla (solo muestra los segundos)
+    const tic = () => { if (!leyendoAun) return; seg.textContent = Math.round((Date.now() - t0) / 1000) + ' s'; setTimeout(tic, 500); };
+    tic();
+    let vistos = 0;
+    const alPedazo = (texto) => {
+      const p = facturaParcial(texto);
+      if (p.proveedor && !quien.textContent) quien.textContent = p.proveedor;
+      if (p.renglones.length > vistos) {
+        vivos.append(...p.renglones.slice(vistos).map(r => h('li', {}, h('span', { class: 'num', text: fmtNum(r.cantidad, 3) || '' }), ' ', r.descripcion || r.codigo || '')));
+        vistos = p.renglones.length;
+        titulo.textContent = `Leyendo… ${vistos} ${vistos === 1 ? 'producto' : 'productos'}`;
+      }
+    };
+    mount(root, cab, h('section', { class: 'bloque rf-leyendo', role: 'status', 'aria-live': 'polite' },
+      h('div', { class: 'rf-spin', 'aria-hidden': 'true' }), titulo, h('p', { class: 'sub' }, 'Van ', seg), quien, vivos));
     try {
       const archivos = pdf ? [{ data: pdf.data, tipo: 'application/pdf' }] : fotos.map(f => ({ data: f.data, tipo: f.tipo }));
-      const [res, alias, ordenes] = await Promise.all([leerFactura(archivos), aliasProveedor(localId).catch(() => []), ordenesPorEstado(['enviada', 'parcial']).catch(() => [])]);
+      const [res, alias, ordenes] = await Promise.all([leerFactura(archivos, alPedazo), aliasProveedor(localId).catch(() => []), ordenesPorEstado(['enviada', 'parcial']).catch(() => [])]);
+      leyendoAun = false;
       if (!ctx.alive()) return;
       if (!res || !res.factura) throw new Error('No se pudo leer la factura.');
       if (res.factura.es_factura === false) throw new Error('No parece una factura o remito. Probá con otra foto.');
       revisar(res.factura, alias, ordenes);
-    } catch (e) { if (ctx.alive()) paso1(e.message || mensajeError(e)); }
+      toast(`Factura leída en ${Math.round((Date.now() - t0) / 1000)} s`, 'ok');
+    } catch (e) { leyendoAun = false; if (ctx.alive()) paso1(e.message || mensajeError(e)); }
   }
+
 
   // ===== Paso 3: revisar y confirmar =====
   function revisar(fac, alias, ordenes) {

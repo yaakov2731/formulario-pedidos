@@ -21,7 +21,7 @@ y muestra lo que faltó.
 2. Publicar la función `leer-factura` (con verificación de JWT).
 3. En console.anthropic.com: crear cuenta, cargar crédito y crear una clave de API.
 4. Supabase → Edge Functions → Secrets: `ANTHROPIC_API_KEY` = la clave. Opcional `MODELO_FACTURAS`
-   (`claude-opus-5-5` por defecto, `claude-sonnet-5-5` o `claude-haiku-5-5`).
+   (`claude-sonnet-5-5` por defecto: sin razonamiento y esfuerzo bajo, lo más rápido con buena precisión; `claude-opus-5-5` o `claude-haiku-5-5`).
 
 Costo aproximado por factura de una página: Opus 5.5 ~US$0,05 · Sonnet 5.5 ~US$0,03 · Haiku 5.5 ~US$0,002.
 
@@ -29,4 +29,6 @@ Costo aproximado por factura de una página: Opus 5.5 ~US$0,05 · Sonnet 5.5 ~US
 
 - Los precios de factura A se leen sin IVA (como figuran en el renglón).
 - La misma factura (proveedor + número + local) no se puede recibir dos veces.
-- Las fotos se achican a 1800 px antes de mandarlas; varias fotos se guardan unidas en una sola imagen en `comprobantes`.
+- Las fotos se achican a 1568 px (JPEG 0,8) antes de mandarlas; varias fotos se guardan unidas en una sola imagen en `comprobantes`.
+- La función responde de a pedazos (líneas JSON): la pantalla muestra el proveedor y cada renglón apenas se leen,
+  con un contador de segundos. Cada lectura deja en los logs de la función `ms_primer_texto`, `ms_total`, modelo y tokens.

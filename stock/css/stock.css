@@ -259,6 +259,12 @@ select.input { text-align: center; text-align-last: center; }
 .rf-spin { width: 42px; height: 42px; border-radius: 50%; border: 4px solid var(--sep); border-top-color: var(--accent); animation: rf-gira 0.9s linear infinite; }
 @keyframes rf-gira { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rf-spin { animation-duration: 3s; } }
+.rf-vivo-prov { font-weight: 700; }
+.rf-vivo-prov:empty, .rf-vivo:empty { display: none; }
+.rf-vivo { width: 100%; max-width: 520px; margin: 4px 0 0; padding-left: 26px; text-align: left; display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--text-2); }
+.rf-vivo li { animation: rf-entra 0.25s ease-out; }
+.rf-vivo .num { color: var(--text); font-weight: 700; }
+@keyframes rf-entra { from { opacity: 0; transform: translateY(4px); } }
 .rf-local { font: 700 17px/1.2 var(--font-display); text-align: center; }
 .rf-check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--text-2); }
 .rf-check input, .rf-chk input { width: 22px; height: 22px; accent-color: var(--accent); flex: 0 0 auto; }
