@@ -277,7 +277,7 @@ async function renderMis(root, ctx) {
     const cab = cabecera('Mis pedidos', S.local ? S.local.nombre : '');
     if (!ordenes.length) { mount(root, cab, err ? banner(err, 'warn') : null, vacio('Todavía no enviaste pedidos', 'Cuando envíes uno, lo ves acá.'), h('a', { class: 'btn btn-primary', href: '#/pedir', text: 'Hacer un pedido' })); return; }
     mount(root, cab, err ? banner(err, 'warn') : null, h('div', { class: 'ped-lista' }, ordenes.map(o => {
-      const items = o.orden_items || [];
+      const items = (o.orden_items || []).filter(i => Number(i.cantidad_pedida) > 0); // sin lo que gerencia agregó al recibir
       const det = h('ul', { class: 'ped-items', hidden: true }, items.map(i => { const p = prods.get(i.producto_id); return h('li', {}, h('span', { text: p ? p.nombre : 'Producto' }), h('b', { class: 'num', text: fmtNum(i.cantidad_pedida, 3) + (p && p.unidad_compra ? ' ' + p.unidad_compra : '') })); }));
       const prov = provs.get(o.proveedor_id);
       return h('article', { class: 'ped' },
