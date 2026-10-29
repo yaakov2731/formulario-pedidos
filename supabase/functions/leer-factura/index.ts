@@ -73,8 +73,17 @@ Deno.serve(async (req) => {
   const { data: rol, error: errRol } = await sb.rpc("mi_rol");
   if (errRol || rol !== "gerencia") return responder({ error: "Solo gerencia puede leer facturas." }, 403);
 
-  const clave = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!clave) return responder({ error: "Falta configurar la clave de Anthropic (ANTHROPIC_API_KEY) en Supabase." }, 503);
+  // Tolera el nombre cargado con espacios o en minúsculas en Supabase → Secrets.
+  const entorno = Deno.env.toObject();
+  const nombre = Object.keys(entorno).find((k) => k.trim().toUpperCase() === "ANTHROPIC_API_KEY");
+  const clave = nombre ? entorno[nombre].trim() : "";
+  if (!clave) {
+    // Solo nombres (nunca valores), para ver si la clave se cargó con otro nombre.
+    const nombres = Object.keys(entorno);
+    console.log(JSON.stringify({ evento: "leer-factura-sin-clave", parecidos: nombres.filter((k) => /anthropic|claude|api.?key/i.test(k) && !/^sk-/i.test(k.trim())),
+      clave_como_nombre: nombres.some((k) => /^sk-ant/i.test(k.trim())), total_secretos: nombres.length }));
+    return responder({ error: "Falta configurar la clave de Anthropic (ANTHROPIC_API_KEY) en Supabase." }, 503);
+  }
 
   let archivos: { data: string; tipo: string }[] = [];
   try { archivos = (await req.json()).archivos || []; } catch (_e) { return responder({ error: "Pedido inválido." }, 400); }
