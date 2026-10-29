@@ -172,6 +172,13 @@ export async function render(root, ctx) {
         : filtro === 'aprobados' ? e.estado === 'aprobada'
           : ['enviada', 'parcial', 'recibida'].includes(e.estado));
 
+  // Lo corregido al recibir (migración 0020): faltante de lo pedido o producto que llegó sin estar pedido.
+  const notaRecepcion = (it) => {
+    const falta = Number(it.cantidad_pedida) - (Number(it.cantidad_recibida) || 0);
+    if (it.agregado) return h('span', { class: 'det-rec det-rec-extra', text: `No estaba en el pedido · llegó ${fmtNum(it.cantidad_recibida, 3)}` });
+    if (it.no_vino && falta > 0) return h('span', { class: 'det-rec', text: `Faltó ${fmtNum(falta, 3)}${Number(it.cantidad_recibida) ? ` · llegó ${fmtNum(it.cantidad_recibida, 3)}` : ''}` });
+    return null;
+  };
   function detalleEnvio(e) {
     const filas = e.items.map(({ o, it }) => {
       const ed = editable(o);
@@ -184,7 +191,7 @@ export async function render(root, ctx) {
           cambiarQty(o, it, n);
         } } }) : null;
       return h('div', { class: 'det-fila', 'data-item': it.id },
-        h('div', { class: 'det-prod' }, h('b', { text: nombreProd(it) }), h('span', { class: 'mute', text: unidad(it) || '' })),
+        h('div', { class: 'det-prod' }, h('b', { text: nombreProd(it) }), h('span', { class: 'mute', text: unidad(it) || '' }), notaRecepcion(it)),
         h('div', { class: 'det-cant' }, inp || h('span', { class: 'num', text: cantTxt(it) })),
         h('div', { class: 'det-prov' },
           ed ? selectorProv(o.proveedor_id, (v, sel) => moverYAvisar([{ o, it }], v, sel), `Proveedor de ${nombreProd(it)}`)

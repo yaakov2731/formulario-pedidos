@@ -243,6 +243,19 @@ select.input { text-align: center; text-align-last: center; }
 .grupo-prov .acciones .btn { flex: 1 1 180px; }
 .rec-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 360px; }
 .rec-c { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: var(--text-2); }
+.rec-lista { display: flex; flex-direction: column; gap: 10px; }
+.prod-rec.is-off { opacity: 0.7; }
+.prod-rec.is-off .prod-n { text-decoration: line-through; }
+.prod-rec.rec-extra { border: 1.5px dashed var(--accent); }
+.prod-rec .prod-m { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.rec-falta { color: var(--warn-ink); font-weight: 700; font-size: 14px; }
+.rec-acc { align-self: center; display: inline-flex; align-items: center; gap: 6px; }
+.rec-agregar { display: inline-flex; justify-content: center; align-items: center; gap: 8px; margin-top: 4px; }
+.rec-resumen { text-align: center; font-size: 14px; color: var(--text-2); margin: 4px 0; }
+.rec-cerrar { text-align: left; margin-bottom: 4px; }
+.rec-cerrar[hidden] { display: none; }
+.det-rec { font-size: 13px; font-weight: 700; color: var(--warn-ink); }
+.det-rec-extra { color: var(--accent-text); }
 /* Recibir con factura */
 .rec-factura { margin: 12px auto 0; display: inline-flex; align-items: center; gap: 8px; }
 .rec-factura-h { margin-top: 6px; font-size: 13px; }
