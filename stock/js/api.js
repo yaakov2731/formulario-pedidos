@@ -314,11 +314,12 @@ const COLS_PAGO = 'id,proveedor_id,monto,fecha,numero_operacion,cuenta_origen,ba
 export const cuentaCorriente = async () => ok(await sb.from('cuenta_corriente').select('proveedor_id,nombre,facturado,pagado,saldo').order('saldo', { ascending: false }));
 export const facturasLista = (soloPendientes) => todo(() => {
   let q = sb.from('facturas_pendientes').select(COLS_FAC).order('fecha', { ascending: true }).order('numero', { ascending: true }).order('id');
-  if (soloPendientes) q = q.gt('pendiente', 0);
+  if (soloPendientes) q = q.gte('pendiente', 1); // menos de $1 (centavos que el banco no transfiere) cuenta como pagada
   return q;
 });
 export const facturasPendientesDe = async (proveedorId) =>
-  ok(await sb.from('facturas_pendientes').select(COLS_FAC).eq('proveedor_id', proveedorId).gt('pendiente', 0).order('fecha', { ascending: true }).order('numero', { ascending: true }));
+  ok(await sb.from('facturas_pendientes').select(COLS_FAC).eq('proveedor_id', proveedorId).gte('pendiente', 1).order('fecha', { ascending: true }).order('numero', { ascending: true }));
+export const borrarFactura = async (id) => ok(await sb.rpc('borrar_factura', { p_id: id }));
 export const crearFactura = async (f) => { const [r] = await ok(await sb.from('facturas_proveedor').insert(f).select('id')); return r.id; };
 export const pagosLista = async (limite = 80) => ok(await sb.from('pagos').select(COLS_PAGO).order('fecha', { ascending: false }).order('creado_en', { ascending: false }).limit(limite));
 export const pagoPorOperacion = async (op) => ok(await sb.from('pagos').select('id,proveedor_id,monto,fecha,numero_operacion').eq('numero_operacion', op).limit(1));

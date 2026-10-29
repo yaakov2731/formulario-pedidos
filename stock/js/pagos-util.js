@@ -38,12 +38,17 @@ export function sugerirProveedores(provs, razonSocial, max = 3) {
   }).filter((x) => x.score >= 0.3).sort((a, b) => b.score - a.score).slice(0, max);
 }
 
-// Imputación automática: las facturas más viejas primero (por fecha y número) hasta agotar el monto.
-// facturas: [{id, fecha, numero, pendiente}] → { [id]: monto }
+// Una factura que debe menos de $1 cuenta como pagada (el banco transfiere sin centavos).
+export const TOLERANCIA = 1;
+export const estaPagada = (f) => Number(f.pendiente) < TOLERANCIA;
+
+// Imputación automática: primero la factura cuyo saldo coincide con el pago (±$1), después las más viejas
+// (por fecha y número) hasta agotar el monto. facturas: [{id, fecha, numero, pendiente}] → { [id]: monto }
 export function imputarAutomatico(monto, facturas) {
   let resto = redondear(monto);
   const out = {};
-  const orden = [...facturas].sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.numero).localeCompare(String(b.numero), 'es', { numeric: true }));
+  const igual = (f) => Math.abs(redondear(f.pendiente) - resto) < TOLERANCIA;
+  const orden = [...facturas].filter((f) => !estaPagada(f)).sort((a, b) => (igual(b) - igual(a)) || String(a.fecha).localeCompare(String(b.fecha)) || String(a.numero).localeCompare(String(b.numero), 'es', { numeric: true }));
   for (const f of orden) {
     if (resto <= 0) break;
     const m = Math.min(resto, redondear(f.pendiente));

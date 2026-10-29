@@ -1,9 +1,10 @@
-// Pagos · Facturas: alta de facturas de proveedores (con PDF o foto opcional) y listado con las vencidas resaltadas.
+// Pagos · Facturas: alta de facturas de proveedores (con PDF o foto opcional), listado con las vencidas resaltadas
+// y, solo gerencia, borrar una factura (los pagos quedan y lo imputado pasa a las otras facturas del proveedor).
 import { mount, h, fmtMoney, parseNum, porTexto, hoyISO } from './util.js';
-import { swr, facturasLista, crearFactura, subirComprobante, urlComprobante, mensajeError } from './api.js';
+import { swr, facturasLista, crearFactura, borrarFactura, subirComprobante, urlComprobante, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
 import { esqueleto, vacio, banner, subnav, SUBNAV_PAGOS, toast, hoja, campo, icon } from './ui.js';
-import { fechaDMA, rutaFactura } from './pagos-util.js';
+import { fechaDMA, rutaFactura, estaPagada } from './pagos-util.js';
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Facturas' }), h('p', { class: 'sub', text: 'Facturas de proveedores y su vencimiento' }));
@@ -11,11 +12,12 @@ export async function render(root, ctx) {
   let facturas = [], filtro = 'pendientes', error = null;
   const lista = h('div', { class: 'lista' });
 
+  const ger = ctx.rol === 'gerencia';
   const nombreProv = (id) => (G.provs.get(id) || {}).nombre || 'Proveedor';
-  function estadoDe(f) { return Number(f.pendiente) <= 0.005 ? ['Pagada', 'estado-recibida'] : f.vencida ? ['Vencida', 'estado-vencida'] : Number(f.imputado) > 0 ? ['Pago parcial', 'estado-aprobada'] : ['Pendiente', 'estado-borrador']; }
+  function estadoDe(f) { return estaPagada(f) ? ['Pagada', 'estado-recibida'] : f.vencida ? ['Vencida', 'estado-vencida'] : Number(f.imputado) > 0 ? ['Pago parcial', 'estado-aprobada'] : ['Pendiente', 'estado-borrador']; }
 
   function pintarLista() {
-    const vis = facturas.filter((f) => filtro === 'todas' || (filtro === 'vencidas' ? f.vencida : Number(f.pendiente) > 0.005))
+    const vis = facturas.filter((f) => filtro === 'todas' || (filtro === 'vencidas' ? f.vencida : !estaPagada(f)))
       .sort((a, b) => (b.vencida - a.vencida) || String(a.vencimiento || '9999').localeCompare(String(b.vencimiento || '9999')) || porTexto(a.numero, b.numero));
     if (!vis.length) return lista.replaceChildren(vacio('No hay facturas para mostrar', filtro === 'todas' ? 'Cargá la primera con "Nueva factura".' : 'Nada pendiente en esta vista.'));
     lista.replaceChildren(...vis.map((f) => {
@@ -24,11 +26,32 @@ export async function render(root, ctx) {
         h('h3', { class: 'prod-n', text: nombreProv(f.proveedor_id) }),
         h('p', { class: 'prod-m' }, h('span', { class: 'num', text: `N° ${f.numero}` }), h('span', { text: `del ${fechaDMA(f.fecha)}` })),
         h('p', { class: 'prod-m' }, h('span', { class: 'fac-v', text: f.vencimiento ? `Vence ${fechaDMA(f.vencimiento)}` : 'Sin vencimiento' }), h('b', { class: 'num', text: fmtMoney(f.total) })),
-        h('div', { class: 'prod-m' }, h('span', { class: 'estado ' + cls, text: txt }), Number(f.pendiente) > 0.005 && Number(f.imputado) > 0 ? h('span', { class: 'num', text: `Debe ${fmtMoney(f.pendiente)}` }) : null),
-        f.archivo ? h('button', { class: 'btn btn-text btn-sm', type: 'button', text: 'Ver archivo', on: { click: async () => {
-          try { window.open(await urlComprobante(f.archivo), '_blank', 'noopener'); } catch (e) { toast(mensajeError(e), 'error'); }
-        } } }) : null);
+        h('div', { class: 'prod-m' }, h('span', { class: 'estado ' + cls, text: txt }), !estaPagada(f) && Number(f.imputado) > 0 ? h('span', { class: 'num', text: `Debe ${fmtMoney(f.pendiente)}` }) : null),
+        f.archivo || ger ? h('div', { class: 'fac-acc' },
+          f.archivo ? h('button', { class: 'btn btn-text btn-sm', type: 'button', text: 'Ver archivo', on: { click: async () => {
+            try { window.open(await urlComprobante(f.archivo), '_blank', 'noopener'); } catch (e) { toast(mensajeError(e), 'error'); }
+          } } }) : null,
+          ger ? h('button', { class: 'btn btn-text btn-sm btn-danger', type: 'button', text: 'Borrar', 'aria-label': `Borrar factura ${f.numero}`, on: { click: () => pedirBorrar(f) } }) : null) : null);
     }));
+  }
+
+  // Borrar una factura (solo gerencia). Los pagos no se tocan: lo imputado vuelve a quedar a favor del proveedor.
+  function pedirBorrar(f) {
+    const si = h('button', { class: 'btn btn-primary btn-peligro btn-block', type: 'button', text: 'Sí, borrar la factura' });
+    const pagado = Number(f.imputado) > 0;
+    const { cerrar } = hoja('Borrar factura', h('div', { class: 'borrar-imp' },
+      h('p', { text: `Vas a borrar la factura N° ${f.numero} de ${nombreProv(f.proveedor_id)} por ${fmtMoney(f.total)}.` }),
+      banner(pagado ? `Tiene ${fmtMoney(f.imputado)} pagados: los pagos no se borran, ese monto pasa a las otras facturas pendientes del proveedor (o queda a favor).`
+        : 'No tiene pagos imputados. Se borra y deja de figurar en la cuenta del proveedor.', 'info'),
+      h('div', { class: 'acciones' }, si, h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'No, dejarla', on: { click: () => cerrar() } }))));
+    si.addEventListener('click', async () => {
+      si.disabled = true; si.textContent = 'Borrando…';
+      try {
+        await borrarFactura(f.id);
+        cerrar(); toast(`Factura ${f.numero} borrada`, 'ok');
+        facturas = await facturasLista(false); pintarLista();
+      } catch (e) { toast(mensajeError(e), 'error'); si.disabled = false; si.textContent = 'Sí, borrar la factura'; }
+    });
   }
 
   function nueva() {

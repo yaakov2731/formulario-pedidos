@@ -89,13 +89,16 @@ const db = {
     { id: 'fa-1', proveedor_id: PV.demo, numero: '0001-00000002', fecha: '2026-08-01', vencimiento: '2026-09-01', total: 100000, archivo: null, imputado: 0 },
     { id: 'fa-2', proveedor_id: PV.demo, numero: '0001-00000010', fecha: '2026-09-20', vencimiento: '2026-11-20', total: 70000, archivo: null, imputado: 0 },
     { id: 'fa-3', proveedor_id: PV.barcena, numero: '0003-00000099', fecha: '2026-09-15', vencimiento: '2026-10-01', total: 30000, archivo: null, imputado: 0 },
-    { id: 'fa-4', proveedor_id: PV.martin, numero: '0002-00000045', fecha: '2026-10-10', vencimiento: null, total: 120000, archivo: null, imputado: 120000 }
+    { id: 'fa-4', proveedor_id: PV.martin, numero: '0002-00000045', fecha: '2026-10-10', vencimiento: null, total: 120000, archivo: null, imputado: 120000 },
+    // pagada sin centavos (el banco transfirió $50.000 por $50.000,64): cuenta como pagada, no vencida
+    { id: 'fa-5', proveedor_id: PV.martin, numero: '0002-00000046', fecha: '2026-10-11', vencimiento: '2026-10-15', total: 50000.64, archivo: null, imputado: 50000 }
   ],
   pagos: [
     { id: 'pg-1', proveedor_id: PV.martin, monto: 120000, fecha: '2026-10-12', numero_operacion: 'OPVIEJA001', concepto: 'Factura', descripcion: 'Carnes', comprobante_path: 'pagos/prv-martin/OPVIEJA001.pdf', avisado_en: '2026-10-12T15:00:00Z', creado_en: '2026-10-12T14:00:00Z' },
+    { id: 'pg-0', proveedor_id: PV.martin, monto: 50000, fecha: '2026-10-11', numero_operacion: 'OPVIEJA000', concepto: 'Factura', descripcion: 'Carnes', comprobante_path: 'pagos/prv-martin/OPVIEJA000.pdf', avisado_en: '2026-10-11T15:00:00Z', creado_en: '2026-10-11T14:00:00Z' },
     { id: 'pg-2', proveedor_id: PV.florida, monto: 54000, fecha: '2026-10-20', numero_operacion: 'OPVIEJA002', concepto: 'Factura', descripcion: 'Bebidas', comprobante_path: 'pagos/prv-florida/OPVIEJA002.pdf', avisado_en: null, creado_en: '2026-10-20T14:00:00Z' }
   ],
-  subidos: {}, pagosRegistrados: [], facturasCreadas: [], proveedoresEditados: [], proveedoresCreados: [], sin0011: false, avisos: [], consultasTablero: []
+  subidos: {}, pagosRegistrados: [], facturasCreadas: [], facturasBorradas: [], proveedoresEditados: [], proveedoresCreados: [], sin0011: false, avisos: [], consultasTablero: []
 };
 let seq = 1;
 const nid = (p) => p + '-' + (seq++);
@@ -183,7 +186,7 @@ async function montarApi(ctx) {
 
     // ---- fase 4: facturas, pagos, comprobantes (gerencia y contadora; el encargado nunca) ----
     const hoyMock = '2026-10-26';
-    const conSaldo = (f) => ({ ...f, pendiente: f.total - f.imputado, vencida: !!f.vencimiento && f.vencimiento < hoyMock && f.total - f.imputado > 0 });
+    const conSaldo = (f) => ({ ...f, pendiente: f.total - f.imputado, vencida: !!f.vencimiento && f.vencimiento < hoyMock && f.total - f.imputado >= 1 });
     if (/^(cuenta_corriente|facturas_pendientes|facturas_proveedor|pagos|pago_facturas|rpc\/(registrar_pago|tablero))/.test(t) && rol !== 'gerencia' && rol !== 'contadora') return json({ code: '42501', message: 'permission denied for table ' + t }, 403);
     if (t === 'cuenta_corriente') {
       return json(db.proveedores.map(p => { const fa = db.facturas.filter(f => f.proveedor_id === p.id).reduce((a, f) => a + f.total, 0), pa = db.pagos.filter(g => g.proveedor_id === p.id).reduce((a, g) => a + g.monto, 0);
@@ -192,7 +195,13 @@ async function montarApi(ctx) {
     if (t === 'facturas_pendientes') {
       let r = db.facturas.map(conSaldo); if (eq(q.get('proveedor_id'))) r = r.filter(f => f.proveedor_id === eq(q.get('proveedor_id')));
       if ((q.get('pendiente') || '').startsWith('gt.')) r = r.filter(f => f.pendiente > Number(q.get('pendiente').slice(3)));
+      if ((q.get('pendiente') || '').startsWith('gte.')) r = r.filter(f => f.pendiente >= Number(q.get('pendiente').slice(4)));
       return json(r.sort((a, b) => a.fecha.localeCompare(b.fecha)));
+    }
+    if (t === 'rpc/borrar_factura') {
+      if (rol !== 'gerencia') return json({ code: '42501', message: 'Solo gerencia puede borrar facturas' }, 403);
+      const id = body().p_id; const f = db.facturas.find(x => x.id === id); db.facturas = db.facturas.filter(x => x.id !== id); db.facturasBorradas.push(id);
+      return json({ numero: f.numero, liberado: f.imputado, archivo: f.archivo });
     }
     if (t === 'facturas_proveedor' && req.method() === 'POST') {
       const b = body(); if (db.facturas.some(f => f.proveedor_id === b.proveedor_id && f.numero === b.numero)) return json({ code: '23505', message: 'duplicate key value violates unique constraint "facturas_proveedor_proveedor_id_numero_key"' }, 409);
@@ -863,6 +872,24 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(Object.keys(db.subidos).includes(fc.archivo) && db.subidos[fc.archivo] > 0, 'factura: el PDF se subió al bucket comprobantes');
   await g.waitForSelector('.fac[data-factura="0004-00000123"].fac-vencida');
   ok(await g.locator('.fac-vencida').count() === 3, 'factura nueva vencida resaltada');
+  // Todas: la pagada sin centavos figura Pagada (no vencida)
+  await g.locator('.chip[data-filtro="todas"]').click();
+  const f46 = g.locator('.fac[data-factura="0002-00000046"]');
+  ok(/Pagada/.test(await f46.innerText()) && !(await f46.getAttribute('class')).includes('fac-vencida'), 'factura pagada sin centavos ($0,64) figura Pagada, no vencida');
+  await f46.scrollIntoViewIfNeeded();
+  await shot(g, '41b-g-facturas-pagada-sin-centavos-pc');
+  // Borrar factura (solo gerencia, con confirmación)
+  await g.locator('.chip[data-filtro="vencidas"]').click();
+  await g.locator('.fac[data-factura="0004-00000123"] button', { hasText: 'Borrar' }).click();
+  await g.waitForSelector('dialog[open]');
+  ok(/0004-00000123/.test(await g.locator('dialog[open]').innerText()), 'borrar factura: pide confirmación con el número');
+  await shot(g, '42b-g-factura-borrar-pc');
+  await g.getByRole('button', { name: 'Sí, borrar la factura' }).click();
+  await g.waitForSelector('.toast-ok >> text=Factura 0004-00000123 borrada');
+  await g.waitForSelector('.fac[data-factura="0004-00000123"]', { state: 'detached' });
+  ok(db.facturasBorradas.length === 1 && await g.locator('.fac-vencida').count() === 2, 'borrar factura: se borra y deja de figurar vencida');
+  await shot(g, '42c-g-factura-borrada-pc', true);
+  await g.locator('.chip[data-filtro="pendientes"]').click();
 
   // Cargar pago: subir el PDF, precarga, proveedor sugerido, imputación
   await g.locator('.subnav-b', { hasText: 'Cargar' }).click();
@@ -917,7 +944,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   // Lista de pagos: Avisado / Sin avisar
   await g.locator('.subnav-b', { hasText: /^Pagos$/ }).click();
   await g.waitForSelector('.prod[data-pago]');
-  ok(await g.locator('.prod[data-pago]').count() === 3, 'lista de pagos: 3');
+  ok(await g.locator('.prod[data-pago]').count() === 4, 'lista de pagos: 4');
   ok((await g.locator('.prod[data-pago="DEMO0001ab"]').innerText()).includes('Avisado') && (await g.locator('.prod[data-pago="OPVIEJA002"]').innerText()).includes('Sin avisar'), 'lista de pagos con estado Avisado / Sin avisar');
   await shot(g, '47-g-pagos-lista-pc', true);
   await g.locator('.chip', { hasText: 'Sin avisar' }).click();
