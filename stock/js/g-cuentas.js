@@ -17,7 +17,7 @@ export async function render(root, ctx) {
     if (!ctx.alive()) return;
     if (error) return mount(root, cab, subnav(SUBNAV_PAGOS, 'pagos'), banner(error, 'error'));
     const filas = cuentas.filter((c) => Number(c.facturado) > 0 || Number(c.pagado) > 0);
-    const deuda = filas.reduce((s, c) => s + Math.max(0, Number(c.saldo)), 0);
+    const deuda = filas.reduce((s, c) => s + (Number(c.saldo) >= 1 ? Number(c.saldo) : 0), 0);
     const venc = facturas.filter((f) => f.vencida);
     const vencTot = venc.reduce((s, f) => s + Number(f.pendiente), 0);
     const tarjeta = (c) => {
@@ -27,7 +27,7 @@ export async function render(root, ctx) {
       const saldo = Number(c.saldo);
       return h('article', { class: 'prod cc-fila', 'data-prov': c.nombre },
         h('h3', { class: 'prod-n', text: c.nombre }),
-        h('b', { class: 'cc-saldo num' + (saldo > 0 ? ' debe' : ''), text: saldo > 0 ? fmtMoney(saldo) : (saldo < 0 ? `${fmtMoney(-saldo)} a favor` : 'Al día') }),
+        h('b', { class: 'cc-saldo num' + (saldo >= 1 ? ' debe' : ''), text: saldo >= 1 ? fmtMoney(saldo) : (saldo <= -1 ? `${fmtMoney(-saldo)} a favor` : 'Al día') }),
         h('div', { class: 'cc-det' },
           h('span', {}, 'Facturado', h('b', { text: fmtMoney(c.facturado) })), h('span', {}, 'Pagado', h('b', { text: fmtMoney(c.pagado) })), h('span', {}, 'Saldo', h('b', { text: fmtMoney(saldo) }))),
         nVenc ? h('span', { class: 'estado estado-vencida', text: `${nVenc} ${nVenc === 1 ? 'factura vencida' : 'facturas vencidas'}` }) : null,
@@ -37,7 +37,7 @@ export async function render(root, ctx) {
           h('span', { text: `${f.numero} · vence ${f.vencimiento ? fechaDMA(f.vencimiento) : 'sin fecha'}${f.vencida ? ' · vencida' : ''}` }), h('b', { class: 'num', text: fmtMoney(f.pendiente) })))) : null);
     };
     mount(root, cab, subnav(SUBNAV_PAGOS, 'pagos'),
-      h('section', { class: 'kpis' }, kpi('Deuda total', fmtMoney(deuda), `${filas.filter((c) => Number(c.saldo) > 0).length} proveedores`, deuda ? 'warn' : null),
+      h('section', { class: 'kpis' }, kpi('Deuda total', fmtMoney(deuda), `${filas.filter((c) => Number(c.saldo) >= 1).length} proveedores`, deuda ? 'warn' : null),
         kpi('Vencido', fmtMoney(vencTot), `${venc.length} ${venc.length === 1 ? 'factura' : 'facturas'}`, venc.length ? 'warn' : null)),
       filas.length ? h('div', { class: 'lista' }, filas.sort((a, b) => Number(b.saldo) - Number(a.saldo)).map(tarjeta))
         : vacio('Todavía no hay facturas ni pagos', 'Cargá una factura o un comprobante de pago para empezar.'));

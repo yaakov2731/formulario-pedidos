@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql y 0014_borrar_pedidos.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql y 0016_facturas_saldo.sql (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -81,6 +81,9 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig14 = fs.readFileSync(path.join(root, 'supabase/migrations/0014_borrar_pedidos.sql'), 'utf8');
   try { await db.exec(mig14); await db.exec(mig14); check('aplica 0014_borrar_pedidos.sql (idempotente)', true); }
   catch (e) { check('aplica 0014_borrar_pedidos.sql (idempotente)', false, e.message); return finish(); }
+  const mig16 = fs.readFileSync(path.join(root, 'supabase/migrations/0016_facturas_saldo.sql'), 'utf8');
+  try { await db.exec(mig16); await db.exec(mig16); check('aplica 0016_facturas_saldo.sql (idempotente)', true); }
+  catch (e) { check('aplica 0016_facturas_saldo.sql (idempotente)', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -663,6 +666,41 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     check('borrar_todos_los_pedidos no toca otros movimientos, stock por ventas/conteos ni precios de lista', desp.otros === antes.otros && desp.pr === antes.pr && (await stockSinOrden()) === st0);
     const rb2 = await as(U.ger, () => tryq("select borrar_todos_los_pedidos('BORRAR') r"));
     check('borrar_todos_los_pedidos sin pedidos devuelve 0', rb2.rows && rb2.rows[0].r.pedidos === 0, JSON.stringify(rb2));
+  }
+
+  // ===================== 0016: facturas pagas que figuraban vencidas + borrar factura =====================
+  {
+    // Caso real (Florida): dos pagos sin centavos cargados ANTES que una de sus facturas.
+    const [pv] = await q("insert into proveedores(nombre) values ('Prov Saldo') returning id");
+    const vencio = (await q("select (current_date - 3)::text d"))[0].d;
+    const fac = async (num, total) => (await q("insert into facturas_proveedor(proveedor_id,numero,fecha,vencimiento,total) values ($1,$2,current_date - 7,$3,$4) returning id", [pv.id, num, vencio, total]))[0].id;
+    const vista = async () => (await q('select numero, pendiente::float p, vencida from facturas_pendientes where proveedor_id=$1 order by numero', [pv.id]));
+    let FA, FB;
+    await as(U.con, async () => {
+      FB = await fac('B', 575682.61);
+      // como pasó: el pago de la A (340.495) se imputó a la B y el de la B dejó el resto a cuenta
+      await q('select registrar_pago($1::jsonb, $2::jsonb)', [JSON.stringify({ proveedor_id: pv.id, monto: 340495, numero_operacion: 'OP-S1' }), JSON.stringify([{ factura_id: FB, monto: 340495 }])]);
+      await q('select registrar_pago($1::jsonb, $2::jsonb)', [JSON.stringify({ proveedor_id: pv.id, monto: 575682, numero_operacion: 'OP-S2' }), JSON.stringify([{ factura_id: FB, monto: 235187.61 }])]);
+      FA = await fac('A', 340495.64);
+    });
+    const v1 = await vista();
+    check('0016: al cargar la factura que faltaba, cada pago pasa a la factura de su mismo monto (quedan $0,64 y $0,61 = pagadas)', Math.abs(v1[0].p - 0.64) < 0.001 && Math.abs(v1[1].p - 0.61) < 0.001 && v1.every(x => x.vencida === false), JSON.stringify(v1));
+    await q('select _reimputar_proveedor($1)', [pv.id]);
+    const v2 = await vista();
+    check('0016: reimputar de nuevo da lo mismo (idempotente)', Math.abs(v2[0].p - 0.64) < 0.001 && Math.abs(v2[1].p - 0.61) < 0.001 && v2.every(x => x.vencida === false), JSON.stringify(v2));
+    const FC = await fac('C', 1000);
+    check('0016: una factura vencida sin pagos sigue figurando vencida', (await vista())[2].vencida === true);
+    const eCon = await as(U.con, () => tryq('select borrar_factura($1) r', [FC]));
+    const eEnc = await as(U.e1, () => tryq('select borrar_factura($1) r', [FC]));
+    check('0016: borrar_factura solo gerencia (contadora y encargado no)', !!eCon.err && !!eEnc.err && (await vista()).length === 3, JSON.stringify([eCon.err, eEnc.err]));
+    const rb = await as(U.ger, () => tryq('select borrar_factura($1) r', [FC]));
+    check('0016: gerencia borra una factura', !rb.err && rb.rows[0].r.numero === 'C' && (await vista()).length === 2, JSON.stringify(rb));
+    // borrar una factura pagada: el pago queda y lo imputado pasa a otra pendiente
+    const FD = await fac('D', 500);
+    await as(U.ger, () => q('select borrar_factura($1) r', [FA]));
+    const pagos = (await q("select count(*)::int n from pagos where proveedor_id=$1", [pv.id]))[0].n;
+    const d = (await vista()).find(x => x.numero === 'D');
+    check('0016: borrar una factura pagada no borra el pago; su saldo se aplica a otra pendiente', pagos === 2 && d.p === 0 && d.vencida === false, JSON.stringify([pagos, d]));
   }
 
   return finish();
