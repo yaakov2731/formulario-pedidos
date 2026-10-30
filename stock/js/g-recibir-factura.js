@@ -2,41 +2,15 @@
 // con el catálogo del local (factura-match.js) → se revisa y corrige → recibir_con_factura suma stock, guarda precios,
 // aprende los nombres del proveedor y deja la factura en Pagos. Sirve para pedidos hechos fuera de la app y,
 // si hay un pedido abierto del mismo proveedor y local, lo da por recibido y muestra lo que faltó.
-import { mount, h, fmtNum, fmtMoney, parseNum, porTexto, hoyISO, esCarta, tokens, coincide, lsGet, lsSet, plural } from './util.js';
-import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subirComprobante, mensajeError } from './api.js';
+// #/recibir-factura/<id> abre una factura que subió un local (migración 0022) con sus archivos ya cargados.
+import { mount, h, fmtNum, fmtMoney, parseNum, porTexto, hoyISO, esCarta, tokens, coincide, lsGet, lsSet, plural, fechaCorta } from './util.js';
+import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subirComprobante, facturaLocal, bajarComprobante, marcarFacturaLocal, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, refrescarPrecio } from './datos.js';
 import { esqueleto, banner, campo, hoja, toast, icon, vacio } from './ui.js';
 import { proveedorDe, cruzarRenglones, compararConPedido, facturaParcial } from './factura-match.js';
 import { rutaFactura, fechaDMA, TIPOS_COMPROBANTE, tipoComprobante, numeroReciboX } from './pagos-util.js';
+import { achicarFoto, aBase64, base64ABlob, unirFotos, PDF_MAX } from './fotos.js';
 
-const LADO_MAX = 1568;           // px del lado largo: Claude achica a esto igual, más grande solo tarda más en subir
-const PDF_MAX = 9 * 1024 * 1024;
-
-// Foto del celular → JPEG más liviano (las de 12 MP pesan 4–6 MB). Devuelve { data (base64), tipo, img }.
-async function achicarFoto(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error('No se pudo abrir la foto ' + file.name)); i.src = url; });
-    const k = Math.min(1, LADO_MAX / Math.max(img.naturalWidth, img.naturalHeight));
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    const dataUrl = c.toDataURL('image/jpeg', 0.8);
-    return { data: dataUrl.split(',')[1], tipo: 'image/jpeg', canvas: c };
-  } finally { URL.revokeObjectURL(url); }
-}
-const aBase64 = (file) => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => mal(r.error); r.readAsDataURL(file); });
-const base64ABlob = (b64, tipo) => { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type: tipo }); };
-// Varias fotos → una sola imagen (una debajo de la otra) para guardar como archivo de la factura.
-function unirFotos(canvases) {
-  if (canvases.length === 1) return canvases[0];
-  const w = Math.max(...canvases.map(c => c.width));
-  const c = document.createElement('canvas');
-  c.width = w; c.height = canvases.reduce((s, x) => s + Math.round(x.height * w / x.width), 0);
-  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
-  let y = 0; for (const x of canvases) { const hh = Math.round(x.height * w / x.width); g.drawImage(x, 0, y, w, hh); y += hh; }
-  return c;
-}
 const isoValido = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : '';
 
 export async function render(root, ctx) {
@@ -54,6 +28,27 @@ export async function render(root, ctx) {
   if (!locales.some(l => l.id === localId)) localId = (locales[0] || {}).id;
   let fotos = [];        // [{ file, data, tipo, canvas }]
   let pdf = null;        // { file, data }
+
+  // Factura subida por un local: se trae el local, el proveedor que eligió el encargado y sus archivos.
+  let subida = null;
+  const idSubida = (location.hash.split('/')[2] || '').trim();
+  if (idSubida) {
+    try {
+      subida = await facturaLocal(idSubida);
+      if (!subida) throw new Error('No se encontró la factura que subió el local.');
+      if (subida.local_id) localId = subida.local_id;
+      for (const [i, ruta] of (subida.archivos || []).entries()) {
+        const blob = await bajarComprobante(ruta);
+        if (/\.pdf$/i.test(ruta) || blob.type === 'application/pdf') {
+          const file = new File([blob], ruta.split('/').pop(), { type: 'application/pdf' });
+          pdf = { file, data: await aBase64(file) }; fotos = [];
+        } else fotos.push({ file: blob, ...(await achicarFoto(new File([blob], `foto${i + 1}.jpg`, { type: blob.type || 'image/jpeg' }))) });
+      }
+    } catch (e) { if (!ctx.alive()) return; subida = null; mount(root, cab, banner(mensajeError(e), 'error'), volver); return; }
+    if (!ctx.alive()) return;
+  }
+  const avisoSubida = () => (subida ? banner(`Factura que subió ${subida.subida_por_nombre || 'el encargado'} de ${nombreLocal(subida.local_id)} el ${fechaCorta(subida.creado_en)}`
+    + (subida.proveedor_id && G.provs.get(subida.proveedor_id) ? ` · ${G.provs.get(subida.proveedor_id).nombre}` : '') + (subida.nota ? `. Nota: «${subida.nota}»` : ''), 'info') : null);
 
   // ===== Paso 1: elegir local y archivos =====
   function paso1(error) {
@@ -89,7 +84,7 @@ export async function render(root, ctx) {
       pintarFotos();
     });
     leer.addEventListener('click', () => leyendo());
-    mount(root, cab, error ? banner(error, 'error') : null,
+    mount(root, cab, error ? banner(error, 'error') : null, avisoSubida(),
       h('section', { class: 'bloque rf-paso' }, campo('Local que recibe', selLocal), drop, lista, leer), volver);
     pintarFotos();
   }
@@ -134,6 +129,7 @@ export async function render(root, ctx) {
   function revisar(fac, alias, ordenes) {
     const prodsLocal = [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && !p.es_elaborado && !esCarta(p));
     const pv = proveedorDe(fac, provs);
+    if (!pv.prov && subida && subida.proveedor_id) { pv.prov = provs.find(p => p.id === subida.proveedor_id) || null; pv.por = 'local'; }
     const renglones = (fac.renglones || []).filter(r => r && (r.descripcion || r.codigo));
     const cruces = cruzarRenglones(renglones, prodsLocal, alias, pv.prov && pv.prov.id);
     const filas = renglones.map((r, i) => ({ r, producto: cruces[i].producto, por: cruces[i].por, sugeridos: cruces[i].sugeridos, incluir: true,
@@ -160,7 +156,7 @@ export async function render(root, ctx) {
     const textoProv = () => {
       const leido = [fac.proveedor, fac.cuit ? 'CUIT ' + fac.cuit : ''].filter(Boolean).join(' · ');
       avisoProv.textContent = !f.prov.value ? `En la factura dice: ${leido || 'sin nombre'}. Elegilo de la lista (si es nuevo, cargalo en Catálogo → Proveedores).`
-        : pv.prov && f.prov.value === pv.prov.id ? `Reconocido por ${pv.por === 'cuit' ? 'CUIT' : 'nombre'}: ${leido}` : `En la factura dice: ${leido}`;
+        : pv.prov && f.prov.value === pv.prov.id ? (pv.por === 'local' ? `Lo eligió el local. En la factura dice: ${leido || 'sin nombre'}` : `Reconocido por ${pv.por === 'cuit' ? 'CUIT' : 'nombre'}: ${leido}`) : `En la factura dice: ${leido}`;
     };
     // Pedidos abiertos del local con este proveedor: por defecto el más reciente; o "fuera de la app".
     function pintarPedido() {
@@ -260,6 +256,7 @@ export async function render(root, ctx) {
         const factura = numero ? { numero, tipo: f.tipo.value || null, fecha: f.fecha.value || null, vencimiento: f.venc.value || null, total, archivo, guardar: f.guardar.checked } : (archivo ? { archivo } : null);
         const r = await recibirConFactura(localId, f.prov.value, items, factura, ordenSel && ordenSel.id);
         items.forEach(x => { if (x.precio_unitario !== null) refrescarPrecio(x.producto_id, x.precio_unitario); });
+        if (subida) { try { await marcarFacturaLocal(subida.id, 'recibida', r.factura_id); } catch (_e) { /* la recepción ya quedó */ } subida = null; }
         toast(`Recepción guardada: ${r.items} productos sumados al stock de ${nombreLocal(localId)}` + (r.estado_orden === 'parcial' ? ' (el pedido quedó parcial)' : ''), 'ok');
         fotos = []; pdf = null;
         location.hash = '#/recibir';
@@ -270,6 +267,7 @@ export async function render(root, ctx) {
     f.total.addEventListener('input', pintarResumen);
     textoProv(); pintarPedido();
     mount(root, cab,
+      avisoSubida(),
       h('section', { class: 'bloque rf-cab' },
         h('p', { class: 'rf-local', text: `Recibe: ${nombreLocal(localId)}` }),
         campo('Proveedor', f.prov), avisoProv,

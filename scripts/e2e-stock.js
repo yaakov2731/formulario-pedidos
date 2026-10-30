@@ -371,6 +371,7 @@ async function montarApi(ctx) {
     }
     if (t === 'orden_item_precios') { const b = body(); db.itemPrecios.push(b); return json([b], 201); }
     if (t === 'precios' && req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(r => { db.preciosNuevos.push(r); db.precios[r.producto_id] = r.precio; }); return json([{ id: 'pr' }], 201); }
+    if (t === 'facturas_locales' && req.method() === 'GET') return json([]);
     return json({ message: 'mock: ruta no prevista ' + req.method() + ' ' + t }, 404);
   });
 }
