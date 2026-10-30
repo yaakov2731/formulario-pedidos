@@ -183,7 +183,8 @@ export async function cargarLocales() {
   return ok(r);
 }
 export const guardarLocal = async (id, datos) => ok(await sb.from('locales').update(datos).eq('id', id).select('id'));
-export const cargarPrecios = async () => ok(await sb.from('precio_actual').select('producto_id,precio'));
+// De a 1000 como el catálogo: sin paginar, PostgREST cortaba en 1000 y con ~8.300 precios la mayoría de los productos figuraban sin precio.
+export const cargarPrecios = () => todo(() => sb.from('precio_actual').select('producto_id,precio').order('producto_id'));
 export const buscarServidor = async (q, localId) => ok(await sb.rpc('buscar_productos', { q, p_local: localId || null }));
 
 export async function misOrdenes(localId) {
