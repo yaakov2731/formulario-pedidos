@@ -566,7 +566,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
     { id: 'it-tre-h', orden_id: 'ord-tre-h', producto_id: 'p-limon', cantidad_pedida: 2, cantidad_recibida: 2 });
 
   // ===== Gerencia · escritorio =====
-  const cGer = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' });
+  const cGer = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light', permissions: ['clipboard-read', 'clipboard-write'] });
   const g = await nuevaPagina(cGer, 'gerencia');
   await g.goto(BASE);
   await g.waitForSelector('.seg');
@@ -795,13 +795,14 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
     await g.locator('.sheet').getByRole('tab', { name: 'Separado por local' }).click();
   }
   const dl = []; g.on('download', d => dl.push(d.suggestedFilename()));
-  ok(/Bajar la imagen y abrir WhatsApp/.test(await g.locator('.sheet [data-accion="wa"]').innerText()), 'escritorio: el botón baja la imagen y abre WhatsApp');
+  ok(/Abrir el chat de Distribuidora Florida con la imagen|Bajar la imagen y abrir WhatsApp/.test(await g.locator('.sheet [data-accion="wa"]').innerText()), 'escritorio: el botón abre el chat del proveedor con la imagen');
   const [popup] = await Promise.all([cGer.waitForEvent('page'), g.locator('.sheet [data-accion="wa"]').click()]);
   const urlWA = popup.url();
   ok(urlWA.startsWith('https://wa.me/5491155550001?text='), `URL de WhatsApp con número solo dígitos: ${urlWA.slice(0, 48)}…`);
   const textoWA = decodeURIComponent(urlWA.split('?text=')[1]);
   ok(/^Hola Hernán!/.test(textoWA) && /Umo Grill/.test(textoWA) && /Va todo en la imagen/.test(textoWA) && !/Cerveza rubia|Gaseosa cola/.test(textoWA), 'el texto es solo un saludo con el local, sin repetir los productos');
-  ok(dl.some(d => /^pedido-distribuidora-florida-.*\.png$/.test(d)), 'en la computadora se descarga la imagen para adjuntarla: ' + dl.join(', '));
+  const enPortapapeles = await g.evaluate(async () => { try { const it = await navigator.clipboard.read(); return it.some(i => i.types.includes('image/png')); } catch (_e) { return false; } });
+  ok(enPortapapeles || dl.some(d => /^pedido-distribuidora-florida-.*\.png$/.test(d)), `en la computadora la imagen queda lista para pegar (${enPortapapeles ? 'portapapeles' : 'descarga: ' + dl.join(', ')})`);
   await popup.close();
   await g.waitForTimeout(500);
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'enviada', 'marca la orden como "enviada"');

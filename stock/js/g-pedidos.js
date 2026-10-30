@@ -458,12 +458,19 @@ export async function render(root, ctx) {
       } else {
         const digitos = String(prov.whatsapp || '').replace(/\D/g, '');
         if (!digitos) lista.push(banner(`${prov.nombre} no tiene WhatsApp cargado.${prov.email ? ' Podés mandarlo por email.' : ' Cargalo en Proveedores.'}`, 'warn'));
+        // En la computadora la imagen va al portapapeles: en el chat del proveedor alcanza con Ctrl+V y Enter. Si no se puede, se descarga.
+        const copiable = !!(file && navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);
         lista.push(h('button', { class: 'btn btn-primary btn-block btn-lg', type: 'button', disabled: !digitos, 'data-accion': 'wa', on: { click: async () => {
-          if (file) bajar(urlImg, nombreArchivo);
+          let copiada = false;
+          if (copiable) { try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': file })]); copiada = true; } catch (_e) { copiada = false; } }
+          if (file && !copiada) bajar(urlImg, nombreArchivo);
           window.open(`https://wa.me/${digitos}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+          toast(copiada ? 'Imagen copiada: en el chat de WhatsApp pegala con Ctrl+V y mandá con Enter.' : file ? 'Se descargó la imagen: adjuntala en el chat de WhatsApp.' : 'Se abrió WhatsApp con el mensaje.', 'info');
           await enviado();
-        } } }, icon('whatsapp', 20), h('span', { text: file ? 'Bajar la imagen y abrir WhatsApp' : 'Abrir WhatsApp con el mensaje' })));
-        if (file) lista.push(banner('En la computadora WhatsApp no recibe la imagen sola: se descarga y la adjuntás en el chat (arrastrala o clip → Fotos).', 'info'));
+        } } }, icon('whatsapp', 20), h('span', { text: !file ? 'Abrir WhatsApp con el mensaje' : copiable ? `Abrir el chat de ${prov.nombre} con la imagen` : 'Bajar la imagen y abrir WhatsApp' })));
+        if (file) lista.push(banner(copiable
+          ? 'Se abre el chat del proveedor con el saludo escrito y la imagen copiada: pegala con Ctrl+V y apretá Enter.'
+          : 'En la computadora WhatsApp no recibe la imagen sola: se descarga y la adjuntás en el chat (arrastrala o clip → Fotos).', 'info'));
       }
       const urlM = urlMail(prov.email, `Pedido de Docks del Puerto · ${fecha.toLocaleDateString('es-AR')}`,
         (file ? texto.replace('Va todo en la imagen.', 'Te adjunto la imagen con el pedido.') : texto).replace(/\*/g, ''));
