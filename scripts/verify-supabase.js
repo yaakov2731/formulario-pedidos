@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql, 0016_facturas_saldo.sql, 0017_vender_tal_cual.sql, 0018_recibir_factura.sql y 0019_gasto_compras.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql, 0016_facturas_saldo.sql, 0017_vender_tal_cual.sql, 0018_recibir_factura.sql, 0019_gasto_compras.sql y 0020 a 0023 (0023 = RLS rápido) (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -96,6 +96,14 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig19 = fs.readFileSync(path.join(root, 'supabase/migrations/0019_gasto_compras.sql'), 'utf8');
   try { await db.exec(mig19); await db.exec(mig19); check('aplica 0019_gasto_compras.sql (idempotente)', true); }
   catch (e) { check('aplica 0019_gasto_compras.sql (idempotente)', false, e.message); return finish(); }
+  for (const f of ['0020_recibir_corregir.sql', '0021_codigo_proveedor.sql', '0022_facturas_locales.sql']) await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', f), 'utf8')); // 0023 indexa sus tablas
+  const mig23 = fs.readFileSync(path.join(root, 'supabase/migrations/0023_rls_rapido.sql'), 'utf8');
+  try {
+    await db.exec(mig23); await db.exec(mig23);
+    const { rows: [pol] } = await db.query(`select count(*) filter (where coalesce(qual,'')||coalesce(with_check,'') ~ '(?<!SELECT )(?<![.\\w])(mi_rol|mi_local|auth\\.uid)\\(\\)')::int sueltas,
+      count(*) filter (where coalesce(qual,'')||coalesce(with_check,'') ~* 'select (mi_rol|mi_local|auth\\.uid)')::int envueltas from pg_policies where schemaname = 'public'`);
+    check(`0023: las políticas calculan mi_rol()/mi_local()/auth.uid() una vez por consulta (${pol.envueltas} envueltas, ${pol.sueltas} sueltas; idempotente)`, pol.sueltas === 0 && pol.envueltas > 0, JSON.stringify(pol));
+  } catch (e) { check('aplica 0023_rls_rapido.sql', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
