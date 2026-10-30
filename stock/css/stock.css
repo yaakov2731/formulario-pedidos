@@ -1195,3 +1195,12 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .pres-op.is-on { border-color: var(--accent-deco); box-shadow: 0 0 0 3px var(--accent-soft); }
 .bulto { color: var(--text-2); font-size: 13px; }
 .tal-cual { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--sep); display: grid; gap: 8px; }
+
+/* Facturas que suben los locales (encargado) y su bandeja en Gerencia → Recibir */
+.sf-item-t { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sf-nota { margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
+.sf-aviso { text-align: center; margin: 4px 0 0; }
+.sf-hist { margin-top: 18px; display: grid; gap: 10px; }
+.fl-grupo { margin-bottom: 18px; }
+.fl-item { display: grid; gap: 4px; }
+.fl-acc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }

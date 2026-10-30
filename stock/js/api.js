@@ -397,6 +397,23 @@ export async function subirComprobante(ruta, archivo) {
   if (error) throw error;
   return ruta;
 }
+// ---- facturas que suben los locales (SQL 0022): el encargado sube el archivo sin montos; gerencia la recibe ----
+const COLS_FL = 'id,local_id,proveedor_id,archivos,nota,subida_por_nombre,estado,factura_id,procesada_en,creado_en';
+export async function subirArchivoLocal(ruta, archivo) {
+  const { error } = await sb.storage.from('comprobantes').upload(ruta, archivo, { upsert: false, contentType: archivo.type || 'application/pdf' });
+  if (error) throw error;
+  return ruta;
+}
+export const crearFacturaLocal = async (f) => (await ok(await sb.from('facturas_locales').insert(f).select(COLS_FL)))[0];
+export const facturasLocales = async ({ estado, limite = 60 } = {}) => {
+  let q = sb.from('facturas_locales').select(COLS_FL).order('creado_en', { ascending: false }).limit(limite);
+  if (estado) q = q.eq('estado', estado);
+  return ok(await q);
+};
+export const facturaLocal = async (id) => (await ok(await sb.from('facturas_locales').select(COLS_FL).eq('id', id).limit(1)))[0] || null;
+export const marcarFacturaLocal = async (id, estado, facturaId) => ok(await sb.from('facturas_locales')
+  .update({ estado, factura_id: facturaId || null, procesada_en: estado === 'pendiente' ? null : new Date().toISOString() }).eq('id', id).select('id'));
+export const borrarFacturaLocal = async (id) => ok(await sb.from('facturas_locales').delete().eq('id', id).select('id'));
 export async function bajarComprobante(ruta) {
   const { data, error } = await sb.storage.from('comprobantes').download(ruta);
   if (error) throw error;

@@ -1,8 +1,9 @@
 // Gerencia · Recibir: órdenes enviadas; cantidad recibida y precio por ítem; genera movimientos de recepción.
 // Se corrige el pedido con lo que trajo el proveedor: «No vino» deja lo pedido como faltante y «Agregar producto» suma
 // algo que no estaba en el pedido (migración 0020).
+// Arriba, las facturas que subieron los locales (migración 0022): se leen con «Recibir con factura» o se descartan.
 import { mount, h, fmtNum, parseNum, porTexto, fechaCorta, ESTADOS, tokens, coincide, esCarta, plural } from './util.js';
-import { swr, ordenesPorEstado, registrarRecepcion, mensajeError } from './api.js';
+import { swr, ordenesPorEstado, registrarRecepcion, facturasLocales, marcarFacturaLocal, urlComprobante, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, refrescarPrecio } from './datos.js';
 import { esqueleto, vacio, toast, icon, hoja } from './ui.js';
 
@@ -10,6 +11,7 @@ const ESPERA = ['enviada', 'parcial'];
 
 export async function render(root, ctx) {
   let ordenes = [];
+  let subidas = [];
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir' }), h('p', { class: 'sub', text: 'Pedidos enviados que esperan mercadería' }),
     h('a', { class: 'btn btn-primary rec-factura', href: '#/recibir-factura' }, icon('recibir', 18), h('span', { text: 'Recibir con factura' })),
     h('p', { class: 'sub rec-factura-h', text: 'Foto o PDF de la factura: sirve también para lo que se pidió fuera de la app.' }));
@@ -125,11 +127,38 @@ export async function render(root, ctx) {
       lista, btnAgregar, resumen, cerrarBox, btn);
   }
 
+  // Facturas que subieron los encargados: ver el archivo, leerla y recibir, o descartarla (repetida, no es factura).
+  function subidasEl() {
+    if (!subidas.length) return null;
+    const tarj = (s) => {
+      const prov = G.provs.get(s.proveedor_id);
+      const archivos = s.archivos || [];
+      const ver = archivos.map((a, i) => h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: /\.pdf$/i.test(a) ? 'Ver PDF' : (archivos.length > 1 ? `Foto ${i + 1}` : 'Ver foto'),
+        on: { click: async () => { try { window.open(await urlComprobante(a), '_blank', 'noopener'); } catch (e) { toast(mensajeError(e), 'error'); } } } }));
+      const descartar = h('button', { class: 'btn btn-text btn-sm', type: 'button', text: 'Descartar', on: { click: async () => {
+        if (!confirm('¿Descartar esta factura? (por ejemplo si está repetida o ya la cargaste)')) return;
+        descartar.disabled = true;
+        try { await marcarFacturaLocal(s.id, 'descartada'); subidas = subidas.filter(x => x.id !== s.id); pintar(); toast('Factura descartada', 'ok'); }
+        catch (e) { descartar.disabled = false; toast(mensajeError(e), 'error'); }
+      } } });
+      return h('article', { class: 'prod fl-item', 'data-subida': s.id },
+        h('h3', { class: 'prod-n', text: `${nombreLocal(s.local_id)} · ${prov ? prov.nombre : 'Proveedor sin indicar'}` }),
+        h('p', { class: 'prod-m' }, h('span', { text: fechaCorta(s.creado_en) }), s.subida_por_nombre ? h('span', { text: 'Subió ' + s.subida_por_nombre }) : null),
+        s.nota ? h('p', { class: 'sf-nota', text: s.nota }) : null,
+        h('div', { class: 'fl-acc' }, h('a', { class: 'btn btn-primary btn-sm', href: '#/recibir-factura/' + s.id }, icon('recibir', 16), h('span', { text: 'Leer y recibir' })), ...ver, descartar));
+    };
+    return h('section', { class: 'grupo-prov fl-grupo' },
+      h('header', { class: 'gp-head' }, h('h2', { class: 'gp-t', text: 'Facturas que subieron los locales' }), h('span', { class: 'estado estado-borrador', text: String(subidas.length) })),
+      h('p', { class: 'orden-m', text: 'Los encargados mandan la foto sin ver precios: leela acá para sumar el stock y cargar los montos.' }),
+      ...subidas.map(tarj));
+  }
+
   function pintar() {
     if (!ctx.alive()) return;
-    mount(root, cab, ...(ordenes.length ? ordenes.map(tarjeta) : [vacio('Nada para recibir', 'Los pedidos enviados por WhatsApp aparecen acá. Si llegó algo pedido por fuera, usá «Recibir con factura».')]));
+    mount(root, cab, subidasEl(), ...(ordenes.length ? ordenes.map(tarjeta) : [vacio('Nada para recibir', 'Los pedidos enviados por WhatsApp aparecen acá. Si llegó algo pedido por fuera, usá «Recibir con factura».')]));
   }
   mount(root, cab, esqueleto(3));
   await cargarG(['prods', 'provs', 'locales', 'precios'], () => {});
+  facturasLocales({ estado: 'pendiente', limite: 50 }).then((d) => { subidas = d; pintar(); }).catch(() => { /* sin SQL 0022 todavía */ });
   await swr('g:ord:env', () => ordenesPorEstado(ESPERA), (d) => { ordenes = d; pintar(); });
 }
