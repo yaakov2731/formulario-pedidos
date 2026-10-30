@@ -224,6 +224,11 @@ export async function crearOrden(o, items) {
 export async function agregarItems(ordenId, items) {
   await ok(await sb.from('orden_items').insert(items.map(i => ({ orden_id: ordenId, producto_id: i.producto_id, cantidad_pedida: i.cantidad }))));
 }
+// Un producto que gerencia suma a un pedido antes de aprobarlo. Devuelve el id del ítem nuevo.
+export async function agregarItem(ordenId, productoId, cantidad) {
+  const [it] = await ok(await sb.from('orden_items').insert({ orden_id: ordenId, producto_id: productoId, cantidad_pedida: cantidad }).select('id'));
+  return it.id;
+}
 export const actualizarOrden = async (id, cambios) => ok(await sb.from('ordenes_compra').update(cambios).eq('id', id).select('id'));
 export const actualizarItem = async (id, cantidad) => ok(await sb.from('orden_items').update({ cantidad_pedida: cantidad }).eq('id', id).select('id'));
 export const marcarExcluidos = async (ids, excluido) => ok(await sb.from('orden_items').update({ excluido }).in('id', ids).select('id'));
