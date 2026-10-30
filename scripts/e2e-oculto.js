@@ -155,6 +155,35 @@ const nombres = async (p) => p.locator('#view .prod .prod-n').allInnerTexts();
   ok((await nombres(e)).some(x => /Abrochadora/.test(x)), 'En mi pedido lo muestra');
   await cE.close();
 
+  // ===== Encargado · iPhone: con una categoría elegida la búsqueda queda dentro de ella =====
+  const verdu = [prod('Tomate redondo', 'Verdulería'), prod('Tomate cherry', 'Verdulería'), prod('Lechuga', 'Verdulería'),
+    ds('PURE', 'Puré de tomate x 520 g', 'Almacén', true), ds('TOMPEL', 'Tomate perita pelado lata', 'Almacén', true)];
+  db.productos.push(...verdu);
+  const { c: cV2, p: vv } = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, U_ENC, { nombre: 'Ruth Coronel' });
+  await vv.goto(BASE + '#/pedir');
+  await vv.waitForSelector('#view .prod');
+  await vv.fill('#buscar', 'tomate');
+  await vv.waitForTimeout(500);
+  n = await nombres(vv);
+  ok(n.length === 4 && n.some(x => /Puré/.test(x)), 'en Todas, "tomate" busca en todo el catálogo · ' + n.join(' | '));
+  ok(/^Tomate/.test(n[0]) && /^Tomate/.test(n[1]) && /^Tomate/.test(n[2]), 'primero lo que empieza con lo buscado · ' + n.join(' | '));
+  await vv.locator('.chips .chip', { hasText: 'Verdulería' }).click();
+  await vv.waitForTimeout(500);
+  n = await nombres(vv);
+  ok(await vv.inputValue('#buscar') === 'tomate', 'al elegir Verdulería se mantiene lo buscado');
+  ok(n.length === 2 && n.every(x => /^Tomate (redondo|cherry)$/.test(x)), 'en Verdulería "tomate" trae solo verdura, sin puré ni lata · ' + n.join(' | '));
+  ok(/en Verdulería/.test(await vv.locator('.busca-n').innerText()) && /Buscar en Verdulería/.test(await vv.getAttribute('#buscar', 'placeholder')), 'avisa que busca dentro de Verdulería');
+  await shot(vv, '05-pedir-verduleria-tomate-m');
+  await vv.fill('#buscar', 'puré');
+  await vv.waitForTimeout(500);
+  ok(await vv.locator('#view .prod').count() === 0 && /No hay "puré" en Verdulería/.test(await vv.locator('#view').innerText()), 'sin resultados en la categoría lo dice');
+  await vv.getByRole('button', { name: 'Buscar en todas las categorías' }).click();
+  await vv.waitForTimeout(500);
+  n = await nombres(vv);
+  ok(n.length === 1 && /Puré/.test(n[0]), 'el botón busca en todas las categorías · ' + n.join(' | '));
+  await cV2.close();
+  for (const p of verdu) db.productos.splice(db.productos.indexOf(p), 1);
+
   // ===== Gerencia · PC: Catálogo y Stock =====
   const { c: cG, p: g } = await nuevo({ viewport: { width: 1366, height: 900 } }, U_GER);
   await g.goto(BASE + '#/catalogo');
