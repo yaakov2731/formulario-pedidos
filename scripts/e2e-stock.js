@@ -445,10 +445,12 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(fija.busca, 'iPhone: el buscador queda fijo arriba al scrollear');
   ok(fija.letra >= 16, `iPhone: campos con letra de 16 px o más (sin zoom al tocar) · mínimo ${fija.letra}`);
   ok(fija.ancho, 'iPhone: sin desplazamiento horizontal');
-  // buscador: fijo arriba, busca en todo el catálogo aunque haya una categoría elegida
+  // buscador: fijo arriba; con una categoría elegida busca dentro de ella (#62) y ofrece buscar en todas
   await e.locator('.chip', { hasText: 'Bebidas' }).click();
   await e.locator('#buscar').fill('chor');
-  ok(await e.locator('.prod').count() === 1 && await e.locator('.prod[data-id="p-chorizo"]').count() === 1, 'buscador filtra al instante y busca fuera de la categoría elegida');
+  ok(await e.locator('.prod').count() === 0, 'con Bebidas elegida, "chor" no trae el chorizo (busca dentro de la categoría)');
+  await e.locator('.chip', { hasText: 'Carnes' }).click();
+  ok(await e.locator('.prod').count() === 1 && await e.locator('.prod[data-id="p-chorizo"]').count() === 1, 'buscador filtra al instante dentro de la categoría elegida');
   ok((await e.locator('.busca-n').innerText()).includes('1 producto'), 'buscador muestra cuántos encontró');
   await e.getByRole('button', { name: 'Más · Pedir Chorizo parrillero', exact: true }).click();
   await shot(e, '03b-pedir-buscar-m');
