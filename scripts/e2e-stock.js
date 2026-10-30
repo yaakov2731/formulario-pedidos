@@ -336,7 +336,7 @@ async function montarApi(ctx) {
       return json(r);
     }
     if (t === 'orden_items') {
-      if (req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(i => db.items.push({ ...i, id: nid('it'), cantidad_recibida: null })); return json((Array.isArray(b) ? b : [b]).map(i => ({ id: 'x' })), 201); }
+      if (req.method() === 'POST') { const b = body(); const nuevos = (Array.isArray(b) ? b : [b]).map(i => ({ ...i, id: nid('it'), cantidad_recibida: null })); db.items.push(...nuevos); return json(nuevos.map(i => ({ id: i.id })), 201); }
       if (req.method() === 'PATCH') { const ids = enLista(q.get('id')) || [eq(q.get('id'))]; ids.forEach(id => Object.assign(db.items.find(x => x.id === id), body())); return json(ids.map(id => ({ id }))); }
       if (req.method() === 'DELETE') { const id = eq(q.get('id')); db.items = db.items.filter(x => x.id !== id); return json([{ id }]); }
     }
@@ -445,10 +445,12 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(fija.busca, 'iPhone: el buscador queda fijo arriba al scrollear');
   ok(fija.letra >= 16, `iPhone: campos con letra de 16 px o más (sin zoom al tocar) · mínimo ${fija.letra}`);
   ok(fija.ancho, 'iPhone: sin desplazamiento horizontal');
-  // buscador: fijo arriba, busca en todo el catálogo aunque haya una categoría elegida
+  // buscador: fijo arriba; con una categoría elegida busca dentro de ella (#62) y ofrece buscar en todas
   await e.locator('.chip', { hasText: 'Bebidas' }).click();
   await e.locator('#buscar').fill('chor');
-  ok(await e.locator('.prod').count() === 1 && await e.locator('.prod[data-id="p-chorizo"]').count() === 1, 'buscador filtra al instante y busca fuera de la categoría elegida');
+  ok(await e.locator('.prod').count() === 0, 'con Bebidas elegida, "chor" no trae el chorizo (busca dentro de la categoría)');
+  await e.locator('.chip', { hasText: 'Carnes' }).click();
+  ok(await e.locator('.prod').count() === 1 && await e.locator('.prod[data-id="p-chorizo"]').count() === 1, 'buscador filtra al instante dentro de la categoría elegida');
   ok((await e.locator('.busca-n').innerText()).includes('1 producto'), 'buscador muestra cuántos encontró');
   await e.getByRole('button', { name: 'Más · Pedir Chorizo parrillero', exact: true }).click();
   await shot(e, '03b-pedir-buscar-m');
@@ -632,6 +634,45 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.getByLabel('Proveedor de Mozzarella en barra').selectOption(PV.barcena);
   await g.waitForTimeout(600);
   ok(ordDemo.proveedor_id === PV.barcena && db.productos.find(p => p.id === 'p-mozza').proveedor_id === PV.barcena, 'volver a Barcena: la orden entera cambia de proveedor y el catálogo también');
+  // agregar un producto que el local no pidió, antes de aprobar
+  const agregarEn = async (scope, buscar, nombre, cant) => {
+    await scope.locator('[data-accion="agregar"]').click();
+    await g.waitForSelector('dialog.sheet .ag-hoja');
+    await g.getByLabel('Buscar producto para agregar').fill(buscar);
+    await g.getByRole('button', { name: 'Agregar ' + nombre }).click();
+    await g.locator('dialog.sheet').getByLabel('Cantidad de ' + nombre).fill(String(cant));
+  };
+  const nItems = db.items.length;
+  await agregarEn(filaUmo.locator('.pt-det'), 'queso', 'Queso cremoso', 2);
+  ok(/Umo Grill · Barcena/.test(await g.locator('.ag-elegido').innerText()), 'agregar: dice a qué local y proveedor va');
+  await g.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  await shot(g, '10f-g-pedidos-agregar-pc');
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await filaUmo.locator('.det-fila', { hasText: 'Queso cremoso' }).waitFor();
+  const itQ = db.items.find(i => i.producto_id === 'p-queso');
+  ok(itQ && itQ.orden_id === ordBar.id && itQ.cantidad_pedida === 2 && db.items.length === nItems + 1, 'agregar: el queso va a la orden de Barcena de Umo con 2');
+  ok(await filaUmo.locator('.det-fila:not(.det-h)').count() === 7, 'agregar: el detalle muestra 7 productos');
+  const choIt = db.items.find(i => i.producto_id === 'p-chorizo'); const choA = choIt.cantidad_pedida;
+  await agregarEn(filaUmo.locator('.pt-det'), 'chorizo', 'Chorizo parrillero', 1);
+  ok(/Ya pidió/.test(await g.locator('dialog.sheet').innerText()), 'agregar algo ya pedido avisa que se suma');
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await g.waitForSelector('dialog.sheet', { state: 'detached' });
+  await g.waitForTimeout(300);
+  ok(choIt.cantidad_pedida === choA + 1 && db.items.length === nItems + 1, `agregar algo ya pedido suma a esa cantidad (${choA} → ${choIt.cantidad_pedida})`);
+  // Trento no tiene pedido a Demo: se crea una orden nueva con la misma encargada y fecha (sigue en el mismo renglón)
+  const filaTre = g.locator('.pt-envio:has([data-envio="ord-tre-1"])');
+  await filaTre.locator('.pt-fila').click();
+  await filaTre.locator('.pt-det').waitFor();
+  await agregarEn(filaTre.locator('.pt-det'), 'servill', 'Servilletas de papel', 4);
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await filaTre.locator('.det-fila', { hasText: 'Servilletas de papel' }).waitFor();
+  const ordTreDemo = db.ordenes.find(o => o.local_id === L2 && o.proveedor_id === PV.demo && o.estado === 'borrador');
+  ok(ordTreDemo && ordTreDemo.cargado_por_nombre === 'Angelica' && ordTreDemo.creado_en === db.ordenes.find(o => o.id === 'ord-tre-1').creado_en
+    && db.items.some(i => i.orden_id === ordTreDemo.id && i.producto_id === 'p-serv-tre' && i.cantidad_pedida === 4), 'agregar sin orden de ese proveedor: orden nueva de Demo para Trento, misma encargada y fecha');
+  ok(await g.locator('.pt-envio').count() === 2, 'sigue siendo un renglón por local');
+  // se deja todo como estaba para lo que sigue
+  db.items = db.items.filter(i => i !== itQ && i.orden_id !== ordTreDemo.id); db.ordenes = db.ordenes.filter(o => o !== ordTreDemo); choIt.cantidad_pedida = choA;
+  await g.reload(); await g.waitForSelector('.ped-tabla');
   // ---- Por proveedor ----
   await g.locator('.seg-ped [data-vista="proveedor"]').click();
   await g.waitForSelector('.grupo-prov');
@@ -649,8 +690,29 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await g.locator('.grupo-prov').count() === 4, 'tras asignar, quedan 4 proveedores (con Demo)');
   const martinG = await g.locator('.grupo-prov[data-prov="Martín De Ridder"]').innerText();
   ok(/Pedido mínimo \$ 100\.000/.test(martinG), 'gerencia ve el mínimo de Martín De Ridder');
-  // destildar un producto: no se manda ni se imprime
+  // agregar desde la tarjeta del proveedor: se elige el local y va a ese proveedor
   const barcena = g.locator('.grupo-prov[data-prov="Barcena"]');
+  await barcena.locator('[data-accion="agregar"]').click();
+  await g.waitForSelector('dialog.sheet .ag-hoja');
+  const opLoc = await g.locator('dialog.sheet select[aria-label="Local"] option').allInnerTexts();
+  ok(opLoc.length === 5 && opLoc[0] === 'Trento Café' && opLoc[1] === 'Umo Grill', 'tarjeta: se elige el local, primero los que ya le piden a Barcena · ' + opLoc.join(', '));
+  await g.locator('dialog.sheet select[aria-label="Local"]').selectOption(L1);
+  ok(await g.getByRole('button', { name: 'Agregar Queso cremoso' }).count() === 1, 'tarjeta: sin buscar muestra los productos de ese proveedor');
+  await g.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  await shot(g, '10g-g-pedidos-agregar-proveedor-pc');
+  await g.getByRole('button', { name: 'Agregar Queso cremoso' }).click();
+  await g.locator('dialog.sheet').getByLabel('Cantidad de Queso cremoso').fill('1,5');
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await barcena.locator('.pp-fila', { hasText: 'Queso cremoso' }).waitFor();
+  const itQ2 = db.items.find(i => i.producto_id === 'p-queso');
+  ok(itQ2 && itQ2.orden_id === ordBar.id && itQ2.cantidad_pedida === 1.5, 'tarjeta: el queso se suma al pedido de Barcena de Umo con 1,5');
+  g.once('dialog', d => d.accept());
+  const inpQ = barcena.getByLabel('Cantidad de Queso cremoso para Umo Grill');
+  await inpQ.fill('0'); await inpQ.evaluate(el => el.blur());
+  await barcena.locator('.pp-fila', { hasText: 'Queso cremoso' }).waitFor({ state: 'detached' });
+  await g.waitForTimeout(600);
+  ok(!db.items.some(i => i.producto_id === 'p-queso'), 'lo agregado se saca poniendo 0');
+  // destildar un producto: no se manda ni se imprime
   await barcena.getByLabel('Pedir Café en grano').uncheck();
   await g.waitForSelector('.grupo-prov[data-prov="Barcena"] .pp-fila.is-fuera');
   await g.waitForTimeout(300);

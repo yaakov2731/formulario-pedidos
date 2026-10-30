@@ -385,6 +385,15 @@ select.input { text-align: center; text-align-last: center; }
 .confirmar .btn { box-shadow: var(--shadow-pill); }
 @media (min-width: 820px) { .confirmar { bottom: 16px; max-width: 420px; margin: 0 auto; } }
 .lista-sheet { max-height: 46dvh; overflow-y: auto; margin-top: 10px; }
+/* Gerencia · Pedidos: agregar un producto que el local no pidió */
+.ag-hoja { display: flex; flex-direction: column; gap: 10px; }
+.ag-hoja .lista-sheet { margin-top: 0; }
+.ag-ya { color: var(--accent-text); font-weight: 700; }
+.ag-elegido { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font-size: 17px; }
+.ag-elegido .mute { font-size: 14px; }
+.ag-fila { display: flex; justify-content: center; align-items: center; gap: 10px; font-weight: 700; color: var(--text-2); }
+.ag-cant { width: 110px; font-size: 20px; text-align: center; }
+[data-accion="agregar"] { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .resultado { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .res-ico { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--ok-soft); color: var(--ok-ink); }
 .res-t { font: 700 24px/1.1 var(--font-display); }

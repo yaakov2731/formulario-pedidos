@@ -4,8 +4,8 @@
 // "Por proveedor": arma el envío de cada proveedor sumando todos los locales; cada producto se puede pasar a otro
 //   proveedor (con proveedor sugerido), se corrige la cantidad de cada local y se aprueba; recién aprobado se manda
 //   por WhatsApp o se imprime.
-import { mount, h, norm, fmtNum, fmtMoney, parseNum, groupBy, porTexto, fechaCorta, lsGet, lsSet, hoyISO, sumarDias, ESTADOS } from './util.js';
-import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, borrarTodosLosPedidos, limpiarCache, mensajeError } from './api.js';
+import { mount, h, norm, fmtNum, fmtMoney, parseNum, groupBy, porTexto, fechaCorta, lsGet, lsSet, hoyISO, sumarDias, ESTADOS, tokens, coincide, esCarta, plural } from './util.js';
+import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, agregarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, borrarTodosLosPedidos, limpiarCache, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, razonLocal } from './datos.js';
 import { esqueleto, vacio, banner, toast, icon, hoja, campo } from './ui.js';
 import { imagenOrden } from './orden-imagen.js';
@@ -141,6 +141,100 @@ export async function render(root, ctx) {
     pintar();
   }
 
+  // ---------- agregar un producto que el local no pidió ----------
+  // Antes de aprobar, gerencia suma algo del catálogo del local. Si el local ya lo pidió, se suma a esa cantidad; si no,
+  // va a la orden del local con ese proveedor (el del producto, o el de la tarjeta en "Por proveedor"). Si no hay orden,
+  // se crea una con la misma fecha y encargado para que siga en el mismo envío.
+  async function agregarProducto(base, localId, p, qty, provId) {
+    await flush();
+    const deLocal = base.filter(o => o.local_id === localId && editable(o));
+    const ya = deLocal.flatMap(o => o.orden_items.map(it => ({ o, it }))).find(x => x.it.producto_id === p.id);
+    if (ya) {
+      const n = Number(ya.it.cantidad_pedida) + qty;
+      await actualizarItem(ya.it.id, n); ya.it.cantidad_pedida = n;
+      if (fuera.has(ya.it.id)) await cambiarFuera([ya.it.id], false);
+      return { sumado: n };
+    }
+    const prov = provId || (p.proveedor_id && G.provs.has(p.proveedor_id) ? p.proveedor_id : null);
+    const mismos = deLocal.filter(o => (o.proveedor_id || null) === prov);
+    let o = mismos.find(x => x.estado === 'borrador') || mismos[0];
+    if (!o) {
+      const ref = deLocal[0] || vivas().find(x => x.local_id === localId);
+      const nueva = { local_id: localId, proveedor_id: prov, estado: ref ? ref.estado : 'borrador', cargado_por_nombre: ref ? ref.cargado_por_nombre || null : null, nota: ref ? ref.nota || null : null };
+      if (ref) nueva.creado_en = ref.creado_en;
+      const id = await crearOrdenSolo(nueva);
+      o = { creado_en: new Date().toISOString(), ...nueva, id, orden_items: [] };
+      ordenes.push(o);
+    }
+    const id = await agregarItem(o.id, p.id, qty);
+    o.orden_items.push({ id, producto_id: p.id, cantidad_pedida: qty, cantidad_recibida: null, excluido: false });
+    return { orden: o };
+  }
+
+  // Hoja: elegir el local (si hay más de uno), buscar el producto en su catálogo y poner cuánto.
+  // locales: ids para elegir; provId: en "Por proveedor", sus productos se muestran primero y el producto va a ese proveedor.
+  function hojaAgregar({ base, locales, provId = null, alListo }) {
+    let localId = locales[0];
+    let t = '';
+    const cuerpo = h('div', { class: 'rf-elegir ag-hoja' });
+    const { cerrar } = hoja('Agregar producto', cuerpo);
+    const yaPedido = (pid) => base.filter(o => o.local_id === localId && editable(o)).flatMap(o => o.orden_items).find(i => i.producto_id === pid);
+
+    function buscar() {
+      const prodsLocal = [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && !p.es_elaborado && !esCarta(p));
+      const opciones = h('div', { class: 'lista lista-sheet' });
+      const pintarOpc = () => {
+        const tk = tokens(t);
+        const cand = t.trim() ? prodsLocal.filter(p => coincide(p.nombre + ' ' + (p.codigo || '') + ' ' + (p.codigo_proveedor || ''), tk))
+          : provId ? prodsLocal.filter(p => p.proveedor_id === provId) : [];
+        const lista = cand.sort((a, b) => porTexto(a.nombre, b.nombre)).slice(0, 40);
+        opciones.replaceChildren(...(lista.length ? lista.map(p => {
+          const ya = yaPedido(p.id);
+          return h('button', { class: 'prod prod-cat', type: 'button', 'aria-label': `Agregar ${p.nombre}`, on: { click: () => cantidad(p) } },
+            h('span', { class: 'prod-n', text: p.nombre }),
+            h('span', { class: 'prod-m' }, h('span', { class: 'num', text: p.codigo || '' }), h('span', { text: p.unidad_compra || p.unidad_uso || '' }), h('span', { text: nombreProv(p.proveedor_id) }),
+              ya ? h('span', { class: 'ag-ya', text: `Ya pidió ${fmtNum(ya.cantidad_pedida, 3)}` }) : null));
+        }) : [vacio(t.trim() ? `No está en el catálogo de ${nombreLocal(localId)}` : 'Buscá el producto', t.trim() ? 'Probá con otra palabra o cargalo en Catálogo.' : 'Escribí el nombre o el código.')]));
+      };
+      const buscador = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar producto', value: t, 'aria-label': 'Buscar producto para agregar', autocomplete: 'off', on: { input: (e) => { t = e.target.value; pintarOpc(); } } });
+      const selLocal = locales.length > 1 ? h('select', { class: 'input', 'aria-label': 'Local', on: { change: (e) => { localId = e.target.value; buscar(); } } },
+        locales.map(id => h('option', { value: id, text: nombreLocal(id), selected: id === localId }))) : null;
+      cuerpo.replaceChildren(
+        h('p', { class: 'sub', text: provId ? `Algo más que necesita el local, para pedirle a ${nombreProv(provId)}.` : `Algo que creés que necesita ${nombreLocal(localId)} y no pidió.` }),
+        ...(selLocal ? [selLocal] : []), buscador, opciones);
+      pintarOpc(); setTimeout(() => buscador.focus(), 50);
+    }
+
+    function cantidad(p) {
+      const ya = yaPedido(p.id);
+      const u = p.unidad_compra || '';
+      const inp = h('input', { class: 'input num ag-cant', type: 'text', inputmode: 'decimal', value: '1', 'aria-label': `Cantidad de ${p.nombre}`, on: { focus: (e) => e.target.select(), keydown: (e) => { if (e.key === 'Enter') listo(); } } });
+      const uTxt = h('span', { class: 'mute', text: u ? plural(u, 1) : '' });
+      inp.addEventListener('input', () => { const n = parseNum(inp.value); uTxt.textContent = u ? plural(u, n || 0) : ''; });
+      const btn = h('button', { class: 'btn btn-primary btn-block', type: 'button', 'data-accion': 'agregar-confirmar', text: ya ? 'Sumar al pedido' : 'Agregar al pedido', on: { click: () => listo() } });
+      async function listo() {
+        const n = parseNum(inp.value);
+        if (n === null || n <= 0) { toast('Poné una cantidad mayor a 0.', 'error'); return inp.focus(); }
+        btn.disabled = true; btn.textContent = 'Guardando…';
+        try {
+          const r = await agregarProducto(base, localId, p, n, provId);
+          cerrar();
+          toast(r.sumado ? `${p.nombre}: ${nombreLocal(localId)} ya lo pedía, ahora ${fmtNum(r.sumado, 3)}` : `${p.nombre} agregado a ${nombreLocal(localId)}`, 'ok');
+          alListo();
+        } catch (x) { toast(mensajeError(x), 'error'); btn.disabled = false; btn.textContent = ya ? 'Sumar al pedido' : 'Agregar al pedido'; }
+      }
+      const destino = provId ? nombreProv(provId) : nombreProv(p.proveedor_id && G.provs.has(p.proveedor_id) ? p.proveedor_id : null);
+      cuerpo.replaceChildren(...[
+        h('div', { class: 'ag-elegido' }, h('b', { text: p.nombre }), h('span', { class: 'mute', text: `${nombreLocal(localId)} · ${destino}` })),
+        ya ? h('p', { class: 'gp-nota gp-info', text: `Ya pidió ${fmtNum(ya.cantidad_pedida, 3)}${u ? ' ' + plural(u, ya.cantidad_pedida) : ''}: lo que pongas se suma.` }) : null,
+        h('label', { class: 'ag-fila' }, h('span', { text: 'Cantidad' }), inp, uTxt),
+        btn,
+        h('button', { class: 'btn btn-text btn-block', type: 'button', text: 'Elegir otro producto', on: { click: buscar } })].filter(Boolean));
+      setTimeout(() => inp.focus(), 50);
+    }
+    buscar();
+  }
+
   const selectorProv = (actual, alElegir, etiqueta) => h('select', { class: 'input input-sm sel-prov' + (actual ? '' : ' is-sin'), 'aria-label': etiqueta, on: { change: (e) => {
     const v = e.target.value; if (!v || v === actual) return; alElegir(v, e.target);
   } } }, actual ? null : h('option', { value: '', text: 'Elegir proveedor…' }),
@@ -214,6 +308,8 @@ export async function render(root, ctx) {
           try { await flush(); await cambiarEstado(conProv, 'aprobada'); toast(`${nombreLocal(e.local_id)}: aprobado`, 'ok'); pintar(); }
           catch (x) { toast(mensajeError(x), 'error'); b.disabled = false; }
         } } }) : null,
+        e.ordenes.some(editable) ? h('button', { class: 'btn btn-ghost', type: 'button', 'data-accion': 'agregar', on: { click: () => hojaAgregar({ base: e.ordenes, locales: [e.local_id], alListo: pintar }) } },
+          icon('mas', 18), h('span', { text: 'Agregar producto' })) : null,
         e.ordenes.some(o => o.estado === 'aprobada') ? h('button', { class: 'btn btn-ghost', type: 'button', text: 'Armar envío por proveedor', on: { click: () => { cambiarVista('proveedor'); } } }) : null,
         e.ordenes.some(editable) ? h('button', { class: 'btn btn-text btn-danger', type: 'button', text: 'Cancelar pedido', on: { click: async (ev) => {
           if (!confirm(`¿Cancelar el pedido de ${nombreLocal(e.local_id)}${e.quien ? ' (' + e.quien + ')' : ''}?`)) return;
@@ -514,6 +610,11 @@ export async function render(root, ctx) {
       try { await flush(); await cambiarEstado(os.filter(o => o.estado === 'borrador'), 'aprobada'); toast(`${nombre}: aprobado`, 'ok'); pintar(); }
       catch (x) { toast(mensajeError(x), 'error'); b.disabled = false; }
     } } }) : null;
+    // Sumar algo que un local no pidió: primero los locales que ya están en esta tarjeta, después el resto.
+    const enTarjeta = [...new Set(os.map(o => o.local_id))].sort((a, b) => porTexto(nombreLocal(a), nombreLocal(b)));
+    const otrosLocales = G.locales.filter(l => l.activo !== false && !enTarjeta.includes(l.id)).map(l => l.id).sort((a, b) => porTexto(nombreLocal(a), nombreLocal(b)));
+    const btnAgregar = !sinProv && os.some(editable) ? h('button', { class: 'btn btn-ghost', type: 'button', 'data-accion': 'agregar', on: { click: () => hojaAgregar({ base: os, locales: [...enTarjeta, ...otrosLocales], provId, alListo: pintar }) } },
+      icon('mas', 18), h('span', { text: 'Agregar producto' })) : null;
     const quedan = incluidos(os);
     const sacados = nFuera(os);
     // Primero se aprueba: mientras quede algún local por aprobar no se manda ni se imprime.
@@ -547,7 +648,7 @@ export async function render(root, ctx) {
       h('div', { class: 'pp-tabla' },
         h('div', { class: 'pp-fila pp-h' + (sinProv ? '' : ' con-chk'), 'aria-hidden': 'true' }, sinProv ? null : h('span', { text: 'Pedir' }), h('span', { text: 'Producto · locales' }), h('span', { class: 'pp-h-tot', text: 'Total' }), h('span', { text: sinProv ? 'Proveedor' : 'Pasar a otro proveedor' })),
         filas),
-      h('div', { class: 'acciones' }, btnSugeridos, btnAprobar, btnPrint, btnWA));
+      h('div', { class: 'acciones' }, btnSugeridos, btnAgregar, btnAprobar, btnPrint, btnWA));
   }
 
   function vistaProveedor() {
