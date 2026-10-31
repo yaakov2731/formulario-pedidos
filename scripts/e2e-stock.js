@@ -98,7 +98,7 @@ const db = {
     { id: 'pg-0', proveedor_id: PV.martin, monto: 50000, fecha: '2026-10-11', numero_operacion: 'OPVIEJA000', concepto: 'Factura', descripcion: 'Carnes', comprobante_path: 'pagos/prv-martin/OPVIEJA000.pdf', avisado_en: '2026-10-11T15:00:00Z', creado_en: '2026-10-11T14:00:00Z' },
     { id: 'pg-2', proveedor_id: PV.florida, monto: 54000, fecha: '2026-10-20', numero_operacion: 'OPVIEJA002', concepto: 'Factura', descripcion: 'Bebidas', comprobante_path: 'pagos/prv-florida/OPVIEJA002.pdf', avisado_en: null, creado_en: '2026-10-20T14:00:00Z' }
   ],
-  subidos: {}, pagosRegistrados: [], facturasCreadas: [], facturasBorradas: [], proveedoresEditados: [], proveedoresCreados: [], sin0011: false, avisos: [], consultasTablero: []
+  subidos: {}, pagosRegistrados: [], facturasCreadas: [], facturasBorradas: [], lecturasIA: [], comprobanteIA: null, proveedoresEditados: [], proveedoresCreados: [], sin0011: false, avisos: [], consultasTablero: []
 };
 let seq = 1;
 const nid = (p) => p + '-' + (seq++);
@@ -141,6 +141,11 @@ async function montarApi(ctx) {
     }
     if (u.pathname === '/auth/v1/user') return json(sesion(sub || U_ENC, 'x@x').user);
     if (u.pathname === '/auth/v1/logout') return route.fulfill({ status: 204, headers: cors });
+    if (u.pathname === '/functions/v1/leer-factura') {
+      const b = JSON.parse(req.postData() || '{}'); db.lecturasIA.push({ modo: b.modo, tipos: (b.archivos || []).map(x => x.tipo), rol });
+      const txt = JSON.stringify(db.comprobanteIA);
+      return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/x-ndjson' }, body: JSON.stringify({ t: txt }) + '\n' + JSON.stringify({ fin: true }) + '\n' });
+    }
     if (u.pathname.startsWith('/storage/v1/')) {
       if (rol !== 'gerencia' && rol !== 'contadora') return json({ statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' }, 403);
       const ruta = decodeURIComponent(u.pathname.replace(/^\/storage\/v1\/object\/(sign\/|authenticated\/)?comprobantes\//, ''));
@@ -1109,6 +1114,19 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForSelector('.banner-error >> text=ya está cargada');
   ok(await g.getByRole('button', { name: 'Guardar pago' }).isDisabled(), 'la misma operación no se puede guardar dos veces: botón deshabilitado y mensaje claro');
   await shot(g, '48-g-pago-duplicado-pc', true);
+
+  // Comprobante en foto o PDF escaneado (Mercado Pago por WhatsApp, sin texto): lo lee la IA y precarga igual
+  db.comprobanteIA = { es_comprobante: true, monto: 152097, fecha: '2026-10-30', numero_operacion: '900000000001', proveedor_razon_social: 'Demo Carnes Srl',
+    cuit_destino: '30-00000003-5', banco_destino: 'Banco Demo', cuenta_destino: '0000000000000000009999', pagador: 'Pagador Demo SA', cuit_pagador: '30-00000002-7',
+    cuenta_origen: '0000003100000000000001', concepto: 'Varios', descripcion: null };
+  const fotoComp = await g.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 300, height: 600 } });
+  await g.locator('#p-archivo').setInputFiles({ name: 'comprobante-whatsapp.png', mimeType: 'image/png', buffer: fotoComp });
+  await g.waitForSelector('.banner-ok >> text=Comprobante leído');
+  const lia = db.lecturasIA[db.lecturasIA.length - 1];
+  ok(lia && lia.modo === 'comprobante' && lia.tipos[0] === 'image/jpeg', 'foto del comprobante: la lee la IA en modo comprobante ' + JSON.stringify(lia));
+  ok(await g.locator('#p-op').inputValue() === '900000000001' && /152\.?097/.test(await g.locator('#p-monto').inputValue()) && await g.locator('#p-fecha').inputValue() === '2026-10-30',
+    'foto del comprobante: precarga operación, monto y fecha');
+  await shot(g, '48b-g-pago-foto-leida-pc', true);
 
   // Proveedores (Catálogo → Proveedores): sin el SQL 0011 la ficha avisa y guarda solo lo de siempre
   db.sin0011 = true;

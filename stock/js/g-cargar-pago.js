@@ -2,12 +2,13 @@
 // (editable), se elige el proveedor (por CUIT o sugerido por razón social), se imputa a facturas pendientes (las más viejas
 // primero) y se guarda todo junto con registrar_pago. Después se avisa al proveedor por WhatsApp (lo envía una persona).
 import { mount, h, fmtMoney, parseNum, porTexto, hoyISO, debounce } from './util.js';
-import { facturasPendientesDe, pagoPorOperacion, registrarPago, subirComprobante, mensajeError } from './api.js';
+import { facturasPendientesDe, pagoPorOperacion, registrarPago, subirComprobante, leerComprobanteIA, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
 import { esqueleto, banner, subnav, navPagos, toast, campo, icon } from './ui.js';
 import { textoDePdf } from './pdf-texto.js';
 import { leerComprobante } from './comprobante.js';
 import { abrirAviso } from './aviso.js';
+import { achicarFoto, aBase64, PDF_MAX } from './fotos.js';
 import { soloDigitos, proveedorPorCuit, sugerirProveedores, imputarAutomatico, validarImputacion, redondear, rutaPago, fechaDMA } from './pagos-util.js';
 
 export async function render(root, ctx) {
@@ -51,8 +52,8 @@ export async function render(root, ctx) {
     h('div', { class: 'dos' }, campo('Cuenta de destino', f.cuenta), campo('Cuenta de origen', f.origen)),
     h('h2', { class: 'bloque-t', text: 'Imputar a facturas' }), zonaImp, err, btnGuardar);
 
-  const input = h('input', { type: 'file', id: 'p-archivo', accept: 'application/pdf,.pdf', on: { change: (e) => { const a = e.target.files && e.target.files[0]; if (a) leerArchivo(a); } } });
-  const drop = h('label', { class: 'drop', for: 'p-archivo' }, icon('pagos', 30), h('span', { class: 'drop-t', text: 'Elegir el PDF del comprobante' }), h('span', { class: 'sub', text: 'Se lee en tu dispositivo: los datos se precargan y los podés corregir.' }), input);
+  const input = h('input', { type: 'file', id: 'p-archivo', accept: 'application/pdf,.pdf,image/*', on: { change: (e) => { const a = e.target.files && e.target.files[0]; if (a) leerArchivo(a); } } });
+  const drop = h('label', { class: 'drop', for: 'p-archivo' }, icon('pagos', 30), h('span', { class: 'drop-t', text: 'Elegir el comprobante (PDF o foto)' }), h('span', { class: 'sub', text: 'Se leen los datos y se precargan: los podés corregir.' }), input);
   const resultado = h('div', { hidden: true, class: 'resultado', id: 'p-resultado' });
 
   // ---------- proveedor ----------
@@ -144,12 +145,30 @@ export async function render(root, ctx) {
     archivo = a; leido = null; duplicado = null; zonaDup.replaceChildren(); err.replaceChildren();
     formulario.hidden = false; resultado.hidden = true;
     zonaLectura.replaceChildren(banner(`Leyendo ${a.name}…`, 'info'));
-    let texto = '';
-    try { texto = await textoDePdf(await a.arrayBuffer()); leido = leerComprobante(texto); }
-    catch (_e) { leido = null; }
+    const esPdf = a.type === 'application/pdf' || /\.pdf$/i.test(a.name);
+    // 1) PDF digital (home banking): se lee el texto en el dispositivo, rápido y sin costo.
+    if (esPdf) {
+      try { leido = leerComprobante(await textoDePdf(await a.arrayBuffer())); }
+      catch (_e) { leido = null; }
+    }
+    // 2) Foto, captura o PDF escaneado (Mercado Pago por WhatsApp): no tiene texto, lo lee la IA.
+    let errIA = null;
+    if (!leido || !leido.monto) {
+      zonaLectura.replaceChildren(banner(`Leyendo ${a.name} con IA (unos segundos)…`, 'info'));
+      try {
+        let archivos;
+        if (esPdf) {
+          if (a.size > PDF_MAX) throw new Error('El PDF es muy pesado (máximo 9 MB).');
+          archivos = [{ data: await aBase64(a), tipo: 'application/pdf' }];
+        } else { const ft = await achicarFoto(a); archivos = [{ data: ft.data, tipo: ft.tipo }]; }
+        const r = await leerComprobanteIA(archivos);
+        if (r && r.es_comprobante === false) errIA = 'El archivo no parece un comprobante de pago.';
+        else if (r) leido = r;
+      } catch (e) { errIA = mensajeError(e); }
+    }
     const datos = leido || {};
     const pocos = !datos.monto || !datos.numero_operacion;
-    zonaLectura.replaceChildren(!leido ? banner('No pude leer el PDF: completá los datos a mano.', 'warn') : pocos ? banner('Leí solo una parte del comprobante: revisá los datos marcados en blanco.', 'warn') : banner('Comprobante leído. Revisá los datos antes de guardar.', 'ok'));
+    zonaLectura.replaceChildren(!leido ? banner(`No pude leer el comprobante${errIA ? ` (${errIA})` : ''}: completá los datos a mano.`, 'warn') : pocos ? banner('Leí solo una parte del comprobante: revisá los datos marcados en blanco.', 'warn') : banner('Comprobante leído. Revisá los datos antes de guardar.', 'ok'));
     f.monto.value = datos.monto ? String(datos.monto).replace('.', ',') : '';
     f.fecha.value = datos.fecha || hoyISO();
     f.op.value = datos.numero_operacion || '';
@@ -178,7 +197,7 @@ export async function render(root, ctx) {
     guardando = true; actualizarBoton(); btnGuardar.textContent = 'Guardando…';
     try {
       let ruta = null;
-      if (archivo) ruta = await subirComprobante(rutaPago(p.id, op), archivo);
+      if (archivo) ruta = await subirComprobante(rutaPago(p.id, op, archivo), archivo);
       const pago = { proveedor_id: p.id, monto, fecha: f.fecha.value, numero_operacion: op || null, cuenta_origen: f.origen.value.trim() || null, banco: null,
         cuit_destino: f.cuit.value.trim() || null, banco_destino: f.banco.value.trim() || null, cuenta_destino: f.cuenta.value.trim() || null,
         concepto: f.concepto.value.trim() || null, descripcion: f.desc.value.trim() || null, comprobante_path: ruta, actualizar_cuit: actualizarCuit };

@@ -65,7 +65,7 @@ export async function render(root, ctx) {
       try {
         const op = c.op.value.trim();
         const arch = c.archivo.files && c.archivo.files[0];
-        const ruta = arch ? await subirComprobante(rutaPago(f.proveedor_id, op || `factura-${f.numero}-${Date.now()}`), arch) : null;
+        const ruta = arch ? await subirComprobante(rutaPago(f.proveedor_id, op || `factura-${f.numero}-${Date.now()}`, arch), arch) : null;
         await registrarPago({ proveedor_id: f.proveedor_id, monto: debe, fecha: c.fecha.value, numero_operacion: op || null, concepto: 'Factura',
           descripcion: `Pago de la factura ${f.numero}`, comprobante_path: ruta }, [{ factura_id: f.id, monto: debe }]);
         cerrar(); toast(`Factura ${f.numero} pagada`, 'ok');

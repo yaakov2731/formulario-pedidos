@@ -95,7 +95,9 @@ export const whatsappPagos = (prov) => (prov && (prov.whatsapp_pagos || prov.wha
 export const emailPagos = (prov) => (prov && (prov.email_pagos || prov.email)) || null;
 
 export const nombreArchivoSeguro = (n) => String(n || 'archivo').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-80) || 'archivo';
-export const rutaPago = (proveedorId, op) => `pagos/${proveedorId}/${nombreArchivoSeguro(op || String(Date.now()))}.pdf`;
+// Extensión del comprobante según el archivo: .pdf salvo que sea una foto (jpg/png/webp).
+const extension = (archivo) => { const t = (archivo && archivo.type) || ''; return /^image\/(png|webp|gif)$/.test(t) ? t.slice(6) : /^image\//.test(t) ? 'jpg' : 'pdf'; };
+export const rutaPago = (proveedorId, op, archivo) => `pagos/${proveedorId}/${nombreArchivoSeguro(op || String(Date.now()))}.${extension(archivo)}`;
 export const rutaFactura = (proveedorId, nombre) => `facturas/${proveedorId}/${Date.now()}-${nombreArchivoSeguro(nombre)}`;
 
 export const fechaDMA = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
