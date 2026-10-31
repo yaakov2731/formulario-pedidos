@@ -137,9 +137,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(db.locales[0].cuit === '30-71234567-8', 'guarda el CUIT con guiones en el servidor');
 
   // ===== Por proveedor: enviar por WhatsApp =====
-  await g.goto(BASE + '#/pedidos');
-  await g.waitForSelector('[data-vista="proveedor"]');
-  await g.locator('[data-vista="proveedor"]').click();
+  await g.goto(BASE + '#/compras');
+  await g.waitForSelector('.grupo-prov');
   const fct = await g.locator('#view .pp-facturar').first().innerText();
   ok(/Facturar a SPMAR S\.A\.: Shopping/.test(fct) && /SUMA ACTIVA S\.A\.: Gelato, Umo Grill/.test(fct), 'la tarjeta del proveedor dice a qué razón social factura cada local · ' + fct);
   const lav = g.locator('#view .pp-fila', { hasText: 'Lavandina' });
@@ -188,9 +187,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await v.goto(BASE + '#/locales');
   await v.waitForSelector('#view [data-local]');
   ok(/Falta pegar el SQL/.test(await v.locator('#view').innerText()) && await v.locator('[data-local="UMO"]').isDisabled(), 'sin 0013 Locales avisa y no deja editar');
-  await v.goto(BASE + '#/pedidos');
-  await v.waitForSelector('[data-vista="proveedor"]');
-  await v.locator('[data-vista="proveedor"]').click();
+  await v.goto(BASE + '#/compras');
+  await v.waitForSelector('.grupo-prov');
   await v.locator('#view button', { hasText: 'Enviar por WhatsApp' }).first().click();
   await v.waitForSelector('.orden-img img');
   ok(!/Facturar/.test(await v.locator('.orden-img img').getAttribute('alt')), 'sin 0013 el pedido sale como antes');

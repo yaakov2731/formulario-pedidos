@@ -5,16 +5,18 @@
 import { mount, h, fmtNum, parseNum, porTexto, fechaCorta, ESTADOS, tokens, coincide, esCarta, plural } from './util.js';
 import { swr, ordenesPorEstado, registrarRecepcion, facturasLocales, marcarFacturaLocal, urlComprobante, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, refrescarPrecio } from './datos.js';
-import { esqueleto, vacio, toast, icon, hoja } from './ui.js';
+import { esqueleto, vacio, toast, icon, hoja, subnav, SUBNAV_COMPRAS } from './ui.js';
 
 const ESPERA = ['enviada', 'parcial'];
 
 export async function render(root, ctx) {
   let ordenes = [];
   let subidas = [];
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir' }), h('p', { class: 'sub', text: 'Pedidos enviados que esperan mercadería' }),
+  // Misma cabecera que Compras (título y pestañas arriba) para que no salte al cambiar entre Enviar, Recibir y Gasto.
+  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir' }), h('p', { class: 'sub', text: 'Pedidos enviados que esperan mercadería' }));
+  const nav = [subnav(SUBNAV_COMPRAS, 'recibir'), h('div', { class: 'vista-head rec-factura-box' },
     h('a', { class: 'btn btn-primary rec-factura', href: '#/recibir-factura' }, icon('recibir', 18), h('span', { text: 'Recibir con factura' })),
-    h('p', { class: 'sub rec-factura-h', text: 'Foto o PDF de la factura: sirve también para lo que se pidió fuera de la app.' }));
+    h('p', { class: 'sub rec-factura-h', text: 'Foto o PDF de la factura: sirve también para lo que se pidió fuera de la app.' }))];
 
   function tarjeta(o) {
     const prov = G.provs.get(o.proveedor_id);
@@ -155,9 +157,9 @@ export async function render(root, ctx) {
 
   function pintar() {
     if (!ctx.alive()) return;
-    mount(root, cab, subidasEl(), ...(ordenes.length ? ordenes.map(tarjeta) : [vacio('Nada para recibir', 'Los pedidos enviados por WhatsApp aparecen acá. Si llegó algo pedido por fuera, usá «Recibir con factura».')]));
+    mount(root, cab, ...nav, subidasEl(), ...(ordenes.length ? ordenes.map(tarjeta) : [vacio('Nada para recibir', 'Los pedidos enviados por WhatsApp aparecen acá. Si llegó algo pedido por fuera, usá «Recibir con factura».')]));
   }
-  mount(root, cab, esqueleto(3));
+  mount(root, cab, ...nav, esqueleto(3));
   await cargarG(['prods', 'provs', 'locales', 'precios'], () => {});
   facturasLocales({ estado: 'pendiente', limite: 50 }).then((d) => { subidas = d; pintar(); }).catch(() => { /* sin SQL 0022 todavía */ });
   await swr('g:ord:env', () => ordenesPorEstado(ESPERA), (d) => { ordenes = d; pintar(); });

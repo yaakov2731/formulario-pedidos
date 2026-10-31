@@ -1,13 +1,13 @@
-// Gerencia · Pedidos, en dos vistas separadas:
-// "De los locales": tabla de lo que mandó cada local (cuándo, local, quién, qué productos, a qué proveedor, estado);
+// Gerencia · Pedidos y Compras, dos pestañas sobre los mismos datos:
+// Pedidos ("De los locales": tabla de lo que mandó cada local (cuándo, local, quién, qué productos, a qué proveedor, estado);
 //   se abre una fila para ver y corregir cantidades y proveedor de cada producto.
-// "Por proveedor": arma el envío de cada proveedor sumando todos los locales; cada producto se puede pasar a otro
+// Compras ("Por proveedor"): arma el envío de cada proveedor sumando todos los locales; cada producto se puede pasar a otro
 //   proveedor (con proveedor sugerido), se corrige la cantidad de cada local y se aprueba; recién aprobado se manda
 //   por WhatsApp o se imprime.
 import { mount, h, norm, fmtNum, fmtMoney, parseNum, groupBy, porTexto, fechaCorta, lsGet, lsSet, hoyISO, sumarDias, ESTADOS, tokens, coincide, esCarta, plural } from './util.js';
 import { swr, guardaExcluidos, marcarExcluidos, ordenesPorEstado, ordenesHistorial, actualizarOrden, actualizarItem, agregarItem, borrarItem, moverItem, crearOrdenSolo, guardarProducto, borrarTodosLosPedidos, limpiarCache, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, razonLocal } from './datos.js';
-import { esqueleto, vacio, banner, toast, icon, hoja, campo } from './ui.js';
+import { esqueleto, vacio, banner, toast, icon, hoja, campo, subnav, SUBNAV_COMPRAS } from './ui.js';
 import { imagenOrden } from './orden-imagen.js';
 import { puedeCompartirArchivos } from './aviso.js';
 import { urlMail } from './pagos-util.js';
@@ -17,9 +17,9 @@ const VIVAS = ['borrador', 'aprobada'];
 const RANGO = ['borrador', 'aprobada', 'enviada', 'parcial', 'recibida'];
 const JUNTOS_MS = 5 * 60 * 1000; // órdenes del mismo local y encargado con menos de 5 min = un mismo envío
 
-export async function render(root, ctx) {
+export async function render(root, ctx, id) {
   let ordenes = [];
-  let vista = lsGet('g:ped:vista', 'locales') === 'proveedor' ? 'proveedor' : 'locales';
+  const vista = id === 'compras' ? 'proveedor' : 'locales';
   let filtro = 'revisar';
   let filtroLocal = '';
   let recordar = lsGet('g:ped:recordar', true) !== false;
@@ -310,7 +310,7 @@ export async function render(root, ctx) {
         } } }) : null,
         e.ordenes.some(editable) ? h('button', { class: 'btn btn-ghost', type: 'button', 'data-accion': 'agregar', on: { click: () => hojaAgregar({ base: e.ordenes, locales: [e.local_id], alListo: pintar }) } },
           icon('mas', 18), h('span', { text: 'Agregar producto' })) : null,
-        e.ordenes.some(o => o.estado === 'aprobada') ? h('button', { class: 'btn btn-ghost', type: 'button', text: 'Armar envío por proveedor', on: { click: () => { cambiarVista('proveedor'); } } }) : null,
+        e.ordenes.some(o => o.estado === 'aprobada') ? h('button', { class: 'btn btn-ghost', type: 'button', text: 'Armar envío por proveedor', on: { click: () => ctx.ir('compras') } }) : null,
         e.ordenes.some(editable) ? h('button', { class: 'btn btn-text btn-danger', type: 'button', text: 'Cancelar pedido', on: { click: async (ev) => {
           if (!confirm(`¿Cancelar el pedido de ${nombreLocal(e.local_id)}${e.quien ? ' (' + e.quien + ')' : ''}?`)) return;
           const b = ev.currentTarget; b.disabled = true;
@@ -708,26 +708,30 @@ export async function render(root, ctx) {
     h('button', { class: 'btn btn-text btn-danger', type: 'button', 'data-accion': 'borrar-todo', on: { click: pedirBorrarTodo } }, 'Borrar todos los pedidos'));
 
   // ---------- pantalla ----------
-  function cambiarVista(v) { vista = v; lsSet('g:ped:vista', v); window.scrollTo(0, 0); pintar(); }
+  const titulo = vista === 'locales' ? 'Pedidos' : 'Compras';
+  const nav = vista === 'locales' ? null : subnav(SUBNAV_COMPRAS, 'compras');
 
   function pintar() {
     if (!ctx.alive()) return;
-    const nRevisar = envios(ordenes).filter(e => e.ordenes.some(o => o.estado === 'borrador')).length;
+    if (vista === 'proveedor') {
+      return mount(root,
+        h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }),
+          h('p', { class: 'sub', text: 'Lo pendiente de todos los locales, sumado por proveedor para aprobar y mandar' })),
+        nav, ...vistaProveedor());
+    }
+    // En Pedidos, un acceso a Compras cuando hay proveedores esperando que se les mande el pedido.
     const nProv = new Set(vivas().map(o => o.proveedor_id || SIN)).size;
-    const seg = h('div', { class: 'seg seg-ped', role: 'tablist', 'aria-label': 'Vista de pedidos' },
-      [['locales', 'De los locales', nRevisar], ['proveedor', 'Por proveedor', nProv]].map(([k, t, n]) => h('button', {
-        class: 'seg-b' + (vista === k ? ' is-on' : ''), type: 'button', role: 'tab', 'aria-selected': vista === k ? 'true' : 'false', 'data-vista': k,
-        on: { click: () => { if (vista !== k) cambiarVista(k); } } }, t, n ? h('span', { class: 'seg-n num', text: String(n) }) : null)));
     mount(root,
-      h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pedidos' }),
-        h('p', { class: 'sub', text: vista === 'locales' ? 'Qué pidió cada local, quién y cuándo' : 'Lo pendiente de todos los locales, sumado por proveedor para mandar' }),
-        h('a', { class: 'btn btn-ghost btn-cargar', href: '#/cargar', 'data-accion': 'cargar' }, icon('mas', 18), h('span', { text: 'Cargar pedido para un local' }))),
-      seg,
-      ...(vista === 'locales' ? vistaLocales() : vistaProveedor()),
+      h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }),
+        h('p', { class: 'sub', text: 'Qué pidió cada local, quién y cuándo' }),
+        h('div', { class: 'ped-accesos' },
+          h('a', { class: 'btn btn-ghost btn-cargar', href: '#/cargar', 'data-accion': 'cargar' }, icon('mas', 18), h('span', { text: 'Cargar pedido para un local' })),
+          nProv ? h('a', { class: 'btn btn-ghost', href: '#/compras', 'data-accion': 'ir-compras' }, icon('pedir', 18), h('span', { text: `Mandar a proveedores · ${nProv}` })) : null)),
+      ...vistaLocales(),
       zonaPruebas());
   }
 
-  mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pedidos' })), esqueleto(3));
+  mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo })), nav, esqueleto(3));
   await cargarG(['prods', 'provs', 'locales', 'precios'], () => {});
   const desde = sumarDias(hoyISO(), -30);
   await swr('g:ord:tabla', async () => {

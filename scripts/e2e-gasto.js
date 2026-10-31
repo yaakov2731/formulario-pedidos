@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Prueba de punta a punta de Pagos · Gasto y la carga de Recibo X (manual, no corre en CI). API de Supabase mockeada con page.route.
-// Gerencia: Pagos → Gasto muestra lo gastado en el período contra el anterior, con factura vs. recibo X, pagado / a pagar,
+// Gerencia: Compras → Gasto muestra lo gastado en el período contra el anterior, con factura vs. recibo X, pagado / a pagar,
 // por razón social, local, proveedor y categoría; "Cargar factura o recibo X" abre Facturas con el formulario y un recibo X
 // sin número se guarda con tipo, local y número armado. Datos de prueba generados acá (no salen de la base).
 // Uso: node scripts/e2e-gasto.js [carpeta-de-capturas]
@@ -135,10 +135,13 @@ const plata = (n) => '$ ' + Math.round(n).toLocaleString('es-AR');
   const { p: m } = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await m.goto(BASE + '#/pagos');
   await m.waitForSelector('.subnav-b');
-  ok((await m.locator('.subnav-b').allInnerTexts()).join('|') === 'Gasto|Cuentas|Facturas|Pagos|Cargar', 'Pagos tiene la pestaña Gasto primero');
+  ok((await m.locator('.subnav-b').allInnerTexts()).join('|') === 'Cuentas|Facturas|Pagos|Cargar', 'en gerencia Pagos ya no repite Gasto');
+  await m.goto(BASE + '#/compras');
+  await m.waitForSelector('.subnav-b');
+  ok((await m.locator('.subnav-b').allInnerTexts()).join('|') === 'Enviar|Recibir|Gasto', 'Gasto está en Compras');
   await m.locator('.subnav-b', { hasText: 'Gasto' }).click();
   await m.waitForSelector('.vg-hero');
-  ok(await m.locator('.tab.is-active', { hasText: 'Pagos' }).count() === 1, 'la pestaña Pagos queda marcada');
+  ok(await m.locator('.tab.is-active', { hasText: 'Compras' }).count() === 1, 'la pestaña Compras queda marcada');
   ok(await m.locator('.vg-hero-v').innerText() === plata(total), `gastado este mes = ${plata(total)} · ${await m.locator('.vg-hero-v').innerText()}`);
   ok(/mismos días del mes pasado/.test(await m.locator('.vg-var').innerText()), 'compara con los mismos días del mes pasado · ' + await m.locator('.vg-var').innerText());
   ok((await m.locator('.gc-mix').innerText()).includes(plata(x)) && (await m.locator('.gc-mix').innerText()).includes(plata(total - x)), 'con factura y recibo X por separado');
@@ -177,7 +180,7 @@ const plata = (n) => '$ ' + Math.round(n).toLocaleString('es-AR');
   const { p: pc } = await nuevo({ viewport: { width: 1366, height: 900 } });
   await pc.goto(BASE + '#/gasto');
   await pc.waitForSelector('.vg-hero');
-  ok(await pc.locator('.side-link.is-active', { hasText: 'Pagos' }).count() === 1, 'PC: Pagos marcado en la barra lateral');
+  ok(await pc.locator('.side-link.is-active', { hasText: 'Compras' }).count() === 1, 'PC: Compras marcado en la barra lateral');
   await shot(pc, '06-gasto-pc', true);
 
   ok(!errores.length, 'sin errores en consola ' + errores.join(' | '));

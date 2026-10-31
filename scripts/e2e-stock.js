@@ -576,7 +576,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('form button[type=submit]').click();
   await g.waitForSelector('.tb-card', { timeout: 8000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 400)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Tablero no cargó'); });
   ok(await g.locator('h1').first().innerText() === 'Tablero', 'gerencia cae en el Tablero (inicio)');
-  ok(await g.locator('.sidebar .side-link').count() === 10, 'gerencia: barra lateral con 9 secciones (Tablero, Pedidos, Notas, Recibir, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
+  ok(await g.locator('.sidebar .side-link').count() === 10, 'gerencia: barra lateral con 9 secciones (Tablero, Pedidos, Compras, Notas, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
   // ---- Tablero ----
   const tbTxt = async () => (await g.locator('.tb-metricas').innerText()).replace(/\s+/g, ' ');
   ok(/VENTAS \$ 2\.850\.000 Anterior \$ 2\.610\.000 · ▲ 9 %/i.test(await tbTxt()), 'Tablero: ventas de la semana contra la anterior con variación (+9 %) ' + await tbTxt());
@@ -595,7 +595,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForFunction(() => /\$ 2\.850\.000/.test(document.querySelector('.tb-metricas').innerText));
   await g.locator('[data-card="por-aprobar"]').click();
   await g.waitForSelector('.ped-tabla', { timeout: 8000 });
-  ok(await g.locator('.seg-ped [data-vista="locales"]').getAttribute('aria-selected') === 'true', 'Pedidos abre en "De los locales" (tabla)');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos' && await g.locator('.grupo-prov').count() === 0, 'Pedidos abre en "De los locales" (tabla), sin lo de proveedores');
+  ok(await g.locator('[data-accion="ir-compras"]').count() === 1, 'Pedidos tiene el acceso a Compras cuando hay algo para mandar');
   ok(await g.locator('.pt-envio').count() === 2, `tabla: un renglón por pedido de cada local (Umo de Ruth y Trento de Angelica), no por proveedor (${await g.locator('.pt-envio').count()})`);
   ok(await g.locator('.pt-h').isVisible(), 'en PC la tabla tiene encabezados');
   const filaUmo = g.locator('.pt-envio', { hasText: 'Umo Grill' });
@@ -673,9 +674,12 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   // se deja todo como estaba para lo que sigue
   db.items = db.items.filter(i => i !== itQ && i.orden_id !== ordTreDemo.id); db.ordenes = db.ordenes.filter(o => o !== ordTreDemo); choIt.cantidad_pedida = choA;
   await g.reload(); await g.waitForSelector('.ped-tabla');
-  // ---- Por proveedor ----
-  await g.locator('.seg-ped [data-vista="proveedor"]').click();
+  // ---- Compras (por proveedor) ----
+  await g.locator('.sidebar a[data-nav="compras"]').click();
   await g.waitForSelector('.grupo-prov');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Enviar', 'Compras: pestaña propia, abre en Enviar (por proveedor)');
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Enviar|Recibir|Gasto', 'Compras: Enviar · Recibir · Gasto');
+  ok(await g.locator('.zona-pruebas').count() === 0 && await g.locator('[data-accion="cargar"]').count() === 0, 'Compras no repite Cargar ni Borrar todo');
   ok(await g.locator('.grupo-prov').count() === 4, `Por proveedor: Barcena, Florida, Martín + Sin proveedor (${await g.locator('.grupo-prov').count()})`);
   const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');
   ok(await sinP.getByRole('button', { name: 'Enviar por WhatsApp' }).count() === 0, 'Sin proveedor: no se puede mandar');
@@ -807,6 +811,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForTimeout(500);
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'enviada', 'marca la orden como "enviada"');
   // Cargar un pedido desde gerencia en nombre de un local
+  await g.locator('.sidebar a[data-nav="pedidos"]').click();
   await g.locator('[data-accion="cargar"]').click();
   await g.waitForSelector('.cargar-local');
   await g.locator('.cargar-local .chip', { hasText: 'Trento Café' }).click();
@@ -821,12 +826,16 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos', 'Cargar queda marcado dentro de Pedidos');
   const nOrd = db.ordenes.length;
   await g.getByRole('button', { name: 'Enviar pedido' }).click();
-  await g.waitForSelector('.seg-ped');
+  await g.waitForSelector('.ped-tabla');
   const nueva = db.ordenes.slice(nOrd);
   ok(nueva.length === 1 && nueva[0].local_id === L2 && nueva[0].proveedor_id === PV.barcena && nueva[0].estado === 'borrador' && nueva[0].cargado_por_nombre === 'Jacobo', 'Cargar: crea la orden del local elegido, en revisión, cargada por Jacobo ' + JSON.stringify(nueva[0]));
   ok(db.items.some(i => i.orden_id === nueva[0].id && i.producto_id === 'p-trento' && i.cantidad_pedida === 2), 'Cargar: con sus productos');
   // Recibir
-  await g.getByRole('link', { name: 'Recibir' }).click();
+  await g.locator('.sidebar a[data-nav="compras"]').click();
+  await g.waitForSelector('.subnav');
+  await g.locator('.subnav-b', { hasText: 'Recibir' }).click();
+  await g.waitForSelector('.rec-factura');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Recibir', 'Recibir queda dentro de Compras');
   await g.waitForSelector('.grupo-prov[data-orden]');
   ok(await g.locator('.grupo-prov').count() === 1, 'Recibir: solo órdenes enviadas');
   const precioPre = await g.getByLabel('Costo unitario de Cerveza rubia lata 473 ml').inputValue();
@@ -1188,7 +1197,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.locator('.pt-envio', { hasText: 'Angelica' }).locator('.pt-fila').click();
   await gm.waitForSelector('.pt-det');
   await shot(gm, '16b-g-pedidos-detalle-m');
-  await gm.locator('.seg-ped [data-vista="proveedor"]').click();
+  await gm.locator('a.tab[data-nav="compras"]').click();
   await gm.waitForSelector('.grupo-prov');
   await shot(gm, '16c-g-pedidos-proveedor-m');
   // imprimir y marcar como enviado: lo destildado sale del pedido; la orden que queda vacía se cancela

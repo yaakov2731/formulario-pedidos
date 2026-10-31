@@ -2,13 +2,13 @@
 import { mount, h, fmtMoney } from './util.js';
 import { swr, pagosLista, urlComprobante, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
-import { esqueleto, vacio, banner, subnav, SUBNAV_PAGOS, toast, icon } from './ui.js';
+import { esqueleto, vacio, banner, subnav, navPagos, toast, icon } from './ui.js';
 import { fechaDMA, estadoAviso } from './pagos-util.js';
 import { abrirAviso } from './aviso.js';
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pagos' }), h('p', { class: 'sub', text: 'Pagos a proveedores y avisos' }));
-  mount(root, cab, subnav(SUBNAV_PAGOS, 'historial'), esqueleto(4));
+  mount(root, cab, subnav(navPagos(ctx), 'historial'), esqueleto(4));
   let pagos = [], filtro = 'todos';
   const lista = h('div', { class: 'lista' });
 
@@ -41,7 +41,7 @@ export async function render(root, ctx) {
   try {
     await cargarG(['provs'], () => {});
     if (!ctx.alive()) return;
-    mount(root, cab, subnav(SUBNAV_PAGOS, 'historial'), h('div', { class: 'toolbar' }, chips), lista);
+    mount(root, cab, subnav(navPagos(ctx), 'historial'), h('div', { class: 'toolbar' }, chips), lista);
     await swr('p:pagos', () => pagosLista(80), (d) => { pagos = d; if (ctx.alive()) pintarLista(); });
-  } catch (e) { mount(root, cab, subnav(SUBNAV_PAGOS, 'historial'), banner(mensajeError(e), 'error')); }
+  } catch (e) { mount(root, cab, subnav(navPagos(ctx), 'historial'), banner(mensajeError(e), 'error')); }
 }

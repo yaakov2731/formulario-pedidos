@@ -4,7 +4,7 @@
 import { mount, h, fmtMoney, parseNum, porTexto, hoyISO, debounce } from './util.js';
 import { facturasPendientesDe, pagoPorOperacion, registrarPago, subirComprobante, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
-import { esqueleto, banner, subnav, SUBNAV_PAGOS, toast, campo, icon } from './ui.js';
+import { esqueleto, banner, subnav, navPagos, toast, campo, icon } from './ui.js';
 import { textoDePdf } from './pdf-texto.js';
 import { leerComprobante } from './comprobante.js';
 import { abrirAviso } from './aviso.js';
@@ -12,8 +12,8 @@ import { soloDigitos, proveedorPorCuit, sugerirProveedores, imputarAutomatico, v
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Cargar pago' }), h('p', { class: 'sub', text: 'Subí el comprobante de la transferencia' }));
-  mount(root, cab, subnav(SUBNAV_PAGOS, 'cargar-pago'), esqueleto(3));
-  try { await cargarG(['provs'], () => {}); } catch (e) { return mount(root, cab, subnav(SUBNAV_PAGOS, 'cargar-pago'), banner(mensajeError(e), 'error')); }
+  mount(root, cab, subnav(navPagos(ctx), 'cargar-pago'), esqueleto(3));
+  try { await cargarG(['provs'], () => {}); } catch (e) { return mount(root, cab, subnav(navPagos(ctx), 'cargar-pago'), banner(mensajeError(e), 'error')); }
   if (!ctx.alive()) return;
 
   let archivo = null, leido = null, facturas = [], imput = {}, manual = false, duplicado = null, actualizarCuit = false, guardando = false, vez = 0;
@@ -207,5 +207,5 @@ export async function render(root, ctx) {
     window.scrollTo(0, 0);
   }
 
-  mount(root, cab, subnav(SUBNAV_PAGOS, 'cargar-pago'), drop, formulario, resultado);
+  mount(root, cab, subnav(navPagos(ctx), 'cargar-pago'), drop, formulario, resultado);
 }
