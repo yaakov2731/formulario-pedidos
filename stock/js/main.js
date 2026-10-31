@@ -156,5 +156,13 @@ async function arrancar() {
 
 window.addEventListener('hashchange', ruta);
 sb.auth.onAuthStateChange((evento) => { if (evento === 'SIGNED_OUT' && ctx) { toast('La sesión terminó. Entrá de nuevo.', 'info'); mostrarEntrar(); } });
+// Saca la pantalla de carga apenas la primera pantalla (entrar o la vista inicial) quedó armada.
+function quitarSplash() {
+  const sp = document.getElementById('splash');
+  if (!sp) return;
+  sp.classList.add('sp-fuera');
+  setTimeout(() => sp.remove(), 400);
+}
+
 registrarSW();
-arrancar();
+arrancar().finally(quitarSplash);
