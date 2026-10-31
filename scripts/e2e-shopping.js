@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Prueba de punta a punta del Shopping sin Elaborados (manual, no corre en CI). API de Supabase mockeada con page.route.
-// Encargado del Shopping (iPhone): sin pestaña Elaborados y #/elaborados vuelve a Pedir. Encargado de Brooklyn la sigue viendo.
+// Encargado del Shopping (iPhone): sin pestaña Elaborados y #/elaborados vuelve a Pedir; Contar a ciegas y guarda el conteo.
+// Encargado de Brooklyn sigue con Elaborados y también tiene Contar.
 // Gerencia (PC): Stock → Elaborados y Cocina → Producción no ofrecen el Shopping; Stock → Métricas del Shopping cuenta lo
 // usado por conteo (había + entró − quedó) y no muestra producción ni platos.
 // Uso: node scripts/e2e-shopping.js [carpeta-de-capturas]
@@ -55,6 +56,7 @@ const db = {
     { producto_id: P.papel.id, tipo: 'ajuste_conteo', cantidad: -20, nota: 'Conteo', creado_en: hace(1, 20) },
     { producto_id: P.serv.id, tipo: 'ajuste_conteo', cantidad: 1, nota: 'Conteo', creado_en: hace(1, 20) }
   ],
+  conteos: [], rpc: [],
   log: []
 };
 function jwt(sub) {
@@ -87,6 +89,14 @@ async function montarApi(ctx) {
     if (t === 'stock_actual') {
       const lid = eq(q.get('local_id')) || (rol === 'encargado' ? mio : null);
       return json([...db.stock].map(([pid, s]) => ({ local_id: Object.values(P).find(p => p.id === pid).local_id, producto_id: pid, stock: s })).filter(r => !lid || r.local_id === lid));
+    }
+    if (t === 'conteos') return json(db.conteos.filter(c => c.local_id === (eq(q.get('local_id')) || mio)).slice(-1));
+    if (t === 'rpc/contar_local') {
+      const b = JSON.parse(req.postData() || '{}'); db.rpc.push(b);
+      if (rol === 'encargado' && b.p_local !== mio) return json({ code: '42501', message: 'Sin permiso para contar en este local' }, 403);
+      const items = b.p_items.map(it => { const sis = db.stock.get(it.producto_id) || 0; db.stock.set(it.producto_id, it.contado); return { ...it, sistema: sis, dif: it.contado - sis }; });
+      db.conteos.push({ id: 'c' + db.conteos.length, local_id: b.p_local, encargado: b.p_encargado, items, creado_en: new Date().toISOString() });
+      return json('c' + (db.conteos.length - 1));
     }
     if (t === 'movimientos') return json(eq(q.get('local_id')) === L1 ? db.movs : []);
     return json([]);
@@ -129,13 +139,34 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.goto(BASE + '#/elaborados');
   await e.waitForFunction(() => location.hash === '#/pedir');
   ok(true, 'entrar a #/elaborados lo devuelve a Pedir');
+
+  // Contar: a ciegas (sin "Quedan"), vacío = no contado, 0 vale.
+  await e.locator('.tab', { hasText: 'Contar' }).click();
+  await e.waitForSelector('.cnt-prod');
+  ok(/Todavía no se contó/.test(await e.locator('.cnt-ult').innerText()), 'avisa que todavía no se contó');
+  ok(!/Quedan/.test(await e.locator('.cnt-lista').innerText()), 'cuenta a ciegas: no muestra lo que dice el sistema');
+  ok(await e.locator('.pill').isHidden(), 'sin nada cargado no ofrece guardar');
+  await shot(e, '03-contar-vacio-m');
+  await e.locator(`[data-id="${P.lav.id}"] .cnt-in`).fill('6');
+  await e.locator(`[data-id="${P.bolsas.id}"] .cnt-in`).fill('0');
+  ok(/2 productos/.test(await e.locator('.pill').innerText()), 'el botón cuenta 2 productos');
+  await shot(e, '04-contar-cargado-m');
+  await e.reload(); await e.waitForSelector('.cnt-prod');
+  ok(await e.locator(`[data-id="${P.lav.id}"] .cnt-in`).inputValue() === '6', 'lo cargado queda guardado en el celular si se cierra');
+  await e.locator('.pill').click();
+  await e.waitForSelector('.toast');
+  const rc = db.rpc[db.rpc.length - 1];
+  ok(rc && rc.p_local === L1 && rc.p_encargado === 'Carlos' && JSON.stringify(rc.p_items) === JSON.stringify([{ producto_id: P.bolsas.id, contado: 0 }, { producto_id: P.lav.id, contado: 6 }]), 'guarda lavandina 6 y bolsas 0 a nombre de Carlos · ' + JSON.stringify(rc && rc.p_items));
+  ok(/Último conteo: .*Carlos · 2 productos/.test(await e.locator('.cnt-ult').innerText()), 'muestra el último conteo');
+  ok(await e.locator(`[data-id="${P.lav.id}"] .cnt-in`).inputValue() === '', 'después de guardar queda vacío para el próximo');
+  await shot(e, '05-contar-guardado-m');
   await cE.close();
 
   // ===== Encargado de Brooklyn: la sigue viendo =====
   const { c: cB, p: b } = await nuevo(M, U_BRK, { nombre: 'Maru' });
   await b.goto(BASE + '#/pedir');
   await b.waitForSelector('.tab');
-  ok(await b.locator('.tab', { hasText: 'Elaborados' }).count() === 1, 'Brooklyn sigue con Elaborados');
+  ok(await b.locator('.tab', { hasText: 'Elaborados' }).count() === 1 && await b.locator('.tab', { hasText: 'Contar' }).count() === 1, 'Brooklyn sigue con Elaborados y también tiene Contar');
   await cB.close();
 
   // ===== Gerencia · PC =====
@@ -153,7 +184,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await g.goto(BASE + '#/stock');
   await g.waitForSelector('[data-bloque="consumo"]');
   const cons = await g.locator('[data-bloque="consumo"]').innerText();
-  ok(/Lavandina/.test(cons) && /Usó 14/.test(cons) && /Quedan 8/.test(cons), 'lo usado sale del conteo: lavandina usó 14, quedan 8 · ' + cons.replace(/\n/g, ' / '));
+  ok(/Lavandina/.test(cons) && /Usó 14/.test(cons) && /Quedan 6/.test(cons), 'lo usado sale del conteo: lavandina usó 14, quedan 6 (lo contado recién) · ' + cons.replace(/\n/g, ' / '));
   ok(!/Servilletas/.test(cons), 'un conteo que sobró no cuenta como uso');
   ok(await g.locator('[data-bloque="produccion"]').count() === 0 && await g.locator('[data-bloque="platos"]').count() === 0, 'sin Producción disponible ni Platos');
   ok(/Último conteo/i.test(await g.locator('[data-metricas]').innerText()), 'en lugar de la última venta muestra el último conteo');

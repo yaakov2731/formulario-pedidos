@@ -7,6 +7,7 @@ const NAV = {
   encargado: [
     { id: 'pedir', label: 'Pedir', icono: 'pedir' },
     { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
+    { id: 'contar', label: 'Contar', icono: 'stock' },
     { id: 'elaborados', label: 'Elaborados', icono: 'cocina' },
     { id: 'subir-factura', label: 'Facturas', icono: 'recibir' },
     { id: 'notas', label: 'Notas', icono: 'nota' }
@@ -28,7 +29,7 @@ const NAV = {
 };
 const RUTAS_PAGOS = { 'gasto': () => import('./g-gasto.js'), 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
+  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'contar': () => import('./contar.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,

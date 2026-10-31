@@ -48,12 +48,12 @@ export async function render(root, ctx) {
     }
     return m;
   }
-  // Consumo de 7 días (ventas, producción y merma) para saber cuánto alcanza. En un local que no elabora ni vende
-  // por receta (Shopping), lo usado es lo que faltó al contar: había + entró − quedó.
+  // Consumo real de 7 días para saber cuánto alcanza: ventas por receta, producción, merma, uso del día y la diferencia
+  // de los conteos (lo que faltó suma, lo que sobró resta). En el Shopping, que no vende por receta, es solo el conteo:
+  // había + entró − quedó.
   function consumo7() {
-    const c = new Map(); const tipos = ['venta', 'produccion_consumo', 'merma', 'uso_dia'];
-    const porConteo = !elabora(codigoLocal(localId));
-    for (const x of movs) if (tipos.includes(x.tipo) || (porConteo && x.tipo === 'ajuste_conteo' && Number(x.cantidad) < 0)) c.set(x.producto_id, (c.get(x.producto_id) || 0) - Number(x.cantidad));
+    const c = new Map(); const tipos = ['venta', 'produccion_consumo', 'merma', 'uso_dia', 'ajuste_conteo'];
+    for (const x of movs) if (tipos.includes(x.tipo)) c.set(x.producto_id, (c.get(x.producto_id) || 0) - Number(x.cantidad));
     return c;
   }
   function estadoDe(p, cons) {

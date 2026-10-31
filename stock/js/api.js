@@ -248,6 +248,9 @@ export async function crearOrdenSolo(o) {
 }
 
 // ---- gerencia ----
+// Conteo del encargado (o gerencia) de todo lo que contó en el local: el stock pasa a ser lo contado (0024_conteos.sql).
+export const contarLocal = async (localId, items, encargado) => ok(await sb.rpc('contar_local', { p_local: localId, p_items: items, p_encargado: encargado || null }));
+export const ultimoConteo = async (localId) => (await ok(await sb.from('conteos').select('id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
 export const contarProducto = async (localId, productoId, cantidad) =>
   ok(await sb.rpc('registrar_conteo', { p_local: localId, p_producto: productoId, p_cantidad_contada: cantidad }));
 
