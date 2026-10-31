@@ -1,10 +1,11 @@
 // Pagos · Facturas: alta de facturas y recibos X de proveedores (tipo, local y categoría; PDF o foto opcional), listado con las vencidas resaltadas
+// marcar una factura como pagada (registra el pago por lo que debe, con comprobante opcional)
 // y, solo gerencia, borrar una factura (los pagos quedan y lo imputado pasa a las otras facturas del proveedor).
 import { mount, h, fmtMoney, parseMonto, porTexto, hoyISO } from './util.js';
-import { swr, facturasLista, gastosCompras, crearFactura, borrarFactura, subirComprobante, urlComprobante, mensajeError } from './api.js';
+import { swr, facturasLista, gastosCompras, crearFactura, borrarFactura, registrarPago, subirComprobante, urlComprobante, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
 import { esqueleto, vacio, banner, subnav, navPagos, toast, hoja, campo, icon } from './ui.js';
-import { fechaDMA, rutaFactura, estaPagada, TIPOS_COMPROBANTE, numeroReciboX } from './pagos-util.js';
+import { fechaDMA, rutaFactura, rutaPago, redondear, estaPagada, TIPOS_COMPROBANTE, numeroReciboX } from './pagos-util.js';
 
 const CATEGORIAS = ['Almacén', 'Verdulería', 'Carnes', 'Lácteos y huevos', 'Panadería', 'Pastelería', 'Bebidas', 'Bebidas con alcohol', 'Café e infusiones', 'Helados',
   'Limpieza', 'Descartables', 'Mantenimiento', 'Servicios'];
@@ -34,12 +35,43 @@ export async function render(root, ctx) {
         h('p', { class: 'prod-m' }, h('span', { class: 'num', text: `N° ${f.numero}` }), h('span', { text: `del ${fechaDMA(f.fecha)}` })),
         h('p', { class: 'prod-m' }, h('span', { class: 'fac-v', text: f.vencimiento ? `Vence ${fechaDMA(f.vencimiento)}` : 'Sin vencimiento' }), h('b', { class: 'num', text: fmtMoney(f.total) })),
         h('div', { class: 'prod-m' }, h('span', { class: 'estado ' + cls, text: txt }), !estaPagada(f) && Number(f.imputado) > 0 ? h('span', { class: 'num', text: `Debe ${fmtMoney(f.pendiente)}` }) : null),
-        f.archivo || ger ? h('div', { class: 'fac-acc' },
+        h('div', { class: 'fac-acc' },
+          !estaPagada(f) ? h('button', { class: 'btn btn-text btn-sm', type: 'button', text: 'Marcar pagada', 'aria-label': `Marcar pagada la factura ${f.numero}`, on: { click: () => marcarPagada(f) } }) : null,
           f.archivo ? h('button', { class: 'btn btn-text btn-sm', type: 'button', text: 'Ver archivo', on: { click: async () => {
             try { window.open(await urlComprobante(f.archivo), '_blank', 'noopener'); } catch (e) { toast(mensajeError(e), 'error'); }
           } } }) : null,
-          ger ? h('button', { class: 'btn btn-text btn-sm btn-danger', type: 'button', text: 'Borrar', 'aria-label': `Borrar factura ${f.numero}`, on: { click: () => pedirBorrar(f) } }) : null) : null);
+          ger ? h('button', { class: 'btn btn-text btn-sm btn-danger', type: 'button', text: 'Borrar', 'aria-label': `Borrar factura ${f.numero}`, on: { click: () => pedirBorrar(f) } }) : null));
     }));
+  }
+
+  // Marcar pagada: registra un pago por lo que debe la factura, imputado a ella. El comprobante es opcional.
+  function marcarPagada(f) {
+    const debe = redondear(f.pendiente);
+    const c = {
+      fecha: h('input', { class: 'input', id: 'mp-fecha', type: 'date', value: hoyISO() }),
+      op: h('input', { class: 'input num', id: 'mp-op', autocomplete: 'off', placeholder: 'Opcional' }),
+      archivo: h('input', { class: 'input', id: 'mp-archivo', type: 'file', accept: 'application/pdf,image/*' })
+    };
+    const err = h('div', { class: 'form-err', 'aria-live': 'polite' });
+    const si = h('button', { class: 'btn btn-primary btn-block', type: 'button', text: `Marcar pagada (${fmtMoney(debe)})` });
+    const { cerrar } = hoja('Marcar pagada', h('div', { class: 'form' },
+      h('p', { text: `Factura N° ${f.numero} de ${nombreProv(f.proveedor_id)}: debe ${fmtMoney(debe)}.` }),
+      campo('Fecha del pago', c.fecha), campo('N° de operación', c.op), campo('Comprobante PDF o foto (opcional)', c.archivo), err,
+      h('div', { class: 'acciones' }, si, h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'Cancelar', on: { click: () => cerrar() } }))));
+    si.addEventListener('click', async () => {
+      err.replaceChildren();
+      if (!c.fecha.value) return (err.textContent = 'Poné la fecha del pago.');
+      si.disabled = true; si.textContent = 'Guardando…';
+      try {
+        const op = c.op.value.trim();
+        const arch = c.archivo.files && c.archivo.files[0];
+        const ruta = arch ? await subirComprobante(rutaPago(f.proveedor_id, op || `factura-${f.numero}-${Date.now()}`, arch), arch) : null;
+        await registrarPago({ proveedor_id: f.proveedor_id, monto: debe, fecha: c.fecha.value, numero_operacion: op || null, concepto: 'Factura',
+          descripcion: `Pago de la factura ${f.numero}`, comprobante_path: ruta }, [{ factura_id: f.id, monto: debe }]);
+        cerrar(); toast(`Factura ${f.numero} pagada`, 'ok');
+        facturas = await listar(); pintarLista();
+      } catch (e) { err.textContent = mensajeError(e); si.disabled = false; si.textContent = `Marcar pagada (${fmtMoney(debe)})`; }
+    });
   }
 
   // Borrar una factura (solo gerencia). Los pagos no se tocan: lo imputado vuelve a quedar a favor del proveedor.

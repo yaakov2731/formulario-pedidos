@@ -264,12 +264,12 @@ export async function registrarRecepcion(orden, lineas, cerrar = false) {
 // ---- recibir con factura (0018_recibir_factura.sql + Edge Function leer-factura) ----
 // archivos: [{ data: base64, tipo }]. La función responde de a pedazos (una línea JSON por pedazo): alPedazo(textoHastaAhora)
 // se llama con todo lo leído, para mostrar los renglones a medida que llegan. Devuelve { factura, modelo, uso, ms }.
-export async function leerFactura(archivos, alPedazo) {
+export async function leerFactura(archivos, alPedazo, modo) {
   const { data: { session } } = await sb.auth.getSession();
   let res;
   try {
     res = await fetch(CFG.SUPABASE_URL + '/functions/v1/leer-factura', {
-      method: 'POST', body: JSON.stringify({ archivos }),
+      method: 'POST', body: JSON.stringify(modo ? { archivos, modo } : { archivos }),
       headers: { 'content-type': 'application/json', apikey: CFG.SUPABASE_KEY, authorization: 'Bearer ' + ((session && session.access_token) || CFG.SUPABASE_KEY) }
     });
   } catch (_e) { throw new Error('Sin conexión. Revisá internet e intentá de nuevo.'); }
@@ -299,6 +299,9 @@ export async function leerFactura(archivos, alPedazo) {
   if (!fin) throw new Error('Se cortó la lectura. Probá de nuevo.');
   return { factura: JSON.parse(texto), modelo: fin.modelo, uso: fin.uso, ms: fin.ms };
 }
+// Comprobante de pago en foto o PDF escaneado (sin texto): lo lee la misma función con modo "comprobante".
+// Devuelve los mismos campos que leerComprobante (comprobante.js) + es_comprobante.
+export const leerComprobanteIA = async (archivos) => (await leerFactura(archivos, null, 'comprobante')).factura;
 export const aliasProveedor = (localId) => todo(() => sb.from('producto_alias').select('id,producto_id,alias').eq('origen', 'proveedor').eq('local_id', localId).order('id'));
 export const recibirConFactura = async (localId, proveedorId, items, factura, ordenId) =>
   ok(await sb.rpc('recibir_con_factura', { p_local: localId, p_proveedor: proveedorId, p_items: items, p_factura: factura, p_orden: ordenId || null }));

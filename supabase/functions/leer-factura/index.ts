@@ -1,10 +1,11 @@
 // Edge Function "leer-factura": recibe la foto (o fotos) o el PDF de una factura de proveedor y devuelve sus datos
 // y renglones en JSON, leídos con Claude. Solo gerencia. El cruce con el catálogo lo hace la app (stock/js/factura-match.js).
+// Con { modo: "comprobante" } lee un comprobante de pago (foto o PDF escaneado) para Pagos → Cargar pago (gerencia y contadora).
 //
 // Secretos (Supabase → Edge Functions → Secrets):
 //   ANTHROPIC_API_KEY   clave de console.anthropic.com (obligatoria)
 //   MODELO_FACTURAS     opcional: claude-sonnet-5-5 (por defecto, rápido), claude-opus-5-5 o claude-haiku-5-5
-// Pedido:  POST { archivos: [{ data: <base64 sin "data:">, tipo: "image/jpeg" | "image/png" | "image/webp" | "application/pdf" }] }
+// Pedido:  POST { archivos: [{ data: <base64 sin "data:">, tipo: "image/jpeg" | "image/png" | "image/webp" | "application/pdf" }], modo?: "comprobante" }
 // Respuesta: líneas JSON (application/x-ndjson) a medida que se lee, para que la app muestre los renglones al llegar:
 //   { t: "<pedazo del JSON de la factura>" } ... y al final { fin: true, modelo, uso: { entrada, salida }, ms }
 //   o { error: "texto para mostrar" }. Los errores previos a leer (permiso, clave, archivo) vuelven como JSON con status.
@@ -63,6 +64,29 @@ const INSTRUCCIONES = `Sos el asistente de compras de un grupo de restaurantes e
 - es_factura = false si la imagen no es un comprobante de compra (un recibo X, remito o presupuesto de compra SÍ lo es).
 - observaciones: algo que convenga revisar (foto cortada, renglón ilegible, total que no coincide con la suma), o null.`;
 
+// Modo "comprobante": comprobante de transferencia o pago (Mercado Pago, home banking, captura de WhatsApp) para Pagos → Cargar pago.
+// Mismos nombres de campo que el lector de PDF de la app (supabase/lib/comprobante.js), así se precarga igual.
+const ESQUEMA_COMPROBANTE = {
+  type: "object",
+  additionalProperties: false,
+  required: ["es_comprobante", "monto", "fecha", "numero_operacion", "proveedor_razon_social", "cuit_destino", "banco_destino", "cuenta_destino",
+    "pagador", "cuit_pagador", "cuenta_origen", "concepto", "descripcion"],
+  properties: {
+    es_comprobante: { type: "boolean" },
+    monto: num, fecha: txt, numero_operacion: txt,
+    proveedor_razon_social: txt, cuit_destino: txt, banco_destino: txt, cuenta_destino: txt,
+    pagador: txt, cuit_pagador: txt, cuenta_origen: txt, concepto: txt, descripcion: txt,
+  },
+};
+
+const INSTRUCCIONES_COMPROBANTE = `Sos el asistente de pagos de un grupo de restaurantes en Argentina. Te paso el comprobante de una transferencia o pago a un proveedor (Mercado Pago, home banking, una captura de WhatsApp, etc.). Extraé los datos tal como figuran:
+- monto: importe transferido como número (sin $ ni separadores de miles; usá punto decimal). fecha: fecha del pago en formato AAAA-MM-DD.
+- numero_operacion: el número o código de la operación o transacción ("N.° de operación", "Identificador de la operación", "Nro. de comprobante"); si hay varios, el número de operación principal.
+- proveedor_razon_social, cuit_destino, banco_destino y cuenta_destino (CBU, CVU o alias): del DESTINATARIO, quien recibe la plata.
+- pagador, cuit_pagador y cuenta_origen: de quien paga (el ORIGEN).
+- concepto y descripcion: el motivo o concepto si figura (ej. "Varios", "Factura"), si no null.
+- No inventes: si un dato no se lee, poné null. es_comprobante = false si la imagen no es un comprobante de pago o transferencia.`;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return responder({ error: "Método no permitido" }, 405);
@@ -70,14 +94,26 @@ Deno.serve(async (req) => {
   // Solo gerencia: se consulta el rol con la sesión de quien llama (las políticas RLS de la base deciden).
   const auth = req.headers.get("Authorization") || "";
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
+  let pedido: { archivos?: { data: string; tipo: string }[]; modo?: string } = {};
+  try { pedido = await req.json(); } catch (_e) { return responder({ error: "Pedido inválido." }, 400); }
+  const comprobante = pedido.modo === "comprobante";
   const { data: rol, error: errRol } = await sb.rpc("mi_rol");
-  if (errRol || rol !== "gerencia") return responder({ error: "Solo gerencia puede leer facturas." }, 403);
+  const permitidos = comprobante ? ["gerencia", "contadora"] : ["gerencia"];
+  if (errRol || !permitidos.includes(rol)) return responder({ error: comprobante ? "Solo gerencia y administración pueden leer comprobantes." : "Solo gerencia puede leer facturas." }, 403);
 
-  const clave = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!clave) return responder({ error: "Falta configurar la clave de Anthropic (ANTHROPIC_API_KEY) en Supabase." }, 503);
+  // Tolera el nombre cargado con espacios o en minúsculas en Supabase → Secrets.
+  const entorno = Deno.env.toObject();
+  const nombre = Object.keys(entorno).find((k) => k.trim().toUpperCase() === "ANTHROPIC_API_KEY");
+  const clave = nombre ? entorno[nombre].trim() : "";
+  if (!clave) {
+    // Solo nombres (nunca valores), para ver si la clave se cargó con otro nombre.
+    const nombres = Object.keys(entorno);
+    console.log(JSON.stringify({ evento: "leer-factura-sin-clave", parecidos: nombres.filter((k) => /anthropic|claude|api.?key/i.test(k) && !/^sk-/i.test(k.trim())),
+      clave_como_nombre: nombres.some((k) => /^sk-ant/i.test(k.trim())), total_secretos: nombres.length }));
+    return responder({ error: "Falta configurar la clave de Anthropic (ANTHROPIC_API_KEY) en Supabase." }, 503);
+  }
 
-  let archivos: { data: string; tipo: string }[] = [];
-  try { archivos = (await req.json()).archivos || []; } catch (_e) { return responder({ error: "Pedido inválido." }, 400); }
+  const archivos = pedido.archivos || [];
   if (!Array.isArray(archivos) || !archivos.length) return responder({ error: "No llegó ningún archivo." }, 400);
   if (archivos.length > MAX_ARCHIVOS) return responder({ error: `Máximo ${MAX_ARCHIVOS} fotos por factura.` }, 400);
 
@@ -88,7 +124,7 @@ Deno.serve(async (req) => {
     else if (TIPOS_IMAGEN.includes(a.tipo)) bloques.push({ type: "image", source: { type: "base64", media_type: a.tipo as "image/jpeg", data } });
     else return responder({ error: "Formato no admitido: subí una foto (JPG/PNG) o un PDF." }, 400);
   }
-  bloques.push({ type: "text", text: INSTRUCCIONES });
+  bloques.push({ type: "text", text: comprobante ? INSTRUCCIONES_COMPROBANTE : INSTRUCCIONES });
 
   const modelo = Deno.env.get("MODELO_FACTURAS") || "claude-sonnet-5-5";
   // Pasar una factura a JSON no necesita razonar: sin "pensar" y con esfuerzo bajo responde mucho antes.
@@ -109,13 +145,13 @@ Deno.serve(async (req) => {
           max_tokens: 16000,
           ...thinking,
           ...(conRespaldo ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {}),
-          output_config: { effort: "low", format: { type: "json_schema", schema: ESQUEMA } },
+          output_config: { effort: "low", format: { type: "json_schema", schema: comprobante ? ESQUEMA_COMPROBANTE : ESQUEMA } },
           messages: [{ role: "user", content: bloques }],
         });
         stream.on("text", (t) => { if (!tPrimero) tPrimero = Date.now(); enviar({ t }); });
         const r = await stream.finalMessage();
         const ms = Date.now() - t0;
-        console.log(JSON.stringify({ evento: "leer-factura", modelo: r.model, ms_primer_texto: tPrimero ? tPrimero - t0 : null, ms_total: ms,
+        console.log(JSON.stringify({ evento: comprobante ? "leer-comprobante" : "leer-factura", modelo: r.model, ms_primer_texto: tPrimero ? tPrimero - t0 : null, ms_total: ms,
           entrada: r.usage.input_tokens, salida: r.usage.output_tokens, archivos: archivos.length, fin: r.stop_reason }));
         if (r.stop_reason === "refusal") enviar({ error: "No se pudo leer este archivo. Probá con otra foto." });
         else if (r.stop_reason === "max_tokens") enviar({ error: "La factura es demasiado larga para leerla de una vez. Subila en partes." });

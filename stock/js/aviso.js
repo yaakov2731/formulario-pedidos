@@ -14,7 +14,8 @@ export function puedeCompartirArchivos(archivo) {
 // pago: fila de `pagos`; prov: proveedor ({nombre, whatsapp, whatsapp_pagos, email, email_pagos}); archivo: File opcional (si ya está en memoria).
 export function abrirAviso(pago, prov, { archivo = null, alAvisar } = {}) {
   const texto = textoAviso(pago, prov);
-  const nombreArchivo = `${pago.numero_operacion || 'comprobante'}.pdf`;
+  const ext = (/\.(jpg|png|webp|gif)$/i.exec(pago.comprobante_path || (archivo && archivo.name) || '') || [null, 'pdf'])[1].toLowerCase();
+  const nombreArchivo = `${pago.numero_operacion || 'comprobante'}.${ext}`;
   let file = archivo;
   const wa = whatsappPagos(prov), mail = emailPagos(prov);
   const estado = h('div', { class: 'form', 'aria-live': 'polite' }, h('p', { class: 'sub', text: 'Preparando el comprobante…' }));
@@ -30,7 +31,7 @@ export function abrirAviso(pago, prov, { archivo = null, alAvisar } = {}) {
 
   async function armar() {
     if (!file && pago.comprobante_path) {
-      try { const blob = await bajarComprobante(pago.comprobante_path); file = new File([blob], nombreArchivo, { type: 'application/pdf' }); }
+      try { const blob = await bajarComprobante(pago.comprobante_path); file = new File([blob], nombreArchivo, { type: blob.type || (ext === 'pdf' ? 'application/pdf' : 'image/' + (ext === 'jpg' ? 'jpeg' : ext)) }); }
       catch (_e) { file = null; }
     }
     let enlace = null;
