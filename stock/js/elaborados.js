@@ -4,7 +4,7 @@
 // "Usé hoy": lo que se saca para el turno al empezar el día (2 kg de papas). Solo descuenta.
 // "Cierre": al terminar el servicio, por elaborado: debería quedar (sistema), sobró y se tiró; muestra la diferencia.
 // Abajo, lo anotado hoy y ayer, con quién lo anotó; lo de hoy se puede borrar si se cargó mal. No muestra plata.
-import { mount, h, norm, fmtNum, parseNum, porTexto, esCarta, lsGet, groupBy } from './util.js';
+import { mount, h, norm, fmtNum, parseNum, porTexto, esCarta, lsGet, groupBy, elabora } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarLocales, cargarRecetas, registrarElaboracion, borrarElaboracion, cerrarServicio, elaboracionesDesde, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, banner, icon, subnav, SUBNAV_STOCK } from './ui.js';
@@ -52,7 +52,7 @@ export async function render(root, ctx) {
   if (ger) {
     await cargarG(['prods', 'locales', 'stock'], () => {}).catch(() => {});
     if (!ctx.alive()) return;
-    chips = chipsLocal(() => { localId = chips.get(); cargarLocal(); });
+    chips = chipsLocal(() => { localId = chips.get(); cargarLocal(); }, l => elabora(l.codigo));
     localId = chips.get();
   }
 

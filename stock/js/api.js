@@ -182,6 +182,13 @@ export async function cargarLocales() {
   if (r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''))) return ok(await sb.from('locales').select('id,codigo,nombre,encargados,activo').order('nombre'));
   return ok(r);
 }
+// Código del local del encargado (SHP, UMO...). Se guarda para arrancar sin conexión.
+export async function codigoMiLocal(localId) {
+  const previo = lsGet('local_codigo');
+  const r = sb.from('locales').select('id,codigo').eq('id', localId).limit(1).then(x => { const c = x.data && x.data[0] && x.data[0].codigo; if (c) lsSet('local_codigo', { id: localId, codigo: c }); return c || ''; }).catch(() => '');
+  if (previo && previo.id === localId) return previo.codigo;
+  return r;
+}
 export const guardarLocal = async (id, datos) => ok(await sb.from('locales').update(datos).eq('id', id).select('id'));
 // De a 1000 como el catálogo: sin paginar, PostgREST cortaba en 1000 y con ~8.300 precios la mayoría de los productos figuraban sin precio.
 export const cargarPrecios = () => todo(() => sb.from('precio_actual').select('producto_id,precio').order('producto_id'));
@@ -241,6 +248,9 @@ export async function crearOrdenSolo(o) {
 }
 
 // ---- gerencia ----
+// Conteo del encargado (o gerencia) de todo lo que contó en el local: el stock pasa a ser lo contado (0024_conteos.sql).
+export const contarLocal = async (localId, items, encargado) => ok(await sb.rpc('contar_local', { p_local: localId, p_items: items, p_encargado: encargado || null }));
+export const ultimoConteo = async (localId) => (await ok(await sb.from('conteos').select('id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
 export const contarProducto = async (localId, productoId, cantidad) =>
   ok(await sb.rpc('registrar_conteo', { p_local: localId, p_producto: productoId, p_cantidad_contada: cantidad }));
 

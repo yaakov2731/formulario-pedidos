@@ -1250,3 +1250,11 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 @keyframes sp-auto { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .splash * { animation-duration: 0.01s !important; animation-delay: 0s !important; } }
 @media print { .splash { display: none; } }
+
+/* Contar (encargado): un campo por producto, vacío = sin contar. */
+.cnt-ult { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 0 10px; color: var(--text-2); font-size: 14px; text-align: center; }
+.cnt-prod .prod-p { gap: 10px; }
+.cnt-in { width: 110px; font-size: 20px; font-weight: 700; }
+.cnt-prod.is-on .cnt-in { border-color: var(--amber, var(--accent)); }
+.cnt-prod.cnt-mal .cnt-in { border-color: var(--danger, #e5484d); }
+.cnt-lista { padding-bottom: 80px; }

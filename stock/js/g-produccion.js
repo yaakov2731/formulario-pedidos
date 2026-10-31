@@ -1,5 +1,5 @@
 // Gerencia · Cocina · Producción: registra la elaboración de un producto (descuenta insumos según su receta y suma lo elaborado).
-import { mount, h, norm, fmtNum, parseNum, porTexto, fechaCorta, esCarta } from './util.js';
+import { mount, h, norm, fmtNum, parseNum, porTexto, fechaCorta, esCarta, elabora } from './util.js';
 import { cargarRecetas, registrarProduccion, produccionesRecientes, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, subnav, SUBNAV_COCINA } from './ui.js';
@@ -11,7 +11,7 @@ export async function render(root, ctx) {
   if (!ctx.alive()) return;
 
   let recetas = new Map(); let historial = [];
-  const chips = chipsLocal(() => cargarLocal());
+  const chips = chipsLocal(() => cargarLocal(), l => elabora(l.codigo));
   const zona = h('div', {});
   const quedan = (p) => G.stock.get(p.local_id + '|' + p.id) || 0;
 
