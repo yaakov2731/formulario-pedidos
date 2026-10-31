@@ -3,7 +3,7 @@
 import { mount, h, fmtMoney, parseMonto, porTexto, hoyISO } from './util.js';
 import { swr, facturasLista, gastosCompras, crearFactura, borrarFactura, subirComprobante, urlComprobante, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
-import { esqueleto, vacio, banner, subnav, SUBNAV_PAGOS, toast, hoja, campo, icon } from './ui.js';
+import { esqueleto, vacio, banner, subnav, navPagos, toast, hoja, campo, icon } from './ui.js';
 import { fechaDMA, rutaFactura, estaPagada, TIPOS_COMPROBANTE, numeroReciboX } from './pagos-util.js';
 
 const CATEGORIAS = ['Almacén', 'Verdulería', 'Carnes', 'Lácteos y huevos', 'Panadería', 'Pastelería', 'Bebidas', 'Bebidas con alcohol', 'Café e infusiones', 'Helados',
@@ -14,7 +14,7 @@ const faltaSql = (e) => /tipo|local_id|categoria|gastos_compras|schema cache/i.t
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Facturas' }), h('p', { class: 'sub', text: 'Facturas de proveedores y su vencimiento' }));
-  mount(root, cab, subnav(SUBNAV_PAGOS, 'facturas'), esqueleto(4));
+  mount(root, cab, subnav(navPagos(ctx), 'facturas'), esqueleto(4));
   let facturas = [], filtro = 'pendientes', error = null;
   const lista = h('div', { class: 'lista' });
 
@@ -125,11 +125,11 @@ export async function render(root, ctx) {
   try {
     await cargarG(['provs', 'locales'], () => {});
     if (!ctx.alive()) return;
-    mount(root, cab, subnav(SUBNAV_PAGOS, 'facturas'),
+    mount(root, cab, subnav(navPagos(ctx), 'facturas'),
       h('div', { class: 'toolbar' }, chips, h('button', { class: 'btn btn-primary', type: 'button', on: { click: nueva } }, icon('mas', 18), h('span', { text: 'Nueva factura' }))), lista);
     await swr('p:fac:todas2', listar, (d) => { facturas = d; if (ctx.alive()) pintarLista(); });
     // Desde Gasto → "Cargar factura o recibo X" se abre directo el formulario.
     let abrir = false; try { abrir = sessionStorage.getItem('stock:fac-nueva') === '1'; sessionStorage.removeItem('stock:fac-nueva'); } catch (_e) { /* nada */ }
     if (abrir && ctx.alive()) nueva();
-  } catch (e) { error = mensajeError(e); mount(root, cab, subnav(SUBNAV_PAGOS, 'facturas'), banner(error, 'error')); }
+  } catch (e) { error = mensajeError(e); mount(root, cab, subnav(navPagos(ctx), 'facturas'), banner(error, 'error')); }
 }

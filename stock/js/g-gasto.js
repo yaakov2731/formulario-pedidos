@@ -4,7 +4,7 @@ import { mount, h, fmtNum, fmtMoney, hoyISO, sumarDias, lsGet, lsSet } from './u
 import { gastosCompras, mensajeError } from './api.js';
 import { periodoAnterior } from './ventas-global.js';
 import { resumenGasto, fechaDMA } from './pagos-util.js';
-import { esqueleto, vacio, banner, subnav, campo, icon, SUBNAV_PAGOS } from './ui.js';
+import { esqueleto, vacio, banner, subnav, campo, icon, SUBNAV_PAGOS, SUBNAV_COMPRAS } from './ui.js';
 
 // Facturas abre directo el formulario de carga.
 const abrirNueva = () => { try { sessionStorage.setItem('stock:fac-nueva', '1'); } catch (_e) { /* nada */ } };
@@ -37,7 +37,7 @@ function anteriorDe(clave, desde, hasta) {
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Gasto en compras' }), h('p', { class: 'sub', text: 'Lo que suman las facturas y recibos X que vas cargando' }));
-  mount(root, cab, subnav(SUBNAV_PAGOS, 'gasto'), esqueleto(3));
+  mount(root, cab, subnav(ctx.rol === 'gerencia' ? SUBNAV_COMPRAS : SUBNAV_PAGOS, 'gasto'), esqueleto(3));
 
   let clave = lsGet('gc:rango', 'mes'); if (clave !== 'manual' && !RANGOS.some(r => r[0] === clave)) clave = 'mes';
   let { desde, hasta } = clave === 'manual' ? fechasDe('mes') : fechasDe(clave);
@@ -164,7 +164,7 @@ export async function render(root, ctx) {
     if (zona.closest('.main')) zona.closest('.main').scrollTop = y;
   }
 
-  mount(root, cab, subnav(SUBNAV_PAGOS, 'gasto'),
+  mount(root, cab, subnav(ctx.rol === 'gerencia' ? SUBNAV_COMPRAS : SUBNAV_PAGOS, 'gasto'),
     h('div', { class: 'toolbar' }, atajos,
       h('a', { class: 'btn btn-primary', href: '#/facturas', on: { click: abrirNueva } }, icon('mas', 18), h('span', { text: 'Cargar factura o recibo X' }))),
     h('div', { class: 'dos gc-fechas' }, campo('Desde', inpDesde), campo('Hasta', inpHasta)), zona);

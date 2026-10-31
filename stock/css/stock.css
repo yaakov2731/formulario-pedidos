@@ -649,6 +649,8 @@ a.tb-card:hover { border-color: var(--text-2); }
   .pp-cant, .pp-h-tot { text-align: right; }
 }
 .btn-cargar { margin-top: 12px; min-height: 44px; }
+.ped-accesos { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.ped-accesos .btn { margin-top: 12px; min-height: 44px; }
 .cargar-local { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 14px; padding: 12px; border-radius: var(--r-card); background: var(--surface); border: 1.5px solid var(--sep); }
 .cargar-k { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
 
