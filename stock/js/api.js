@@ -313,6 +313,19 @@ export async function leerFactura(archivos, alPedazo, modo) {
 // Devuelve los mismos campos que leerComprobante (comprobante.js) + es_comprobante.
 export const leerComprobanteIA = async (archivos) => (await leerFactura(archivos, null, 'comprobante')).factura;
 export const aliasProveedor = (localId) => todo(() => sb.from('producto_alias').select('id,producto_id,alias').eq('origen', 'proveedor').eq('local_id', localId).order('id'));
+// Boletas ya cargadas del mismo proveedor por el mismo monto en los últimos 60 días (en Pagos o recibidas), para no cargarlas dos veces.
+// [{ fecha, local_id, numero, donde: 'pagos' | 'recibir' }]
+export async function boletasIguales(proveedorId, total, dias = 60) {
+  const desde = new Date(Date.now() - dias * 864e5).toISOString();
+  const monto = Math.round(Number(total) * 100) / 100;
+  const [fs, rs] = await Promise.all([
+    ok(await sb.from('facturas_proveedor').select('id,numero,fecha,local_id,creado_en').eq('proveedor_id', proveedorId).eq('total', monto).gte('creado_en', desde).limit(5)),
+    ok(await sb.from('recepciones').select('id,numero_factura,factura_id,local_id,creado_en').eq('proveedor_id', proveedorId).eq('total', monto).gte('creado_en', desde).limit(5))
+  ]);
+  const enPagos = new Set(fs.map(x => x.id));
+  return [...fs.map(x => ({ fecha: x.fecha || x.creado_en, local_id: x.local_id, numero: x.numero, donde: 'pagos' })),
+    ...rs.filter(x => !enPagos.has(x.factura_id)).map(x => ({ fecha: x.creado_en, local_id: x.local_id, numero: x.numero_factura, donde: 'recibir' }))];
+}
 export const recibirConFactura = async (localId, proveedorId, items, factura, ordenId) =>
   ok(await sb.rpc('recibir_con_factura', { p_local: localId, p_proveedor: proveedorId, p_items: items, p_factura: factura, p_orden: ordenId || null }));
 

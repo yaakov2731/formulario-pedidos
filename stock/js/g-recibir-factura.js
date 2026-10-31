@@ -4,7 +4,7 @@
 // si hay un pedido abierto del mismo proveedor y local, lo da por recibido y muestra lo que faltó.
 // #/recibir-factura/<id> abre una factura que subió un local (migración 0022) con sus archivos ya cargados.
 import { mount, h, fmtNum, fmtMoney, parseNum, porTexto, hoyISO, esCarta, tokens, coincide, norm, lsGet, lsSet, plural, fechaCorta } from './util.js';
-import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subirComprobante, facturaLocal, bajarComprobante, marcarFacturaLocal, guardarProducto, mensajeError } from './api.js';
+import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subirComprobante, facturaLocal, bajarComprobante, marcarFacturaLocal, guardarProducto, boletasIguales, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, codigoLocal, refrescarPrecio } from './datos.js';
 import { esqueleto, banner, campo, hoja, toast, icon, vacio } from './ui.js';
 import { proveedorDe, cruzarRenglones, compararConPedido, facturaParcial, unidadDeFactura, nombreDeFactura, proximoCodigo } from './factura-match.js';
@@ -151,7 +151,9 @@ export async function render(root, ctx) {
     const listaEl = h('div', { class: 'lista rf-lista' });
     const resumen = h('div', { class: 'rf-resumen' });
     const err = h('p', { class: 'form-err', role: 'alert' });
+    const dupBox = h('div', { class: 'rf-dup' });
     let ordenSel = null;
+    let otraBoleta = false;   // ya avisó que hay una boleta igual y dijo que es otra
 
     const textoProv = () => {
       const leido = [fac.proveedor, fac.cuit ? 'CUIT ' + fac.cuit : ''].filter(Boolean).join(' · ');
@@ -299,7 +301,7 @@ export async function render(root, ctx) {
       pintarResumen();
     }
     function pintarResumen() {
-      err.textContent = '';
+      err.textContent = ''; dupBox.replaceChildren();
       const act = filas.filter(x => x.incluir);
       const sinProd = act.filter(x => !x.producto).length;
       const suma = act.reduce((s, x) => s + (x.precio || 0) * (x.cantidad || 0), 0);
@@ -328,7 +330,20 @@ export async function render(root, ctx) {
       if (!act.length) return (err.textContent = 'No hay productos para recibir.');
       if (act.some(x => !x.producto)) return (err.textContent = 'Elegí el producto de cada renglón, crealo como producto nuevo o destildá los que no se reciben.');
       const total = parseNum(f.total.value);
-      if (f.guardar.checked && (f.numero.value.trim() || f.tipo.value === 'Recibo X') && (total === null || total < 0)) return (err.textContent = 'Poné el total de la factura para guardarla en Pagos.');
+      if (f.guardar.checked && (total === null || total < 0)) return (err.textContent = 'Poné el total de la boleta para guardarla en Pagos (o destildá «Guardar también la factura en Pagos»).');
+      // Misma boleta dos veces: mismo proveedor y mismo monto en los últimos 60 días (en Pagos o ya recibida, en cualquier local).
+      if (total !== null && total > 0 && !otraBoleta) {
+        let iguales = [];
+        try { iguales = (await boletasIguales(f.prov.value, total)).filter(x => !(x.donde === 'pagos' && f.numero.value.trim() && x.numero === f.numero.value.trim())); } catch (_e) { /* sin chequeo si falla la consulta */ }
+        if (iguales.length) {
+          const x = iguales[0];
+          err.textContent = `Esta boleta ya está cargada: ${(G.provs.get(f.prov.value) || {}).nombre || 'el proveedor'} por ${fmtMoney(total)} el ${fechaDMA(x.fecha)}`
+            + (x.local_id ? ` en ${nombreLocal(x.local_id)}` : '') + (x.numero && !/^(SN|X)-/.test(x.numero) ? ` (N.º ${x.numero})` : '') + '. No se recibe dos veces.';
+          dupBox.replaceChildren(h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'Es otra boleta distinta: recibir igual',
+            on: { click: () => { otraBoleta = true; dupBox.replaceChildren(); btn.click(); } } }));
+          return;
+        }
+      }
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {
         let archivo = null;
@@ -338,9 +353,11 @@ export async function render(root, ctx) {
           archivo = await subirComprobante(rutaFactura(f.prov.value, nombre), new File([blob], nombre, { type: blob.type }));
         } catch (_e) { /* sin archivo igual se recibe */ }
         const items = act.map(x => ({ producto_id: x.producto.id, cantidad: x.cantidad, precio_unitario: x.precio == null ? null : Math.round(x.precio * 100) / 100, alias: x.r.descripcion || x.r.codigo || null }));
-        // Un recibo X sin número igual se guarda en Pagos (con un número armado) para que sume al gasto.
-        const numero = f.numero.value.trim() || (f.tipo.value === 'Recibo X' && f.guardar.checked && total !== null ? numeroReciboX() : '');
-        const factura = numero ? { numero, tipo: f.tipo.value || null, fecha: f.fecha.value || null, vencimiento: f.venc.value || null, total, archivo, guardar: f.guardar.checked } : (archivo ? { archivo } : null);
+        // Una boleta sin número (verdulería, recibo X) igual se guarda en Pagos con un número armado, para que figure y sume al gasto.
+        const armado = () => (f.tipo.value === 'Recibo X' ? numeroReciboX() : numeroReciboX().replace(/^X-/, 'SN-'));
+        const numero = f.numero.value.trim() || (f.guardar.checked && total !== null ? armado() : '');
+        const factura = numero ? { numero, tipo: f.tipo.value || null, fecha: f.fecha.value || null, vencimiento: f.venc.value || null, total, archivo, guardar: f.guardar.checked }
+          : (archivo || total !== null ? { archivo, total } : null);   // sin Pagos igual queda el monto en la recepción, para detectar duplicadas
         const r = await recibirConFactura(localId, f.prov.value, items, factura, ordenSel && ordenSel.id);
         items.forEach(x => { if (x.precio_unitario !== null) refrescarPrecio(x.producto_id, x.precio_unitario); });
         if (subida) { try { await marcarFacturaLocal(subida.id, 'recibida', r.factura_id); } catch (_e) { /* la recepción ya quedó */ } subida = null; }
@@ -350,8 +367,8 @@ export async function render(root, ctx) {
       } catch (e) { err.textContent = mensajeError(e); btn.disabled = false; btn.textContent = 'Confirmar recepción'; }
     });
 
-    f.prov.addEventListener('change', () => { textoProv(); pintarPedido(); pintarResumen(); });
-    f.total.addEventListener('input', pintarResumen);
+    f.prov.addEventListener('change', () => { otraBoleta = false; textoProv(); pintarPedido(); pintarResumen(); });
+    f.total.addEventListener('input', () => { otraBoleta = false; pintarResumen(); });
     textoProv(); pintarPedido();
     mount(root, cab,
       avisoSubida(),
@@ -363,7 +380,7 @@ export async function render(root, ctx) {
         h('div', { class: 'dos' }, campo('Fecha', f.fecha), campo('Vencimiento', f.venc)),
         h('label', { class: 'rf-check' }, f.guardar, h('span', { text: 'Guardar también la factura en Pagos (si ya estaba cargada, se usa esa)' })),
         pedidoBox),
-      h('h2', { class: 'rf-h2', text: 'Productos de la factura' }), listaEl, resumen, err, btn,
+      h('h2', { class: 'rf-h2', text: 'Productos de la factura' }), listaEl, resumen, err, dupBox, btn,
       h('button', { class: 'btn btn-text', type: 'button', text: 'Leer otra factura', on: { click: () => { fotos = []; pdf = null; paso1(); } } }), volver);
     pintarLista();
   }
