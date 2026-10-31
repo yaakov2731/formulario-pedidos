@@ -2,7 +2,7 @@
 // marcar una factura como pagada (registra el pago por lo que debe, con comprobante opcional)
 // y, solo gerencia, borrar una factura (los pagos quedan y lo imputado pasa a las otras facturas del proveedor).
 import { mount, h, fmtMoney, parseMonto, porTexto, hoyISO } from './util.js';
-import { swr, facturasLista, gastosCompras, crearFactura, borrarFactura, registrarPago, subirComprobante, urlComprobante, mensajeError } from './api.js';
+import { swr, facturasLista, gastosCompras, crearFactura, borrarFactura, registrarPago, subirComprobante, urlComprobante, boletasIguales, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
 import { esqueleto, vacio, banner, subnav, navPagos, toast, hoja, campo, icon } from './ui.js';
 import { fechaDMA, rutaFactura, rutaPago, redondear, estaPagada, TIPOS_COMPROBANTE, numeroReciboX } from './pagos-util.js';
@@ -109,6 +109,9 @@ export async function render(root, ctx) {
     };
     const err = h('div', { class: 'form-err', 'aria-live': 'polite' });
     const btn = h('button', { class: 'btn btn-primary btn-block', type: 'button', text: 'Guardar factura' });
+    const dupBox = h('div', { class: 'rf-dup' });
+    let otraBoleta = false;   // ya avisó que hay una igual y dijo que es otra
+    for (const x of [f.prov, f.total]) x.addEventListener('input', () => { otraBoleta = false; dupBox.replaceChildren(); });
     const cats = h('datalist', { id: 'fa-cats' }, [...new Set([...CATEGORIAS, ...facturas.map((x) => x.categoria).filter((c) => c && c !== 'Sin categoría')])].map((c) => h('option', { value: c })));
     const ayudaNum = h('p', { class: 'field-h', text: '' });
     const esX = () => f.tipo.value === 'Recibo X';
@@ -121,7 +124,7 @@ export async function render(root, ctx) {
       campo('Proveedor', f.prov), h('div', { class: 'dos' }, campo('Tipo', f.tipo), campo('Local', f.local)), ayudaNum,
       campo('Número', f.numero),
       h('div', { class: 'dos' }, campo('Fecha', f.fecha), campo('Vencimiento', f.venc)),
-      campo('Total ($)', f.total), campo('Categoría del gasto', f.categoria), cats, campo('PDF o foto (opcional)', f.archivo), err, btn));
+      campo('Total ($)', f.total), campo('Categoría del gasto', f.categoria), cats, campo('PDF o foto (opcional)', f.archivo), err, dupBox, btn));
     btn.addEventListener('click', async () => {
       err.replaceChildren();
       const total = parseMonto(f.total.value);
@@ -130,6 +133,18 @@ export async function render(root, ctx) {
       if (!f.fecha.value) return (err.textContent = 'Poné la fecha de la factura.');
       if (total === null || total < 0) return (err.textContent = 'Poné el total de la factura.');
       if (f.venc.value && f.venc.value < f.fecha.value) return (err.textContent = 'El vencimiento no puede ser anterior a la fecha de la factura.');
+      // Misma boleta dos veces: mismo proveedor y mismo monto en los últimos 60 días.
+      if (total > 0 && !otraBoleta) {
+        let iguales = [];
+        try { iguales = await boletasIguales(f.prov.value, total); } catch (_e) { /* sin chequeo si falla la consulta */ }
+        if (iguales.length) {
+          const x = iguales[0];
+          err.textContent = `Ya hay una boleta de este proveedor por ${fmtMoney(total)} del ${fechaDMA(x.fecha)}` + (x.numero && !/^(SN|X)-/.test(x.numero) ? ` (N.º ${x.numero})` : '') + '. No se carga dos veces.';
+          dupBox.replaceChildren(h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'Es otra boleta distinta: guardar igual',
+            on: { click: () => { otraBoleta = true; dupBox.replaceChildren(); btn.click(); } } }));
+          return;
+        }
+      }
       const textoBtn = btn.textContent;
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {

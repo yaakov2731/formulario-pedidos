@@ -63,7 +63,7 @@ const db = {
   alias: [{ id: 'a1', producto_id: P.leche.id, alias: 'LECHE ENT. LS 1L CJ X12' }],
   ordenes: [{ id: 'ord-1', local_id: L1, proveedor_id: FLO, estado: 'enviada', creado_en: '2026-10-27T12:00:00Z', cargado_por_nombre: 'Ruth', nota: null,
     orden_items: [{ id: 'oi1', producto_id: P.tomate.id, cantidad_pedida: 10, cantidad_recibida: null, excluido: false }, { id: 'oi2', producto_id: P.leche.id, cantidad_pedida: 2, cantidad_recibida: null, excluido: false }, { id: 'oi3', producto_id: P.crema.id, cantidad_pedida: 6, cantidad_recibida: null, excluido: false }] }],
-  rpc: [], subidas: [], lecturas: [], nuevos: []
+  rpc: [], subidas: [], lecturas: [], nuevos: [], iguales: []
 };
 function jwt(sub) {
   const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -105,6 +105,7 @@ async function montarApi(ctx, { falla = null } = {}) {
     if (t === 'precio_actual') return json([{ producto_id: P.tomate.id, precio: 1900 }]);
     if (t === 'stock_actual') return json([]);
     if (t === 'producto_alias') return json(db.alias);
+    if (t === 'recepciones') return json(u.searchParams.get('total') === 'eq.' + (db.iguales[0] || {}).total ? db.iguales : []);
     if (t === 'ordenes_compra') return json(db.ordenes);
     if (t === 'rpc/recibir_con_factura') { const b = body(); db.rpc.push(b); return json({ recepcion_id: 'rec-1', factura_id: 'fac-1', items: b.p_items.length, estado_orden: b.p_orden ? 'parcial' : null }); }
     return json([]);
@@ -245,8 +246,15 @@ async function shot(p, n, full = false) {
   await g.locator('#rf-total').fill('');
   await g.locator('button', { hasText: 'Confirmar recepción' }).click();
   ok(/Poné el total de la boleta/.test(await g.locator('.form-err').innerText()), 'sin total no deja guardarla en Pagos');
+  // Ya se recibió una boleta de Florida por el mismo monto (en otro local): no deja, salvo que diga que es otra.
+  db.iguales = [{ id: 'rec-viejo', numero_factura: null, factura_id: null, local_id: L2, creado_en: '2026-10-30T12:00:00Z', total: 61500 }];
   await g.locator('#rf-total').fill('61500');
+  const antes = db.rpc.length;
   await g.locator('button', { hasText: 'Confirmar recepción' }).click();
+  await g.waitForSelector('.rf-dup button');
+  ok(/ya está cargada: Florida por \$\s?61\.500 el 30\/10\/2026 en Trento Café/.test(await g.locator('.form-err').innerText()) && db.rpc.length === antes, 'boleta duplicada (mismo proveedor y monto): no la recibe · ' + await g.locator('.form-err').innerText());
+  await shot(g, '09-duplicada-pc');
+  await g.locator('.rf-dup button', { hasText: 'Es otra boleta distinta' }).click();
   await g.waitForFunction(() => location.hash === '#/recibir');
   const sn = db.rpc[db.rpc.length - 1].p_factura || {};
   ok(/^SN-\d{8}-\d{6}$/.test(sn.numero || '') && sn.total === 61500 && sn.guardar === true, 'sin número se guarda en Pagos con número armado · ' + JSON.stringify(sn));
