@@ -156,7 +156,7 @@ async function arrancar() {
 
 window.addEventListener('hashchange', ruta);
 sb.auth.onAuthStateChange((evento) => { if (evento === 'SIGNED_OUT' && ctx) { toast('La sesión terminó. Entrá de nuevo.', 'info'); mostrarEntrar(); } });
-// La pantalla de carga se va cuando terminó la intro (~3,3 s, la marca el fin de la animación del subtítulo) y la primera
+// La pantalla de carga se va cuando terminó la intro (~3,2 s, la marca el fin de la animación del subtítulo) y la primera
 // pantalla (entrar o la vista inicial) quedó armada. Mientras tanto la app ya carga los datos por detrás.
 function quitarSplash() {
   const sp = document.getElementById('splash');
