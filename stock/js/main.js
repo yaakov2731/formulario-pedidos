@@ -1,6 +1,6 @@
 // Arranque, sesión, ruteo por hash y estructura (barra lateral en escritorio, tab bar en celular).
-import { h, lsGet, lsSet } from './util.js';
-import { sb, perfilActual, salir, mensajeError } from './api.js';
+import { h, lsGet, lsSet, elabora } from './util.js';
+import { sb, perfilActual, codigoMiLocal, salir, mensajeError } from './api.js';
 import { icon, toast, esqueleto } from './ui.js';
 
 const NAV = {
@@ -72,8 +72,12 @@ function pantallaSimple(titulo, texto, acciones) {
     h('h1', { class: 'titulo', text: titulo }), h('p', { class: 'sub', text: texto }), h('div', { class: 'acciones' }, acciones)));
 }
 
+// El encargado de un local que no elabora (Shopping) no ve Elaborados.
+const navDe = (c) => NAV[c.rol].filter(it => !(it.id === 'elaborados' && c.rol === 'encargado' && !elabora(c.codigoLocal)));
+const vistasDe = (c) => { const v = { ...VISTAS[c.rol] }; if (c.rol === 'encargado' && !elabora(c.codigoLocal)) delete v.elaborados; return v; };
+
 function construirShell(c) {
-  const items = NAV[c.rol];
+  const items = navDe(c);
   $app.classList.remove('no-nav');
   const enlace = (it, clase) => h('a', { class: clase, href: '#/' + it.id, 'data-nav': it.id }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
   const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
@@ -103,8 +107,8 @@ const VERSION_NUEVA = /does not provide an export named|dynamically imported mod
 async function ruta() {
   if (!ctx) return;
   const [, id] = (location.hash || '').split('/');
-  const vistas = VISTAS[ctx.rol];
-  const def = NAV[ctx.rol][0].id;
+  const vistas = vistasDe(ctx);
+  const def = navDe(ctx)[0].id;
   if (!id || !vistas[id]) { location.replace('#/' + def); return; }
   const mi = ++ticket;
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
@@ -149,7 +153,7 @@ async function arrancar() {
   if (perfil.rol === 'encargado' && !perfil.local_id) {
     return pantallaSimple('Sin local', 'Tu usuario no tiene un local asignado. Avisale a gerencia.', h('button', { class: 'btn btn-ghost', type: 'button', text: 'Salir', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }));
   }
-  ctx = { perfil, rol: perfil.rol, nombreGuardado: lsGet('nombre') };
+  ctx = { perfil, rol: perfil.rol, nombreGuardado: lsGet('nombre'), codigoLocal: perfil.rol === 'encargado' ? await codigoMiLocal(perfil.local_id) : '' };
   construirShell(ctx);
   await ruta();
 }

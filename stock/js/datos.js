@@ -30,12 +30,13 @@ export async function cargarG(quiere, alCambiar) {
 }
 // Razón social con la que compra el local (sale en las órdenes a los proveedores).
 export const razonLocal = (id) => { const l = G.locales.find(x => x.id === id); return (l && l.razon_social) || ''; };
+export const codigoLocal = (id) => { const l = G.locales.find(x => x.id === id); return l ? l.codigo : ''; };
 export const nombreLocal = (id) => { const l = G.locales.find(x => x.id === id); return l ? l.nombre : 'Local'; };
 export const refrescarPrecio = (productoId, precio) => G.precios.set(productoId, precio);
 
 // Selector de local de gerencia (recuerda el último elegido). alCambiar(localId) se llama al tocar un local.
-export function chipsLocal(alCambiar) {
-  const locales = G.locales.filter(l => l.activo);
+export function chipsLocal(alCambiar, filtro) {
+  const locales = G.locales.filter(l => l.activo && (!filtro || filtro(l)));
   let localId = lsGet('g:local');
   if (!locales.some(l => l.id === localId)) localId = (locales[0] || {}).id;
   const el = h('div', { class: 'chips', role: 'group', 'aria-label': 'Local' }, locales.map(l => h('button', {
