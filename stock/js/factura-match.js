@@ -30,7 +30,8 @@ export function proveedorDe(factura, provs) {
   return pm >= 0.6 ? { prov: mejor, por: 'nombre' } : { prov: null, por: null };
 }
 
-const codMayorista = (codigo) => { const m = /^[A-Z]{3}-DS-(.+?)(-B)?$/.exec(codigo || ''); return m ? m[1] : ''; };
+// Código del artículo en la lista del proveedor: productos.codigo_proveedor (0021) o LOCAL-DS-<código> del mayorista.
+const codMayorista = (p) => { if (p.codigo_proveedor) return p.codigo_proveedor; const m = /^[A-Z]{3}-DS-(.+?)(-B)?$/.exec(p.codigo || ''); return m ? m[1] : ''; };
 
 // prods: productos del local (sin elaborados ni platos); alias: [{producto_id, alias}] del proveedor en ese local.
 // Devuelve, por renglón, { producto, por: 'alias'|'codigo'|'nombre'|null, sugeridos: [productos] }.
@@ -38,7 +39,7 @@ export function cruzarRenglones(renglones, prods, alias, proveedorId) {
   const porAlias = new Map(alias.map(a => [norm(a.alias), a.producto_id]));
   const porId = new Map(prods.map(p => [p.id, p]));
   const porCod = new Map();
-  for (const p of prods) { const c = codMayorista(p.codigo); if (c) porCod.set(norm(c), p); }
+  for (const p of prods) { const c = codMayorista(p); if (c) porCod.set(norm(c), p); }
   return renglones.map(r => {
     const desc = r.descripcion || '';
     const idA = porAlias.get(norm(desc)) || (r.codigo ? porAlias.get(norm(r.codigo)) : null);

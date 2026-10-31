@@ -51,6 +51,8 @@ export function parseNum(s) {
   return Number.isFinite(v) ? v : null;
 }
 
+// Montos en pesos: "480.000" son 480 mil (punto de miles sin coma decimal); el resto como parseNum.
+export const parseMonto = (s) => (/^\$?\s*\d{1,3}(\.\d{3})+$/.test(String(s == null ? '' : s).trim()) ? Number(String(s).replace(/[^\d]/g, '')) : parseNum(String(s == null ? '' : s).replace(/^\$\s*/, '')));
 export function groupBy(arr, fn) {
   const m = new Map();
   for (const x of arr) { const k = fn(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }
@@ -181,6 +183,10 @@ export function fechaLarga(iso) {
 
 // Los platos de la carta (productos elaborados que se venden, no se compran) no se piden ni se cuentan.
 export const esCarta = (p) => p && p.categoria === 'Carta';
+// Locales que no elaboran nada (el Shopping usa limpieza e insumos tal cual): sin Elaborados ni producción;
+// lo que usan sale del conteo (lo que había + lo que entró − lo que quedó).
+export const LOCALES_SIN_ELABORADOS = ['SHP'];
+export const elabora = (codigo) => !LOCALES_SIN_ELABORADOS.includes(String(codigo || '').toUpperCase());
 
 // ---- notas del equipo ----
 // Etiquetas: minúsculas, sin # ni espacios, sin repetir.

@@ -146,17 +146,20 @@ export async function localesLogin() {
 const COLS_PROD = 'id,codigo,nombre,local_id,categoria,unidad_compra,unidad_uso,factor_conversion,proveedor_id,par,es_elaborado,activo';
 // productos.oculto (migración 0012): no se muestra en Pedir salvo al buscar. Si la columna todavía no existe, se lee sin ella.
 let hayOculto = true;
+// productos.codigo_proveedor (migración 0021): código del artículo en la lista del proveedor. Si falta, se lee sin él.
+let hayCodProv = true;
 const catalogo = (localId) => todo(() => {
-  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '')).order('nombre').order('id');
+  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '') + (hayCodProv ? ',codigo_proveedor' : '')).order('nombre').order('id');
   if (localId) q = q.eq('local_id', localId).eq('activo', true);
   return q;
 });
 export const hayColumnaOculto = () => hayOculto;
 export async function cargarCatalogo(localId) {
   try { return await catalogo(localId); } catch (e) {
+    if (hayCodProv && e && /codigo_proveedor/.test(e.message || '')) { hayCodProv = false; return cargarCatalogo(localId); }
     if (!hayOculto || !(e && (e.code === '42703' || /oculto/.test(e.message || '')))) throw e;
     hayOculto = false;
-    return catalogo(localId);
+    return cargarCatalogo(localId);
   }
 }
 export const cargarStock = (localId) => todo(() => {
@@ -179,8 +182,16 @@ export async function cargarLocales() {
   if (r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''))) return ok(await sb.from('locales').select('id,codigo,nombre,encargados,activo').order('nombre'));
   return ok(r);
 }
+// Código del local del encargado (SHP, UMO...). Se guarda para arrancar sin conexión.
+export async function codigoMiLocal(localId) {
+  const previo = lsGet('local_codigo');
+  const r = sb.from('locales').select('id,codigo').eq('id', localId).limit(1).then(x => { const c = x.data && x.data[0] && x.data[0].codigo; if (c) lsSet('local_codigo', { id: localId, codigo: c }); return c || ''; }).catch(() => '');
+  if (previo && previo.id === localId) return previo.codigo;
+  return r;
+}
 export const guardarLocal = async (id, datos) => ok(await sb.from('locales').update(datos).eq('id', id).select('id'));
-export const cargarPrecios = async () => ok(await sb.from('precio_actual').select('producto_id,precio'));
+// De a 1000 como el catálogo: sin paginar, PostgREST cortaba en 1000 y con ~8.300 precios la mayoría de los productos figuraban sin precio.
+export const cargarPrecios = () => todo(() => sb.from('precio_actual').select('producto_id,precio').order('producto_id'));
 export const buscarServidor = async (q, localId) => ok(await sb.rpc('buscar_productos', { q, p_local: localId || null }));
 
 export async function misOrdenes(localId) {
@@ -188,18 +199,19 @@ export async function misOrdenes(localId) {
     .select('id,estado,creado_en,cargado_por_nombre,nota,proveedor_id,orden_items(producto_id,cantidad_pedida)')
     .eq('local_id', localId).order('creado_en', { ascending: false }).limit(60));
 }
-// orden_items.excluido (migración 0009): producto destildado por gerencia. Si la columna todavía no existe, se lee sin ella.
-const COLS_ORD = 'id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida,excluido)';
+// orden_items.excluido (migración 0009): producto destildado por gerencia. agregado / no_vino (migración 0020): lo que llegó
+// sin estar pedido y lo que no vino al recibir. Si esas columnas todavía no existen, se lee sin ellas.
+const COLS_ORD = 'id,local_id,proveedor_id,estado,creado_en,cargado_por_nombre,nota,orden_items(id,producto_id,cantidad_pedida,cantidad_recibida,excluido,agregado,no_vino)';
+const PRUEBAS_ORD = [COLS_ORD, COLS_ORD.replace(',agregado,no_vino', ''), COLS_ORD.replace(',excluido,agregado,no_vino', '')];
+let desdeOrd = 0;
 let hayExcluido = true;
-const faltaColumna = (e) => e && (e.code === '42703' || /excluido/.test(e.message || ''));
+const faltaColumna = (e) => e && (e.code === '42703' || /excluido|agregado|no_vino/.test(e.message || ''));
 async function selOrdenes(armar) {
-  if (hayExcluido) {
-    const r = await armar(COLS_ORD);
-    if (!r.error) return r.data;
-    if (!faltaColumna(r.error)) throw r.error;
-    hayExcluido = false;
+  for (let i = desdeOrd; i < PRUEBAS_ORD.length; i++) {
+    const r = await armar(PRUEBAS_ORD[i]);
+    if (!r.error) { desdeOrd = i; hayExcluido = PRUEBAS_ORD[i].includes('excluido'); return r.data; }
+    if (!faltaColumna(r.error) || i === PRUEBAS_ORD.length - 1) throw r.error;
   }
-  return ok(await armar(COLS_ORD.replace(',excluido', '')));
 }
 export const guardaExcluidos = () => hayExcluido;
 export async function ordenesPorEstado(estados) {
@@ -220,6 +232,11 @@ export async function crearOrden(o, items) {
 export async function agregarItems(ordenId, items) {
   await ok(await sb.from('orden_items').insert(items.map(i => ({ orden_id: ordenId, producto_id: i.producto_id, cantidad_pedida: i.cantidad }))));
 }
+// Un producto que gerencia suma a un pedido antes de aprobarlo. Devuelve el id del ítem nuevo.
+export async function agregarItem(ordenId, productoId, cantidad) {
+  const [it] = await ok(await sb.from('orden_items').insert({ orden_id: ordenId, producto_id: productoId, cantidad_pedida: cantidad }).select('id'));
+  return it.id;
+}
 export const actualizarOrden = async (id, cambios) => ok(await sb.from('ordenes_compra').update(cambios).eq('id', id).select('id'));
 export const actualizarItem = async (id, cantidad) => ok(await sb.from('orden_items').update({ cantidad_pedida: cantidad }).eq('id', id).select('id'));
 export const marcarExcluidos = async (ids, excluido) => ok(await sb.from('orden_items').update({ excluido }).in('id', ids).select('id'));
@@ -231,26 +248,38 @@ export async function crearOrdenSolo(o) {
 }
 
 // ---- gerencia ----
+// Conteo del encargado (o gerencia) de todo lo que contó en el local: el stock pasa a ser lo contado (0024_conteos.sql).
+export const contarLocal = async (localId, items, encargado) => ok(await sb.rpc('contar_local', { p_local: localId, p_items: items, p_encargado: encargado || null }));
+export const ultimoConteo = async (localId) => (await ok(await sb.from('conteos').select('id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
 export const contarProducto = async (localId, productoId, cantidad) =>
   ok(await sb.rpc('registrar_conteo', { p_local: localId, p_producto: productoId, p_cantidad_contada: cantidad }));
 
 // Recepción de una orden: una sola función SQL transaccional (todo o nada). Devuelve el estado final.
-export async function registrarRecepcion(orden, lineas) {
-  return ok(await sb.rpc('recibir_orden', {
+// lineas: [{ item, qty, precio, noVino }]; item sin id = producto agregado al recibir ({ producto_id }).
+// cerrar = lo que llegó de menos no va a venir. Con agregados, "no vino" o cerrar hace falta la migración 0020.
+export async function registrarRecepcion(orden, lineas, cerrar = false) {
+  const args = {
     p_orden: orden.id,
-    p_items: lineas.map(l => ({ orden_item_id: l.item.id, cantidad_recibida: l.qty, precio_unitario: l.precio }))
-  }));
+    p_items: lineas.map(l => ({ ...(l.item.id ? { orden_item_id: l.item.id } : { producto_id: l.item.producto_id }), cantidad_recibida: l.qty, precio_unitario: l.precio, ...(l.noVino ? { no_vino: true } : {}) }))
+  };
+  if (cerrar) args.p_cerrar = true;
+  const r = await sb.rpc('recibir_orden', args);
+  const sin0020 = r.error && (r.error.code === 'PGRST202' || /orden_item_id|p_cerrar|could not find the function/i.test(r.error.message || ''));
+  if (sin0020 && (cerrar || lineas.some(l => !l.item.id || l.noVino))) {
+    throw new Error('Para agregar o sacar productos al recibir falta pegar el SQL de 0020 en Supabase.');
+  }
+  return ok(r);
 }
 
 // ---- recibir con factura (0018_recibir_factura.sql + Edge Function leer-factura) ----
 // archivos: [{ data: base64, tipo }]. La función responde de a pedazos (una línea JSON por pedazo): alPedazo(textoHastaAhora)
 // se llama con todo lo leído, para mostrar los renglones a medida que llegan. Devuelve { factura, modelo, uso, ms }.
-export async function leerFactura(archivos, alPedazo) {
+export async function leerFactura(archivos, alPedazo, modo) {
   const { data: { session } } = await sb.auth.getSession();
   let res;
   try {
     res = await fetch(CFG.SUPABASE_URL + '/functions/v1/leer-factura', {
-      method: 'POST', body: JSON.stringify({ archivos }),
+      method: 'POST', body: JSON.stringify(modo ? { archivos, modo } : { archivos }),
       headers: { 'content-type': 'application/json', apikey: CFG.SUPABASE_KEY, authorization: 'Bearer ' + ((session && session.access_token) || CFG.SUPABASE_KEY) }
     });
   } catch (_e) { throw new Error('Sin conexión. Revisá internet e intentá de nuevo.'); }
@@ -280,6 +309,9 @@ export async function leerFactura(archivos, alPedazo) {
   if (!fin) throw new Error('Se cortó la lectura. Probá de nuevo.');
   return { factura: JSON.parse(texto), modelo: fin.modelo, uso: fin.uso, ms: fin.ms };
 }
+// Comprobante de pago en foto o PDF escaneado (sin texto): lo lee la misma función con modo "comprobante".
+// Devuelve los mismos campos que leerComprobante (comprobante.js) + es_comprobante.
+export const leerComprobanteIA = async (archivos) => (await leerFactura(archivos, null, 'comprobante')).factura;
 export const aliasProveedor = (localId) => todo(() => sb.from('producto_alias').select('id,producto_id,alias').eq('origen', 'proveedor').eq('local_id', localId).order('id'));
 export const recibirConFactura = async (localId, proveedorId, items, factura, ordenId) =>
   ok(await sb.rpc('recibir_con_factura', { p_local: localId, p_proveedor: proveedorId, p_items: items, p_factura: factura, p_orden: ordenId || null }));
@@ -365,6 +397,14 @@ export const facturasLista = (soloPendientes) => todo(() => {
 });
 export const facturasPendientesDe = async (proveedorId) =>
   ok(await sb.from('facturas_pendientes').select(COLS_FAC).eq('proveedor_id', proveedorId).gte('pendiente', 1).order('fecha', { ascending: true }).order('numero', { ascending: true }));
+// Gasto en compras (vista gastos_compras, SQL 0019): facturas y recibos X con tipo, local, razón social, categoría y saldo.
+const COLS_GASTO = 'id,proveedor_id,proveedor,numero,tipo,es_x,fecha,vencimiento,total,archivo,creado_en,local_id,local,razon_social,categoria,imputado,pendiente,pagada,vencida';
+export const gastosCompras = (desde, hasta) => todo(() => {
+  let q = sb.from('gastos_compras').select(COLS_GASTO).order('fecha', { ascending: true }).order('id');
+  if (desde) q = q.gte('fecha', desde);
+  if (hasta) q = q.lte('fecha', hasta);
+  return q;
+});
 export const borrarFactura = async (id) => ok(await sb.rpc('borrar_factura', { p_id: id }));
 export const crearFactura = async (f) => { const [r] = await ok(await sb.from('facturas_proveedor').insert(f).select('id')); return r.id; };
 export const pagosLista = async (limite = 80) => ok(await sb.from('pagos').select(COLS_PAGO).order('fecha', { ascending: false }).order('creado_en', { ascending: false }).limit(limite));
@@ -376,6 +416,23 @@ export async function subirComprobante(ruta, archivo) {
   if (error) throw error;
   return ruta;
 }
+// ---- facturas que suben los locales (SQL 0022): el encargado sube el archivo sin montos; gerencia la recibe ----
+const COLS_FL = 'id,local_id,proveedor_id,archivos,nota,subida_por_nombre,estado,factura_id,procesada_en,creado_en';
+export async function subirArchivoLocal(ruta, archivo) {
+  const { error } = await sb.storage.from('comprobantes').upload(ruta, archivo, { upsert: false, contentType: archivo.type || 'application/pdf' });
+  if (error) throw error;
+  return ruta;
+}
+export const crearFacturaLocal = async (f) => (await ok(await sb.from('facturas_locales').insert(f).select(COLS_FL)))[0];
+export const facturasLocales = async ({ estado, limite = 60 } = {}) => {
+  let q = sb.from('facturas_locales').select(COLS_FL).order('creado_en', { ascending: false }).limit(limite);
+  if (estado) q = q.eq('estado', estado);
+  return ok(await q);
+};
+export const facturaLocal = async (id) => (await ok(await sb.from('facturas_locales').select(COLS_FL).eq('id', id).limit(1)))[0] || null;
+export const marcarFacturaLocal = async (id, estado, facturaId) => ok(await sb.from('facturas_locales')
+  .update({ estado, factura_id: facturaId || null, procesada_en: estado === 'pendiente' ? null : new Date().toISOString() }).eq('id', id).select('id'));
+export const borrarFacturaLocal = async (id) => ok(await sb.from('facturas_locales').delete().eq('id', id).select('id'));
 export async function bajarComprobante(ruta) {
   const { data, error } = await sb.storage.from('comprobantes').download(ruta);
   if (error) throw error;

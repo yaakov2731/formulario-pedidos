@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql, 0016_facturas_saldo.sql, 0017_vender_tal_cual.sql y 0018_recibir_factura.sql (y el seed si existe) en un Postgres en memoria (pglite).
+// Verifica supabase/migrations/0001_base.sql a 0008_borrar_importacion.sql, 0011_proveedores_datos.sql, 0014_borrar_pedidos.sql, 0016_facturas_saldo.sql, 0017_vender_tal_cual.sql, 0018_recibir_factura.sql, 0019_gasto_compras.sql y 0020 a 0023 (0023 = RLS rápido) (y el seed si existe) en un Postgres en memoria (pglite).
 // pglite se resuelve desde PGLITE_DIR (por defecto /tmp/claude-0/pglite), instalado con:
 //   npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
@@ -91,6 +91,19 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
   const mig18 = fs.readFileSync(path.join(root, 'supabase/migrations/0018_recibir_factura.sql'), 'utf8');
   try { await db.exec(mig18); await db.exec(mig18); check('aplica 0018_recibir_factura.sql (idempotente)', true); }
   catch (e) { check('aplica 0018_recibir_factura.sql (idempotente)', false, e.message); return finish(); }
+
+  await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations/0013_locales_razon_social.sql'), 'utf8')); // 0019 usa la razón social de los locales
+  const mig19 = fs.readFileSync(path.join(root, 'supabase/migrations/0019_gasto_compras.sql'), 'utf8');
+  try { await db.exec(mig19); await db.exec(mig19); check('aplica 0019_gasto_compras.sql (idempotente)', true); }
+  catch (e) { check('aplica 0019_gasto_compras.sql (idempotente)', false, e.message); return finish(); }
+  for (const f of ['0020_recibir_corregir.sql', '0021_codigo_proveedor.sql', '0022_facturas_locales.sql']) await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', f), 'utf8')); // 0023 indexa sus tablas
+  const mig23 = fs.readFileSync(path.join(root, 'supabase/migrations/0023_rls_rapido.sql'), 'utf8');
+  try {
+    await db.exec(mig23); await db.exec(mig23);
+    const { rows: [pol] } = await db.query(`select count(*) filter (where coalesce(qual,'')||coalesce(with_check,'') ~ '(?<!SELECT )(?<![.\\w])(mi_rol|mi_local|auth\\.uid)\\(\\)')::int sueltas,
+      count(*) filter (where coalesce(qual,'')||coalesce(with_check,'') ~* 'select (mi_rol|mi_local|auth\\.uid)')::int envueltas from pg_policies where schemaname = 'public'`);
+    check(`0023: las políticas calculan mi_rol()/mi_local()/auth.uid() una vez por consulta (${pol.envueltas} envueltas, ${pol.sueltas} sueltas; idempotente)`, pol.sueltas === 0 && pol.envueltas > 0, JSON.stringify(pol));
+  } catch (e) { check('aplica 0023_rls_rapido.sql', false, e.message); return finish(); }
 
   const seed = path.join(root, 'supabase/seed/0002_seed_v3.sql');
   let seeded = false;
@@ -770,6 +783,30 @@ const check = (name, ok, extra) => { results.push(ok); console.log((ok ? 'OK   '
     check('0018: el movimiento del pedido queda ligado a la orden (lo borra "Borrar pedidos de prueba")', mv[0].ref_tipo === 'orden' && mv[0].ref_id === o.id, JSON.stringify(mv));
     const r4 = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,null,$4) r', [l1.id, prov.id, it2, o.id]));
     check('0018: rechaza un pedido de otro proveedor', !!r4.err, r4.err);
+  }
+
+  // ===================== 0019: gasto en compras y Recibo X =====================
+  {
+    const [pv] = await q("insert into proveedores(nombre) values ('Prov Gasto') returning id");
+    await q("insert into productos(codigo,nombre,local_id,categoria,proveedor_id) values ('ZZ1-G01','Lavandina',$1,'Limpieza',$2),('ZZ1-G02','Detergente',$1,'Limpieza',$2),('ZZ1-G03','Bolsa',$1,'Descartables',$2)", [l1.id, pv.id]);
+    const rx = await as(U.ger, () => tryq("insert into facturas_proveedor(proveedor_id,numero,tipo,local_id,fecha,total) values ($1,'X-0001-77','Recibo X',$2,'2026-10-20',50000) returning id", [pv.id, l1.id]));
+    const g1 = await q("select tipo, es_x, categoria, local_id, pagada, pendiente::float p from gastos_compras where numero='X-0001-77'");
+    check('0019: gerencia carga un Recibo X; suma al gasto con local y categoría automática (la más común del proveedor)', !rx.err && g1.length === 1 && g1[0].es_x === true && g1[0].categoria === 'Limpieza' && g1[0].local_id === l1.id && g1[0].p === 50000 && g1[0].pagada === false, JSON.stringify([rx.err, g1]));
+    const malo = await as(U.ger, () => tryq("insert into facturas_proveedor(proveedor_id,numero,tipo,fecha,total) values ($1,'Z-1','Factura Z','2026-10-20',1)", [pv.id]));
+    check('0019: rechaza un tipo de comprobante desconocido', !!malo.err, malo.err);
+    const enc = await as(U.e1, () => tryq('select count(*)::int n from gastos_compras'));
+    check('0019: el encargado no ve el gasto', !enc.err ? enc.rows[0].n === 0 : true, JSON.stringify(enc));
+    const sinT = await q("insert into facturas_proveedor(proveedor_id,numero,fecha,total,categoria) values ($1,'0001-1','2026-10-21',1000,'Bebidas') returning id", [pv.id]);
+    const g2 = await q("select tipo, categoria, razon_social from gastos_compras where id=$1", [sinT[0].id]);
+    check('0019: factura sin tipo figura como "Factura", respeta la categoría puesta y sin local queda "Sin razón social"', g2[0].tipo === 'Factura' && g2[0].categoria === 'Bebidas' && g2[0].razon_social === 'Sin razón social', JSON.stringify(g2));
+    // Recibir con factura: guarda tipo, local y la categoría de los productos recibidos.
+    const bol = (await q("select id from productos where codigo='ZZ1-G03'"))[0].id;
+    const r = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,$4::jsonb) r', [l1.id, pv.id, JSON.stringify([{ producto_id: bol, cantidad: 3, precio_unitario: 100 }]), JSON.stringify({ numero: 'X-0002-5', tipo: 'Recibo X', total: 300 })]));
+    const g3 = await q("select tipo, categoria, local_id from gastos_compras where numero='X-0002-5'");
+    check('0019: recibir con factura guarda tipo Recibo X, local y categoría de lo recibido', !r.err && g3.length === 1 && g3[0].tipo === 'Recibo X' && g3[0].categoria === 'Descartables' && g3[0].local_id === l1.id, JSON.stringify([r.err, g3]));
+    const r2 = await as(U.ger, () => tryq('select recibir_con_factura($1,$2,$3::jsonb,$4::jsonb) r', [l1.id, pv.id, JSON.stringify([{ producto_id: bol, cantidad: 1 }]), JSON.stringify({ numero: 'X-0002-6', tipo: 'Cualquiera', total: 10 })]));
+    const g4 = await q("select tipo from gastos_compras where numero='X-0002-6'");
+    check('0019: un tipo raro leído de la factura queda como "Otro"', !r2.err && g4[0].tipo === 'Otro', JSON.stringify([r2.err, g4]));
   }
 
   return finish();

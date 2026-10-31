@@ -1,20 +1,22 @@
 // Arranque, sesión, ruteo por hash y estructura (barra lateral en escritorio, tab bar en celular).
-import { h, lsGet, lsSet } from './util.js';
-import { sb, perfilActual, salir, mensajeError } from './api.js';
+import { h, lsGet, lsSet, elabora } from './util.js';
+import { sb, perfilActual, codigoMiLocal, salir, mensajeError } from './api.js';
 import { icon, toast, esqueleto } from './ui.js';
 
 const NAV = {
   encargado: [
     { id: 'pedir', label: 'Pedir', icono: 'pedir' },
     { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
+    { id: 'contar', label: 'Contar', icono: 'stock' },
     { id: 'elaborados', label: 'Elaborados', icono: 'cocina' },
+    { id: 'subir-factura', label: 'Facturas', icono: 'recibir' },
     { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
   gerencia: [
     { id: 'tablero', label: 'Tablero', icono: 'tablero' },
     { id: 'pedidos', label: 'Pedidos', icono: 'lista' },
+    { id: 'compras', label: 'Compras', icono: 'pedir' },
     { id: 'notas', label: 'Notas', icono: 'nota' },
-    { id: 'recibir', label: 'Recibir', icono: 'recibir' },
     { id: 'stock', label: 'Stock', icono: 'stock' },
     { id: 'resumen', label: 'Ventas', icono: 'ventas' },
     { id: 'recetas', label: 'Cocina', icono: 'cocina' },
@@ -25,14 +27,14 @@ const NAV = {
     { id: 'pagos', label: 'Pagos', icono: 'pagos' }
   ]
 };
-const RUTAS_PAGOS = { 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
+const RUTAS_PAGOS = { 'gasto': () => import('./g-gasto.js'), 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'elaborados': () => import('./elaborados.js'), 'notas': () => import('./notas.js') },
+  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'contar': () => import('./contar.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
     'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
-    'pedidos': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
+    'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
     'stock': () => import('./g-stock.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'),
     'resumen': () => import('./g-resumen.js'), 'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
     'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js'),
@@ -71,8 +73,12 @@ function pantallaSimple(titulo, texto, acciones) {
     h('h1', { class: 'titulo', text: titulo }), h('p', { class: 'sub', text: texto }), h('div', { class: 'acciones' }, acciones)));
 }
 
+// El encargado de un local que no elabora (Shopping) no ve Elaborados.
+const navDe = (c) => NAV[c.rol].filter(it => !(it.id === 'elaborados' && c.rol === 'encargado' && !elabora(c.codigoLocal)));
+const vistasDe = (c) => { const v = { ...VISTAS[c.rol] }; if (c.rol === 'encargado' && !elabora(c.codigoLocal)) delete v.elaborados; return v; };
+
 function construirShell(c) {
-  const items = NAV[c.rol];
+  const items = navDe(c);
   $app.classList.remove('no-nav');
   const enlace = (it, clase) => h('a', { class: clase, href: '#/' + it.id, 'data-nav': it.id }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
   const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
@@ -87,7 +93,9 @@ function construirShell(c) {
 }
 
 function marcarActivo(id) {
-  const act = (ctx && ctx.rol === 'gerencia' && id === 'elaborados') ? 'stock' : ({ revisar: 'pedir', ventas: 'resumen', analisis: 'resumen', merma: 'resumen', produccion: 'recetas', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos', 'recibir-factura': 'recibir' })[id] || id;
+  // Gerencia: Recibir y Gasto viven dentro de Compras; la contadora sigue viendo Gasto en Pagos.
+  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'stock', gasto: 'compras' })[id] : null;
+  const act = deGerencia || ({ revisar: 'pedir', ventas: 'resumen', analisis: 'resumen', merma: 'resumen', produccion: 'recetas', gasto: 'pagos', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos', recibir: 'compras', 'recibir-factura': 'compras' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
     a.classList.toggle('is-active', on);
@@ -100,8 +108,8 @@ const VERSION_NUEVA = /does not provide an export named|dynamically imported mod
 async function ruta() {
   if (!ctx) return;
   const [, id] = (location.hash || '').split('/');
-  const vistas = VISTAS[ctx.rol];
-  const def = NAV[ctx.rol][0].id;
+  const vistas = vistasDe(ctx);
+  const def = navDe(ctx)[0].id;
   if (!id || !vistas[id]) { location.replace('#/' + def); return; }
   const mi = ++ticket;
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
@@ -146,12 +154,24 @@ async function arrancar() {
   if (perfil.rol === 'encargado' && !perfil.local_id) {
     return pantallaSimple('Sin local', 'Tu usuario no tiene un local asignado. Avisale a gerencia.', h('button', { class: 'btn btn-ghost', type: 'button', text: 'Salir', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }));
   }
-  ctx = { perfil, rol: perfil.rol, nombreGuardado: lsGet('nombre') };
+  ctx = { perfil, rol: perfil.rol, nombreGuardado: lsGet('nombre'), codigoLocal: perfil.rol === 'encargado' ? await codigoMiLocal(perfil.local_id) : '' };
   construirShell(ctx);
   await ruta();
 }
 
 window.addEventListener('hashchange', ruta);
 sb.auth.onAuthStateChange((evento) => { if (evento === 'SIGNED_OUT' && ctx) { toast('La sesión terminó. Entrá de nuevo.', 'info'); mostrarEntrar(); } });
+// La pantalla de carga se va cuando terminó la intro (~3,2 s, la marca el fin de la animación del subtítulo) y la primera
+// pantalla (entrar o la vista inicial) quedó armada. Mientras tanto la app ya carga los datos por detrás.
+function quitarSplash() {
+  const sp = document.getElementById('splash');
+  if (!sp) return;
+  const fin = () => { if (!sp.isConnected || sp.classList.contains('sp-fuera')) return; sp.classList.add('sp-fuera'); setTimeout(() => sp.remove(), 500); };
+  const ultimo = sp.querySelector('.splash-s');
+  if (!ultimo || getComputedStyle(ultimo).opacity === '1') return fin();
+  ultimo.addEventListener('animationend', fin, { once: true });
+  setTimeout(fin, 4000);
+}
+
 registrarSW();
-arrancar();
+arrancar().finally(quitarSplash);

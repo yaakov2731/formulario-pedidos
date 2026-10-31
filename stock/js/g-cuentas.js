@@ -2,12 +2,12 @@
 import { mount, h, fmtMoney } from './util.js';
 import { swr, cuentaCorriente, facturasLista, mensajeError } from './api.js';
 import { cargarG } from './datos.js';
-import { esqueleto, vacio, banner, subnav, SUBNAV_PAGOS } from './ui.js';
+import { esqueleto, vacio, banner, subnav, navPagos } from './ui.js';
 import { fechaDMA } from './pagos-util.js';
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pagos' }), h('p', { class: 'sub', text: 'Lo que se debe a cada proveedor' }));
-  mount(root, cab, subnav(SUBNAV_PAGOS, 'pagos'), esqueleto(4));
+  mount(root, cab, subnav(navPagos(ctx), 'pagos'), esqueleto(4));
   let cuentas = [], facturas = [], error = null;
   const abiertos = new Set();
 
@@ -15,7 +15,7 @@ export async function render(root, ctx) {
 
   function pintar() {
     if (!ctx.alive()) return;
-    if (error) return mount(root, cab, subnav(SUBNAV_PAGOS, 'pagos'), banner(error, 'error'));
+    if (error) return mount(root, cab, subnav(navPagos(ctx), 'pagos'), banner(error, 'error'));
     const filas = cuentas.filter((c) => Number(c.facturado) > 0 || Number(c.pagado) > 0);
     const deuda = filas.reduce((s, c) => s + (Number(c.saldo) >= 1 ? Number(c.saldo) : 0), 0);
     const venc = facturas.filter((f) => f.vencida);
@@ -36,7 +36,7 @@ export async function render(root, ctx) {
         abierto ? h('ul', { class: 'tb-lista', style: 'width:100%' }, fs.map((f) => h('li', { class: f.vencida ? 'var-baja' : '' },
           h('span', { text: `${f.numero} · vence ${f.vencimiento ? fechaDMA(f.vencimiento) : 'sin fecha'}${f.vencida ? ' · vencida' : ''}` }), h('b', { class: 'num', text: fmtMoney(f.pendiente) })))) : null);
     };
-    mount(root, cab, subnav(SUBNAV_PAGOS, 'pagos'),
+    mount(root, cab, subnav(navPagos(ctx), 'pagos'),
       h('section', { class: 'kpis' }, kpi('Deuda total', fmtMoney(deuda), `${filas.filter((c) => Number(c.saldo) >= 1).length} proveedores`, deuda ? 'warn' : null),
         kpi('Vencido', fmtMoney(vencTot), `${venc.length} ${venc.length === 1 ? 'factura' : 'facturas'}`, venc.length ? 'warn' : null)),
       filas.length ? h('div', { class: 'lista' }, filas.sort((a, b) => Number(b.saldo) - Number(a.saldo)).map(tarjeta))

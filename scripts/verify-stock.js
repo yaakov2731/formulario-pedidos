@@ -17,7 +17,7 @@ const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'c
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-catalogo.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-resumen.js', 'js/ventas-global.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
-  'js/g-tablero.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
+  'js/g-tablero.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -121,7 +121,31 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('WhatsApp argentino sin 549 se completa', PU.whatsappAR('11 5555-0123') === '5491155550123' && PU.whatsappAR('011 5555 0123') === '5491155550123' && PU.whatsappAR('+54 9 11 5555-0001') === '5491155550001' && PU.whatsappAR('') === '');
   check('email: valida y arma mailto con asunto y texto', PU.emailValido('a@b.com') && !PU.emailValido('a@b') && PU.urlMail('a@b.com', 'Pago', 'Hola\nya') === 'mailto:a@b.com?subject=Pago&body=Hola%0Aya' && PU.urlMail('', 'x', 'y') === null);
   check('comprobante: va a cobranzas y si falta a pedidos', PU.whatsappPagos({ whatsapp: '1', whatsapp_pagos: '2' }) === '2' && PU.whatsappPagos({ whatsapp: '1' }) === '1' && PU.emailPagos({ email: 'a@b.com' }) === 'a@b.com' && PU.emailPagos(null) === null);
-  check('rutas del bucket: pagos/<proveedor>/<operación>.pdf y facturas/<proveedor>/<archivo>', PU.rutaPago('prv1', 'LRAKD8f240') === 'pagos/prv1/LRAKD8f240.pdf' && /^facturas\/prv1\/\d+-Factura-1-.*\.pdf$/.test(PU.rutaFactura('prv1', 'Factura 1 ñ.pdf')), PU.rutaFactura('prv1', 'Factura 1 ñ.pdf'));
+  check('rutas del bucket: pagos/<proveedor>/<operación>.pdf y facturas/<proveedor>/<archivo>', PU.rutaPago('prv1', 'LRAKD8f240') === 'pagos/prv1/LRAKD8f240.pdf' && PU.rutaPago('prv1', 'OP1', { type: 'image/jpeg' }) === 'pagos/prv1/OP1.jpg' && PU.rutaPago('prv1', 'OP1', { type: 'image/png' }) === 'pagos/prv1/OP1.png' && /^facturas\/prv1\/\d+-Factura-1-.*\.pdf$/.test(PU.rutaFactura('prv1', 'Factura 1 ñ.pdf')), PU.rutaFactura('prv1', 'Factura 1 ñ.pdf'));
+
+  // Gasto en compras y Recibo X
+  { const U2 = await import(pathToFileURL(S('js/util.js')).href);
+    check('montos en pesos: "480.000" son 480 mil; "1500,50" y "12.5" como siempre', U2.parseMonto('480.000') === 480000 && U2.parseMonto('$ 1.250.300') === 1250300 && U2.parseMonto('1500,50') === 1500.5 && U2.parseMonto('12.5') === 12.5 && U2.parseMonto('') === null); }
+  check('tipo de comprobante leído por la IA → Factura A/B/C, Recibo X u Otro',
+    PU.tipoComprobante('FACTURA A') === 'Factura A' && PU.tipoComprobante('Factura "B"') === 'Factura B' && PU.tipoComprobante('C') === 'Factura C' &&
+    PU.tipoComprobante('X') === 'Recibo X' && PU.tipoComprobante('Remito X') === 'Recibo X' && PU.tipoComprobante('DOCUMENTO NO VÁLIDO COMO FACTURA') === 'Recibo X' &&
+    PU.tipoComprobante('Ticket') === 'Otro' && PU.tipoComprobante('') === '' && PU.tipoComprobante(null) === '');
+  check('número armado para un recibo X sin número', /^X-\d{8}-\d{6}$/.test(PU.numeroReciboX(new Date(2026, 9, 29, 8, 5, 3))) && PU.numeroReciboX(new Date(2026, 9, 29, 8, 5, 3)) === 'X-20261029-080503');
+  const gx = [
+    { fecha: '2026-10-02', total: 100000, es_x: false, imputado: 100000, pendiente: 0, vencida: false, local_id: 'u', local: 'Umo', razon_social: 'SUMA ACTIVA S.A.', proveedor: 'Florida', categoria: 'Verdulería', creado_en: '2026-10-02T10:00' },
+    { fecha: '2026-10-10', total: 50000, es_x: true, imputado: 0, pendiente: 50000, vencida: true, local_id: 's', local: 'Shopping', razon_social: 'SPMAR S.A.', proveedor: 'Distri', categoria: 'Limpieza', creado_en: '2026-10-10T10:00' },
+    { fecha: '2026-10-12', total: 30000, es_x: false, imputado: 10000, pendiente: 20000, vencida: false, local_id: null, local: null, razon_social: 'Sin razón social', proveedor: 'Florida', categoria: 'Verdulería', creado_en: '2026-10-12T10:00' },
+    { fecha: '2026-09-05', total: 120000, es_x: false, imputado: 120000, pendiente: 0, vencida: false, local_id: 'u', local: 'Umo', razon_social: 'SUMA ACTIVA S.A.', proveedor: 'Florida', categoria: 'Verdulería', creado_en: '2026-09-05T10:00' }];
+  const rg = PU.resumenGasto(gx, '2026-10-01', '2026-10-31', { desde: '2026-09-01', hasta: '2026-09-30' });
+  check('gasto: total del período, variación contra el anterior y factura vs. recibo X',
+    rg.total === 180000 && rg.totalPrev === 120000 && Math.abs(rg.variacion - 0.5) < 1e-9 && rg.conFactura === 130000 && rg.reciboX === 50000 && rg.n === 3, JSON.stringify(rg));
+  check('gasto: pagado, falta pagar y vencido',
+    rg.pagado === 110000 && rg.pendiente === 70000 && rg.vencido === 50000 && rg.nVencidas === 1, JSON.stringify([rg.pagado, rg.pendiente, rg.vencido]));
+  check('gasto: por proveedor, razón social (sin local aparte) y categoría, de mayor a menor',
+    rg.porProveedor[0].clave === 'Florida' && rg.porProveedor[0].total === 130000 && rg.porProveedor[0].n === 2 &&
+    rg.porRazon.map(g => g.clave).join('|') === 'SUMA ACTIVA S.A.|SPMAR S.A.|Sin local asignado' && rg.porCategoria[0].clave === 'Verdulería' && rg.ultimos[0].proveedor === 'Florida' && rg.ultimos.length === 3, JSON.stringify(rg.porRazon));
+  const rx = PU.resumenGasto(gx, '2026-10-01', '2026-10-31', null, 'x');
+  check('gasto: filtro solo recibo X (la mezcla factura/X sigue sobre todo el período)', rx.total === 50000 && rx.n === 1 && rx.reciboX === 50000 && rx.conFactura === 130000 && rx.variacion === null);
 
   // Estructura: roles, rutas, vendors, sin envíos automáticos
   const m4 = read('js/main.js');

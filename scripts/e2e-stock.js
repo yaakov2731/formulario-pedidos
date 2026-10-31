@@ -98,7 +98,7 @@ const db = {
     { id: 'pg-0', proveedor_id: PV.martin, monto: 50000, fecha: '2026-10-11', numero_operacion: 'OPVIEJA000', concepto: 'Factura', descripcion: 'Carnes', comprobante_path: 'pagos/prv-martin/OPVIEJA000.pdf', avisado_en: '2026-10-11T15:00:00Z', creado_en: '2026-10-11T14:00:00Z' },
     { id: 'pg-2', proveedor_id: PV.florida, monto: 54000, fecha: '2026-10-20', numero_operacion: 'OPVIEJA002', concepto: 'Factura', descripcion: 'Bebidas', comprobante_path: 'pagos/prv-florida/OPVIEJA002.pdf', avisado_en: null, creado_en: '2026-10-20T14:00:00Z' }
   ],
-  subidos: {}, pagosRegistrados: [], facturasCreadas: [], facturasBorradas: [], proveedoresEditados: [], proveedoresCreados: [], sin0011: false, avisos: [], consultasTablero: []
+  subidos: {}, pagosRegistrados: [], facturasCreadas: [], facturasBorradas: [], lecturasIA: [], comprobanteIA: null, proveedoresEditados: [], proveedoresCreados: [], sin0011: false, avisos: [], consultasTablero: []
 };
 let seq = 1;
 const nid = (p) => p + '-' + (seq++);
@@ -141,6 +141,11 @@ async function montarApi(ctx) {
     }
     if (u.pathname === '/auth/v1/user') return json(sesion(sub || U_ENC, 'x@x').user);
     if (u.pathname === '/auth/v1/logout') return route.fulfill({ status: 204, headers: cors });
+    if (u.pathname === '/functions/v1/leer-factura') {
+      const b = JSON.parse(req.postData() || '{}'); db.lecturasIA.push({ modo: b.modo, tipos: (b.archivos || []).map(x => x.tipo), rol });
+      const txt = JSON.stringify(db.comprobanteIA);
+      return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/x-ndjson' }, body: JSON.stringify({ t: txt }) + '\n' + JSON.stringify({ fin: true }) + '\n' });
+    }
     if (u.pathname.startsWith('/storage/v1/')) {
       if (rol !== 'gerencia' && rol !== 'contadora') return json({ statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' }, 403);
       const ruta = decodeURIComponent(u.pathname.replace(/^\/storage\/v1\/object\/(sign\/|authenticated\/)?comprobantes\//, ''));
@@ -197,6 +202,11 @@ async function montarApi(ctx) {
       if ((q.get('pendiente') || '').startsWith('gt.')) r = r.filter(f => f.pendiente > Number(q.get('pendiente').slice(3)));
       if ((q.get('pendiente') || '').startsWith('gte.')) r = r.filter(f => f.pendiente >= Number(q.get('pendiente').slice(4)));
       return json(r.sort((a, b) => a.fecha.localeCompare(b.fecha)));
+    }
+    if (t === 'gastos_compras') {
+      return json(db.facturas.map(conSaldo).map(f => ({ ...f, proveedor: (db.proveedores.find(p => p.id === f.proveedor_id) || {}).nombre || 'Proveedor',
+        tipo: f.tipo || 'Factura', es_x: f.tipo === 'Recibo X', local_id: f.local_id || null, local: null, razon_social: 'Sin razón social', categoria: f.categoria || 'Sin categoría',
+        pagada: f.pendiente < 1, creado_en: f.fecha })).sort((a, b) => a.fecha.localeCompare(b.fecha)));
     }
     if (t === 'rpc/borrar_factura') {
       if (rol !== 'gerencia') return json({ code: '42501', message: 'Solo gerencia puede borrar facturas' }, 403);
@@ -326,12 +336,12 @@ async function montarApi(ctx) {
       let r = db.ordenes; const est = enLista(q.get('estado')); if (est) r = r.filter(o => est.includes(o.estado));
       if (eq(q.get('local_id'))) r = r.filter(o => o.local_id === eq(q.get('local_id')));
       if (rol === 'encargado') r = r.filter(o => o.local_id === L1);
-      r = r.map(o => ({ ...o, orden_items: db.items.filter(i => i.orden_id === o.id).map(i => ({ id: i.id, producto_id: i.producto_id, cantidad_pedida: i.cantidad_pedida, cantidad_recibida: i.cantidad_recibida, excluido: !!i.excluido })) }));
+      r = r.map(o => ({ ...o, orden_items: db.items.filter(i => i.orden_id === o.id).map(i => ({ id: i.id, producto_id: i.producto_id, cantidad_pedida: i.cantidad_pedida, cantidad_recibida: i.cantidad_recibida, excluido: !!i.excluido, agregado: !!i.agregado, no_vino: !!i.no_vino })) }));
       r.sort((a, b) => (q.get('order') || '').includes('desc') ? b.creado_en.localeCompare(a.creado_en) : a.creado_en.localeCompare(b.creado_en));
       return json(r);
     }
     if (t === 'orden_items') {
-      if (req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(i => db.items.push({ ...i, id: nid('it'), cantidad_recibida: null })); return json((Array.isArray(b) ? b : [b]).map(i => ({ id: 'x' })), 201); }
+      if (req.method() === 'POST') { const b = body(); const nuevos = (Array.isArray(b) ? b : [b]).map(i => ({ ...i, id: nid('it'), cantidad_recibida: null })); db.items.push(...nuevos); return json(nuevos.map(i => ({ id: i.id })), 201); }
       if (req.method() === 'PATCH') { const ids = enLista(q.get('id')) || [eq(q.get('id'))]; ids.forEach(id => Object.assign(db.items.find(x => x.id === id), body())); return json(ids.map(id => ({ id }))); }
       if (req.method() === 'DELETE') { const id = eq(q.get('id')); db.items = db.items.filter(x => x.id !== id); return json([{ id }]); }
     }
@@ -346,18 +356,27 @@ async function montarApi(ctx) {
       const b = body(); db.recepciones.push(b);
       const o = db.ordenes.find(x => x.id === b.p_orden);
       for (const it of b.p_items) {
-        const item = db.items.find(i => i.id === it.orden_item_id); const p = db.productos.find(x => x.id === item.producto_id);
+        let item = it.orden_item_id ? db.items.find(i => i.id === it.orden_item_id) : db.items.find(i => i.orden_id === o.id && i.producto_id === it.producto_id);
+        if (!item) {
+          if (!(it.cantidad_recibida > 0)) continue;
+          if (db.productos.find(x => x.id === it.producto_id).local_id !== o.local_id) return json({ message: 'El producto es de otro local' }, 400);
+          item = { id: nid('oi'), orden_id: o.id, producto_id: it.producto_id, cantidad_pedida: 0, cantidad_recibida: 0, agregado: true }; db.items.push(item);
+        }
+        if (it.no_vino) item.no_vino = true;
+        const p = db.productos.find(x => x.id === item.producto_id);
         if (it.cantidad_recibida > 0) {
           db.movimientos.push({ local_id: o.local_id, producto_id: item.producto_id, tipo: 'recepcion', cantidad: it.cantidad_recibida * p.factor_conversion, ref_id: o.id });
           item.cantidad_recibida = (item.cantidad_recibida || 0) + it.cantidad_recibida;
           if (it.precio_unitario !== null && it.precio_unitario !== db.precios[item.producto_id]) { db.preciosNuevos.push({ producto_id: item.producto_id, precio: it.precio_unitario, origen: 'recepcion' }); db.precios[item.producto_id] = it.precio_unitario; }
         }
       }
-      o.estado = db.items.filter(i => i.orden_id === o.id).every(i => (i.cantidad_recibida || 0) >= i.cantidad_pedida) ? 'recibida' : 'parcial';
+      if (b.p_cerrar) db.items.filter(i => i.orden_id === o.id && (i.cantidad_recibida || 0) < i.cantidad_pedida).forEach(i => { i.no_vino = true; });
+      o.estado = db.items.filter(i => i.orden_id === o.id).every(i => i.no_vino || (i.cantidad_recibida || 0) >= i.cantidad_pedida) ? 'recibida' : 'parcial';
       return json(o.estado);
     }
     if (t === 'orden_item_precios') { const b = body(); db.itemPrecios.push(b); return json([b], 201); }
     if (t === 'precios' && req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(r => { db.preciosNuevos.push(r); db.precios[r.producto_id] = r.precio; }); return json([{ id: 'pr' }], 201); }
+    if (t === 'facturas_locales' && req.method() === 'GET') return json([]);
     return json({ message: 'mock: ruta no prevista ' + req.method() + ' ' + t }, 404);
   });
 }
@@ -431,10 +450,12 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(fija.busca, 'iPhone: el buscador queda fijo arriba al scrollear');
   ok(fija.letra >= 16, `iPhone: campos con letra de 16 px o más (sin zoom al tocar) · mínimo ${fija.letra}`);
   ok(fija.ancho, 'iPhone: sin desplazamiento horizontal');
-  // buscador: fijo arriba, busca en todo el catálogo aunque haya una categoría elegida
+  // buscador: fijo arriba; con una categoría elegida busca dentro de ella (#62) y ofrece buscar en todas
   await e.locator('.chip', { hasText: 'Bebidas' }).click();
   await e.locator('#buscar').fill('chor');
-  ok(await e.locator('.prod').count() === 1 && await e.locator('.prod[data-id="p-chorizo"]').count() === 1, 'buscador filtra al instante y busca fuera de la categoría elegida');
+  ok(await e.locator('.prod').count() === 0, 'con Bebidas elegida, "chor" no trae el chorizo (busca dentro de la categoría)');
+  await e.locator('.chip', { hasText: 'Carnes' }).click();
+  ok(await e.locator('.prod').count() === 1 && await e.locator('.prod[data-id="p-chorizo"]').count() === 1, 'buscador filtra al instante dentro de la categoría elegida');
   ok((await e.locator('.busca-n').innerText()).includes('1 producto'), 'buscador muestra cuántos encontró');
   await e.getByRole('button', { name: 'Más · Pedir Chorizo parrillero', exact: true }).click();
   await shot(e, '03b-pedir-buscar-m');
@@ -550,7 +571,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
     { id: 'it-tre-h', orden_id: 'ord-tre-h', producto_id: 'p-limon', cantidad_pedida: 2, cantidad_recibida: 2 });
 
   // ===== Gerencia · escritorio =====
-  const cGer = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' });
+  const cGer = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light', permissions: ['clipboard-read', 'clipboard-write'] });
   const g = await nuevaPagina(cGer, 'gerencia');
   await g.goto(BASE);
   await g.waitForSelector('.seg');
@@ -560,7 +581,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.locator('form button[type=submit]').click();
   await g.waitForSelector('.tb-card', { timeout: 8000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 400)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Tablero no cargó'); });
   ok(await g.locator('h1').first().innerText() === 'Tablero', 'gerencia cae en el Tablero (inicio)');
-  ok(await g.locator('.sidebar .side-link').count() === 10, 'gerencia: barra lateral con 9 secciones (Tablero, Pedidos, Notas, Recibir, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
+  ok(await g.locator('.sidebar .side-link').count() === 10, 'gerencia: barra lateral con 9 secciones (Tablero, Pedidos, Compras, Notas, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
   // ---- Tablero ----
   const tbTxt = async () => (await g.locator('.tb-metricas').innerText()).replace(/\s+/g, ' ');
   ok(/VENTAS \$ 2\.850\.000 Anterior \$ 2\.610\.000 · ▲ 9 %/i.test(await tbTxt()), 'Tablero: ventas de la semana contra la anterior con variación (+9 %) ' + await tbTxt());
@@ -579,7 +600,8 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForFunction(() => /\$ 2\.850\.000/.test(document.querySelector('.tb-metricas').innerText));
   await g.locator('[data-card="por-aprobar"]').click();
   await g.waitForSelector('.ped-tabla', { timeout: 8000 });
-  ok(await g.locator('.seg-ped [data-vista="locales"]').getAttribute('aria-selected') === 'true', 'Pedidos abre en "De los locales" (tabla)');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos' && await g.locator('.grupo-prov').count() === 0, 'Pedidos abre en "De los locales" (tabla), sin lo de proveedores');
+  ok(await g.locator('[data-accion="ir-compras"]').count() === 1, 'Pedidos tiene el acceso a Compras cuando hay algo para mandar');
   ok(await g.locator('.pt-envio').count() === 2, `tabla: un renglón por pedido de cada local (Umo de Ruth y Trento de Angelica), no por proveedor (${await g.locator('.pt-envio').count()})`);
   ok(await g.locator('.pt-h').isVisible(), 'en PC la tabla tiene encabezados');
   const filaUmo = g.locator('.pt-envio', { hasText: 'Umo Grill' });
@@ -618,9 +640,51 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.getByLabel('Proveedor de Mozzarella en barra').selectOption(PV.barcena);
   await g.waitForTimeout(600);
   ok(ordDemo.proveedor_id === PV.barcena && db.productos.find(p => p.id === 'p-mozza').proveedor_id === PV.barcena, 'volver a Barcena: la orden entera cambia de proveedor y el catálogo también');
-  // ---- Por proveedor ----
-  await g.locator('.seg-ped [data-vista="proveedor"]').click();
+  // agregar un producto que el local no pidió, antes de aprobar
+  const agregarEn = async (scope, buscar, nombre, cant) => {
+    await scope.locator('[data-accion="agregar"]').click();
+    await g.waitForSelector('dialog.sheet .ag-hoja');
+    await g.getByLabel('Buscar producto para agregar').fill(buscar);
+    await g.getByRole('button', { name: 'Agregar ' + nombre }).click();
+    await g.locator('dialog.sheet').getByLabel('Cantidad de ' + nombre).fill(String(cant));
+  };
+  const nItems = db.items.length;
+  await agregarEn(filaUmo.locator('.pt-det'), 'queso', 'Queso cremoso', 2);
+  ok(/Umo Grill · Barcena/.test(await g.locator('.ag-elegido').innerText()), 'agregar: dice a qué local y proveedor va');
+  await g.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  await shot(g, '10f-g-pedidos-agregar-pc');
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await filaUmo.locator('.det-fila', { hasText: 'Queso cremoso' }).waitFor();
+  const itQ = db.items.find(i => i.producto_id === 'p-queso');
+  ok(itQ && itQ.orden_id === ordBar.id && itQ.cantidad_pedida === 2 && db.items.length === nItems + 1, 'agregar: el queso va a la orden de Barcena de Umo con 2');
+  ok(await filaUmo.locator('.det-fila:not(.det-h)').count() === 7, 'agregar: el detalle muestra 7 productos');
+  const choIt = db.items.find(i => i.producto_id === 'p-chorizo'); const choA = choIt.cantidad_pedida;
+  await agregarEn(filaUmo.locator('.pt-det'), 'chorizo', 'Chorizo parrillero', 1);
+  ok(/Ya pidió/.test(await g.locator('dialog.sheet').innerText()), 'agregar algo ya pedido avisa que se suma');
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await g.waitForSelector('dialog.sheet', { state: 'detached' });
+  await g.waitForTimeout(300);
+  ok(choIt.cantidad_pedida === choA + 1 && db.items.length === nItems + 1, `agregar algo ya pedido suma a esa cantidad (${choA} → ${choIt.cantidad_pedida})`);
+  // Trento no tiene pedido a Demo: se crea una orden nueva con la misma encargada y fecha (sigue en el mismo renglón)
+  const filaTre = g.locator('.pt-envio:has([data-envio="ord-tre-1"])');
+  await filaTre.locator('.pt-fila').click();
+  await filaTre.locator('.pt-det').waitFor();
+  await agregarEn(filaTre.locator('.pt-det'), 'servill', 'Servilletas de papel', 4);
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await filaTre.locator('.det-fila', { hasText: 'Servilletas de papel' }).waitFor();
+  const ordTreDemo = db.ordenes.find(o => o.local_id === L2 && o.proveedor_id === PV.demo && o.estado === 'borrador');
+  ok(ordTreDemo && ordTreDemo.cargado_por_nombre === 'Angelica' && ordTreDemo.creado_en === db.ordenes.find(o => o.id === 'ord-tre-1').creado_en
+    && db.items.some(i => i.orden_id === ordTreDemo.id && i.producto_id === 'p-serv-tre' && i.cantidad_pedida === 4), 'agregar sin orden de ese proveedor: orden nueva de Demo para Trento, misma encargada y fecha');
+  ok(await g.locator('.pt-envio').count() === 2, 'sigue siendo un renglón por local');
+  // se deja todo como estaba para lo que sigue
+  db.items = db.items.filter(i => i !== itQ && i.orden_id !== ordTreDemo.id); db.ordenes = db.ordenes.filter(o => o !== ordTreDemo); choIt.cantidad_pedida = choA;
+  await g.reload(); await g.waitForSelector('.ped-tabla');
+  // ---- Compras (por proveedor) ----
+  await g.locator('.sidebar a[data-nav="compras"]').click();
   await g.waitForSelector('.grupo-prov');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Enviar', 'Compras: pestaña propia, abre en Enviar (por proveedor)');
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Enviar|Recibir|Gasto', 'Compras: Enviar · Recibir · Gasto');
+  ok(await g.locator('.zona-pruebas').count() === 0 && await g.locator('[data-accion="cargar"]').count() === 0, 'Compras no repite Cargar ni Borrar todo');
   ok(await g.locator('.grupo-prov').count() === 4, `Por proveedor: Barcena, Florida, Martín + Sin proveedor (${await g.locator('.grupo-prov').count()})`);
   const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');
   ok(await sinP.getByRole('button', { name: 'Enviar por WhatsApp' }).count() === 0, 'Sin proveedor: no se puede mandar');
@@ -635,8 +699,29 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await g.locator('.grupo-prov').count() === 4, 'tras asignar, quedan 4 proveedores (con Demo)');
   const martinG = await g.locator('.grupo-prov[data-prov="Martín De Ridder"]').innerText();
   ok(/Pedido mínimo \$ 100\.000/.test(martinG), 'gerencia ve el mínimo de Martín De Ridder');
-  // destildar un producto: no se manda ni se imprime
+  // agregar desde la tarjeta del proveedor: se elige el local y va a ese proveedor
   const barcena = g.locator('.grupo-prov[data-prov="Barcena"]');
+  await barcena.locator('[data-accion="agregar"]').click();
+  await g.waitForSelector('dialog.sheet .ag-hoja');
+  const opLoc = await g.locator('dialog.sheet select[aria-label="Local"] option').allInnerTexts();
+  ok(opLoc.length === 5 && opLoc[0] === 'Trento Café' && opLoc[1] === 'Umo Grill', 'tarjeta: se elige el local, primero los que ya le piden a Barcena · ' + opLoc.join(', '));
+  await g.locator('dialog.sheet select[aria-label="Local"]').selectOption(L1);
+  ok(await g.getByRole('button', { name: 'Agregar Queso cremoso' }).count() === 1, 'tarjeta: sin buscar muestra los productos de ese proveedor');
+  await g.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  await shot(g, '10g-g-pedidos-agregar-proveedor-pc');
+  await g.getByRole('button', { name: 'Agregar Queso cremoso' }).click();
+  await g.locator('dialog.sheet').getByLabel('Cantidad de Queso cremoso').fill('1,5');
+  await g.locator('[data-accion="agregar-confirmar"]').click();
+  await barcena.locator('.pp-fila', { hasText: 'Queso cremoso' }).waitFor();
+  const itQ2 = db.items.find(i => i.producto_id === 'p-queso');
+  ok(itQ2 && itQ2.orden_id === ordBar.id && itQ2.cantidad_pedida === 1.5, 'tarjeta: el queso se suma al pedido de Barcena de Umo con 1,5');
+  g.once('dialog', d => d.accept());
+  const inpQ = barcena.getByLabel('Cantidad de Queso cremoso para Umo Grill');
+  await inpQ.fill('0'); await inpQ.evaluate(el => el.blur());
+  await barcena.locator('.pp-fila', { hasText: 'Queso cremoso' }).waitFor({ state: 'detached' });
+  await g.waitForTimeout(600);
+  ok(!db.items.some(i => i.producto_id === 'p-queso'), 'lo agregado se saca poniendo 0');
+  // destildar un producto: no se manda ni se imprime
   await barcena.getByLabel('Pedir Café en grano').uncheck();
   await g.waitForSelector('.grupo-prov[data-prov="Barcena"] .pp-fila.is-fuera');
   await g.waitForTimeout(300);
@@ -719,17 +804,19 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
     await g.locator('.sheet').getByRole('tab', { name: 'Separado por local' }).click();
   }
   const dl = []; g.on('download', d => dl.push(d.suggestedFilename()));
-  ok(/Bajar la imagen y abrir WhatsApp/.test(await g.locator('.sheet [data-accion="wa"]').innerText()), 'escritorio: el botón baja la imagen y abre WhatsApp');
+  ok(/Abrir el chat de Distribuidora Florida con la imagen|Bajar la imagen y abrir WhatsApp/.test(await g.locator('.sheet [data-accion="wa"]').innerText()), 'escritorio: el botón abre el chat del proveedor con la imagen');
   const [popup] = await Promise.all([cGer.waitForEvent('page'), g.locator('.sheet [data-accion="wa"]').click()]);
   const urlWA = popup.url();
   ok(urlWA.startsWith('https://wa.me/5491155550001?text='), `URL de WhatsApp con número solo dígitos: ${urlWA.slice(0, 48)}…`);
   const textoWA = decodeURIComponent(urlWA.split('?text=')[1]);
   ok(/^Hola Hernán!/.test(textoWA) && /Umo Grill/.test(textoWA) && /Va todo en la imagen/.test(textoWA) && !/Cerveza rubia|Gaseosa cola/.test(textoWA), 'el texto es solo un saludo con el local, sin repetir los productos');
-  ok(dl.some(d => /^pedido-distribuidora-florida-.*\.png$/.test(d)), 'en la computadora se descarga la imagen para adjuntarla: ' + dl.join(', '));
+  const enPortapapeles = await g.evaluate(async () => { try { const it = await navigator.clipboard.read(); return it.some(i => i.types.includes('image/png')); } catch (_e) { return false; } });
+  ok(enPortapapeles || dl.some(d => /^pedido-distribuidora-florida-.*\.png$/.test(d)), `en la computadora la imagen queda lista para pegar (${enPortapapeles ? 'portapapeles' : 'descarga: ' + dl.join(', ')})`);
   await popup.close();
   await g.waitForTimeout(500);
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'enviada', 'marca la orden como "enviada"');
   // Cargar un pedido desde gerencia en nombre de un local
+  await g.locator('.sidebar a[data-nav="pedidos"]').click();
   await g.locator('[data-accion="cargar"]').click();
   await g.waitForSelector('.cargar-local');
   await g.locator('.cargar-local .chip', { hasText: 'Trento Café' }).click();
@@ -744,12 +831,16 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos', 'Cargar queda marcado dentro de Pedidos');
   const nOrd = db.ordenes.length;
   await g.getByRole('button', { name: 'Enviar pedido' }).click();
-  await g.waitForSelector('.seg-ped');
+  await g.waitForSelector('.ped-tabla');
   const nueva = db.ordenes.slice(nOrd);
   ok(nueva.length === 1 && nueva[0].local_id === L2 && nueva[0].proveedor_id === PV.barcena && nueva[0].estado === 'borrador' && nueva[0].cargado_por_nombre === 'Jacobo', 'Cargar: crea la orden del local elegido, en revisión, cargada por Jacobo ' + JSON.stringify(nueva[0]));
   ok(db.items.some(i => i.orden_id === nueva[0].id && i.producto_id === 'p-trento' && i.cantidad_pedida === 2), 'Cargar: con sus productos');
   // Recibir
-  await g.getByRole('link', { name: 'Recibir' }).click();
+  await g.locator('.sidebar a[data-nav="compras"]').click();
+  await g.waitForSelector('.subnav');
+  await g.locator('.subnav-b', { hasText: 'Recibir' }).click();
+  await g.waitForSelector('.rec-factura');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Recibir', 'Recibir queda dentro de Compras');
   await g.waitForSelector('.grupo-prov[data-orden]');
   ok(await g.locator('.grupo-prov').count() === 1, 'Recibir: solo órdenes enviadas');
   const precioPre = await g.getByLabel('Costo unitario de Cerveza rubia lata 473 ml').inputValue();
@@ -764,6 +855,33 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(mov && mov.tipo === 'recepcion' && mov.cantidad === 12, `movimiento de recepción = cantidad × factor (2 cajas × 6 = ${mov && mov.cantidad})`);
   ok(db.preciosNuevos.some(p => p.producto_id === 'p-cerveza' && p.precio === 10500), 'precio nuevo guardado al cambiar');
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'parcial', 'faltó la gaseosa: orden "parcial"');
+  // Recibir: corregir con lo que realmente trajo (no vino / agregar producto que no estaba)
+  await g.waitForSelector('.grupo-prov[data-orden] [aria-label="No vino Gaseosa cola 1,5 l"]');
+  ok(await g.locator('.grupo-prov[data-orden]').count() === 1, 'la orden parcial sigue esperando la gaseosa');
+  await g.getByRole('button', { name: 'No vino Gaseosa cola 1,5 l' }).click();
+  ok(/quedan 1 pack x 6 como faltante|quedan [\d,]+ .* como faltante/.test(await g.locator('.prod-rec.is-off').innerText()), 'No vino: muestra lo que queda como faltante');
+  await g.getByRole('button', { name: 'Agregar producto que no estaba en el pedido' }).click();
+  await g.waitForSelector('.sheet input[type=search]');
+  ok(await g.locator('.sheet .prod-cat', { hasText: 'Agua sin gas 500 ml' }).count() === 1, 'Agregar: sin buscar muestra los productos del mismo proveedor');
+  await g.locator('.sheet input[type=search]').fill('café');
+  ok(await g.locator('.sheet .prod-cat').count() === 0, 'Agregar: solo busca en el catálogo del local de la orden');
+  await g.locator('.sheet input[type=search]').fill('agua');
+  await g.getByRole('button', { name: 'Agregar Agua sin gas 500 ml' }).click();
+  await g.getByLabel('Cantidad recibida de Agua sin gas 500 ml').fill('2');
+  await g.getByLabel('Costo unitario de Agua sin gas 500 ml').fill('5100');
+  ok(/1 producto no vino · 1 agregado/.test(await g.locator('.rec-resumen').innerText()), 'resumen: no vino y agregado ' + await g.locator('.rec-resumen').innerText());
+  await shot(g, '12b-g-recibir-corregir-pc');
+  const nRec = db.recepciones.length;
+  await g.getByRole('button', { name: 'Confirmar recepción' }).click();
+  await g.waitForSelector('.toast-ok >> text=Recepción completa');
+  const rc = db.recepciones[nRec];
+  ok(rc && rc.p_items.some(i => i.producto_id === 'p-agua' && !i.orden_item_id && i.cantidad_recibida === 2 && i.precio_unitario === 5100), 'el agregado viaja con producto_id, cantidad y costo');
+  ok(rc && rc.p_items.some(i => i.orden_item_id && i.no_vino === true && i.cantidad_recibida === 0), 'la gaseosa viaja como no vino');
+  const ordFlo = db.ordenes.find(o => o.proveedor_id === PV.florida);
+  ok(ordFlo.estado === 'recibida', 'con lo que no vino marcado, la orden queda recibida');
+  ok(db.items.some(i => i.orden_id === ordFlo.id && i.producto_id === 'p-agua' && i.agregado && i.cantidad_pedida === 0), 'el agua queda registrada como agregada al recibir (pedido 0)');
+  ok(db.items.some(i => i.orden_id === ordFlo.id && i.producto_id === 'p-gaseosa' && i.no_vino && i.cantidad_pedida > 0), 'la gaseosa queda pedida y marcada como faltante');
+  ok(db.movimientos.some(m => m.producto_id === 'p-agua' && m.tipo === 'recepcion' && m.cantidad === 24), 'el agua suma stock (2 packs × 12)');
   // Stock
   await g.locator('.sidebar a[data-nav="stock"]').click();
   await g.waitForSelector('.prod-stk');
@@ -889,6 +1007,25 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForSelector('.fac[data-factura="0004-00000123"]', { state: 'detached' });
   ok(db.facturasBorradas.length === 1 && await g.locator('.fac-vencida').count() === 2, 'borrar factura: se borra y deja de figurar vencida');
   await shot(g, '42c-g-factura-borrada-pc', true);
+  // Marcar pagada a mano (sin comprobante que se pueda leer): registra el pago por lo que debe e imputado a esa factura
+  await g.locator('.fac[data-factura="0003-00000099"] button', { hasText: 'Marcar pagada' }).click();
+  await g.waitForSelector('dialog[open]');
+  ok(/debe \$ 30\.000/.test(await g.locator('dialog[open]').innerText()), 'marcar pagada: muestra lo que debe');
+  await g.locator('#mp-op').fill('OPMANUAL01');
+  await g.locator('#mp-archivo').setInputFiles(PDF_DEMO);
+  await shot(g, '42d-g-factura-marcar-pagada-pc');
+  await g.getByRole('button', { name: /^Marcar pagada \(/ }).click();
+  await g.waitForSelector('.toast-ok >> text=Factura 0003-00000099 pagada');
+  const pMan = db.pagosRegistrados[db.pagosRegistrados.length - 1];
+  ok(pMan && pMan.p_pago.proveedor_id === PV.barcena && pMan.p_pago.monto === 30000 && pMan.p_pago.numero_operacion === 'OPMANUAL01' && /^pagos\/prv-barcena\/OPMANUAL01\.pdf$/.test(pMan.p_pago.comprobante_path)
+    && pMan.p_imputaciones.length === 1 && pMan.p_imputaciones[0].factura_id === 'fa-3' && pMan.p_imputaciones[0].monto === 30000, 'marcar pagada: pago por lo que debe, con comprobante, imputado a la factura ' + JSON.stringify(pMan));
+  await g.waitForSelector('.fac[data-factura="0003-00000099"]', { state: 'detached' });
+  ok(await g.locator('.fac-vencida').count() === 1, 'marcar pagada: deja de figurar vencida');
+  await g.locator('.chip[data-filtro="todas"]').click();
+  ok(/Pagada/.test(await g.locator('.fac[data-factura="0003-00000099"]').innerText()), 'marcar pagada: en Todas figura Pagada');
+  await shot(g, '42e-g-factura-pagada-pc');
+  // se deshace en el mock para que el resto de la prueba (Cargar pago, Pagos) siga con los mismos datos
+  db.pagosRegistrados.pop(); db.pagos = db.pagos.filter(x => x.numero_operacion !== 'OPMANUAL01'); db.facturas.find(x => x.id === 'fa-3').imputado = 0;
   await g.locator('.chip[data-filtro="pendientes"]').click();
 
   // Cargar pago: subir el PDF, precarga, proveedor sugerido, imputación
@@ -977,6 +1114,19 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForSelector('.banner-error >> text=ya está cargada');
   ok(await g.getByRole('button', { name: 'Guardar pago' }).isDisabled(), 'la misma operación no se puede guardar dos veces: botón deshabilitado y mensaje claro');
   await shot(g, '48-g-pago-duplicado-pc', true);
+
+  // Comprobante en foto o PDF escaneado (Mercado Pago por WhatsApp, sin texto): lo lee la IA y precarga igual
+  db.comprobanteIA = { es_comprobante: true, monto: 152097, fecha: '2026-10-30', numero_operacion: '900000000001', proveedor_razon_social: 'Demo Carnes Srl',
+    cuit_destino: '30-00000003-5', banco_destino: 'Banco Demo', cuenta_destino: '0000000000000000009999', pagador: 'Pagador Demo SA', cuit_pagador: '30-00000002-7',
+    cuenta_origen: '0000003100000000000001', concepto: 'Varios', descripcion: null };
+  const fotoComp = await g.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 300, height: 600 } });
+  await g.locator('#p-archivo').setInputFiles({ name: 'comprobante-whatsapp.png', mimeType: 'image/png', buffer: fotoComp });
+  await g.waitForSelector('.banner-ok >> text=Comprobante leído');
+  const lia = db.lecturasIA[db.lecturasIA.length - 1];
+  ok(lia && lia.modo === 'comprobante' && lia.tipos[0] === 'image/jpeg', 'foto del comprobante: la lee la IA en modo comprobante ' + JSON.stringify(lia));
+  ok(await g.locator('#p-op').inputValue() === '900000000001' && /152\.?097/.test(await g.locator('#p-monto').inputValue()) && await g.locator('#p-fecha').inputValue() === '2026-10-30',
+    'foto del comprobante: precarga operación, monto y fecha');
+  await shot(g, '48b-g-pago-foto-leida-pc', true);
 
   // Proveedores (Catálogo → Proveedores): sin el SQL 0011 la ficha avisa y guarda solo lo de siempre
   db.sin0011 = true;
@@ -1084,7 +1234,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.locator('.pt-envio', { hasText: 'Angelica' }).locator('.pt-fila').click();
   await gm.waitForSelector('.pt-det');
   await shot(gm, '16b-g-pedidos-detalle-m');
-  await gm.locator('.seg-ped [data-vista="proveedor"]').click();
+  await gm.locator('a.tab[data-nav="compras"]').click();
   await gm.waitForSelector('.grupo-prov');
   await shot(gm, '16c-g-pedidos-proveedor-m');
   // imprimir y marcar como enviado: lo destildado sale del pedido; la orden que queda vacía se cancela

@@ -117,10 +117,12 @@ function pintarPedir(root, ctx) {
   const pintarLista = (inicial = 0) => {
     const q = norm(filtro.q);
     let vis = activos;
-    // Al buscar se busca en todo el catálogo del local, sin importar la categoría elegida.
+    // Con una categoría elegida (ej.: Verdulería) la búsqueda queda dentro de esa categoría: "tomate" no trae "puré de tomate".
+    // Con "Todas" o "En mi pedido" se busca en todo el catálogo del local.
+    const enCat = filtro.cat !== 'todas' && filtro.cat !== MI_PEDIDO;
     if (!q) vis = vis.filter(aLaVista);
     if (filtro.cat === MI_PEDIDO && !q) vis = vis.filter(p => cantidad(p) > 0);
-    else if (filtro.cat !== 'todas' && !q) vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
+    else if (enCat) vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
     if (q) {
       const toks = tokens(q);
       const local = vis.filter(p => coincide(p.nombre + ' ' + p.codigo, toks));
@@ -129,12 +131,21 @@ function pintarPedir(root, ctx) {
       vis = [...local, ...extra];
     }
     if (!S.listo && !activos.length) { lista.replaceChildren(esqueleto(6)); return; }
-    cuenta.textContent = q ? (vis.length ? `${vis.length} ${vis.length === 1 ? 'producto' : 'productos'}` : '') : '';
+    cuenta.textContent = q ? (vis.length ? `${vis.length} ${vis.length === 1 ? 'producto' : 'productos'}${enCat ? ' en ' + filtro.cat : ''}` : '') : '';
     if (!vis.length) {
       if (filtro.cat === MI_PEDIDO && !q) { lista.replaceChildren(vacio('Tu pedido está vacío', 'Buscá un producto o elegí una categoría y sumá con +.')); return; }
+      if (q && enCat) {
+        lista.replaceChildren(vacio(`No hay "${filtro.q.trim()}" en ${filtro.cat}`, 'Probá con otra palabra o buscalo en todas las categorías.'),
+          h('p', { class: 'mas-buscar' }, h('button', { class: 'btn btn-text', type: 'button', text: 'Buscar en todas las categorías', on: { click: () => elegir('todas') } })));
+        return;
+      }
       lista.replaceChildren(vacio(q ? 'No encontramos ese producto' : 'Sin productos', q ? 'Probá con otra palabra.' : 'Todavía no hay productos cargados para este local.')); return;
     }
-    if (q || filtro.cat === MI_PEDIDO) { porTandas(lista, vis.sort((a, b) => porTexto(a.nombre, b.nombre)).map(p => () => fila(p)), 60, inicial); return; }
+    if (q || filtro.cat === MI_PEDIDO) {
+      // Primero lo que empieza con lo buscado ("Tomate", "Tomate cherry") y después el resto ("Puré de tomate").
+      const empieza = (p) => (q && norm(p.nombre).startsWith(tokens(q)[0]) ? 0 : 1);
+      porTandas(lista, vis.sort((a, b) => empieza(a) - empieza(b) || porTexto(a.nombre, b.nombre)).map(p => () => fila(p)), 60, inicial); return;
+    }
     const g = groupBy(vis, p => p.categoria || 'Sin categoría');
     const frag = [];
     for (const k of [...g.keys()].sort(porTexto)) {
@@ -153,15 +164,17 @@ function pintarPedir(root, ctx) {
     } catch (_e) { /* la búsqueda local alcanza */ }
   }, 300);
 
+  const ph = (c) => c !== 'todas' && c !== MI_PEDIDO ? `Buscar en ${c}` : 'Buscar producto (ej.: queso, coca, servilleta)';
   const cuenta = h('span', { class: 'busca-n', 'aria-live': 'polite' });
   const limpiar = h('button', { class: 'busca-x', type: 'button', 'aria-label': 'Borrar búsqueda', hidden: !filtro.q, on: { click: () => { buscador.value = ''; alBuscar(''); buscador.focus(); } } }, icon('cerrar', 18));
   const alBuscar = (v) => { filtro.q = v; limpiar.hidden = !v; extraIds = null; pintarLista(); buscarRemoto(v); };
-  const buscador = h('input', { class: 'input input-search', type: 'search', id: 'buscar', placeholder: 'Buscar producto (ej.: queso, coca, servilleta)', autocomplete: 'off', enterkeyhint: 'search', 'aria-label': 'Buscar producto', value: filtro.q,
+  const buscador = h('input', { class: 'input input-search', type: 'search', id: 'buscar', placeholder: ph(filtro.cat), autocomplete: 'off', enterkeyhint: 'search', 'aria-label': 'Buscar producto', value: filtro.q,
     on: { input: (e) => alBuscar(e.target.value) } });
   const caja = h('div', { class: 'busca' }, icon('buscar', 20), buscador, limpiar, cuenta);
 
   const marcar = (c) => chips.querySelectorAll('.chip').forEach(b => { const on = b.dataset.cat === c; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-  const elegir = (c) => { filtro.cat = c; if (filtro.q) { buscador.value = ''; filtro.q = ''; limpiar.hidden = true; extraIds = null; } marcar(c); pintarLista(); };
+  // Al cambiar de categoría se mantiene lo que se está buscando, ahora dentro de la categoría nueva.
+  const elegir = (c) => { filtro.cat = c; buscador.placeholder = ph(c); marcar(c); pintarLista(); };
   chipMio.dataset.cat = MI_PEDIDO; chipMio.addEventListener('click', () => elegir(MI_PEDIDO));
   const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categorías' }, chipMio,
     ['todas', ...cats].map(c => h('button', { class: 'chip', type: 'button', 'data-cat': c, text: c === 'todas' ? 'Todas' : c, on: { click: () => elegir(c) } })));
@@ -277,7 +290,7 @@ async function renderMis(root, ctx) {
     const cab = cabecera('Mis pedidos', S.local ? S.local.nombre : '');
     if (!ordenes.length) { mount(root, cab, err ? banner(err, 'warn') : null, vacio('Todavía no enviaste pedidos', 'Cuando envíes uno, lo ves acá.'), h('a', { class: 'btn btn-primary', href: '#/pedir', text: 'Hacer un pedido' })); return; }
     mount(root, cab, err ? banner(err, 'warn') : null, h('div', { class: 'ped-lista' }, ordenes.map(o => {
-      const items = o.orden_items || [];
+      const items = (o.orden_items || []).filter(i => Number(i.cantidad_pedida) > 0); // sin lo que gerencia agregó al recibir
       const det = h('ul', { class: 'ped-items', hidden: true }, items.map(i => { const p = prods.get(i.producto_id); return h('li', {}, h('span', { text: p ? p.nombre : 'Producto' }), h('b', { class: 'num', text: fmtNum(i.cantidad_pedida, 3) + (p && p.unidad_compra ? ' ' + p.unidad_compra : '') })); }));
       const prov = provs.get(o.proveedor_id);
       return h('article', { class: 'ped' },

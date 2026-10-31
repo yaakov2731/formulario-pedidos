@@ -95,7 +95,58 @@ export const whatsappPagos = (prov) => (prov && (prov.whatsapp_pagos || prov.wha
 export const emailPagos = (prov) => (prov && (prov.email_pagos || prov.email)) || null;
 
 export const nombreArchivoSeguro = (n) => String(n || 'archivo').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-80) || 'archivo';
-export const rutaPago = (proveedorId, op) => `pagos/${proveedorId}/${nombreArchivoSeguro(op || String(Date.now()))}.pdf`;
+// Extensión del comprobante según el archivo: .pdf salvo que sea una foto (jpg/png/webp).
+const extension = (archivo) => { const t = (archivo && archivo.type) || ''; return /^image\/(png|webp|gif)$/.test(t) ? t.slice(6) : /^image\//.test(t) ? 'jpg' : 'pdf'; };
+export const rutaPago = (proveedorId, op, archivo) => `pagos/${proveedorId}/${nombreArchivoSeguro(op || String(Date.now()))}.${extension(archivo)}`;
 export const rutaFactura = (proveedorId, nombre) => `facturas/${proveedorId}/${Date.now()}-${nombreArchivoSeguro(nombre)}`;
 
 export const fechaDMA = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
+
+// ===== Tipo de comprobante y gasto en compras =====
+export const TIPOS_COMPROBANTE = ['Factura A', 'Factura B', 'Factura C', 'Recibo X', 'Otro'];
+// Lo que leyó la IA ("FACTURA A", "X", "Remito X", "Documento no válido como factura"…) → uno de TIPOS_COMPROBANTE, o '' si no dice.
+export function tipoComprobante(texto) {
+  const t = norm(texto);
+  if (!t) return '';
+  if (/\bx\b|no valido como factura|recibo|presupuesto/.test(t)) return 'Recibo X';
+  const m = t.match(/factura\s*([abc])\b|\b([abc])\b/);
+  if (m) return 'Factura ' + (m[1] || m[2]).toUpperCase();
+  return /factura/.test(t) ? '' : 'Otro';
+}
+// Número para un Recibo X que no trae número (la base pide uno por proveedor): X-AAAAMMDD-hhmmss.
+export const numeroReciboX = (d = new Date()) => {
+  const p = (n) => String(n).padStart(2, '0');
+  return `X-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+};
+
+// Agrupa y ordena de mayor a menor: [{ clave, total, n, pct }].
+function agrupar(lista, clave, total) {
+  const m = new Map();
+  for (const g of lista) { const k = clave(g); const x = m.get(k) || { clave: k, total: 0, n: 0 }; x.total += Number(g.total) || 0; x.n++; m.set(k, x); }
+  return [...m.values()].map((x) => ({ ...x, total: redondear(x.total), pct: total > 0 ? x.total / total : 0 })).sort((a, b) => b.total - a.total || String(a.clave).localeCompare(String(b.clave)));
+}
+// Resumen del gasto de un período. gastos: filas de la vista gastos_compras (pueden incluir el período anterior).
+// tipo: 'todo' | 'factura' (todo menos Recibo X) | 'x' (solo Recibo X).
+export function resumenGasto(gastos, desde, hasta, ant, tipo = 'todo') {
+  const pasa = (g) => tipo === 'todo' || (tipo === 'x' ? g.es_x : !g.es_x);
+  const del = (a, b) => gastos.filter((g) => pasa(g) && g.fecha >= a && g.fecha <= b);
+  const lista = del(desde, hasta);
+  const suma = (l, f = (g) => g.total) => redondear(l.reduce((s, g) => s + (Number(f(g)) || 0), 0));
+  const total = suma(lista);
+  const totalPrev = ant ? suma(del(ant.desde, ant.hasta)) : 0;
+  const conX = gastos.filter((g) => g.fecha >= desde && g.fecha <= hasta);
+  const x = suma(conX.filter((g) => g.es_x));
+  return {
+    hay: lista.length > 0, n: lista.length, total, totalPrev,
+    variacion: totalPrev > 0 ? (total - totalPrev) / totalPrev : null,
+    conFactura: redondear(suma(conX) - x), reciboX: x, totalAmbos: suma(conX),
+    pagado: suma(lista, (g) => Math.min(Number(g.imputado) || 0, Number(g.total) || 0)),
+    pendiente: suma(lista, (g) => g.pendiente), vencido: suma(lista.filter((g) => g.vencida), (g) => g.pendiente),
+    nVencidas: lista.filter((g) => g.vencida).length,
+    porRazon: agrupar(lista, (g) => g.local_id ? g.razon_social : 'Sin local asignado', total),
+    porLocal: agrupar(lista, (g) => g.local || 'Sin local asignado', total),
+    porProveedor: agrupar(lista, (g) => g.proveedor || 'Proveedor', total),
+    porCategoria: agrupar(lista, (g) => g.categoria || 'Sin categoría', total),
+    ultimos: [...lista].sort((a, b) => String(b.creado_en || b.fecha).localeCompare(String(a.creado_en || a.fecha))).slice(0, 8)
+  };
+}
