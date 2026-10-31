@@ -328,7 +328,7 @@ export async function render(root, ctx) {
       if (!act.length) return (err.textContent = 'No hay productos para recibir.');
       if (act.some(x => !x.producto)) return (err.textContent = 'Elegí el producto de cada renglón, crealo como producto nuevo o destildá los que no se reciben.');
       const total = parseNum(f.total.value);
-      if (f.guardar.checked && (f.numero.value.trim() || f.tipo.value === 'Recibo X') && (total === null || total < 0)) return (err.textContent = 'Poné el total de la factura para guardarla en Pagos.');
+      if (f.guardar.checked && (total === null || total < 0)) return (err.textContent = 'Poné el total de la boleta para guardarla en Pagos (o destildá «Guardar también la factura en Pagos»).');
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {
         let archivo = null;
@@ -338,8 +338,9 @@ export async function render(root, ctx) {
           archivo = await subirComprobante(rutaFactura(f.prov.value, nombre), new File([blob], nombre, { type: blob.type }));
         } catch (_e) { /* sin archivo igual se recibe */ }
         const items = act.map(x => ({ producto_id: x.producto.id, cantidad: x.cantidad, precio_unitario: x.precio == null ? null : Math.round(x.precio * 100) / 100, alias: x.r.descripcion || x.r.codigo || null }));
-        // Un recibo X sin número igual se guarda en Pagos (con un número armado) para que sume al gasto.
-        const numero = f.numero.value.trim() || (f.tipo.value === 'Recibo X' && f.guardar.checked && total !== null ? numeroReciboX() : '');
+        // Una boleta sin número (verdulería, recibo X) igual se guarda en Pagos con un número armado, para que figure y sume al gasto.
+        const armado = () => (f.tipo.value === 'Recibo X' ? numeroReciboX() : numeroReciboX().replace(/^X-/, 'SN-'));
+        const numero = f.numero.value.trim() || (f.guardar.checked && total !== null ? armado() : '');
         const factura = numero ? { numero, tipo: f.tipo.value || null, fecha: f.fecha.value || null, vencimiento: f.venc.value || null, total, archivo, guardar: f.guardar.checked } : (archivo ? { archivo } : null);
         const r = await recibirConFactura(localId, f.prov.value, items, factura, ordenSel && ordenSel.id);
         items.forEach(x => { if (x.precio_unitario !== null) refrescarPrecio(x.producto_id, x.precio_unitario); });

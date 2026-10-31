@@ -239,6 +239,17 @@ async function shot(p, n, full = false) {
   await g.locator('button', { hasText: 'Leer factura' }).click();
   await g.waitForSelector('.rf-fila');
   await shot(g, '07-revisar-pc', true);
+  // Boleta sin número (verdulería): igual se guarda en Pagos con un número armado; sin total no deja.
+  for (const d of ['MUZZARELLA HORMA LA PAULINA', 'FLETE', 'ESPONJA DOBLE USO', 'SERVILLETA PAPEL X100']) await g.locator(`[aria-label="Recibir ${d}"]`).uncheck();
+  await g.locator('#rf-numero').fill('');
+  await g.locator('#rf-total').fill('');
+  await g.locator('button', { hasText: 'Confirmar recepción' }).click();
+  ok(/Poné el total de la boleta/.test(await g.locator('.form-err').innerText()), 'sin total no deja guardarla en Pagos');
+  await g.locator('#rf-total').fill('61500');
+  await g.locator('button', { hasText: 'Confirmar recepción' }).click();
+  await g.waitForFunction(() => location.hash === '#/recibir');
+  const sn = db.rpc[db.rpc.length - 1].p_factura || {};
+  ok(/^SN-\d{8}-\d{6}$/.test(sn.numero || '') && sn.total === 61500 && sn.guardar === true, 'sin número se guarda en Pagos con número armado · ' + JSON.stringify(sn));
   await cP.close();
   const { c: cE, p: e } = await nuevo({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, { falla: 'Falta configurar la clave de Anthropic (ANTHROPIC_API_KEY) en Supabase.' });
   await e.goto(BASE + '#/recibir-factura');
