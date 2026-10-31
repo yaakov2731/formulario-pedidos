@@ -1002,6 +1002,25 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForSelector('.fac[data-factura="0004-00000123"]', { state: 'detached' });
   ok(db.facturasBorradas.length === 1 && await g.locator('.fac-vencida').count() === 2, 'borrar factura: se borra y deja de figurar vencida');
   await shot(g, '42c-g-factura-borrada-pc', true);
+  // Marcar pagada a mano (sin comprobante que se pueda leer): registra el pago por lo que debe e imputado a esa factura
+  await g.locator('.fac[data-factura="0003-00000099"] button', { hasText: 'Marcar pagada' }).click();
+  await g.waitForSelector('dialog[open]');
+  ok(/debe \$ 30\.000/.test(await g.locator('dialog[open]').innerText()), 'marcar pagada: muestra lo que debe');
+  await g.locator('#mp-op').fill('OPMANUAL01');
+  await g.locator('#mp-archivo').setInputFiles(PDF_DEMO);
+  await shot(g, '42d-g-factura-marcar-pagada-pc');
+  await g.getByRole('button', { name: /^Marcar pagada \(/ }).click();
+  await g.waitForSelector('.toast-ok >> text=Factura 0003-00000099 pagada');
+  const pMan = db.pagosRegistrados[db.pagosRegistrados.length - 1];
+  ok(pMan && pMan.p_pago.proveedor_id === PV.barcena && pMan.p_pago.monto === 30000 && pMan.p_pago.numero_operacion === 'OPMANUAL01' && /^pagos\/prv-barcena\/OPMANUAL01\.pdf$/.test(pMan.p_pago.comprobante_path)
+    && pMan.p_imputaciones.length === 1 && pMan.p_imputaciones[0].factura_id === 'fa-3' && pMan.p_imputaciones[0].monto === 30000, 'marcar pagada: pago por lo que debe, con comprobante, imputado a la factura ' + JSON.stringify(pMan));
+  await g.waitForSelector('.fac[data-factura="0003-00000099"]', { state: 'detached' });
+  ok(await g.locator('.fac-vencida').count() === 1, 'marcar pagada: deja de figurar vencida');
+  await g.locator('.chip[data-filtro="todas"]').click();
+  ok(/Pagada/.test(await g.locator('.fac[data-factura="0003-00000099"]').innerText()), 'marcar pagada: en Todas figura Pagada');
+  await shot(g, '42e-g-factura-pagada-pc');
+  // se deshace en el mock para que el resto de la prueba (Cargar pago, Pagos) siga con los mismos datos
+  db.pagosRegistrados.pop(); db.pagos = db.pagos.filter(x => x.numero_operacion !== 'OPMANUAL01'); db.facturas.find(x => x.id === 'fa-3').imputado = 0;
   await g.locator('.chip[data-filtro="pendientes"]').click();
 
   // Cargar pago: subir el PDF, precarga, proveedor sugerido, imputación
