@@ -296,6 +296,8 @@ select.input { text-align: center; text-align-last: center; }
 .rf-fila .rec-campos { max-width: none; }
 .rf-resumen { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; text-align: center; }
 .rf-alerta { color: var(--warn-ink); font-weight: 700; }
+.rf-crear-todos { margin: 8px 0 4px; }
+.rf-nuevos { margin: 4px 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; max-height: 40vh; overflow: auto; text-align: left; }
 .rf-ok { color: var(--ok-ink); font-weight: 700; }
 .rf-cmp { border: 1.5px solid var(--warn-line); background: var(--warn-soft); border-radius: 14px; padding: 12px 14px; text-align: left; }
 .rf-cmp-t { font-weight: 700; color: var(--warn-ink); margin-bottom: 6px; }

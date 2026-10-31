@@ -92,3 +92,25 @@ export function facturaParcial(texto) {
   }
   return { proveedor, renglones };
 }
+
+// Producto nuevo a partir de un renglón que no está en el catálogo: nombre prolijo y unidad tal como viene en la factura.
+const UNIDADES = [[/^(kg|kgs|kilo|kilos|k)$/, 'kg'], [/^(l|lt|lts|litro|litros)$/, 'litro'], [/^(u|un|uni|unid|unids|unidad|unidades|c\/u|cu|ud|uds)$/, 'unidad']];
+export function unidadDeFactura(u) {
+  const t = norm(u).replace(/\.$/, '');
+  if (!t) return 'unidad';
+  for (const [re, v] of UNIDADES) if (re.test(t)) return v;
+  return t.length <= 12 ? t : 'unidad';
+}
+export function nombreDeFactura(desc) {
+  const t = String(desc || '').replace(/\s+/g, ' ').trim();
+  if (!t || t !== t.toUpperCase()) return t;
+  const m = t.toLowerCase();
+  return m.charAt(0).toUpperCase() + m.slice(1);
+}
+// Próximo código libre del local: UMO-138, UMO-139… (n salta los ya usados si el servidor dice que está repetido).
+export function proximoCodigo(prefijo, prods, n = 0) {
+  const re = new RegExp('^' + prefijo + '-(\\d+)$');
+  let max = 0;
+  for (const x of prods) { const m = re.exec(x.codigo || ''); if (m) max = Math.max(max, Number(m[1])); }
+  return `${prefijo}-${String(max + 1 + n).padStart(3, '0')}`;
+}
