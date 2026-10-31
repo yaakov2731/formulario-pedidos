@@ -53,7 +53,9 @@ const FACTURA = {
     { codigo: '2210', descripcion: 'LECHE ENT. LS 1L CJ X12', cantidad: 2, unidad: 'cj', precio_unitario: 14400, importe: 28800 },
     { codigo: '4410', descripcion: 'LAVANDINA CONCENTRADA BIDON 5L', cantidad: 3, unidad: 'un', precio_unitario: 5300, importe: 15900 },
     { codigo: '3300', descripcion: 'MUZZARELLA HORMA LA PAULINA', cantidad: 4.2, unidad: 'kg', precio_unitario: 7500, importe: 31500 },
-    { codigo: null, descripcion: 'FLETE', cantidad: 1, unidad: null, precio_unitario: 5500, importe: 5500 }
+    { codigo: null, descripcion: 'FLETE', cantidad: 1, unidad: null, precio_unitario: 5500, importe: 5500 },
+    { codigo: '7701', descripcion: 'ESPONJA DOBLE USO', cantidad: 6, unidad: 'un', precio_unitario: 450, importe: 2700 },
+    { codigo: '7702', descripcion: 'SERVILLETA PAPEL X100', cantidad: 10, unidad: 'paquete', precio_unitario: 900, importe: 9000 }
   ],
   observaciones: null
 };
@@ -61,7 +63,7 @@ const db = {
   alias: [{ id: 'a1', producto_id: P.leche.id, alias: 'LECHE ENT. LS 1L CJ X12' }],
   ordenes: [{ id: 'ord-1', local_id: L1, proveedor_id: FLO, estado: 'enviada', creado_en: '2026-10-27T12:00:00Z', cargado_por_nombre: 'Ruth', nota: null,
     orden_items: [{ id: 'oi1', producto_id: P.tomate.id, cantidad_pedida: 10, cantidad_recibida: null, excluido: false }, { id: 'oi2', producto_id: P.leche.id, cantidad_pedida: 2, cantidad_recibida: null, excluido: false }, { id: 'oi3', producto_id: P.crema.id, cantidad_pedida: 6, cantidad_recibida: null, excluido: false }] }],
-  rpc: [], subidas: [], lecturas: []
+  rpc: [], subidas: [], lecturas: [], nuevos: []
 };
 function jwt(sub) {
   const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -98,6 +100,7 @@ async function montarApi(ctx, { falla = null } = {}) {
     if (t === 'perfiles') return json([{ id: U_GER, nombre: 'Jacobo', rol: 'gerencia', local_id: null }]);
     if (t === 'locales') return json([{ id: L1, codigo: 'UMO', nombre: 'Umo Grill', encargados: ['Ruth'], activo: true }, { id: L2, codigo: 'TRE', nombre: 'Trento Café', encargados: [], activo: true }]);
     if (t === 'proveedores' || t === 'proveedores_basico') return json([{ id: FLO, nombre: 'Florida', cuit: '30711111111', activo: true }, { id: DS, nombre: 'Distri Stock Mayorista', cuit: null, activo: true }]);
+    if (t === 'productos' && req.method() === 'POST') { const b = body(); const n = { ...b, id: 'nuevo-' + (db.nuevos.length + 1) }; db.nuevos.push(n); return json([{ id: n.id }], 201); }
     if (t === 'productos') return json(Object.values(P));
     if (t === 'precio_actual') return json([{ producto_id: P.tomate.id, precio: 1900 }]);
     if (t === 'stock_actual') return json([]);
@@ -189,6 +192,29 @@ async function shot(p, n, full = false) {
   await m.locator('[aria-label="Elegir producto para FLETE"]').click();
   await m.locator('dialog[open] button', { hasText: 'No recibir este renglón' }).click();
   ok(/No se recibe/.test(await txtFila(4)), 'el flete queda sin recibir');
+  // ESPONJA no está en el catálogo: se crea desde el renglón con los datos de la factura.
+  ok(/Crear los 2 que faltan como productos nuevos/.test(await m.locator('.rf-resumen').innerText()), 'ofrece crear los 2 renglones que no están en el catálogo');
+  await m.locator('[aria-label="Elegir producto para ESPONJA DOBLE USO"]').click();
+  await m.locator('dialog[open] button', { hasText: 'No está: crearlo como producto nuevo' }).click();
+  ok(await m.locator('#rf-n-nombre').inputValue() === 'Esponja doble uso' && await m.locator('#rf-n-unidad').inputValue() === 'unidad', 'precarga nombre prolijo y unidad de la factura');
+  ok(await m.locator('#rf-n-cat').inputValue() === 'Lácteos', 'sugiere la categoría más usada del proveedor · ' + await m.locator('#rf-n-cat').inputValue());
+  await m.locator('#rf-n-cat').fill('Limpieza');
+  await shot(m, '05a-crear-producto-m');
+  await m.locator('dialog[open] button', { hasText: 'Crear y recibir' }).click();
+  await m.waitForFunction(() => !document.querySelector('dialog[open]'));
+  const esponja = db.nuevos[0] || {};
+  ok(esponja.nombre === 'Esponja doble uso' && esponja.local_id === L1 && esponja.proveedor_id === FLO && esponja.categoria === 'Limpieza' && esponja.unidad_uso === 'unidad' && esponja.codigo === 'UMO-105',
+    'crea el producto en el local con proveedor, categoría y código siguiente · ' + JSON.stringify(esponja));
+  ok(/Esponja doble uso/.test(await txtFila(5)) && /Nuevo en el catálogo/.test(await txtFila(5)), 'el renglón queda con el producto nuevo');
+  // SERVILLETA: el botón del resumen crea todos los que faltan.
+  await m.locator('.rf-crear-todos').click();
+  ok(/Servilleta papel x100/.test(await m.locator('dialog[open] .rf-nuevos').innerText()), 'lista los que se van a crear');
+  await shot(m, '05b-crear-todos-m');
+  await m.locator('dialog[open] button', { hasText: 'Crear 1 producto y recibir' }).click();
+  await m.waitForFunction(() => !document.querySelector('dialog[open]'));
+  const serv = db.nuevos[1] || {};
+  ok(serv.nombre === 'Servilleta papel x100' && serv.unidad_uso === 'paquete' && serv.codigo === 'UMO-106', 'crea el que faltaba con su unidad · ' + JSON.stringify(serv));
+  ok(!(await m.locator('.rf-crear-todos').count()) && /6 de 7 renglones listos/.test(await m.locator('.rf-resumen').innerText()), 'ya no falta elegir ninguno');
   // Corrige la cantidad de tomate a 8,5.
   await m.locator('[aria-label="Cantidad de TOMATE PERITA X KG"]').fill('8,5');
   await shot(m, '05-listo-m', true);
@@ -197,7 +223,8 @@ async function shot(p, n, full = false) {
   const r = db.rpc[0];
   ok(r && r.p_local === L1 && r.p_proveedor === FLO && r.p_orden === 'ord-1', 'recibir_con_factura con local, proveedor y pedido · ' + JSON.stringify(r && { l: r.p_local, p: r.p_proveedor, o: r.p_orden }));
   const it = (id) => (r.p_items || []).find(x => x.producto_id === id);
-  ok(r.p_items.length === 4 && it(P.tomate.id).cantidad === 8.5 && it(P.tomate.id).precio_unitario === 2100 && it(P.muzza.id).alias === 'MUZZARELLA HORMA LA PAULINA', 'manda 4 productos con cantidad, precio y alias (sin el flete)');
+  ok(r.p_items.length === 6 && it(P.tomate.id).cantidad === 8.5 && it(P.tomate.id).precio_unitario === 2100 && it(P.muzza.id).alias === 'MUZZARELLA HORMA LA PAULINA', 'manda 6 productos con cantidad, precio y alias (sin el flete)');
+  ok(it('nuevo-1') && it('nuevo-1').cantidad === 6 && it('nuevo-1').alias === 'ESPONJA DOBLE USO' && it('nuevo-2') && it('nuevo-2').cantidad === 10, 'los productos nuevos se reciben con su cantidad y aprenden el nombre de la factura');
   ok(r.p_factura && r.p_factura.numero === '0004-00228899' && r.p_factura.total === 119185 && r.p_factura.guardar === true && /^facturas\/prv-florida\//.test(r.p_factura.archivo || ''), 'manda la factura con total y archivo · ' + JSON.stringify(r.p_factura));
   ok(db.subidas.length === 1 && db.subidas[0].bytes > 1000, 'sube la foto a comprobantes');
   await m.waitForTimeout(200);
