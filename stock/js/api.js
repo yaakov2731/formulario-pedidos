@@ -327,6 +327,16 @@ export async function guardarProducto(id, datos) {
   const [r] = await ok(await sb.from('productos').insert(datos).select('id'));
   return r.id;
 }
+// Pone (o saca, con null) la categoría de varios productos de una vez. Devuelve cuántos cambió.
+export async function ponerCategoria(ids, categoria) {
+  let n = 0;
+  for (let i = 0; i < ids.length; i += 100) {
+    const r = await ok(await sb.from('productos').update({ categoria }).in('id', ids.slice(i, i + 100)).select('id'));
+    n += r.length;
+  }
+  if (ids.length && !n) throw new Error('No tenés permiso para cambiar categorías.');
+  return n;
+}
 export const guardarPrecio = async (productoId, proveedorId, precio) =>
   ok(await sb.from('precios').insert({ producto_id: productoId, proveedor_id: proveedorId || null, precio, origen: 'manual' }).select('id'));
 

@@ -165,7 +165,11 @@ async function montarApi(ctx) {
     if (t === 'locales') return json(rol === 'gerencia' ? db.locales : db.locales.filter(l => l.id === L1));
     if (t === 'productos') {
       if (req.method() === 'POST') { const b = body(); const r = { ...b, id: nid('p'), es_elaborado: !!b.es_elaborado }; db.productos.push(r); return json([r], 201); }
-      if (req.method() === 'PATCH') { const id = eq(q.get('id')); const p = db.productos.find(x => x.id === id); Object.assign(p, body()); return json([{ id }]); }
+      if (req.method() === 'PATCH') {
+        const inn = q.get('id') && q.get('id').startsWith('in.(') ? q.get('id').slice(4, -1).split(',').map(x => x.replace(/^"|"$/g, '')) : null;
+        if (inn) { const b = body(); const r = db.productos.filter(x => inn.includes(x.id)); r.forEach(x => Object.assign(x, b)); return json(r.map(x => ({ id: x.id }))); }
+        const id = eq(q.get('id')); const p = db.productos.find(x => x.id === id); Object.assign(p, body()); return json([{ id }]);
+      }
       let r = db.productos; if (rol === 'encargado') r = r.filter(p => p.local_id === L1);
       if (eq(q.get('local_id'))) r = r.filter(p => p.local_id === eq(q.get('local_id')));
       return json(r);
@@ -956,6 +960,35 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.getByRole('button', { name: 'Crear producto' }).click();
   await g.waitForSelector('.toast-ok >> text=Producto creado');
   ok(db.productos.some(p => p.codigo === 'UMO-050' && p.nombre === 'Provoleta'), 'alta de producto ' + JSON.stringify(db.productos.filter(p => /Provoleta/.test(p.nombre))));
+  // Categorías: crear una nueva con un producto, renombrarla y que salga en Productos
+  await g.locator('.subnav-b', { hasText: 'Categorías' }).click();
+  await g.waitForSelector('.prod-cat');
+  ok((await g.locator('.lista').innerText()).includes('Carnes') && !(await g.locator('.lista').innerText()).includes('Carta'), 'categorías: lista las existentes sin Carta');
+  await shot(g, '70-g-categorias-pc');
+  await g.getByRole('button', { name: 'Nueva categoría' }).click();
+  await g.locator('#cat-nombre').fill('Almacén');
+  await g.locator('#cat-local').selectOption(L1);
+  await g.getByPlaceholder('Buscar producto para sumar').fill('provo');
+  await g.waitForTimeout(250);
+  await g.locator('.cat-item', { hasText: 'Provoleta' }).locator('input').check();
+  await shot(g, '71-g-categoria-nueva-pc');
+  await g.getByRole('button', { name: 'Crear categoría' }).click();
+  await g.waitForSelector('.toast-ok >> text=Categoría Almacén creada');
+  ok(db.productos.find(p => p.codigo === 'UMO-050').categoria === 'Almacén', 'categorías: Provoleta queda en Almacén');
+  await g.waitForSelector('dialog', { state: 'detached' });
+  await g.locator('.prod-cat', { hasText: 'Almacén' }).click();
+  await g.locator('#cat-nombre').fill('Quesos y fiambres');
+  await g.getByRole('button', { name: 'Guardar cambios' }).click();
+  await g.waitForSelector('.toast-ok >> text=Cambios guardados');
+  ok(db.productos.find(p => p.codigo === 'UMO-050').categoria === 'Quesos y fiambres', 'categorías: renombrar mueve sus productos');
+  await g.waitForSelector('dialog', { state: 'detached' });
+  await shot(g, '72-g-categorias-renombrada-pc');
+  await g.setViewportSize({ width: 390, height: 844 });
+  await g.locator('.prod-cat', { hasText: 'Quesos y fiambres' }).click();
+  await g.waitForSelector('dialog[open]');
+  await shot(g, '73-g-categoria-editar-m');
+  await g.locator('dialog[open] .icon-btn[aria-label="Cerrar"]').click();
+  await g.setViewportSize({ width: 1366, height: 900 });
   // ===== Gerencia · Pagos, facturas, comprobantes, avisos y proveedores (escritorio) =====
   await g.locator('.sidebar a[data-nav="pagos"]').click();
   await g.waitForSelector('.cc-fila');

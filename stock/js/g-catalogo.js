@@ -7,7 +7,7 @@ import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_CATALOGO } f
 const MEDIDAS = [['kg', 'kg'], ['litro', 'litro'], ['unidad', 'unidad']];
 
 export async function render(root, ctx) {
-  let q = '', localF = 'todos', vistaF = 'todos';
+  let q = '', localF = 'todos', vistaF = 'todos', catF = 'todas';
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Catálogo' }), h('p', { class: 'sub', text: 'Productos, proveedores y costos' }));
   mount(root, cab, subnav(SUBNAV_CATALOGO, 'catalogo'), esqueleto(5));
   const lista = h('div', { class: 'lista' });
@@ -67,7 +67,7 @@ export async function render(root, ctx) {
     const btn = h('button', { class: 'btn btn-primary btn-block', type: 'button', text: nuevo ? 'Crear producto' : 'Guardar cambios' });
     const form = h('div', { class: 'form' },
       h('datalist', { id: 'dl-cat' }, cats.map(c => h('option', { value: c }))),
-      campo('Código', f.codigo), campo('Nombre', f.nombre), campo('Local', f.local), campo('Categoría', f.categoria),
+      campo('Código', f.codigo), campo('Nombre', f.nombre), campo('Local', f.local), campo('Categoría', f.categoria, 'Elegí una o escribí una nueva (ej.: Almacén). También en Catálogo → Categorías.'),
       h('div', { class: 'dos' }, campo('Se compra por', f.uc, 'Bolsa, caja, kg…'), campo('Se mide en', f.uu, 'Para stock y recetas')),
       campo('Cada una trae', f.factor, 'Ej.: la bolsa de papas trae 5 (kg).'), pres, conv,
       campo('Proveedor', f.prov), campo('Cantidad ideal en el local', f.ideal, 'Sirve para sugerir el pedido.'),
@@ -112,14 +112,14 @@ export async function render(root, ctx) {
 
   function pintar() {
     const t = tokens(q);
-    const vis = [...G.prods.values()].filter(p => (localF === 'todos' || p.local_id === localF) && (vistaF === 'todos' || (vistaF === 'ocultos') === (p.oculto === true)) && coincide(p.nombre + ' ' + p.codigo, t))
+    const vis = [...G.prods.values()].filter(p => (localF === 'todos' || p.local_id === localF) && (vistaF === 'todos' || (vistaF === 'ocultos') === (p.oculto === true)) && (catF === 'todas' || (p.categoria || '') === catF) && coincide(p.nombre + ' ' + p.codigo, t))
       .sort((a, b) => porTexto(a.nombre, b.nombre)).slice(0, 150);
     if (!vis.length) { lista.replaceChildren(vacio('No hay productos', 'Probá con otra búsqueda o creá uno nuevo.')); return; }
     lista.replaceChildren(...vis.map(p => {
       const prov = G.provs.get(p.proveedor_id);
       return h('button', { class: 'prod prod-cat' + (p.activo === false ? ' is-off' : ''), type: 'button', on: { click: () => editar(p) }, 'aria-label': `Editar ${p.nombre}` },
         h('span', { class: 'prod-n', text: p.nombre }),
-        h('span', { class: 'prod-m' }, h('span', { class: 'prod-u num', text: p.codigo }), h('span', { text: prov ? prov.nombre : 'Sin proveedor' }), p.oculto ? h('span', { class: 'tag-oculto', text: 'Oculto' }) : null),
+        h('span', { class: 'prod-m' }, h('span', { class: 'prod-u num', text: p.codigo }), h('span', { text: prov ? prov.nombre : 'Sin proveedor' }), h('span', { text: p.categoria || 'Sin categoría' }), p.oculto ? h('span', { class: 'tag-oculto', text: 'Oculto' }) : null),
         h('span', { class: 'prod-m' }, h('span', { text: p.unidad_compra || '—' }), G.precios.has(p.id) ? h('b', { class: 'num', text: fmtMoney(G.precios.get(p.id)) }) : h('span', { class: 'mute', text: 'Sin costo' })));
     }));
   }
@@ -130,9 +130,13 @@ export async function render(root, ctx) {
     h('option', { value: 'todos', text: 'Todos los locales' }), G.locales.map(l => h('option', { value: l.id, text: l.nombre })));
   const vistaSel = h('select', { class: 'input', 'aria-label': 'Qué mostrar', hidden: !hayColumnaOculto(), on: { change: (e) => { vistaF = e.target.value; pintar(); } } },
     h('option', { value: 'todos', text: 'A la vista y ocultos' }), h('option', { value: 'vista', text: 'Solo a la vista' }), h('option', { value: 'ocultos', text: 'Solo ocultos' }));
+  const catSel = h('select', { class: 'input', 'aria-label': 'Categoría', on: { change: (e) => { catF = e.target.value; pintar(); } } },
+    h('option', { value: 'todas', text: 'Todas las categorías' }),
+    [...new Set([...G.prods.values()].map(p => p.categoria).filter(Boolean))].sort(porTexto).map(c => h('option', { value: c, text: c })),
+    h('option', { value: '', text: 'Sin categoría' }));
   const buscar = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar por nombre o código', 'aria-label': 'Buscar producto', autocomplete: 'off', on: { input: debounce((e) => { q = e.target.value; pintar(); }, 120) } });
   mount(root, cab, subnav(SUBNAV_CATALOGO, 'catalogo'),
-    h('div', { class: 'toolbar toolbar-row' }, buscar, locSel, vistaSel, h('button', { class: 'btn btn-primary', type: 'button', on: { click: () => editar(null) } }, icon('mas', 18), h('span', { text: 'Nuevo producto' }))),
+    h('div', { class: 'toolbar toolbar-row' }, buscar, locSel, catSel, vistaSel, h('button', { class: 'btn btn-primary', type: 'button', on: { click: () => editar(null) } }, icon('mas', 18), h('span', { text: 'Nuevo producto' }))),
     lista);
   pintar();
 }
