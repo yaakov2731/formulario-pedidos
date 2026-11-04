@@ -2,7 +2,9 @@
 // Desde ahí el stock sigue solo: último conteo + lo que entra − lo que sale. Lo que faltó al contar es lo usado sin anotar.
 // Se cuenta a ciegas: no se muestra lo que dice el sistema, para que nadie copie el número. Vacío = no lo contó.
 // Lo que va cargando queda guardado en el celular hasta que guarda el conteo (0024_conteos.sql).
-import { mount, h, norm, tokens, coincide, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaCorta } from './util.js';
+// Por lugar (0025_lugares.sql): si gerencia ya ubicó los productos, primero se elige el lugar (Cámara, Freezer, Depósito…)
+// y se ve solo lo que hay ahí, en el orden de los estantes, con el avance de cada lugar. Si no, la lista por categoría.
+import { mount, h, norm, tokens, coincide, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaCorta, porLugar, lugarDe, SIN_LUGAR } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarLocales, contarLocal, ultimoConteo, mensajeError } from './api.js';
 import { esqueleto, vacio, banner, toast, icon } from './ui.js';
 
@@ -10,8 +12,10 @@ export async function render(root, ctx) {
   const lid = ctx.perfil.local_id;
   const quien = () => lsGet('nombre') || ctx.nombreGuardado || '';
   const clave = 'conteo:' + lid;
+  const claveLugar = 'conteo-lugar:' + lid;
   let prods = [], stock = new Map(), nombreLocal = '', ultimo = null, sinSQL = false;
   let q = '', cat = 'todas', guardando = false;
+  let lugar = lsGet(claveLugar) || null;
   const borrador = () => { const d = lsGet(clave); return d && d.t && Date.now() - d.t < 3 * 864e5 ? (d.v || {}) : {}; };
   let vals = borrador();
   const sub = h('p', { class: 'sub', text: 'Lo que queda en el local' });
@@ -30,7 +34,11 @@ export async function render(root, ctx) {
   // Lo oculto (resto de la lista de un mayorista) solo aparece si hay stock; los platos de la carta no se cuentan.
   const activos = prods.filter(p => p.activo !== false && !esCarta(p) && (!p.oculto || (stock.get(p.id) || 0) > 0)).sort((a, b) => porTexto(a.nombre, b.nombre));
   const cats = [...new Set(activos.map(p => p.categoria || 'Sin categoría'))].sort(porTexto);
-  const contados = () => activos.filter(p => vals[p.id] != null && vals[p.id] !== '');
+  const lugares = porLugar(activos);
+  const conLugares = activos.some(p => lugarDe(p) !== SIN_LUGAR);
+  if (!conLugares || !lugares.has(lugar)) lugar = null;
+  const hecho = (p) => vals[p.id] != null && vals[p.id] !== '';
+  const contados = () => activos.filter(hecho);
   // Por bulto (bolsa de 5 kg) se cuenta en bolsas, con decimales; se guarda en la unidad de uso.
   const unidad = (p) => esBulto(p) ? `${plural(p.unidad_compra, 2)} de ${fmtNum(factorDe(p), 3)} ${p.unidad_uso}` : (p.unidad_uso || 'unidades');
 
@@ -39,40 +47,91 @@ export async function render(root, ctx) {
     ? `Último conteo: ${fechaCorta(ultimo.creado_en)}${ultimo.encargado ? ' · ' + ultimo.encargado : ''} · ${ultimo.items.length} ${ultimo.items.length === 1 ? 'producto' : 'productos'}`
     : 'Todavía no se contó. Contá una vez por semana, antes de pedir.' }));
   pintarUltimo();
-  const ayuda = banner('Contá lo que hay en depósito, cámara y barra. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.', 'info');
+  const ayuda = banner(conLugares
+    ? 'Elegí un lugar y contá lo que hay ahí, en el orden de los estantes. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.'
+    : 'Contá lo que hay en depósito, cámara y barra. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.', 'info');
   const btn = h('button', { class: 'pill', type: 'button', hidden: true, on: { click: guardar } });
   const pintarBtn = () => { const n = contados().length; btn.hidden = n === 0; btn.replaceChildren(icon('check', 20), h('span', { text: guardando ? 'Guardando…' : `Guardar conteo · ${n} ${n === 1 ? 'producto' : 'productos'}` })); };
   const lista = h('div', { class: 'lista cnt-lista' });
   const buscador = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar producto', 'aria-label': 'Buscar producto', autocomplete: 'off',
     on: { input: (e) => { q = e.target.value; pintarLista(); } } });
-  const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categoría' },
+  const chips = conLugares ? null : h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categoría' },
     [['todas', 'Todas'], ['faltan', 'Sin contar'], ...cats.map(c => [c, c])].map(([id, t]) => h('button', { class: 'chip' + (id === cat ? ' is-on' : ''), type: 'button', text: t, 'data-cat': id,
       on: { click: () => { cat = id; chips.querySelectorAll('.chip').forEach(b => b.classList.toggle('is-on', b.getAttribute('data-cat') === id)); pintarLista(); } } })));
 
-  const fila = (p) => {
+  // Avance de un lugar: "8 de 12". Se actualiza mientras escribe (cabecera del lugar abierto).
+  const avance = (ps) => { const n = ps.filter(hecho).length; return { n, total: ps.length, listo: n === ps.length }; };
+  const textoAvance = ({ n, total }) => `${n} de ${total} ${total === 1 ? 'contado' : 'contados'}`;
+  let alCambiar = () => {};
+
+  const fila = (p, conLugar) => {
     const inp = h('input', { class: 'input num cnt-in', type: 'text', inputmode: 'decimal', placeholder: '—', 'aria-label': `Cuántos ${unidad(p)} de ${p.nombre}`, value: vals[p.id] ?? '',
       on: { input: (e) => {
         const t = e.target.value.trim();
         if (t === '') delete vals[p.id]; else vals[p.id] = t;
         lsSet(clave, { t: Date.now(), v: vals });
         row.classList.toggle('is-on', t !== ''); row.classList.toggle('cnt-mal', t !== '' && !(parseNum(t) >= 0));
-        pintarBtn();
+        pintarBtn(); alCambiar();
       } } });
     const row = h('article', { class: 'prod cnt-prod' + (vals[p.id] != null ? ' is-on' : ''), 'data-id': p.id },
+      conLugar ? h('span', { class: 'cnt-donde', text: lugarDe(p) }) : null,
       h('h3', { class: 'prod-n', text: p.nombre }),
       h('div', { class: 'prod-p' }, inp, h('span', { class: 'prod-u', text: unidad(p) })));
     return row;
   };
+
+  const irA = (l) => { lugar = l; if (l) lsSet(claveLugar, l); else lsDel(claveLugar); q = ''; buscador.value = ''; pintarLista(); window.scrollTo(0, 0); };
+
+  // Lugares: una tarjeta por lugar, en el orden del recorrido, con su avance.
+  function pintarLugares() {
+    alCambiar = () => {};
+    const tarjetas = [...lugares].map(([l, ps]) => {
+      const a = avance(ps);
+      return h('button', { class: 'lug-card' + (a.listo ? ' is-done' : a.n ? ' is-on' : ''), type: 'button', 'data-lugar': l, on: { click: () => irA(l) } },
+        h('span', { class: 'lug-n', text: l }),
+        h('span', { class: 'lug-a' }, a.listo ? icon('check', 16) : null, h('span', { text: textoAvance(a) })),
+        h('span', { class: 'lug-bar', 'aria-hidden': 'true' }, h('span', { style: `width:${Math.round(a.n / Math.max(1, a.total) * 100)}%` })));
+    });
+    lista.replaceChildren(h('div', { class: 'lug-grid' }, tarjetas));
+  }
+  // Un lugar abierto: sus productos en el orden de los estantes y, al final, el siguiente lugar.
+  function pintarLugar() {
+    const ps = lugares.get(lugar);
+    const orden = [...lugares.keys()];
+    const sig = orden[orden.indexOf(lugar) + 1];
+    const cuenta = h('span', { class: 'lug-cab-a' });
+    const pie = h('div', { class: 'lug-pie' });
+    alCambiar = () => {
+      const a = avance(ps);
+      cuenta.textContent = textoAvance(a);
+      pie.replaceChildren(sig
+        ? h('button', { class: 'btn ' + (a.listo ? 'btn-primary' : 'btn-ghost') + ' btn-block lug-sig', type: 'button', on: { click: () => irA(sig) } }, h('span', { text: `Siguiente: ${sig}` }), h('span', { 'aria-hidden': 'true', text: ' →' }))
+        : h('button', { class: 'btn btn-ghost btn-block lug-sig', type: 'button', on: { click: () => irA(null) } }, h('span', { text: 'Volver a los lugares' })));
+    };
+    lista.replaceChildren(
+      h('div', { class: 'lug-cab' },
+        h('button', { class: 'btn btn-ghost lug-volver', type: 'button', on: { click: () => irA(null) } }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Lugares' })),
+        h('div', { class: 'lug-cab-t' }, h('h2', { class: 'lug-cab-n', text: lugar }), cuenta)),
+      ...ps.map(p => fila(p)), pie);
+    alCambiar();
+  }
+
   function pintarLista() {
     const tk = tokens(norm(q));
+    // Dentro de un lugar, lo importante son los productos: se esconde la ayuda y el último conteo.
+    infoUltimo.hidden = ayuda.hidden = !!(conLugares && lugar && !tk.length);
+    if (conLugares && !tk.length) return lugar ? pintarLugar() : pintarLugares();
+    alCambiar = () => {};
     let vis = activos;
-    if (cat === 'faltan') vis = vis.filter(p => vals[p.id] == null);
-    else if (cat !== 'todas') vis = vis.filter(p => (p.categoria || 'Sin categoría') === cat);
+    if (!conLugares && cat === 'faltan') vis = vis.filter(p => vals[p.id] == null);
+    else if (!conLugares && cat !== 'todas') vis = vis.filter(p => (p.categoria || 'Sin categoría') === cat);
     if (tk.length) vis = vis.filter(p => coincide(p.nombre + ' ' + p.codigo, tk));
     if (!vis.length) return lista.replaceChildren(vacio(cat === 'faltan' ? 'Contaste todo' : 'No hay productos', cat === 'faltan' ? 'Tocá Guardar conteo.' : 'Probá con otra palabra.'));
+    // Al buscar con lugares, cada producto dice dónde está.
+    if (conLugares) return lista.replaceChildren(...vis.map(p => fila(p, true)));
     const grupos = new Map();
     for (const p of vis) { const c = p.categoria || 'Sin categoría'; if (!grupos.has(c)) grupos.set(c, []); grupos.get(c).push(p); }
-    lista.replaceChildren(...[...grupos].flatMap(([c, ps]) => [h('h2', { class: 'cat-t', text: c }), ...ps.map(fila)]));
+    lista.replaceChildren(...[...grupos].flatMap(([c, ps]) => [h('h2', { class: 'cat-t', text: c }), ...ps.map(p => fila(p))]));
   }
 
   async function guardar() {
@@ -84,7 +143,7 @@ export async function render(root, ctx) {
     guardando = true; pintarBtn();
     try {
       await contarLocal(lid, items, quien());
-      lsDel(clave); vals = {};
+      lsDel(clave); lsDel(claveLugar); vals = {}; lugar = null;
       ultimo = { creado_en: new Date().toISOString(), encargado: quien(), items };
       pintarUltimo(); pintarLista();
       toast(`Conteo guardado: ${items.length} ${items.length === 1 ? 'producto' : 'productos'}`, 'ok');

@@ -148,15 +148,19 @@ const COLS_PROD = 'id,codigo,nombre,local_id,categoria,unidad_compra,unidad_uso,
 let hayOculto = true;
 // productos.codigo_proveedor (migración 0021): código del artículo en la lista del proveedor. Si falta, se lee sin él.
 let hayCodProv = true;
+// productos.lugar y orden_lugar (migración 0025): dónde está cada cosa y en qué orden se cuenta. Si faltan, se lee sin ellos.
+let hayLugar = true;
 const catalogo = (localId) => todo(() => {
-  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '') + (hayCodProv ? ',codigo_proveedor' : '')).order('nombre').order('id');
+  let q = sb.from('productos').select(COLS_PROD + (hayOculto ? ',oculto' : '') + (hayCodProv ? ',codigo_proveedor' : '') + (hayLugar ? ',lugar,orden_lugar' : '')).order('nombre').order('id');
   if (localId) q = q.eq('local_id', localId).eq('activo', true);
   return q;
 });
 export const hayColumnaOculto = () => hayOculto;
+export const hayColumnaLugar = () => hayLugar;
 export async function cargarCatalogo(localId) {
   try { return await catalogo(localId); } catch (e) {
     if (hayCodProv && e && /codigo_proveedor/.test(e.message || '')) { hayCodProv = false; return cargarCatalogo(localId); }
+    if (hayLugar && e && /lugar/.test(e.message || '')) { hayLugar = false; return cargarCatalogo(localId); }
     if (!hayOculto || !(e && (e.code === '42703' || /oculto/.test(e.message || '')))) throw e;
     hayOculto = false;
     return cargarCatalogo(localId);
@@ -250,6 +254,8 @@ export async function crearOrdenSolo(o) {
 // ---- gerencia ----
 // Conteo del encargado (o gerencia) de todo lo que contó en el local: el stock pasa a ser lo contado (0024_conteos.sql).
 export const contarLocal = async (localId, items, encargado) => ok(await sb.rpc('contar_local', { p_local: localId, p_items: items, p_encargado: encargado || null }));
+// Gerencia · Stock → Lugares: [{id, lugar, orden}] (0025_lugares.sql).
+export const ubicarProductos = async (items) => ok(await sb.rpc('ubicar_productos', { p_items: items }));
 export const ultimoConteo = async (localId) => (await ok(await sb.from('conteos').select('id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
 export const contarProducto = async (localId, productoId, cantidad) =>
   ok(await sb.rpc('registrar_conteo', { p_local: localId, p_producto: productoId, p_cantidad_contada: cantidad }));
