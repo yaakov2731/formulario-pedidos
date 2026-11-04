@@ -208,3 +208,17 @@ export function enCarpeta(n, c) {
   if (c === 'de-gerencia') return n.autor_rol === 'gerencia';
   return true;
 }
+
+// Contar por lugar (0025_lugares.sql): lugares en el orden del recorrido (el del primer producto de cada uno) y, en cada
+// lugar, los productos como están en los estantes (orden_lugar). Lo que no tiene lugar va al final, en "Sin lugar".
+export const SIN_LUGAR = 'Sin lugar';
+export const lugarDe = (p) => String(p.lugar || '').trim() || SIN_LUGAR;
+export function porLugar(prods) {
+  const ord = (p) => (p.lugar && p.orden_lugar != null ? Number(p.orden_lugar) : Infinity);
+  const m = new Map();
+  for (const p of [...prods].sort((a, b) => ord(a) - ord(b) || porTexto(a.nombre, b.nombre))) {
+    const l = lugarDe(p); if (!m.has(l)) m.set(l, []); m.get(l).push(p);
+  }
+  if (m.has(SIN_LUGAR)) { const v = m.get(SIN_LUGAR); m.delete(SIN_LUGAR); m.set(SIN_LUGAR, v); }
+  return m;
+}
