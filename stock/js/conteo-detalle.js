@@ -2,7 +2,7 @@
 // Al sacar un producto se deshace su ajuste: el stock vuelve a lo que había antes de ese conteo. Después se lo vuelve a contar.
 // Gerencia ve también lo que decía el sistema y la diferencia; el encargado no (cuenta a ciegas) y solo borra los de hoy.
 import { h, fmtNum, porTexto, esBulto, factorDe, plural, fechaCorta } from './util.js';
-import { borrarConteo, mensajeError } from './api.js';
+import { borrarConteo, marcarConteo, mensajeError } from './api.js';
 import { hoja, toast, icon } from './ui.js';
 
 // Lo contado en la unidad en que se cuenta (bolsas para lo que va por bulto).
@@ -16,7 +16,9 @@ const avisoRecontado = (r) => r && r.recontados
   ? ` ${r.recontados === 1 ? 'Ese producto ya se volvió a contar después: queda lo último contado.' : `${r.recontados} ya se volvieron a contar después: queda lo último contado.`}`
   : '';
 
-// conteo: { id, encargado, items, creado_en }. prods: Map id → producto. alCambiar(conteo | null) al sacar o borrar.
+export const TIPO_CONTEO = { apertura: 'Apertura', cierre: 'Cierre' };
+
+// conteo: { id, encargado, items, creado_en, tipo }. prods: Map id → producto. alCambiar(conteo | null) al sacar o borrar.
 export function abrirConteo(conteo, { prods, gerencia = false, alCambiar = () => {} }) {
   let items = [...(conteo.items || [])];
   let ocupado = false;
@@ -53,6 +55,24 @@ export function abrirConteo(conteo, { prods, gerencia = false, alCambiar = () =>
     ocupado = false;
   }
 
+  // Gerencia corrige si es de apertura o de cierre (0028_conteo_apertura_cierre.sql).
+  async function marcar(t) {
+    if (ocupado || (conteo.tipo || null) === t) return;
+    ocupado = true;
+    try {
+      await marcarConteo(conteo.id, t);
+      conteo = { ...conteo, items, tipo: t };
+      toast(t ? `Marcado como conteo de ${t}.` : 'Conteo sin marcar.', 'ok');
+      alCambiar(conteo);
+      pintar();
+    } catch (e) { toast('No se pudo: ' + mensajeError(e), 'error'); }
+    ocupado = false;
+  }
+  const segTipo = () => h('div', { class: 'seg seg-form cnd-tipo', role: 'radiogroup', 'aria-label': 'Qué conteo es' },
+    [['apertura', 'Apertura'], ['cierre', 'Cierre'], [null, 'Sin marcar']].map(([t, txt]) => h('button', {
+      class: 'seg-b' + ((conteo.tipo || null) === t ? ' is-on' : ''), type: 'button', role: 'radio', 'aria-checked': (conteo.tipo || null) === t ? 'true' : 'false', text: txt, 'data-tipo': t || '',
+      on: { click: () => marcar(t) } })));
+
   function fila(it) {
     const p = prods.get(it.producto_id);
     const dif = Number(it.dif) || 0;
@@ -72,7 +92,8 @@ export function abrirConteo(conteo, { prods, gerencia = false, alCambiar = () =>
     const todo = h('button', { class: 'btn btn-text btn-block cat-borrar', type: 'button' }, icon('basura', 18), h('span', { text: 'Borrar todo el conteo' }));
     todo.addEventListener('click', () => borrarTodo(todo));
     cuerpo.replaceChildren(
-      h('p', { class: 'cnd-sub', text: `${fechaCorta(conteo.creado_en)}${conteo.encargado ? ' · ' + conteo.encargado : ''} · ${items.length} ${items.length === 1 ? 'producto' : 'productos'}` }),
+      h('p', { class: 'cnd-sub', text: `${conteo.tipo ? TIPO_CONTEO[conteo.tipo] + ' · ' : ''}${fechaCorta(conteo.creado_en)}${conteo.encargado ? ' · ' + conteo.encargado : ''} · ${items.length} ${items.length === 1 ? 'producto' : 'productos'}` }),
+      gerencia ? segTipo() : null,
       h('p', { class: 'field-h', text: 'Si un número está mal, sacalo y volvé a contar ese producto.' }),
       h('ol', { class: 'cnd-lista' }, orden.map(fila)),
       todo);

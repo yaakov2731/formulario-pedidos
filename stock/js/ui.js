@@ -116,5 +116,5 @@ export const SUBNAV_COMPRAS = [['compras', 'Enviar'], ['recibir', 'Recibir'], ['
 // En gerencia Gasto está en Compras; la contadora (sin Compras) lo sigue viendo en Pagos.
 export const navPagos = (ctx) => (ctx.rol === 'gerencia' ? SUBNAV_PAGOS.filter(([id]) => id !== 'gasto') : SUBNAV_PAGOS);
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['categorias', 'Categorías'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
-export const SUBNAV_STOCK = [['stock', 'Stock'], ['elaborados', 'Elaborados'], ['lugares', 'Lugares'], ['conteos', 'Conteos']];
+export const SUBNAV_STOCK = [['stock', 'Stock'], ['elaborados', 'Elaborados'], ['lugares', 'Lugares'], ['conteos', 'Conteos'], ['control', 'Control']];
 export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción']];
