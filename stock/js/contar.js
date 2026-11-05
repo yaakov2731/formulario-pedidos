@@ -2,6 +2,8 @@
 // Desde ahí el stock sigue solo: último conteo + lo que entra − lo que sale. Lo que faltó al contar es lo usado sin anotar.
 // Se cuenta a ciegas: no se muestra lo que dice el sistema, para que nadie copie el número. Vacío = no lo contó.
 // Lo que va cargando queda guardado en el celular hasta que guarda el conteo (0024_conteos.sql).
+// Antes de guardar marca si es el conteo de apertura (primer día de servicio) o de cierre (último): con los dos,
+// gerencia ve en Stock → Control lo que se usó en la semana (0028_conteo_apertura_cierre.sql).
 // Por lugar (0025_lugares.sql): si gerencia ya ubicó los productos, primero se elige el lugar (Cámara, Freezer, Depósito…)
 // y se ve solo lo que hay ahí, en el orden de los estantes, con el avance de cada lugar. Si no, la lista por categoría.
 import { mount, h, norm, tokens, coincide, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaCorta, porLugar, lugarDe, SIN_LUGAR } from './util.js';
@@ -14,9 +16,11 @@ export async function render(root, ctx) {
   const quien = () => lsGet('nombre') || ctx.nombreGuardado || '';
   const clave = 'conteo:' + lid;
   const claveLugar = 'conteo-lugar:' + lid;
+  const claveTipo = 'conteo-tipo:' + lid;
   let prods = [], stock = new Map(), nombreLocal = '', ultimo = null, sinSQL = false;
   let q = '', cat = 'todas', guardando = false;
   let lugar = lsGet(claveLugar) || null;
+  let tipo = ['apertura', 'cierre'].includes(lsGet(claveTipo)) ? lsGet(claveTipo) : null;
   const borrador = () => { const d = lsGet(clave); return d && d.t && Date.now() - d.t < 3 * 864e5 ? (d.v || {}) : {}; };
   let vals = borrador();
   const sub = h('p', { class: 'sub', text: 'Lo que queda en el local' });
@@ -53,17 +57,25 @@ export async function render(root, ctx) {
     pintarUltimo();
     cargarStock(lid).then(d => { stock = new Map(d.map(r => [r.producto_id, Number(r.stock)])); }).catch(() => {});
   };
-  const pintarUltimo = () => infoUltimo.replaceChildren(icon('check', 16), h('span', { text: ultimo
-    ? `Último conteo: ${fechaCorta(ultimo.creado_en)}${ultimo.encargado ? ' · ' + ultimo.encargado : ''} · ${ultimo.items.length} ${ultimo.items.length === 1 ? 'producto' : 'productos'}`
-    : 'Todavía no se contó. Contá una vez por semana, antes de pedir.' }),
+  const pintarUltimo = () => mount(infoUltimo, icon('check', 16), h('span', { text: ultimo
+    ? `Último conteo${ultimo.tipo ? ' de ' + ultimo.tipo : ''}: ${fechaCorta(ultimo.creado_en)}${ultimo.encargado ? ' · ' + ultimo.encargado : ''} · ${ultimo.items.length} ${ultimo.items.length === 1 ? 'producto' : 'productos'}`
+    : 'Todavía no se contó. Contá el primer día de servicio (apertura) y el último (cierre), antes de pedir.' }),
     esDeHoy(ultimo) ? h('button', { class: 'btn btn-text cnt-ver', type: 'button', text: 'Ver o corregir',
       on: { click: () => abrirConteo(ultimo, { prods: new Map(prods.map(p => [p.id, p])), alCambiar: alCambiarConteo }) } }) : null);
   pintarUltimo();
   const ayuda = banner(conLugares
     ? 'Elegí un lugar y contá lo que hay ahí, en el orden de los estantes. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.'
     : 'Contá lo que hay en depósito, cámara y barra. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.', 'info');
+  // Apertura o cierre: obligatorio para guardar. Queda guardado en el celular con el borrador.
+  const TIPOS = [['apertura', 'Apertura', 'Primer día de servicio'], ['cierre', 'Cierre', 'Último día de servicio']];
+  const segTipo = h('div', { class: 'seg cnt-tipo', role: 'radiogroup', 'aria-label': 'Qué conteo es' });
+  const pintarTipo = () => segTipo.replaceChildren(...TIPOS.map(([id, t, d]) => h('button', {
+    class: 'seg-b cnt-tipo-b' + (tipo === id ? ' is-on' : ''), type: 'button', role: 'radio', 'aria-checked': tipo === id ? 'true' : 'false', 'data-tipo': id,
+    on: { click: () => { tipo = id; lsSet(claveTipo, id); pintarTipo(); pintarBtn(); } } }, h('b', { text: t }), h('small', { text: d }))));
+  const bloqueTipo = h('section', { class: 'cnt-tipo-box' }, h('p', { class: 'cnt-tipo-t', text: '¿Qué conteo es?' }), segTipo);
+  pintarTipo();
   const btn = h('button', { class: 'pill', type: 'button', hidden: true, on: { click: guardar } });
-  const pintarBtn = () => { const n = contados().length; btn.hidden = n === 0; btn.replaceChildren(icon('check', 20), h('span', { text: guardando ? 'Guardando…' : `Guardar conteo · ${n} ${n === 1 ? 'producto' : 'productos'}` })); };
+  const pintarBtn = () => { const n = contados().length; btn.hidden = n === 0; btn.replaceChildren(icon('check', 20), h('span', { text: guardando ? 'Guardando…' : `Guardar ${tipo ? 'conteo de ' + tipo : 'conteo'} · ${n} ${n === 1 ? 'producto' : 'productos'}` })); };
   const lista = h('div', { class: 'lista cnt-lista' });
   const buscador = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar producto', 'aria-label': 'Buscar producto', autocomplete: 'off',
     on: { input: (e) => { q = e.target.value; pintarLista(); } } });
@@ -131,7 +143,7 @@ export async function render(root, ctx) {
   function pintarLista() {
     const tk = tokens(norm(q));
     // Dentro de un lugar, lo importante son los productos: se esconde la ayuda y el último conteo.
-    infoUltimo.hidden = ayuda.hidden = !!(conLugares && lugar && !tk.length);
+    infoUltimo.hidden = ayuda.hidden = bloqueTipo.hidden = !!(conLugares && lugar && !tk.length);
     if (conLugares && !tk.length) return lugar ? pintarLugar() : pintarLugares();
     alCambiar = () => {};
     let vis = activos;
@@ -150,15 +162,17 @@ export async function render(root, ctx) {
     if (guardando) return;
     const malos = contados().filter(p => !(parseNum(vals[p.id]) >= 0));
     if (malos.length) return toast(`Revisá ${malos[0].nombre}: tiene que ser un número.`, 'error');
+    if (!tipo) { bloqueTipo.hidden = false; bloqueTipo.classList.add('is-falta'); window.scrollTo(0, 0); return toast('Elegí arriba si es el conteo de apertura o de cierre.', 'error'); }
     const items = contados().map(p => ({ producto_id: p.id, contado: Math.round(parseNum(vals[p.id]) * (esBulto(p) ? factorDe(p) : 1) * 1000) / 1000 }));
-    if (!confirm(`¿Guardar el conteo de ${items.length} ${items.length === 1 ? 'producto' : 'productos'}? El stock pasa a ser lo que contaste.`)) return;
+    if (!confirm(`¿Guardar el conteo de ${tipo} de ${items.length} ${items.length === 1 ? 'producto' : 'productos'}? El stock pasa a ser lo que contaste.`)) return;
     guardando = true; pintarBtn();
     try {
-      const cid = await contarLocal(lid, items, quien());
-      lsDel(clave); lsDel(claveLugar); vals = {}; lugar = null;
-      ultimo = { id: cid, creado_en: new Date().toISOString(), encargado: quien(), items };
+      const cid = await contarLocal(lid, items, quien(), tipo);
+      const eraTipo = tipo;
+      lsDel(clave); lsDel(claveLugar); lsDel(claveTipo); vals = {}; lugar = null; tipo = null; pintarTipo(); bloqueTipo.classList.remove('is-falta');
+      ultimo = { id: cid, creado_en: new Date().toISOString(), encargado: quien(), items, tipo: eraTipo };
       pintarUltimo(); pintarLista();
-      toast(`Conteo guardado: ${items.length} ${items.length === 1 ? 'producto' : 'productos'}`, 'ok');
+      toast(`Conteo de ${eraTipo} guardado: ${items.length} ${items.length === 1 ? 'producto' : 'productos'}`, 'ok');
       cargarStock(lid).then(d => { stock = new Map(d.map(r => [r.producto_id, Number(r.stock)])); }).catch(() => {});
     } catch (e) { toast('No se pudo guardar: ' + mensajeError(e), 'error'); }
     guardando = false; pintarBtn();
@@ -166,7 +180,7 @@ export async function render(root, ctx) {
 
   mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Contar' }), sub),
     sinSQL ? banner('Contar todavía no está activado. Avisale a gerencia.', 'warn') : null,
-    infoUltimo, ayuda, h('div', { class: 'toolbar-fija' }, buscador, chips), lista, btn);
+    infoUltimo, bloqueTipo, ayuda, h('div', { class: 'toolbar-fija' }, buscador, chips), lista, btn);
   pintarLista(); pintarBtn();
   return () => {};
 }

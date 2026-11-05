@@ -265,12 +265,35 @@ export async function crearOrdenSolo(o) {
 
 // ---- gerencia ----
 // Conteo del encargado (o gerencia) de todo lo que contó en el local: el stock pasa a ser lo contado (0024_conteos.sql).
-export const contarLocal = async (localId, items, encargado) => ok(await sb.rpc('contar_local', { p_local: localId, p_items: items, p_encargado: encargado || null }));
+// tipo: 'apertura' | 'cierre' | null (0028_conteo_apertura_cierre.sql). Sin ese SQL pegado, se guarda sin tipo.
+const sinFuncion = (e) => e && (e.code === 'PGRST202' || /could not find the function/i.test(e.message || ''));
+export async function contarLocal(localId, items, encargado, tipo = null) {
+  const base = { p_local: localId, p_items: items, p_encargado: encargado || null };
+  if (tipo) { const r = await sb.rpc('contar_local', { ...base, p_tipo: tipo }); if (!sinFuncion(r.error)) return ok(r); }
+  return ok(await sb.rpc('contar_local', base));
+}
+// Gerencia corrige si un conteo es de apertura o de cierre (tipo null = sin marcar).
+export async function marcarConteo(conteoId, tipo) {
+  const r = await sb.rpc('marcar_conteo', { p_conteo: conteoId, p_tipo: tipo || null });
+  if (sinFuncion(r.error)) throw new Error('Para marcar apertura y cierre falta pegar el SQL 0028_conteo_apertura_cierre.sql en Supabase.');
+  return ok(r);
+}
 // Gerencia · Stock → Lugares: [{id, lugar, orden}] (0025_lugares.sql).
 export const ubicarProductos = async (items) => ok(await sb.rpc('ubicar_productos', { p_items: items }));
-export const ultimoConteo = async (localId) => (await ok(await sb.from('conteos').select('id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
+// conteos.tipo (0028): si la columna todavía no existe, se lee sin ella.
+let hayTipo = true;
+async function selConteos(armar) {
+  if (hayTipo) { const r = await armar('id,local_id,encargado,items,creado_en,tipo'); if (!r.error) return r.data; if (!(r.error.code === '42703' || /tipo/.test(r.error.message || ''))) throw r.error; hayTipo = false; }
+  return ok(await armar('id,local_id,encargado,items,creado_en'));
+}
+export const hayTipoConteo = () => hayTipo;
+export const ultimoConteo = async (localId) => (await selConteos(c => sb.from('conteos').select(c).eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
 // Gerencia · Stock → Conteos: los últimos conteos de un local (con lo contado, lo que decía el sistema y la diferencia).
-export const listarConteos = async (localId, n = 40) => ok(await sb.from('conteos').select('id,local_id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(n));
+export const listarConteos = async (localId, n = 40) => selConteos(c => sb.from('conteos').select(c).eq('local_id', localId).order('creado_en', { ascending: false }).limit(n));
+// Control semanal: pedidos del local desde una fecha (sin los cancelados), con sus productos.
+export async function ordenesLocalDesde(localId, desde) {
+  return selOrdenes(cols => sb.from('ordenes_compra').select(cols).eq('local_id', localId).neq('estado', 'cancelada').gte('creado_en', desde).order('creado_en', { ascending: true }).limit(300));
+}
 // Saca un producto de un conteo (o todo el conteo, sin productoId) y deshace su ajuste (0026_borrar_conteo.sql).
 // Devuelve { sacados, recontados, borrado }. Recontados = se volvieron a contar después: queda lo último contado.
 export async function borrarConteo(conteoId, productoId = null) {

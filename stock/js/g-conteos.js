@@ -4,7 +4,7 @@ import { mount, h, fechaCorta } from './util.js';
 import { listarConteos, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, banner, subnav, SUBNAV_STOCK } from './ui.js';
-import { abrirConteo } from './conteo-detalle.js';
+import { abrirConteo, TIPO_CONTEO } from './conteo-detalle.js';
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Conteos' }),
@@ -26,7 +26,7 @@ export async function render(root, ctx) {
       conteos = nuevo ? conteos.map(x => (x.id === nuevo.id ? nuevo : x)) : conteos.filter(x => x.id !== c.id);
       pintar();
     } }) } },
-      h('h3', { class: 'prod-n', text: fechaCorta(c.creado_en) }),
+      h('h3', { class: 'prod-n' }, c.tipo ? h('span', { class: 'cnd-badge is-' + c.tipo, text: TIPO_CONTEO[c.tipo] }) : null, h('span', { text: fechaCorta(c.creado_en) })),
       h('p', { class: 'prod-m' },
         h('span', { text: c.encargado || 'Sin nombre' }),
         h('span', { text: `${its.length} ${its.length === 1 ? 'producto' : 'productos'}` }),

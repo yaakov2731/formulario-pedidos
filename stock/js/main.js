@@ -35,7 +35,7 @@ const VISTAS = {
     ...RUTAS_PAGOS,
     'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
-    'stock': () => import('./g-stock.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
+    'stock': () => import('./g-stock.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
     'resumen': () => import('./g-resumen.js'), 'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
     'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js'),
     'notas': () => import('./notas.js')
@@ -94,7 +94,7 @@ function construirShell(c) {
 
 function marcarActivo(id) {
   // Gerencia: Recibir y Gasto viven dentro de Compras; la contadora sigue viendo Gasto en Pagos.
-  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'stock', lugares: 'stock', conteos: 'stock', gasto: 'compras' })[id] : null;
+  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'stock', lugares: 'stock', conteos: 'stock', control: 'stock', gasto: 'compras' })[id] : null;
   const act = deGerencia || ({ revisar: 'pedir', ventas: 'resumen', analisis: 'resumen', merma: 'resumen', produccion: 'recetas', gasto: 'pagos', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', categorias: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos', recibir: 'compras', 'recibir-factura': 'compras' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;

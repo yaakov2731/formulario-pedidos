@@ -147,6 +147,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.locator(`[data-id="${P.nalga.id}"] .cnt-in`).fill('40');
   await e.locator(`[data-id="${P.papas.id}"] .cnt-in`).fill('3');
   await e.locator(`[data-id="${P.coca.id}"] .cnt-in`).fill('24');
+  await e.locator('.cnt-tipo [data-tipo="apertura"]').click();
   await e.locator('.pill').click();
   await e.waitForSelector('.cnt-ver');
   ok(/3 productos/.test(await e.locator('.cnt-ult').innerText()), 'después de guardar: último conteo con 3 productos y "Ver o corregir"');

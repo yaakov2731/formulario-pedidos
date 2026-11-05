@@ -1353,3 +1353,44 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .loc-usr-box .field-h { margin: 0; overflow-wrap: anywhere; }
 .lc-cod { text-transform: uppercase; }
 .lista > .loc-nuevo { grid-column: 1 / -1; justify-self: start; }
+
+/* ---- Contar: apertura o cierre · Conteos: etiqueta ---- */
+.cnt-tipo-box { margin: 0 0 12px; padding: 12px; border-radius: var(--r-card); background: var(--surface); border: 1.5px solid var(--sep); }
+.cnt-tipo-box.is-falta { border-color: var(--bad-line); background: var(--bad-soft); }
+.cnt-tipo-t { margin: 0 0 8px; font-weight: 700; text-align: center; }
+.cnt-tipo { margin: 0; }
+.cnt-tipo-b { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 56px; padding: 6px 4px; }
+.cnt-tipo-b small { font-size: 12px; font-weight: 500; color: var(--text-2); }
+.cnd-tipo { margin: 8px 0 4px; }
+.cnd-badge { display: inline-block; margin-right: 8px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; vertical-align: middle; background: var(--info-soft); color: var(--info-ink); border: 1px solid var(--info-line); }
+.cnd-badge.is-cierre { background: var(--ok-soft); color: var(--ok-ink); border-color: var(--ok-line); }
+
+/* ---- Stock → Control semanal ---- */
+.ctl-semanas { margin: 4px 0 12px; }
+.ctl-sem { margin: 0 0 12px; font-size: 14px; color: var(--text-2); text-align: center; overflow-wrap: anywhere; }
+.ctl-sem b { color: var(--text); }
+.ctl-filtro { margin: 4px 0 14px; }
+.ctl-lugar { margin: 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
+.ctl-lugar-h { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 4px 2px; border-bottom: 1.5px solid var(--sep); }
+.ctl-lugar-n { margin: 0; font-size: 18px; }
+.ctl-lugar-d { color: var(--text-2); font-size: 13px; flex: 1; }
+.ctl-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: var(--ok-ink); }
+.ctl-nada { margin: 2px 2px 0; }
+.ctl-fila { padding: 12px; border-radius: var(--r-card); background: var(--surface); border: 1.5px solid var(--sep); display: flex; flex-direction: column; gap: 8px; }
+.ctl-fila.is-aviso { border-color: var(--warn-line); }
+.ctl-cab { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.ctl-p { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.ctl-u { color: var(--text-2); font-size: 13px; }
+.ctl-av { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.ctl-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--warn-soft); color: var(--warn-ink); border: 1px solid var(--warn-line); white-space: nowrap; }
+.ctl-badge.is-revisar, .ctl-badge.is-faltante, .ctl-badge.is-corto { background: var(--bad-soft); color: var(--bad-ink); border-color: var(--bad-line); }
+.ctl-nums { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.ctl-nums.con-anot { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (min-width: 560px) { .ctl-nums.con-anot { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.ctl-n { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border-radius: 10px; background: var(--fill); min-width: 0; }
+.ctl-k { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-2); }
+.ctl-n b { font-size: 15px; overflow-wrap: anywhere; text-align: center; }
+.ctl-n.is-uso { background: var(--accent-soft); }
+.ctl-n.is-mal b { color: var(--bad-ink); }
+.ctl-plata { margin: 0; font-size: 13px; color: var(--bad-ink); }
+.ctl-pie { margin: 8px 2px; text-align: left; }
