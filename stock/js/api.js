@@ -257,6 +257,15 @@ export const contarLocal = async (localId, items, encargado) => ok(await sb.rpc(
 // Gerencia · Stock → Lugares: [{id, lugar, orden}] (0025_lugares.sql).
 export const ubicarProductos = async (items) => ok(await sb.rpc('ubicar_productos', { p_items: items }));
 export const ultimoConteo = async (localId) => (await ok(await sb.from('conteos').select('id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(1)))[0] || null;
+// Gerencia · Stock → Conteos: los últimos conteos de un local (con lo contado, lo que decía el sistema y la diferencia).
+export const listarConteos = async (localId, n = 40) => ok(await sb.from('conteos').select('id,local_id,encargado,items,creado_en').eq('local_id', localId).order('creado_en', { ascending: false }).limit(n));
+// Saca un producto de un conteo (o todo el conteo, sin productoId) y deshace su ajuste (0026_borrar_conteo.sql).
+// Devuelve { sacados, recontados, borrado }. Recontados = se volvieron a contar después: queda lo último contado.
+export async function borrarConteo(conteoId, productoId = null) {
+  const r = await sb.rpc('borrar_conteo', { p_conteo: conteoId, p_producto: productoId });
+  if (r.error && (r.error.code === 'PGRST202' || /could not find the function/i.test(r.error.message || ''))) throw new Error('Para borrar conteos falta pegar el SQL 0026_borrar_conteo.sql en Supabase.');
+  return ok(r);
+}
 export const contarProducto = async (localId, productoId, cantidad) =>
   ok(await sb.rpc('registrar_conteo', { p_local: localId, p_producto: productoId, p_cantidad_contada: cantidad }));
 

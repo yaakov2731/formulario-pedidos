@@ -1254,7 +1254,21 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 @media print { .splash { display: none; } }
 
 /* Contar (encargado): un campo por producto, vacío = sin contar. */
-.cnt-ult { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 0 10px; color: var(--text-2); font-size: 14px; text-align: center; }
+.cnt-ult { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; color: var(--text-2); font-size: 14px; text-align: center; }
+.cnt-ver { min-height: 36px; padding: 4px 10px; font-size: 14px; font-weight: 700; color: var(--accent); }
+/* Conteo guardado (hoja): sacar un producto o borrar todo. Gerencia · Stock → Conteos. */
+.cnd-sub { margin: 0 0 4px; color: var(--text-2); font-size: 14px; }
+.cnd-lista { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cnd-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--fill); }
+.cnd-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cnd-t b { overflow-wrap: anywhere; }
+.cnd-n { font-size: 14px; color: var(--text); }
+.cnd-d { font-size: 13px; color: var(--text-2); }
+.cnd-d.is-falta { color: var(--danger, #e5484d); }
+.cnd-d.is-sobra { color: var(--amber, var(--accent)); }
+.cnd-sacar { flex: none; gap: 4px; min-height: 40px; padding: 6px 12px; }
+.cnd-card { width: 100%; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.lug-borrar { color: var(--text-2); }
 .cnt-prod .prod-p { gap: 10px; }
 .cnt-in { width: 110px; font-size: 20px; font-weight: 700; }
 .cnt-prod.is-on .cnt-in { border-color: var(--amber, var(--accent)); }
