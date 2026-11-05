@@ -19,7 +19,7 @@ export async function render(root, ctx) {
     const f = {
       codigo: h('input', { class: 'input num', id: 'f-codigo', value: d.codigo, autocomplete: 'off' }),
       nombre: h('input', { class: 'input', id: 'f-nombre', value: d.nombre, autocomplete: 'off' }),
-      local: sel(G.locales.map(l => [l.id, l.nombre]), d.local_id, 'f-local'),
+      local: sel(G.locales.filter(l => l.activo !== false || l.id === d.local_id).map(l => [l.id, l.nombre]), d.local_id, 'f-local'),
       categoria: h('input', { class: 'input', id: 'f-cat', value: d.categoria || '', list: 'dl-cat', autocomplete: 'off' }),
       uc: h('input', { class: 'input', id: 'f-uc', value: d.unidad_compra || '', placeholder: 'bolsa, caja, kg…', autocomplete: 'off' }),
       uu: sel([...MEDIDAS, ...(d.unidad_uso && !MEDIDAS.some(([v]) => v === d.unidad_uso) ? [[d.unidad_uso, d.unidad_uso]] : [])], d.unidad_uso || '', 'f-uu'),

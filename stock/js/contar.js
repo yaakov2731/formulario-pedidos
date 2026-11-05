@@ -7,6 +7,7 @@
 import { mount, h, norm, tokens, coincide, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaCorta, porLugar, lugarDe, SIN_LUGAR } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarLocales, contarLocal, ultimoConteo, mensajeError } from './api.js';
 import { esqueleto, vacio, banner, toast, icon } from './ui.js';
+import { abrirConteo } from './conteo-detalle.js';
 
 export async function render(root, ctx) {
   const lid = ctx.perfil.local_id;
@@ -43,9 +44,20 @@ export async function render(root, ctx) {
   const unidad = (p) => esBulto(p) ? `${plural(p.unidad_compra, 2)} de ${fmtNum(factorDe(p), 3)} ${p.unidad_uso}` : (p.unidad_uso || 'unidades');
 
   const infoUltimo = h('p', { class: 'cnt-ult' });
+  // El conteo de hoy se puede revisar y corregir (sacar un producto o borrarlo entero). Los de otros días, solo gerencia.
+  const esDeHoy = (c) => c && c.id && new Date(c.creado_en).toDateString() === new Date().toDateString();
+  const alCambiarConteo = async (c) => {
+    ultimo = c;
+    if (!c) { try { ultimo = await ultimoConteo(lid); } catch (_e) { ultimo = null; } }
+    if (!ctx.alive()) return;
+    pintarUltimo();
+    cargarStock(lid).then(d => { stock = new Map(d.map(r => [r.producto_id, Number(r.stock)])); }).catch(() => {});
+  };
   const pintarUltimo = () => infoUltimo.replaceChildren(icon('check', 16), h('span', { text: ultimo
     ? `Último conteo: ${fechaCorta(ultimo.creado_en)}${ultimo.encargado ? ' · ' + ultimo.encargado : ''} · ${ultimo.items.length} ${ultimo.items.length === 1 ? 'producto' : 'productos'}`
-    : 'Todavía no se contó. Contá una vez por semana, antes de pedir.' }));
+    : 'Todavía no se contó. Contá una vez por semana, antes de pedir.' }),
+    esDeHoy(ultimo) ? h('button', { class: 'btn btn-text cnt-ver', type: 'button', text: 'Ver o corregir',
+      on: { click: () => abrirConteo(ultimo, { prods: new Map(prods.map(p => [p.id, p])), alCambiar: alCambiarConteo }) } }) : null);
   pintarUltimo();
   const ayuda = banner(conLugares
     ? 'Elegí un lugar y contá lo que hay ahí, en el orden de los estantes. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.'
@@ -142,9 +154,9 @@ export async function render(root, ctx) {
     if (!confirm(`¿Guardar el conteo de ${items.length} ${items.length === 1 ? 'producto' : 'productos'}? El stock pasa a ser lo que contaste.`)) return;
     guardando = true; pintarBtn();
     try {
-      await contarLocal(lid, items, quien());
+      const cid = await contarLocal(lid, items, quien());
       lsDel(clave); lsDel(claveLugar); vals = {}; lugar = null;
-      ultimo = { creado_en: new Date().toISOString(), encargado: quien(), items };
+      ultimo = { id: cid, creado_en: new Date().toISOString(), encargado: quien(), items };
       pintarUltimo(); pintarLista();
       toast(`Conteo guardado: ${items.length} ${items.length === 1 ? 'producto' : 'productos'}`, 'ok');
       cargarStock(lid).then(d => { stock = new Map(d.map(r => [r.producto_id, Number(r.stock)])); }).catch(() => {});

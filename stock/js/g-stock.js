@@ -2,7 +2,7 @@
 // producto con Inicio / Ahora / Dif. del período, estado por color, Contar y Ajuste con motivo, e impresión A4 (o PDF).
 // Vista "Métricas": valor del stock, consumo con días de cobertura, producción disponible y platos que se pueden servir.
 import { mount, h, tokens, coincide, fmtNum, fmtMoney, parseNum, groupBy, porTexto, porTandas, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, sugerido, esBulto, factorDe, plural, textoBulto, elabora } from './util.js';
-import { contarProducto, registrarAjuste, movimientosDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
+import { contarProducto, contarLocal, registrarAjuste, movimientosDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, codigoLocal } from './datos.js';
 import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_STOCK } from './ui.js';
 
@@ -103,7 +103,10 @@ export async function render(root, ctx) {
         try {
           const ahora = new Date().toISOString();
           if (modo === 'contar') {
-            const dif = Number(await contarProducto(p.local_id, p.id, n));
+            // Queda en Stock → Conteos (se puede borrar si estuvo mal). Sin el SQL 0024, como antes.
+            let dif;
+            try { const antes = quedan(p); await contarLocal(p.local_id, [{ producto_id: p.id, contado: n }], 'Gerencia'); dif = Math.round((n - antes) * 1000) / 1000; }
+            catch (e) { if (!(e && (e.code === 'PGRST202' || /contar_local|could not find the function/i.test(e.message || '')))) throw e; dif = Number(await contarProducto(p.local_id, p.id, n)); }
             G.stock.set(p.local_id + '|' + p.id, n);
             if (dif) movs.push({ producto_id: p.id, tipo: 'ajuste_conteo', cantidad: dif, nota: 'Conteo', creado_en: ahora });
             toast(dif === 0 ? 'Sin diferencias.' : `Diferencia ${dif > 0 ? '+' : ''}${fmtNum(dif, 3)}`, 'ok');

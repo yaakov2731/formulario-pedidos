@@ -39,6 +39,12 @@ export async function render(root, ctx) {
   const marcar = () => { sucio = true; pintar(); };
   const sacar = (id) => { for (const ids of en.values()) { const i = ids.indexOf(id); if (i >= 0) ids.splice(i, 1); } };
   const mover = (id, destino) => { sacar(id); if (!en.has(destino)) { en.set(destino, []); orden.push(destino); } en.get(destino).push(id); marcar(); };
+  // Borrar un lugar: sus productos pasan a "Sin lugar" (no se borra ningún producto). Se aplica al tocar Guardar.
+  const borrarLugar = (l) => {
+    const ids = en.get(l) || [];
+    if (ids.length && !confirm(`¿Borrar el lugar ${l}? Sus ${ids.length} ${ids.length === 1 ? 'producto queda' : 'productos quedan'} sin lugar (no se borra ningún producto).`)) return;
+    en.get(SIN_LUGAR).push(...ids); en.delete(l); orden = orden.filter(x => x !== l); marcar();
+  };
   const correr = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; marcar(); };
 
   // Agregar un lugar (con sugerencias) y pasar toda una categoría a un lugar.
@@ -94,10 +100,11 @@ export async function render(root, ctx) {
         h('div', { class: 'lug-sec-t' }, h('h2', { class: 'cat-t', text: esSin ? 'Sin lugar' : `${k + 1}. ${l}` }), h('span', { class: 'lug-sec-c', text: `${ids.length} ${ids.length === 1 ? 'producto' : 'productos'}` })),
         esSin ? null : h('div', { class: 'lug-flechas' },
           h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Contar ${l} antes`, disabled: k === 0, on: { click: () => correr(orden, k, -1) } }, h('span', { 'aria-hidden': 'true', text: '↑' })),
-          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Contar ${l} después`, disabled: k === orden.length - 1, on: { click: () => correr(orden, k, 1) } }, h('span', { 'aria-hidden': 'true', text: '↓' })))),
+          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Contar ${l} después`, disabled: k === orden.length - 1, on: { click: () => correr(orden, k, 1) } }, h('span', { 'aria-hidden': 'true', text: '↓' })),
+          h('button', { class: 'icon-btn lug-borrar', type: 'button', 'aria-label': `Borrar el lugar ${l}`, title: 'Borrar lugar', on: { click: () => borrarLugar(l) } }, icon('basura', 18)))),
       ids.length
         ? h('ol', { class: 'lug-filas' }, vis.map(([id, i]) => fila(id, l, i, ids)))
-        : h('p', { class: 'lug-vacio', text: esSin ? 'Todo tiene lugar.' : 'Pasá productos acá con el selector de cada uno o con "Toda una categoría".' }));
+        : h('p', { class: 'lug-vacio', text: esSin ? 'Todo tiene lugar.' : 'Pasá productos acá con el selector de cada uno o con "Toda una categoría". Si lo agregaste por error, borralo con el tacho.' }));
   }
 
   function pintar() {
