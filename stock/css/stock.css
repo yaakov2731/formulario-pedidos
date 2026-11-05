@@ -1346,3 +1346,10 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .cat-vacio { padding: 14px; text-align: center; }
 .cat-borrar { margin-top: 4px; color: var(--danger, var(--text-2)); gap: 6px; }
 .prod-cat.cat-sin { border-style: dashed; }
+
+/* Catálogo → Locales: alta, usuario del encargado y baja. */
+.loc-nuevo { align-self: flex-start; gap: 6px; margin-bottom: 4px; }
+.loc-usr-box { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: var(--fill); }
+.loc-usr-box .field-h { margin: 0; overflow-wrap: anywhere; }
+.lc-cod { text-transform: uppercase; }
+.lista > .loc-nuevo { grid-column: 1 / -1; justify-self: start; }

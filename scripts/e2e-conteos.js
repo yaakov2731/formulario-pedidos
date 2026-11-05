@@ -43,7 +43,8 @@ const P = {
   coca: prod('Coca-Cola 500', 'Bebidas', 'unidad'),
   agua: prod('Agua sin gas 500', 'Bebidas', 'unidad')
 };
-const db = { stock: new Map(Object.values(P).map(p => [p.id, 5])), conteos: [], rpc: [], ubicar: [], borrar: [], log: [] };
+const db = { stock: new Map(Object.values(P).map(p => [p.id, 5])), conteos: [], rpc: [], ubicar: [], borrar: [], log: [], patch: [], usuarios: ['UMO'], authUsers: [],
+  locales: [{ id: L1, codigo: 'UMO', nombre: 'Umo Grill', encargados: ['Lucas'], activo: true, razon_social: 'SUMA ACTIVA S.A.', cuit: null }, { id: 'loc-eve', codigo: 'EVE', nombre: 'Eventos', encargados: [], activo: true, razon_social: 'SUMA ACTIVA S.A.', cuit: null }] };
 function jwt(sub) {
   const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   return `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 7 * 86400 })}.firma`;
@@ -69,7 +70,18 @@ async function montarApi(ctx) {
     if (u.pathname === '/auth/v1/user') return json(sesion(sub || U_ENC).user);
     if (u.pathname === '/auth/v1/token') return json(sesion(U_ENC));
     if (t === 'perfiles') return json(rol === 'gerencia' ? [{ id: U_GER, nombre: 'Jacobo', rol: 'gerencia', local_id: null }] : [{ id: sub, nombre: 'Umo', rol: 'encargado', local_id: L1 }]);
-    if (t === 'locales') return json([{ id: L1, codigo: 'UMO', nombre: 'Umo Grill', encargados: ['Lucas'], activo: true, razon_social: 'SUMA ACTIVA S.A.' }]);
+    if (t === 'locales' && req.method() === 'PATCH') {
+      const id = eq(q.get('id')); const l = db.locales.find(x => x.id === id); Object.assign(l, JSON.parse(req.postData() || '{}')); db.patch.push(JSON.parse(req.postData() || '{}'));
+      return json([{ id }]);
+    }
+    if (t === 'locales') return json(db.locales.map(l => ({ ...l })));
+    if (t === 'rpc/locales_login') return json(db.locales.filter(l => l.activo && db.usuarios.includes(l.codigo)).map(l => ({ codigo: l.codigo, nombre: l.nombre, encargados: l.encargados })));
+    if (t === 'rpc/crear_local') {
+      const b = JSON.parse(req.postData() || '{}'); const id = 'loc-' + b.p_codigo.toLowerCase();
+      db.locales.push({ id, codigo: b.p_codigo, nombre: b.p_nombre, encargados: [], activo: true, razon_social: b.p_razon, cuit: b.p_cuit });
+      return json(id);
+    }
+    if (t === 'rpc/vincular_encargado') { const b = JSON.parse(req.postData() || '{}'); const l = db.locales.find(x => x.id === b.p_local); const okv = db.authUsers.includes(l.codigo); if (okv) db.usuarios.push(l.codigo); return json(okv); }
     if (t === 'productos') return json(Object.values(P).map(p => ({ ...p })));
     if (t === 'stock_actual') return json([...db.stock].map(([pid, s]) => ({ local_id: L1, producto_id: pid, stock: s })));
     if (t === 'conteos') { const v = [...db.conteos].reverse(); return json(q.get('limit') === '1' ? v.slice(0, 1) : v); }
@@ -194,6 +206,47 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const ub = db.ubicar[db.ubicar.length - 1] || [];
   ok(ub.length === 1 && ub[0].id === P.coca.id && ub[0].lugar === null, 'al guardar solo cambia la coca, sin lugar · ' + JSON.stringify(ub));
   await cG.close();
+
+  // ===== Gerencia · Catálogo → Locales: nuevo local, conectar usuario, dar de baja =====
+  const { c: cL, p: gl } = await nuevo(M, U_GER, { 'g:local': L1 });
+  await gl.goto(BASE + '#/locales'); await gl.waitForSelector('.loc-nuevo');
+  ok(/Sin usuario de encargado/.test(await gl.locator('[data-local="EVE"]').innerText()) && !/Sin usuario/.test(await gl.locator('[data-local="UMO"]').innerText()), 'marca los locales sin usuario de encargado');
+  await gl.locator('.loc-nuevo').click();
+  await gl.fill('#lc-nombre', 'Palermo');
+  ok(await gl.inputValue('#lc-codigo') === 'PAL', 'el código se sugiere del nombre (PAL)');
+  await gl.fill('#lc-cuit', '30-7123');
+  await gl.locator('dialog.sheet[open] .btn-primary').click();
+  ok(/11 números/.test(await gl.locator('dialog.sheet[open] .form-err').innerText()), 'CUIT incompleto: avisa');
+  await gl.fill('#lc-cuit', '');
+  await shot(gl, '08-g-local-nuevo-m');
+  await gl.locator('dialog.sheet[open] .btn-primary').click();
+  await gl.waitForSelector('dialog.sheet[open] .loc-usr-box');
+  ok(db.locales.some(l => l.codigo === 'PAL' && l.razon_social === 'SUMA ACTIVA S.A.'), 'crea Palermo (PAL) con SUMA ACTIVA S.A.');
+  ok(/local-pal@docks-stock\.app/.test(await gl.locator('dialog.sheet[open]').innerText()), 'explica qué usuario crear en Supabase');
+  await gl.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  await shot(gl, '09-g-local-usuario-m');
+  await gl.locator('dialog.sheet[open] .loc-usr-box button').click();
+  await gl.waitForSelector('.toast');
+  ok(db.usuarios.length === 1, 'sin el usuario en Supabase, Conectar avisa y no conecta');
+  db.authUsers.push('PAL');
+  await gl.locator('dialog.sheet[open] .loc-usr-box button').click();
+  await gl.waitForFunction(() => !document.querySelector('dialog.sheet[open]'));
+  ok(db.usuarios.includes('PAL') && !/Sin usuario/.test(await gl.locator('[data-local="PAL"]').innerText()), 'con el usuario creado, Conectar lo deja en Entrar');
+  await gl.locator('[data-local="EVE"]').click();
+  await gl.locator('dialog.sheet[open] .cat-borrar').click();
+  await gl.waitForFunction(() => !document.querySelector('dialog.sheet[open]'));
+  ok(db.locales.find(l => l.codigo === 'EVE').activo === false && /dado de baja/.test(await gl.locator('[data-local="EVE"]').innerText()), 'Eventos dado de baja (activo = false, no se borra)');
+  ok(JSON.stringify(db.patch[db.patch.length - 1]) === '{"activo":false}', 'la baja solo cambia activo');
+  await gl.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  await shot(gl, '10-g-locales-m', true);
+  await gl.goto(BASE + '#/conteos'); await gl.waitForSelector('.chips');
+  ok(await gl.locator('.chips [data-local="loc-eve"]').count() === 0, 'el local dado de baja no aparece en el selector de local');
+  await gl.goto(BASE + '#/locales'); await gl.waitForSelector('[data-local="EVE"]');
+  await gl.locator('[data-local="EVE"]').click();
+  await gl.locator('dialog.sheet[open] .cat-borrar').click();
+  await gl.waitForFunction(() => !document.querySelector('dialog.sheet[open]'));
+  ok(db.locales.find(l => l.codigo === 'EVE').activo === true, 'Volver a activar');
+  await cL.close();
 
   // Celular gerencia
   const { c: cGm, p: gm } = await nuevo(M, U_GER, { 'g:local': L1 });
