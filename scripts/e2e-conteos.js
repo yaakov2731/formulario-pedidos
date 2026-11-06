@@ -145,7 +145,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.waitForSelector('.cnt-prod');
   ok(await e.locator('.cnt-ver').count() === 0, 'un conteo de otro día no muestra "Ver o corregir" al encargado');
   await e.locator(`[data-id="${P.nalga.id}"] .cnt-in`).fill('40');
-  await e.locator(`[data-id="${P.papas.id}"] .cnt-in`).fill('3');
+  await e.locator(`[data-id="${P.papas.id}"] .cnt-in`).first().fill('3');
   await e.locator(`[data-id="${P.coca.id}"] .cnt-in`).fill('24');
   await e.locator('.cnt-tipo [data-tipo="apertura"]').click();
   await e.locator('.pill').click();

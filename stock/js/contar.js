@@ -21,8 +21,10 @@ export async function render(root, ctx) {
   let q = '', cat = 'todas', guardando = false;
   let lugar = lsGet(claveLugar) || null;
   let tipo = ['apertura', 'cierre'].includes(lsGet(claveTipo)) ? lsGet(claveTipo) : null;
-  const borrador = () => { const d = lsGet(clave); return d && d.t && Date.now() - d.t < 3 * 864e5 ? (d.v || {}) : {}; };
-  let vals = borrador();
+  const borrador = () => { const d = lsGet(clave); return d && d.t && Date.now() - d.t < 3 * 864e5 ? d : {}; };
+  // vals: lo contado (en bultos si se compra por bulto). sus: las unidades sueltas de un bulto abierto (ej. 2 tortas de una caja de 4).
+  let vals = borrador().v || {}, sus = borrador().s || {};
+  const guardarBorrador = () => lsSet(clave, { t: Date.now(), v: vals, s: sus });
   const sub = h('p', { class: 'sub', text: 'Lo que queda en el local' });
   mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Contar' }), sub), esqueleto(5));
 
@@ -42,10 +44,16 @@ export async function render(root, ctx) {
   const lugares = porLugar(activos);
   const conLugares = activos.some(p => lugarDe(p) !== SIN_LUGAR);
   if (!conLugares || !lugares.has(lugar)) lugar = null;
-  const hecho = (p) => vals[p.id] != null && vals[p.id] !== '';
+  const lleno = (m, p) => m[p.id] != null && m[p.id] !== '';
+  const hecho = (p) => lleno(vals, p) || lleno(sus, p);
+  const numOk = (m, p) => !lleno(m, p) || parseNum(m[p.id]) >= 0;
+  // Total en la unidad de uso: bultos × lo que trae cada uno + sueltas. Ej.: 1 caja de 4 + 2 sueltas = 6 unidades.
+  const total = (p) => (lleno(vals, p) ? parseNum(vals[p.id]) * (esBulto(p) ? factorDe(p) : 1) : 0) + (esBulto(p) && lleno(sus, p) ? parseNum(sus[p.id]) : 0);
   const contados = () => activos.filter(hecho);
   // Por bulto (bolsa de 5 kg) se cuenta en bolsas, con decimales; se guarda en la unidad de uso.
-  const unidad = (p) => esBulto(p) ? `${plural(p.unidad_compra, 2)} de ${fmtNum(factorDe(p), 3)} ${p.unidad_uso}` : (p.unidad_uso || 'unidades');
+  // Si quedó un bulto abierto, lo suelto se anota aparte en la unidad de uso (unidades, kg) y se suma.
+  const unidad = (p) => esBulto(p) ? `${plural(p.unidad_compra, 2)} de ${fmtNum(factorDe(p), 3)} ${plural(p.unidad_uso, factorDe(p))}` : (p.unidad_uso || 'unidades');
+  const unidadSuelta = (p) => { const u = p.unidad_uso || 'unidad'; return plural(u, 2) + (/^(unidad|porci|feta|botella|lata)/i.test(u) ? ' sueltas' : ' sueltos'); };
 
   const infoUltimo = h('p', { class: 'cnt-ult' });
   // El conteo de hoy se puede revisar y corregir (sacar un producto o borrarlo entero). Los de otros días, solo gerencia.
@@ -65,7 +73,10 @@ export async function render(root, ctx) {
   pintarUltimo();
   const ayuda = banner(conLugares
     ? 'Elegí un lugar y contá lo que hay ahí, en el orden de los estantes. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.'
-    : 'Contá lo que hay en depósito, cámara y barra. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.', 'info');
+    : 'Contá lo que hay en depósito, cámara y barra. Lo que no contaste dejalo vacío. Si no queda nada, poné 0. Para contar por lugar, primero armá los lugares del local.', 'info');
+  // El encargado arma u ordena los lugares de su local (Stock → Lugares de gerencia, solo con su local).
+  const armar = h('div', { class: 'cnt-armar' }, h('a', { class: 'btn btn-ghost', href: '#/lugares' },
+    icon('mas', 18), h('span', { text: conLugares ? 'Cambiar los lugares' : 'Armar los lugares del local' })));
   // Apertura o cierre: obligatorio para guardar. Queda guardado en el celular con el borrador.
   const TIPOS = [['apertura', 'Apertura', 'Primer día de servicio'], ['cierre', 'Cierre', 'Último día de servicio']];
   const segTipo = h('div', { class: 'seg cnt-tipo', role: 'radiogroup', 'aria-label': 'Qué conteo es' });
@@ -89,18 +100,30 @@ export async function render(root, ctx) {
   let alCambiar = () => {};
 
   const fila = (p, conLugar) => {
-    const inp = h('input', { class: 'input num cnt-in', type: 'text', inputmode: 'decimal', placeholder: '—', 'aria-label': `Cuántos ${unidad(p)} de ${p.nombre}`, value: vals[p.id] ?? '',
+    const entrada = (m, etiqueta) => h('input', { class: 'input num cnt-in', type: 'text', inputmode: 'decimal', placeholder: '—', 'aria-label': `${etiqueta} de ${p.nombre}`, value: m[p.id] ?? '',
       on: { input: (e) => {
         const t = e.target.value.trim();
-        if (t === '') delete vals[p.id]; else vals[p.id] = t;
-        lsSet(clave, { t: Date.now(), v: vals });
-        row.classList.toggle('is-on', t !== ''); row.classList.toggle('cnt-mal', t !== '' && !(parseNum(t) >= 0));
-        pintarBtn(); alCambiar();
+        if (t === '') delete m[p.id]; else m[p.id] = t;
+        guardarBorrador();
+        const algo = hecho(p);
+        row.classList.toggle('is-on', algo); row.classList.toggle('cnt-mal', algo && !(numOk(vals, p) && numOk(sus, p)));
+        pintarTotal(); pintarBtn(); alCambiar();
       } } });
-    const row = h('article', { class: 'prod cnt-prod' + (vals[p.id] != null ? ' is-on' : ''), 'data-id': p.id },
+    const bulto = esBulto(p);
+    const tot = bulto ? h('p', { class: 'cnt-total' }) : null;
+    // "= 6 unidades" debajo, para que se vea qué queda guardado.
+    const pintarTotal = () => {
+      if (!tot) return;
+      const n = Math.round(total(p) * 1000) / 1000;
+      tot.textContent = hecho(p) && numOk(vals, p) && numOk(sus, p) ? `= ${fmtNum(n, 3)} ${plural(p.unidad_uso, n)}` : '';
+    };
+    const row = h('article', { class: 'prod cnt-prod' + (hecho(p) ? ' is-on' : '') + (bulto ? ' cnt-bulto' : ''), 'data-id': p.id },
       conLugar ? h('span', { class: 'cnt-donde', text: lugarDe(p) }) : null,
       h('h3', { class: 'prod-n', text: p.nombre }),
-      h('div', { class: 'prod-p' }, inp, h('span', { class: 'prod-u', text: unidad(p) })));
+      h('div', { class: 'prod-p' }, entrada(vals, `Cuántos ${unidad(p)}`), h('span', { class: 'prod-u', text: unidad(p) })),
+      bulto ? h('div', { class: 'prod-p cnt-suelto' }, h('span', { class: 'cnt-mas', 'aria-hidden': 'true', text: '+' }), entrada(sus, `Cuántas ${unidadSuelta(p)}`), h('span', { class: 'prod-u', text: unidadSuelta(p) })) : null,
+      tot);
+    pintarTotal();
     return row;
   };
 
@@ -143,11 +166,11 @@ export async function render(root, ctx) {
   function pintarLista() {
     const tk = tokens(norm(q));
     // Dentro de un lugar, lo importante son los productos: se esconde la ayuda y el último conteo.
-    infoUltimo.hidden = ayuda.hidden = bloqueTipo.hidden = !!(conLugares && lugar && !tk.length);
+    infoUltimo.hidden = ayuda.hidden = bloqueTipo.hidden = armar.hidden = !!(conLugares && lugar && !tk.length);
     if (conLugares && !tk.length) return lugar ? pintarLugar() : pintarLugares();
     alCambiar = () => {};
     let vis = activos;
-    if (!conLugares && cat === 'faltan') vis = vis.filter(p => vals[p.id] == null);
+    if (!conLugares && cat === 'faltan') vis = vis.filter(p => !hecho(p));
     else if (!conLugares && cat !== 'todas') vis = vis.filter(p => (p.categoria || 'Sin categoría') === cat);
     if (tk.length) vis = vis.filter(p => coincide(p.nombre + ' ' + p.codigo, tk));
     if (!vis.length) return lista.replaceChildren(vacio(cat === 'faltan' ? 'Contaste todo' : 'No hay productos', cat === 'faltan' ? 'Tocá Guardar conteo.' : 'Probá con otra palabra.'));
@@ -160,16 +183,16 @@ export async function render(root, ctx) {
 
   async function guardar() {
     if (guardando) return;
-    const malos = contados().filter(p => !(parseNum(vals[p.id]) >= 0));
+    const malos = contados().filter(p => !(numOk(vals, p) && numOk(sus, p)));
     if (malos.length) return toast(`Revisá ${malos[0].nombre}: tiene que ser un número.`, 'error');
     if (!tipo) { bloqueTipo.hidden = false; bloqueTipo.classList.add('is-falta'); window.scrollTo(0, 0); return toast('Elegí arriba si es el conteo de apertura o de cierre.', 'error'); }
-    const items = contados().map(p => ({ producto_id: p.id, contado: Math.round(parseNum(vals[p.id]) * (esBulto(p) ? factorDe(p) : 1) * 1000) / 1000 }));
+    const items = contados().map(p => ({ producto_id: p.id, contado: Math.round(total(p) * 1000) / 1000 }));
     if (!confirm(`¿Guardar el conteo de ${tipo} de ${items.length} ${items.length === 1 ? 'producto' : 'productos'}? El stock pasa a ser lo que contaste.`)) return;
     guardando = true; pintarBtn();
     try {
       const cid = await contarLocal(lid, items, quien(), tipo);
       const eraTipo = tipo;
-      lsDel(clave); lsDel(claveLugar); lsDel(claveTipo); vals = {}; lugar = null; tipo = null; pintarTipo(); bloqueTipo.classList.remove('is-falta');
+      lsDel(clave); lsDel(claveLugar); lsDel(claveTipo); vals = {}; sus = {}; lugar = null; tipo = null; pintarTipo(); bloqueTipo.classList.remove('is-falta');
       ultimo = { id: cid, creado_en: new Date().toISOString(), encargado: quien(), items, tipo: eraTipo };
       pintarUltimo(); pintarLista();
       toast(`Conteo de ${eraTipo} guardado: ${items.length} ${items.length === 1 ? 'producto' : 'productos'}`, 'ok');
@@ -180,7 +203,7 @@ export async function render(root, ctx) {
 
   mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Contar' }), sub),
     sinSQL ? banner('Contar todavía no está activado. Avisale a gerencia.', 'warn') : null,
-    infoUltimo, bloqueTipo, ayuda, h('div', { class: 'toolbar-fija' }, buscador, chips), lista, btn);
+    infoUltimo, bloqueTipo, ayuda, armar, h('div', { class: 'toolbar-fija' }, buscador, chips), lista, btn);
   pintarLista(); pintarBtn();
   return () => {};
 }

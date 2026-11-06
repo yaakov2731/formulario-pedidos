@@ -76,8 +76,8 @@ async function montarApi(ctx) {
     if (t === 'conteos') return json(db.conteos.slice(-1));
     if (t === 'rpc/ubicar_productos') {
       const b = JSON.parse(req.postData() || '{}'); db.ubicar.push(b.p_items);
-      if (rol !== 'gerencia') return json({ code: '42501', message: 'Solo gerencia ordena los lugares' }, 403);
-      for (const it of b.p_items) { const p = Object.values(P).find(x => x.id === it.id); if (p) { p.lugar = it.lugar; p.orden_lugar = it.orden; } }
+      // 0030: el encargado ubica solo productos de su local.
+      for (const it of b.p_items) { const p = Object.values(P).find(x => x.id === it.id); if (p && (rol === 'gerencia' || p.local_id === L1)) { p.lugar = it.lugar; p.orden_lugar = it.orden; } }
       return json(b.p_items.length);
     }
     if (t === 'rpc/contar_local') {
@@ -178,7 +178,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const enCam = await e.locator('.cnt-prod').evaluateAll(els => els.map(x => x.getAttribute('data-id')));
   ok(enCam[0] === P.lechuga.id && enCam.length === 4, 'dentro de Cámara: 4 productos y la lechuga primera, como los estantes');
   await e.locator(`[data-id="${P.lechuga.id}"] .cnt-in`).fill('2,5');
-  await e.locator(`[data-id="${P.papas.id}"] .cnt-in`).fill('3');
+  await e.locator(`[data-id="${P.papas.id}"] .cnt-in`).first().fill('3');
   ok(/2 de 4 contados/.test(await e.locator('.lug-cab-a').innerText()), 'el avance se actualiza al escribir');
   ok(/Siguiente: Barra/.test(await e.locator('.lug-sig').innerText()), 'ofrece seguir con la Barra');
   await shot(e, '05-contar-camara-m');
@@ -199,6 +199,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   ok(/Freezer/i.test(donde) && /Helado/.test(donde), 'al buscar, el producto dice en qué lugar está · ' + donde.replace(/\n/g, ' / '));
   await shot(e, '07-contar-buscar-m');
   await e.fill('.input-search', '');
+  await e.locator('.cnt-tipo-b[data-tipo="apertura"]').click();
   await e.locator('.pill').click();
   await e.waitForSelector('.toast');
   const rc = db.rpc[db.rpc.length - 1] || {};

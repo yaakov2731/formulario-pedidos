@@ -1,5 +1,6 @@
 // Gerencia · Stock → Lugares: dónde está cada producto en el local (Cámara, Freezer, Depósito, Barra…) y en qué orden se
 // cuenta. El encargado, en Contar, elige un lugar y ve solo lo de ahí, en este orden (0025_lugares.sql).
+// El encargado también los arma, solo para su local (entra desde Contar → Armar lugares; 0030_lugares_encargado.sql).
 // Se arma en memoria (mover a otro lugar, subir/bajar, toda una categoría de una vez) y se guarda junto con un botón.
 import { mount, h, tokens, coincide, norm, porTexto, esCarta, porLugar, lugarDe, SIN_LUGAR } from './util.js';
 import { ubicarProductos, hayColumnaLugar, mensajeError } from './api.js';
@@ -9,9 +10,12 @@ import { esqueleto, vacio, toast, banner, icon, campo, subnav, SUBNAV_STOCK } fr
 const SUGERIDOS = ['Cámara', 'Freezer', 'Heladera', 'Depósito', 'Barra', 'Cocina'];
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Lugares' }),
+  const esGerencia = ctx.rol === 'gerencia';
+  const cab = h('header', { class: 'vista-head' },
+    esGerencia ? null : h('a', { class: 'btn btn-ghost lug-volver', href: '#/contar' }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Contar' })),
+    h('h1', { class: 'titulo', text: 'Lugares' }),
     h('p', { class: 'sub', text: 'Dónde está cada cosa y en qué orden se cuenta' }));
-  const nav = subnav(SUBNAV_STOCK, 'lugares');
+  const nav = esGerencia ? subnav(SUBNAV_STOCK, 'lugares') : null;
   mount(root, cab, nav, esqueleto(5));
   try { await cargarG(['prods', 'locales', 'stock']); } catch (e) { toast('No se pudo cargar: ' + mensajeError(e), 'error'); }
   if (!ctx.alive()) return;
@@ -137,7 +141,8 @@ export async function render(root, ctx) {
   }
 
   let volviendo = false;
-  const locales = chipsLocal((id) => {
+  // El encargado arma solo su local: sin selector de locales.
+  const locales = !esGerencia ? { el: null, get: () => ctx.perfil.local_id } : chipsLocal((id) => {
     if (volviendo) { volviendo = false; return; }
     if (sucio && !confirm('Hay cambios sin guardar en este local. ¿Cambiar de local igual?')) {
       const atras = locales.el.querySelector(`[data-local="${localId}"]`);
@@ -149,7 +154,9 @@ export async function render(root, ctx) {
   localId = locales.get();
   armar();
   mount(root, cab, nav, locales.el,
-    h('p', { class: 'lug-ayuda', text: 'Ordená los lugares como se camina el local y, en cada uno, los productos como están en los estantes. El encargado los cuenta en ese orden.' }),
+    h('p', { class: 'lug-ayuda', text: esGerencia
+      ? 'Ordená los lugares como se camina el local y, en cada uno, los productos como están en los estantes. El encargado los cuenta en ese orden.'
+      : 'Agregá los lugares del local (Cámara, Freezer, Depósito…) y pasá a cada uno lo que hay ahí: de a uno o toda una categoría junta. Ordenalos como se camina el local. Después, en Contar, elegís un lugar y contás en ese orden.' }),
     herramientas, h('div', { class: 'toolbar-fija' }, buscador), lista, btn);
   pintar();
   const avisar = (e) => { if (sucio) { e.preventDefault(); e.returnValue = ''; } };
