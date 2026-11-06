@@ -1,6 +1,6 @@
 // Gerencia · Proveedores: alta y ficha completa de cada proveedor.
 //  * Pedidos: contacto, WhatsApp, teléfono, email, días de entrega, corte, mínimo y productos que le compramos.
-//  * Pagos: razón social, CUIT (reconoce los comprobantes), banco, alias/CBU, WhatsApp y email de cobranzas.
+//  * Pagos: razón social, CUIT (reconoce los comprobantes), banco, alias, CBU, número de cuenta, WhatsApp y email de cobranzas.
 // Sin 0011_proveedores_datos.sql se guardan solo los datos de siempre y la ficha lo avisa.
 import { mount, h, norm, porTexto, debounce, fmtMoney, parseNum, tokens, coincide } from './util.js';
 import { guardarProveedor, crearProveedor, guardarProducto, mensajeError } from './api.js';
@@ -9,8 +9,10 @@ import { esqueleto, vacio, toast, hoja, campo, subnav, SUBNAV_CATALOGO, banner, 
 import { soloDigitos, whatsappAR, emailValido, whatsappPagos, emailPagos } from './pagos-util.js';
 
 const EXTRA = ['razon_social', 'contacto', 'telefono', 'email', 'whatsapp_pagos', 'email_pagos', 'banco'];
+const CUENTA = ['cbu', 'numero_cuenta']; // columnas de 0029
 // Con el SQL 0011 corrido, cada proveedor trae las columnas nuevas (aunque estén vacías).
 const hayExtra = () => !G.provs.size || [...G.provs.values()].some((p) => 'email' in p);
+const hayCuenta = () => !G.provs.size || [...G.provs.values()].some((p) => 'cbu' in p);
 const cuitConGuiones = (d) => `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`;
 
 export async function render(root, ctx) {
@@ -24,6 +26,7 @@ export async function render(root, ctx) {
     const nuevo = !p;
     const d = p || { nombre: '', activo: true };
     const extra = hayExtra();
+    const cuenta = hayCuenta();
     const inp = (id, v, o = {}) => h('input', { class: 'input' + (o.num ? ' num' : ''), id, autocomplete: 'off', value: v == null ? '' : String(v), ...o.attrs });
     const f = {
       nombre: inp('pv-nombre', d.nombre, { attrs: { placeholder: 'Ej. Distribuidora Florida', maxlength: '80' } }),
@@ -37,7 +40,9 @@ export async function render(root, ctx) {
       razon: inp('pv-razon', d.razon_social, { attrs: { placeholder: 'Como figura en la factura' } }),
       cuit: inp('pv-cuit', d.cuit, { num: true, attrs: { inputmode: 'numeric', placeholder: '30-12345678-9' } }),
       banco: inp('pv-banco', d.banco, { attrs: { placeholder: 'Ej. Credicoop' } }),
-      alias: inp('pv-alias', d.alias_cbu, { attrs: { placeholder: 'alias o CBU' } }),
+      alias: inp('pv-alias', d.alias_cbu, { attrs: { placeholder: cuenta ? 'Ej. NOMBRE.ALIAS' : 'alias o CBU' } }),
+      cbu: inp('pv-cbu', d.cbu, { num: true, attrs: { inputmode: 'numeric', placeholder: '22 números', maxlength: '30' } }),
+      cuenta: inp('pv-cuenta', d.numero_cuenta, { num: true, attrs: { placeholder: 'Ej. 0521/02104571/41' } }),
       waPago: inp('pv-wa-pago', d.whatsapp_pagos, { num: true, attrs: { inputmode: 'tel', placeholder: 'El mismo de pedidos' } }),
       emailPago: inp('pv-email-pago', d.email_pagos, { attrs: { type: 'email', inputmode: 'email', placeholder: 'El mismo de pedidos' } }),
       notas: h('textarea', { class: 'input', id: 'pv-notas', rows: '2', maxlength: '500', placeholder: 'Ej. entregar por la puerta de atrás' }),
@@ -59,7 +64,8 @@ export async function render(root, ctx) {
       sec('Para los pagos',
         solo(campo('Razón social', f.razon)),
         h('div', { class: 'dos' }, campo('CUIT', f.cuit, 'Con él se reconoce el comprobante.'), solo(campo('Banco', f.banco))),
-        campo('Alias o CBU', f.alias),
+        cuenta ? h('div', { class: 'dos' }, campo('Alias', f.alias), campo('CBU', f.cbu)) : campo('Alias o CBU', f.alias),
+        cuenta ? campo('Número de cuenta', f.cuenta) : null,
         solo(h('div', { class: 'dos' }, campo('WhatsApp de cobranzas', f.waPago), campo('Email de cobranzas', f.emailPago))),
         solo(h('p', { class: 'field-h', text: 'El comprobante de pago va a cobranzas; si lo dejás vacío, va al WhatsApp o email de pedidos.' }))),
       campo('Notas', f.notas),
@@ -80,6 +86,8 @@ export async function render(root, ctx) {
       if (otro) return (err.textContent = `Ese CUIT ya está cargado en ${otro.nombre}.`);
       const minimo = f.minimo.value.trim() ? parseNum(f.minimo.value) : null;
       if (f.minimo.value.trim() && (minimo === null || minimo < 0)) return (err.textContent = 'El pedido mínimo tiene que ser un número.');
+      const cbu = soloDigitos(f.cbu.value);
+      if (cuenta && cbu && cbu.length !== 22) return (err.textContent = 'El CBU tiene 22 números.');
       for (const [el, qué] of [[f.email, 'de pedidos'], [f.emailPago, 'de cobranzas']]) {
         if (el.value.trim() && !emailValido(el.value)) return (err.textContent = `Revisá el email ${qué}.`);
       }
@@ -88,14 +96,16 @@ export async function render(root, ctx) {
         nombre, whatsapp: whatsappAR(f.wa.value) || null, cuit: cuit ? cuitConGuiones(cuit) : null, alias_cbu: t(f.alias),
         dias_entrega: t(f.entrega), corte: t(f.corte), pedido_minimo: minimo || null, notas: t(f.notas), activo: f.activo.checked,
         contacto: t(f.contacto), telefono: t(f.tel), email: t(f.email) && t(f.email).toLowerCase(), razon_social: t(f.razon), banco: t(f.banco),
-        whatsapp_pagos: whatsappAR(f.waPago.value) || null, email_pagos: t(f.emailPago) && t(f.emailPago).toLowerCase()
+        whatsapp_pagos: whatsappAR(f.waPago.value) || null, email_pagos: t(f.emailPago) && t(f.emailPago).toLowerCase(),
+        cbu: cbu || null, numero_cuenta: t(f.cuenta)
       };
       if (!extra) datos = Object.fromEntries(Object.entries(datos).filter(([k]) => !EXTRA.includes(k)));
+      if (!cuenta) datos = Object.fromEntries(Object.entries(datos).filter(([k]) => !CUENTA.includes(k)));
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {
         if (nuevo) {
           const id = await crearProveedor(datos);
-          const pr = { id, ...Object.fromEntries(EXTRA.filter(() => extra).map((k) => [k, null])), ...datos };
+          const pr = { id, ...Object.fromEntries(EXTRA.filter(() => extra).map((k) => [k, null])), ...Object.fromEntries(CUENTA.filter(() => cuenta).map((k) => [k, null])), ...datos };
           G.provs.set(id, pr);
           toast('Proveedor creado. Ahora sumale los productos que le comprás.', 'ok'); cerrar(); pintar(); editar(pr);
         } else {
@@ -161,6 +171,7 @@ export async function render(root, ctx) {
         h('span', { class: 'prod-m' },
           h('span', { text: `${n} ${n === 1 ? 'producto' : 'productos'}` }),
           p.alias_cbu ? h('span', { text: p.alias_cbu }) : null,
+          p.cbu ? h('span', { class: 'num', text: 'CBU ' + p.cbu }) : null,
           !wa && !mail ? h('span', { class: 'chip-aviso', text: 'Sin dónde mandar el comprobante' }) : null));
     }));
   }
