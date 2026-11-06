@@ -195,7 +195,7 @@ const hojaShot = async (p, n) => { const d = p.locator('dialog[open]').last(); a
   const card = g.locator(`[data-prod="${P.papas.id}"]`);
   await card.waitFor();
   const cTxt = await card.innerText();
-  ok(/Quedan 1,9 bolsas de 5 kg/.test(cTxt), 'stock muestra kg y "Quedan 1,9 bolsas de 5 kg"');
+  ok(/9,6/.test(cTxt) && /1,9 bolsas/.test(cTxt), 'stock muestra kg y 1,9 bolsas');
   ok(/Pedir 2 bolsas/.test(cTxt), 'el sugerido se dice en bolsas (15 − 9,6 = 5,4 kg → 2 bolsas) · ' + cTxt.replace(/\n/g, ' / '));
   await card.screenshot({ path: path.join(OUT, '04-stock-bolsas-pc.png') });
   await cG.close();

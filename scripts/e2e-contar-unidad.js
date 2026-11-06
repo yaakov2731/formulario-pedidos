@@ -145,7 +145,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.locator('.cnt-armar a').click();
   await e.waitForSelector('.lug-sec');
   ok(await e.locator('.chips [data-local]').count() === 0 && await e.locator('.subnav').count() === 0, 'el encargado ve solo su local, sin selector de locales ni menú de gerencia');
-  ok(await e.locator('[data-nav="contar"].is-active').count() > 0, 'en el menú sigue marcado Contar');
+  ok(await e.locator('[data-nav="stock"].is-active').count() > 0, 'en el menú queda marcado Stock');
   for (const l of ['Cámara', 'Barra']) { await e.fill('#lug-nuevo', l); await e.locator('.lug-tool button', { hasText: 'Agregar' }).click(); }
   for (const [c, l] of [['Pastelería', 'Cámara'], ['Verdulería', 'Cámara'], ['Bebidas', 'Barra']]) {
     await e.selectOption('#lug-cat', c); await e.selectOption('#lug-dest', l); await e.locator('.lug-tool-cat button').click();
@@ -155,7 +155,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.locator('.pill').click();
   await e.waitForSelector('.toast');
   ok(P.capricho.lugar === 'Cámara' && P.coca.lugar === 'Barra' && db.ubicar.length === 1, 'guarda los lugares del local (ubicar_productos)');
-  await e.locator('.vista-head a', { hasText: 'Contar' }).click();
+  await e.goto(BASE + '#/contar');
   await e.waitForSelector('.lug-card');
   const cards = await e.locator('.lug-card .lug-n').allInnerTexts();
   ok(JSON.stringify(cards) === JSON.stringify(['Cámara', 'Barra']), 'de vuelta en Contar aparecen sus lugares · ' + cards.join(', '));

@@ -201,8 +201,8 @@ const nombres = async (p) => p.locator('#view .prod .prod-n').allInnerTexts();
   await g.waitForTimeout(400);
   ok(P('UMO-DS-BKRAFT').oculto === false, 'destildar lo pasa a la vista (se guarda en el servidor)');
   await g.goto(BASE + '#/stock');
-  await g.waitForSelector('#view .stk-lista');
-  const txt = await g.locator('#view .stk-lista').innerText();
+  await g.waitForSelector('#view .inv-fila');
+  const txt = await g.locator('#view .inv-lista').innerText();
   ok(/Cenicero/.test(txt) && !/Abrochadora|llavero/.test(txt), 'Stock lista lo oculto solo si tiene stock');
   await cG.close();
 

@@ -34,7 +34,7 @@ check('todo el SHELL del SW existe', shell.every(f => fs.existsSync(S(f))), shel
 
 // Vistas del encargado: sin costos ni umbrales internos visibles.
 const permitido = (t) => t.replace(/pedido m[ií]nimo/gi, '').replace(/tiene_minimo/g, '');
-for (const f of ['js/pedir.js', 'js/entrar.js', 'js/contar.js']) {
+for (const f of ['js/pedir.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js']) {
   const t = permitido(read(f));
   check(`${f}: sin "precio"/"costo"`, !/precio|costo|importe/i.test(t));
   check(`${f}: sin "mínimo" ni "par" visibles`, !/m[ií]nimo/i.test(t) && !/\bpar\b/i.test(t));
