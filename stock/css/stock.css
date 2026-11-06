@@ -1274,6 +1274,10 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .cnt-prod.is-on .cnt-in { border-color: var(--amber, var(--accent)); }
 .cnt-prod.cnt-mal .cnt-in { border-color: var(--danger, #e5484d); }
 .cnt-lista { padding-bottom: 80px; }
+.cnt-suelto { margin-top: 0; }
+.cnt-mas { width: 18px; font-size: 20px; font-weight: 700; color: var(--text-2); text-align: center; }
+.cnt-total { margin: 0; min-height: 18px; color: var(--text-2); font-size: 14px; font-weight: 600; }
+.cnt-armar { display: flex; justify-content: center; margin: 0 0 10px; }
 
 /* ---------- Contar por lugar (encargado) y Stock → Lugares (gerencia) ---------- */
 .lista > .lug-grid, .lista > .lug-cab, .lista > .lug-pie { grid-column: 1 / -1; }
