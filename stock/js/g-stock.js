@@ -1,28 +1,25 @@
-// Gerencia · Stock por local. Vista "Productos": resumen por estado (tocable como filtro), categorías, una tarjeta por
-// producto con Inicio / Ahora / Dif. del período, estado por color, Contar y Ajuste con motivo, e impresión A4 (o PDF).
+// Gerencia · Stock por local. Vista "Productos": qué hay, dónde está (lugar) y qué entró hoy, con la lista compartida de
+// inventario.js (la misma que ve el encargado). Al tocar un producto: lugar, movimientos y Ajuste (Conté / Se perdió / Entró).
+// Impresión: planilla por lugar con lo que figura y una columna vacía para contar a mano.
 // Vista "Métricas": valor del stock, consumo con días de cobertura, producción disponible y platos que se pueden servir.
-import { mount, h, tokens, coincide, fmtNum, fmtMoney, parseNum, groupBy, porTexto, porTandas, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, sugerido, esBulto, factorDe, plural, textoBulto, elabora } from './util.js';
-import { contarProducto, contarLocal, registrarAjuste, movimientosDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
+import { mount, h, fmtNum, fmtMoney, parseNum, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, porTexto, esBulto, factorDe, plural, textoBulto, elabora } from './util.js';
+import { contarProducto, contarLocal, registrarAjuste, movimientosDesde, listarConteos, ordenesLocalDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
 import { G, cargarG, nombreLocal, codigoLocal } from './datos.js';
-import { esqueleto, vacio, toast, hoja, campo, icon, subnav, SUBNAV_STOCK } from './ui.js';
+import { esqueleto, toast, hoja, campo, icon, subnav, SUBNAV_STOCK } from './ui.js';
+import { inventario, planillaConteo, DIAS_MOV } from './inventario.js';
 
-const PERIODOS = { hoy: 'Hoy', semana: '7 días' };
-const ESTADO = { agotado: 'Agotado', bajo: 'Por agotarse', ok: 'Ok' };
 const MOTIVOS = ['Vencido', 'Roto o derramado', 'Mal hecho o se quemó', 'Comida del personal', 'Otro'];
 const ENTRADAS = ['Compra al paso', 'Traído de otro local', 'Devolución', 'Otro'];
 
 export async function render(root, ctx) {
   let localId = lsGet('g:local');
   let vista = lsGet('g:stk-vista', 'productos') === 'metricas' ? 'metricas' : 'productos';
-  let periodo = lsGet('g:stk-periodo', 'semana') === 'hoy' ? 'hoy' : 'semana';
-  let q = '', filtroEstado = 'todos', filtroCat = 'todas';
-  let movs = [], movsLocal = null, recetas = null, pedido = 0;
-  const lista = h('div', { class: 'lista stk-lista' });
+  let movs = [], conteos = [], movsLocal = null, recetas = null, pedido = 0, inv = null, invLocal = null;
+  const provDeOrden = new Map();
   const resumen = h('div', { class: 'stk-resumen', 'aria-live': 'polite' });
-  const estados = h('div', { class: 'stk-estados', role: 'group', 'aria-label': 'Filtrar por estado' });
-  const cats = h('div', { class: 'chips chips-scroll stk-cats', role: 'group', 'aria-label': 'Categoría' });
-  const sub = h('p', { class: 'sub', text: 'Lo que queda en cada local' });
-  const btnPrint = h('button', { class: 'icon-btn stk-print', type: 'button', 'aria-label': 'Imprimir o guardar PDF', title: 'Imprimir o guardar PDF', on: { click: () => imprimir() } }, icon('imprimir', 20));
+  const zonaProd = h('div', { class: 'stk-prod' }, esqueleto(5));
+  const sub = h('p', { class: 'sub', text: 'Lo que hay en cada local' });
+  const btnPrint = h('button', { class: 'icon-btn stk-print', type: 'button', 'aria-label': 'Imprimir planilla para contar', title: 'Imprimir planilla para contar', on: { click: () => imprimir() } }, icon('imprimir', 20));
   const cab = h('header', { class: 'vista-head stk-head' }, h('div', { class: 'stk-head-t' }, h('h1', { class: 'titulo', text: 'Stock' }), sub), btnPrint);
   const nav = subnav(SUBNAV_STOCK, 'stock');
   mount(root, cab, nav, esqueleto(5));
@@ -30,46 +27,28 @@ export async function render(root, ctx) {
   const quedan = (p) => G.stock.get(p.local_id + '|' + p.id) || 0;
   const u = (p) => p.unidad_uso ? ' ' + p.unidad_uso : '';
   const n2 = (n) => fmtNum(n, 2) || '0';
-  // Productos que se compran por bulto: "2,3 bolsas" (para pedir, redondeado para arriba).
-  const enBultos = (p, n, entero) => { const b = entero ? Math.ceil(n / factorDe(p) - 1e-9) : Math.round(n / factorDe(p) * 10) / 10; return `${fmtNum(b, 1) || '0'} ${plural(p.unidad_compra, b)}`; };
-  const desdeISO = () => { if (periodo === 'hoy') { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); } return new Date(Date.now() - 7 * 864e5).toISOString(); };
-  // Lo oculto (resto de la lista de un mayorista) solo se lista si hay stock.
+  const enBultos = (p, n) => { const b = Math.round(n / factorDe(p) * 10) / 10; return `${fmtNum(b, 1) || '0'} ${plural(p.unidad_compra, b)}`; };
   const prodsLocal = () => [...G.prods.values()].filter(p => p.local_id === localId && p.activo !== false && !esCarta(p) && (!p.oculto || quedan(p) !== 0));
-
-  // Por producto, en el período: suma de movimientos (Dif.), entradas, salidas y el último ajuste a mano.
-  function porProducto() {
-    const desde = desdeISO(); const m = new Map();
-    for (const x of movs) {
-      if (x.creado_en < desde) continue;
-      const c = Number(x.cantidad); const r = m.get(x.producto_id) || { dif: 0, entro: 0, salio: 0, ajuste: null };
-      r.dif += c; if (c > 0) r.entro += c; else r.salio -= c;
-      if (x.tipo === 'ajuste_conteo' || x.tipo === 'merma' || (x.tipo === 'recepcion' && /^Entrada/.test(x.nota || ''))) r.ajuste = x;
-      m.set(x.producto_id, r);
-    }
-    return m;
-  }
+  const hace7 = () => new Date(Date.now() - 7 * 864e5).toISOString();
   // Consumo real de 7 días para saber cuánto alcanza: ventas por receta, producción, merma, uso del día y la diferencia
-  // de los conteos (lo que faltó suma, lo que sobró resta). En el Shopping, que no vende por receta, es solo el conteo:
-  // había + entró − quedó.
+  // de los conteos (lo que faltó suma, lo que sobró resta). En el Shopping, que no vende por receta, es solo el conteo.
   function consumo7() {
-    const c = new Map(); const tipos = ['venta', 'produccion_consumo', 'merma', 'uso_dia', 'ajuste_conteo'];
-    for (const x of movs) if (tipos.includes(x.tipo)) c.set(x.producto_id, (c.get(x.producto_id) || 0) - Number(x.cantidad));
+    const c = new Map(); const tipos = ['venta', 'produccion_consumo', 'merma', 'uso_dia', 'ajuste_conteo']; const d = hace7();
+    for (const x of movs) if (x.creado_en >= d && tipos.includes(x.tipo)) c.set(x.producto_id, (c.get(x.producto_id) || 0) - Number(x.cantidad));
     return c;
   }
-  function estadoDe(p, cons) {
-    const s = quedan(p);
-    if (s <= 0) return 'agotado';
-    const pedir = sugerido(p, s);
-    const usa = (cons.get(p.id) || 0) / 7;
-    if (pedir || (usa > 0 && s / usa < 2)) return 'bajo';
-    return 'ok';
-  }
 
+  // Movimientos de 30 días, últimos conteos y de qué proveedor vino cada recepción.
   async function cargarMovs() {
     const n = ++pedido; const lid = localId;
     if (movsLocal === lid) return;
-    try { const r = await movimientosDesde(lid, new Date(Date.now() - 7 * 864e5).toISOString()); if (n !== pedido || !ctx.alive()) return; movs = r; movsLocal = lid; }
-    catch (e) { if (n === pedido) toast('No pude cargar los movimientos: ' + mensajeError(e), 'error'); }
+    const desde = new Date(Date.now() - DIAS_MOV * 864e5).toISOString();
+    try {
+      const [r, cs, os] = await Promise.all([movimientosDesde(lid, desde), listarConteos(lid, 12).catch(() => []), ordenesLocalDesde(lid, desde).catch(() => [])]);
+      if (n !== pedido || !ctx.alive()) return;
+      movs = r; conteos = cs || []; movsLocal = lid;
+      for (const o of os || []) { const pv = o.proveedor_id && G.provs.get(o.proveedor_id); if (pv) provDeOrden.set(o.id, pv.nombre); }
+    } catch (e) { if (n === pedido) toast('No pude cargar los movimientos: ' + mensajeError(e), 'error'); }
   }
 
   function ajustar(p, modo = 'contar') {
@@ -125,87 +104,29 @@ export async function render(root, ctx) {
     pintar();
   }
 
-  const fila = (k, v, clase, unidad) => h('div', { class: 'stk-c' + (clase ? ' ' + clase : '') }, h('span', { class: 'stk-ck', text: k }), h('b', { class: 'stk-cv num', text: v }), unidad ? h('span', { class: 'stk-cu', text: unidad }) : null);
-  const signo = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + n2(Math.abs(n));
-  function textoAjuste(a, p) {
-    if (!a) return null;
-    const c = Number(a.cantidad); const cuando = fechaCorta(a.creado_en);
-    if (a.tipo === 'ajuste_conteo') return `Conteo ${cuando}: ${c > 0 ? 'sobraban' : 'faltaban'} ${n2(Math.abs(c))}${u(p)}`;
-    return `${(a.nota || '').replace(/^(Merma|Entrada): /, '')} · ${signo(c)}${u(p)} · ${cuando}`;
-  }
-
-  function tarjeta(p, est, r) {
-    const s = quedan(p); const dif = r ? r.dif : 0; const pedir = est !== 'ok' ? sugerido(p, s) : null;
-    const aj = r && textoAjuste(r.ajuste, p);
-    return h('article', { class: 'prod prod-stk stk-' + est, 'data-estado': est, 'data-prod': p.id },
-      h('div', { class: 'stk-top' }, h('h3', { class: 'prod-n', text: p.nombre }), h('span', { class: 'stk-pill stk-pill-' + est, text: ESTADO[est] })),
-      h('div', { class: 'stk-cols' },
-        fila(periodo === 'hoy' ? 'Al abrir' : 'Hace 7 días', n2(s - dif)),
-        fila('Quedan', n2(s), 'stk-c-ahora', p.unidad_uso),
-        fila('Dif.', signo(dif), dif < 0 ? 'stk-c-menos' : dif > 0 ? 'stk-c-mas' : '')),
-      esBulto(p) ? h('p', { class: 'bulto', text: `Quedan ${enBultos(p, s)} de ${n2(factorDe(p))} ${p.unidad_uso}` }) : null,
-      r && (r.entro || r.salio) ? h('p', { class: 'stk-mov', text: [r.entro ? `Entró ${n2(r.entro)}` : '', r.salio ? `Salió ${n2(r.salio)}` : ''].filter(Boolean).join(' · ') }) : null,
-      aj ? h('p', { class: 'stk-aj', text: aj }) : null,
-      h('div', { class: 'stk-acc' },
-        pedir ? h('span', { class: 'stk-pedir', text: esBulto(p) ? `Pedir ${enBultos(p, pedir, true)}` : `Pedir ${n2(pedir)}${u(p)}` }) : null,
-        h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'Contar', 'aria-label': `Contar ${p.nombre}`, on: { click: () => ajustar(p, 'contar') } }),
-        h('button', { class: 'btn btn-ghost btn-sm stk-ajuste', type: 'button', 'aria-label': `Ajuste de ${p.nombre}`, on: { click: () => ajustar(p, s > 0 ? 'merma' : 'contar') } }, icon('ajuste', 18), h('span', { text: 'Ajuste' }))));
-  }
-
-  // Calcula todo una vez y pinta estados, categorías y lista. Devuelve lo visible (para imprimir).
-  let visibles = [];
-  function pintarProductos(mantener) {
-    if (vista !== 'productos') return;
-    const cons = consumo7(); const pp = porProducto(); const t = tokens(q);
-    const todos = prodsLocal().map(p => ({ p, est: estadoDe(p, cons), r: pp.get(p.id) }));
-    const conTexto = todos.filter(x => coincide(x.p.nombre + ' ' + x.p.codigo, t));
-    const cuenta = { todos: conTexto.length, agotado: 0, bajo: 0 };
-    for (const x of conTexto) if (x.est !== 'ok') cuenta[x.est]++;
-    estados.replaceChildren(...[['todos', 'Productos'], ['agotado', 'Agotados'], ['bajo', 'Por agotarse']].map(([id, t2]) => h('button', {
-      class: `stk-k stk-k-${id}` + (filtroEstado === id ? ' is-on' : ''), type: 'button', 'aria-pressed': filtroEstado === id ? 'true' : 'false', 'data-filtro': id,
-      on: { click: () => { filtroEstado = filtroEstado === id && id !== 'todos' ? 'todos' : id; pintarProductos(); } }
-    }, h('b', { class: 'stk-kv num', text: String(cuenta[id]) }), h('span', { class: 'stk-kt', text: t2 }))));
-    const porEstado = conTexto.filter(x => filtroEstado === 'todos' || x.est === filtroEstado);
-    const categorias = [...new Set(todos.map(x => x.p.categoria || 'Sin categoría'))].sort(porTexto);
-    if (filtroCat !== 'todas' && !categorias.includes(filtroCat)) filtroCat = 'todas';
-    cats.replaceChildren(...['todas', ...categorias].map(c => h('button', {
-      class: 'chip' + (filtroCat === c ? ' is-on' : ''), type: 'button', 'aria-pressed': filtroCat === c ? 'true' : 'false', text: c === 'todas' ? 'Todas' : c,
-      on: { click: () => { filtroCat = c; pintarProductos(); } } })));
-    cats.hidden = categorias.length < 2;
-    visibles = porEstado.filter(x => filtroCat === 'todas' || (x.p.categoria || 'Sin categoría') === filtroCat);
-    btnPrint.disabled = !visibles.length;
-    if (!visibles.length) {
-      lista.replaceChildren(vacio(filtroEstado !== 'todos' ? `Nada ${filtroEstado === 'agotado' ? 'agotado' : 'por agotarse'}` : 'Sin productos',
-        filtroEstado !== 'todos' ? 'Bien: en este filtro no hay nada para reponer.' : 'Cambiá el local, la categoría o la búsqueda.'));
-      return;
+  // Lista de productos (la misma del encargado) con el Ajuste de gerencia dentro de la hoja del producto.
+  function pintarProductos() {
+    if (vista !== 'productos' || !localId) return;
+    if (!inv || invLocal !== localId) {
+      invLocal = localId;
+      inv = inventario({ localId, prods: [...G.prods.values()].filter(p => p.local_id === localId), stockDe: quedan, movs, conteos, provDeOrden, clave: 'inv-ger',
+        acciones: (p, cerrar) => h('div', { class: 'inv-ajuste' },
+          h('span', { class: 'field-l', text: 'Ajustar' }),
+          h('div', { class: 'inv-ajuste-b' }, ...[['contar', 'Conté'], ['merma', 'Se perdió'], ['entrada', 'Entró']].map(([m, t]) =>
+            h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: t, 'data-ajuste': m, on: { click: () => { cerrar(); ajustar(p, m); } } })))) });
+      zonaProd.replaceChildren(inv.el);
     }
-    const orden = { agotado: 0, bajo: 1, ok: 2 };
-    const g = groupBy(visibles, x => x.p.categoria || 'Sin categoría');
-    const out = [];
-    for (const k of [...g.keys()].sort(porTexto)) {
-      out.push(() => h('h2', { class: 'cat-t', text: k }));
-      for (const x of g.get(k).sort((a, b) => orden[a.est] - orden[b.est] || porTexto(a.p.nombre, b.p.nombre))) out.push(() => tarjeta(x.p, x.est, x.r));
-    }
-    porTandas(lista, out, 40, mantener ? lista._n : 0);
+    inv.pintar();
   }
+  // Los movimientos llegan después: se rearma la lista con ellos.
+  const conMovs = () => { inv = null; pintarProductos(); };
 
-  // Hoja A4 con lo que está en pantalla y una columna vacía para anotar el conteo a mano. Desde el diálogo se guarda como PDF.
+  // Planilla A4 por lugar con lo que figura y una columna vacía para contar a mano. Desde el diálogo se guarda como PDF.
   function imprimir() {
-    if (!visibles.length) return;
+    const vis = inv ? inv.visibles() : [];
+    if (!vis.length) return;
     document.querySelectorAll('.print-area').forEach(el => el.remove());
-    const g = groupBy(visibles, x => x.p.categoria || 'Sin categoría');
-    const filtros = [filtroEstado !== 'todos' ? (filtroEstado === 'agotado' ? 'Agotados' : 'Por agotarse') : '', filtroCat !== 'todas' ? filtroCat : '', q ? `"${q}"` : ''].filter(Boolean).join(' · ');
-    const area = h('div', { class: 'print-area' }, h('section', { class: 'pr-prov' },
-      h('header', { class: 'pr-head' },
-        h('div', {}, h('div', { class: 'pr-marca', text: 'Docks del Puerto · Stock' }), h('h1', { class: 'pr-t', text: nombreLocal(localId) })),
-        h('div', { class: 'pr-datos' }, h('div', { text: fechaLarga(hoyISO()) }), h('div', { text: `Período: ${PERIODOS[periodo]}${filtros ? ' · ' + filtros : ''}` }), h('div', { text: `${visibles.length} productos` }))),
-      h('table', { class: 'pr-tabla pr-stock' },
-        h('thead', {}, h('tr', {}, ...['Producto', periodo === 'hoy' ? 'Al abrir' : 'Hace 7 días', 'Quedan', 'Dif.', 'Unidad', 'Estado', 'Contado'].map((t, i) => h('th', { class: i >= 1 && i <= 3 ? 'pr-num' : (i === 6 ? 'pr-ok' : null), text: t })))),
-        h('tbody', {}, [...g.keys()].sort(porTexto).flatMap(k => [
-          h('tr', {}, h('th', { class: 'pr-local', colspan: '7', text: k })),
-          ...g.get(k).sort((a, b) => porTexto(a.p.nombre, b.p.nombre)).map(x => { const s = quedan(x.p), d = x.r ? x.r.dif : 0;
-            return h('tr', {}, h('td', { text: x.p.nombre }), h('td', { class: 'pr-num', text: n2(s - d) }), h('td', { class: 'pr-num', text: n2(s) }), h('td', { class: 'pr-num', text: signo(d) }),
-              h('td', { text: x.p.unidad_uso || '' }), h('td', { text: ESTADO[x.est] }), h('td', { class: 'pr-ok pr-blanco' })); })])))));
+    const area = planillaConteo(nombreLocal(localId), fechaLarga(hoyISO()), vis, quedan, true);
     document.body.append(area);
     document.body.classList.add('imprimiendo');
     const limpiar = () => { document.body.classList.remove('imprimiendo'); area.remove(); window.removeEventListener('afterprint', limpiar); };
@@ -272,7 +193,7 @@ export async function render(root, ctx) {
           platos.some(x => x.estimada) ? h('p', { class: 'kpi-n', text: '* receta estimada: revisala en Cocina → Recetas' }) : null) : null));
   }
 
-  await cargarG(['prods', 'locales', 'stock', 'precios'], () => { if (ctx.alive() && lista.isConnected) pintarProductos(true); });
+  await cargarG(['prods', 'locales', 'stock', 'precios', 'provs'], () => { if (ctx.alive() && inv) { inv = null; pintarProductos(); } });
   if (!ctx.alive()) return;
   const locales = G.locales.filter(l => l.activo);
   if (!locales.some(l => l.id === localId)) localId = (locales[0] || {}).id;
@@ -280,20 +201,12 @@ export async function render(root, ctx) {
   const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Local' }, locales.map(l => h('button', {
     class: 'chip' + (l.id === localId ? ' is-on' : ''), type: 'button', text: l.nombre, 'aria-pressed': l.id === localId ? 'true' : 'false', 'data-local': l.id,
     on: { click: async () => {
-      localId = l.id; lsSet('g:local', localId); filtroCat = 'todas'; movs = []; movsLocal = null; ponerSub();
+      localId = l.id; lsSet('g:local', localId); movs = []; conteos = []; movsLocal = null; inv = null; ponerSub();
       chips.querySelectorAll('.chip').forEach(b => { const on = b.getAttribute('data-local') === l.id; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
       await refrescar();
     } }
   })));
-  const buscador = h('input', { class: 'input input-search', type: 'search', placeholder: 'Buscar producto', 'aria-label': 'Buscar producto', autocomplete: 'off', on: { input: (e) => { q = e.target.value; pintarProductos(); } } });
-  const segPer = h('div', { class: 'seg seg-per', role: 'tablist', 'aria-label': 'Período' });
-  const pintarPer = () => segPer.replaceChildren(...Object.entries(PERIODOS).map(([id, t]) => h('button', {
-    class: 'seg-b' + (periodo === id ? ' is-on' : ''), type: 'button', role: 'tab', 'aria-selected': periodo === id ? 'true' : 'false', text: t, 'data-periodo': id,
-    on: { click: () => { periodo = id; lsSet('g:stk-periodo', id); pintarPer(); pintarProductos(); } } })));
-  pintarPer();
   const segVista = h('div', { class: 'seg seg-ped', role: 'tablist', 'aria-label': 'Vista de stock' });
-  const zonaProd = h('div', { class: 'stk-prod' },
-    h('div', { class: 'toolbar stk-buscar' }, buscador), estados, cats, segPer, lista);
   const cuerpo = h('div', {});
   const pintarVista = () => {
     segVista.replaceChildren(...[['productos', 'Productos'], ['metricas', 'Métricas']].map(([id, t]) => h('button', {
@@ -303,7 +216,7 @@ export async function render(root, ctx) {
     cuerpo.replaceChildren(vista === 'productos' ? zonaProd : resumen);
   };
   async function refrescar() {
-    if (vista === 'productos') { pintarProductos(); await cargarMovs(); if (ctx.alive()) pintarProductos(true); }
+    if (vista === 'productos') { pintarProductos(); const antes = movsLocal; await cargarMovs(); if (ctx.alive() && movsLocal !== antes) conMovs(); }
     else { resumen.replaceChildren(esqueleto(3)); await pintarResumen(); }
   }
   ponerSub(); pintarVista();

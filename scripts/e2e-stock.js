@@ -381,6 +381,7 @@ async function montarApi(ctx) {
     if (t === 'orden_item_precios') { const b = body(); db.itemPrecios.push(b); return json([b], 201); }
     if (t === 'precios' && req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(r => { db.preciosNuevos.push(r); db.precios[r.producto_id] = r.precio; }); return json([{ id: 'pr' }], 201); }
     if (t === 'facturas_locales' && req.method() === 'GET') return json([]);
+    if (t === 'conteos' && req.method() === 'GET') return json([]);
     return json({ message: 'mock: ruta no prevista ' + req.method() + ' ' + t }, 404);
   });
 }
@@ -521,7 +522,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await shot(e, '05-mis-pedidos-m', true);
   ok(await e.locator('a[data-nav]').count() === 4 || await e.locator('.tab').count() >= 2, 'encargado solo tiene Pedir / Mis pedidos / Notas / Salir');
   const navTxt = (await e.locator('.tabbar').innerText()).toLowerCase();
-  ok(!/stock|recibir|cat[aá]logo/.test(navTxt), 'encargado sin secciones de gerencia');
+  ok(!/recibir|cat[aá]logo|ventas|pagos/.test(navTxt), 'encargado sin secciones de gerencia (Stock es el suyo: qué hay y Contar)');
   await e.goto(BASE + '#/catalogo');
   await e.waitForSelector('.prod');
   ok(await e.locator('h1').first().innerText() === 'Pedir', 'ruta de gerencia redirige al encargado a Pedir');
@@ -888,27 +889,21 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(db.movimientos.some(m => m.producto_id === 'p-agua' && m.tipo === 'recepcion' && m.cantidad === 24), 'el agua suma stock (2 packs × 12)');
   // Stock
   await g.locator('.sidebar a[data-nav="stock"]').click();
-  await g.waitForSelector('.prod-stk');
+  await g.waitForSelector('.inv-filtros .inv-k');
   await g.locator('.chip', { hasText: 'Umo Grill' }).click();
-  await g.waitForSelector('.stk-estados .stk-k');
-  const est = (await g.locator('.stk-estados').innerText()).replace(/\s+/g, ' ');
-  ok(/PRODUCTOS/i.test(est) && /AGOTADOS/i.test(est) && /POR AGOTARSE/i.test(est) && !/m[ií]nimo|par\b/i.test(await g.locator('.stk-prod').innerText()), `Stock: resumen por estado sin "mínimo" ni "par" (${est})`);
+  await g.waitForSelector('.inv-filtros .inv-k');
+  const est = (await g.locator('.inv-filtros').innerText()).replace(/\s+/g, ' ');
+  ok(/HAY/i.test(est) && /ENTRÓ HOY/i.test(est) && /EN CERO/i.test(est) && !/m[ií]nimo|par\b/i.test(await g.locator('.stk-prod').innerText()), `Stock: filtros Hay / Entró hoy / En cero sin "mínimo" ni "par" (${est})`);
   await g.waitForSelector('.toast', { state: 'detached', timeout: 8000 }).catch(() => {});
   const tChor = (await g.locator('[data-prod="p-chorizo"]').innerText()).replace(/\s+/g, ' ');
-  ok(/Por agotarse/.test(tChor) && /HACE 7 DÍAS/i.test(tChor) && /QUEDAN 3 kg/i.test(tChor) && /DIF\. −6/i.test(tChor) && /Pedir 5 kg/.test(tChor), `Stock: tarjeta con estado, Hace 7 días / Quedan / Dif. y Pedir (${tChor})`);
-  ok(/Agotado/.test(await g.locator('[data-prod="p-agua"]').innerText()), 'Stock: sin unidades figura Agotado');
+  ok(/3 kg/.test(tChor) && /Pedir 5 kg/.test(tChor), `Stock: fila con lo que hay y Pedir (${tChor})`);
   await shot(g, '13-g-stock-pc');
-  await g.locator('[data-filtro="agotado"]').click();
-  ok(await g.locator('.prod-stk').count() > 0 && await g.locator('.prod-stk:not([data-estado="agotado"])').count() === 0, 'Stock: tocar Agotados filtra');
-  await g.locator('[data-filtro="todos"]').click();
-  await g.locator('.stk-cats .chip', { hasText: 'Bebidas' }).click();
-  ok(await g.locator('.prod-stk').count() === 3, 'Stock: filtro por categoría');
-  await g.locator('.stk-cats .chip', { hasText: 'Todas' }).click();
-  await g.locator('[data-periodo="hoy"]').click();
-  ok(/AL ABRIR/i.test(await g.locator('[data-prod="p-chorizo"]').innerText()), 'Stock: período Hoy cambia la columna a "Al abrir"');
-  await g.locator('[data-periodo="semana"]').click();
-  // Ajuste con motivo: merma
-  await g.getByRole('button', { name: 'Ajuste de Queso cremoso' }).click();
+  await g.locator('[data-filtro="cero"]').click();
+  ok(await g.locator('[data-prod="p-agua"]').count() === 1 && await g.locator('[data-prod="p-chorizo"]').count() === 0, 'Stock: En cero filtra lo que no tiene unidades');
+  await g.locator('[data-filtro="hay"]').click();
+  // Ajuste con motivo: merma, desde la hoja del producto
+  await g.locator('[data-prod="p-queso"]').click();
+  await g.locator('dialog [data-ajuste="merma"]').click();
   await g.locator('dialog .inp-big').fill('0,5');
   await g.getByRole('button', { name: 'Descontar del stock' }).click();
   await g.waitForSelector('.toast-error >> text=motivo');
@@ -919,7 +914,9 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await g.waitForSelector('.toast-ok >> text=Se descontó');
   const mer = db.movimientos.find(m => m.tipo === 'merma' && m.producto_id === 'p-queso');
   ok(mer && mer.cantidad === -0.5 && /Merma: Vencido · olía mal/.test(mer.nota) && mer.local_id === L1, `Ajuste: merma con motivo (${JSON.stringify(mer)})`);
-  ok(/Vencido/.test(await g.locator('[data-prod="p-queso"]').innerText()), 'Stock: la tarjeta muestra el último ajuste');
+  await g.locator('[data-prod="p-queso"]').click();
+  ok(/Se perdió/.test(await g.locator('dialog .inv-movs').innerText()), 'Stock: la hoja del producto muestra el ajuste en sus movimientos');
+  await g.locator('dialog[open] [aria-label="Cerrar"]').click();
   // Imprimir: arma la planilla A4 con columna para anotar el conteo
   await g.evaluate(() => { window.__print = 0; window.print = () => { window.__print++; window.__prHTML = document.querySelector('.print-area') && document.querySelector('.print-area').innerText; }; });
   await g.locator('.stk-print').click();
@@ -934,7 +931,9 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(/Cargá las recetas/.test(await g.locator('[data-bloque="platos"]').innerText()), 'Stock: sin recetas explica qué hacer');
   await shot(g, '13c-g-stock-metricas-pc');
   await g.locator('[data-vista="productos"]').click();
-  await g.getByRole('button', { name: 'Contar Chorizo parrillero' }).click();
+  await g.waitForSelector('[data-prod="p-chorizo"]');
+  await g.locator('[data-prod="p-chorizo"]').click();
+  await g.locator('dialog [data-ajuste="contar"]').click();
   await g.locator('dialog .inp-big').fill('4');
   await g.getByRole('button', { name: 'Guardar conteo' }).click();
   await g.waitForSelector('.toast-ok >> text=Diferencia');
@@ -1248,11 +1247,12 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gm.waitForTimeout(400);
   await shot(gm, '16a-g-tablero-m', true);
   await gm.locator('a.tab[data-nav="stock"]').click();
-  await gm.waitForSelector('.prod-stk');
+  await gm.waitForSelector('.inv-fila');
   await gm.waitForTimeout(300);
   ok(await gm.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'Stock celular: sin desplazamiento horizontal');
   await shot(gm, '16c-g-stock-m');
-  await gm.locator('.prod-stk[data-estado="ok"] .stk-ajuste').first().click();
+  await gm.locator('.inv-fila').first().click();
+  await gm.locator('dialog [data-ajuste="merma"]').click();
   await gm.waitForSelector('dialog[open] .stk-motivos');
   await shot(gm, '16d-g-stock-ajuste-m');
   await gm.locator('dialog[open] [aria-label="Cerrar"]').click();
@@ -1303,7 +1303,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await gd.waitForSelector('.tb-card');
   await shot(gd, '51-g-tablero-pc-oscuro', true);
   await gd.locator('.sidebar a[data-nav="stock"]').click();
-  await gd.waitForSelector('.prod-stk');
+  await gd.waitForSelector('.inv-fila');
   await shot(gd, '18-g-stock-pc-oscuro');
   await cGerD.close();
 

@@ -7,7 +7,7 @@ const NAV = {
   encargado: [
     { id: 'pedir', label: 'Pedir', icono: 'pedir' },
     { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
-    { id: 'contar', label: 'Contar', icono: 'stock' },
+    { id: 'stock', label: 'Stock', icono: 'stock' },
     { id: 'elaborados', label: 'Elaborados', icono: 'cocina' },
     { id: 'subir-factura', label: 'Facturas', icono: 'recibir' },
     { id: 'notas', label: 'Notas', icono: 'nota' }
@@ -29,7 +29,7 @@ const NAV = {
 };
 const RUTAS_PAGOS = { 'gasto': () => import('./g-gasto.js'), 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
+  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
@@ -95,7 +95,7 @@ function construirShell(c) {
 function marcarActivo(id) {
   // Gerencia: Recibir y Gasto viven dentro de Compras; la contadora sigue viendo Gasto en Pagos.
   const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'stock', lugares: 'stock', conteos: 'stock', control: 'stock', gasto: 'compras' })[id] : null;
-  const deEncargado = ctx && ctx.rol === 'encargado' ? ({ lugares: 'contar' })[id] : null;
+  const deEncargado = ctx && ctx.rol === 'encargado' ? ({ lugares: 'stock', contar: 'stock' })[id] : null;
   const act = deGerencia || deEncargado || ({ revisar: 'pedir', ventas: 'resumen', analisis: 'resumen', merma: 'resumen', produccion: 'recetas', gasto: 'pagos', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', categorias: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos', recibir: 'compras', 'recibir-factura': 'compras' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;

@@ -12,7 +12,7 @@ const SUGERIDOS = ['Cámara', 'Freezer', 'Heladera', 'Depósito', 'Barra', 'Coci
 export async function render(root, ctx) {
   const esGerencia = ctx.rol === 'gerencia';
   const cab = h('header', { class: 'vista-head' },
-    esGerencia ? null : h('a', { class: 'btn btn-ghost lug-volver', href: '#/contar' }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Contar' })),
+    esGerencia ? null : h('a', { class: 'btn btn-ghost lug-volver', href: '#/stock' }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Stock' })),
     h('h1', { class: 'titulo', text: 'Lugares' }),
     h('p', { class: 'sub', text: 'Dónde está cada cosa y en qué orden se cuenta' }));
   const nav = esGerencia ? subnav(SUBNAV_STOCK, 'lugares') : null;

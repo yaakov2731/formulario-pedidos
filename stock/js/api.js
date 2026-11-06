@@ -425,7 +425,7 @@ export const ventasPedidosTodos = (desde, hasta) => todo(() => sb.from('ventas_p
 export const movimientosLocal = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,creado_en')
   .eq('local_id', localId).gte('creado_en', desde).in('tipo', ['venta', 'produccion_consumo', 'produccion_alta', 'merma', 'uso_dia']).order('creado_en').order('id'));
 // Todos los movimientos de un local desde una fecha (para Inicio / Ahora / Dif. y los últimos ajustes en Stock).
-export const movimientosDesde = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,nota,creado_en')
+export const movimientosDesde = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,tipo,cantidad,nota,creado_en,ref_id')
   .eq('local_id', localId).gte('creado_en', desde).order('creado_en').order('id'));
 // Ajuste a mano de gerencia: merma con motivo (cantidad negativa) o entrada sin pedido (positiva).
 export const registrarAjuste = async (m) => ok(await sb.from('movimientos').insert([m]));

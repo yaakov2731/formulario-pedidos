@@ -181,6 +181,8 @@ export async function render(root, ctx) {
     lista.replaceChildren(...[...grupos].flatMap(([c, ps]) => [h('h2', { class: 'cat-t', text: c }), ...ps.map(p => fila(p))]));
   }
 
+  const volver = h('a', { class: 'btn btn-ghost cnt-volver', href: '#/stock' }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Stock' }));
+
   async function guardar() {
     if (guardando) return;
     const malos = contados().filter(p => !(numOk(vals, p) && numOk(sus, p)));
@@ -201,7 +203,7 @@ export async function render(root, ctx) {
     guardando = false; pintarBtn();
   }
 
-  mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Contar' }), sub),
+  mount(root, h('header', { class: 'vista-head' }, volver, h('h1', { class: 'titulo', text: 'Contar' }), sub),
     sinSQL ? banner('Contar todavía no está activado. Avisale a gerencia.', 'warn') : null,
     infoUltimo, bloqueTipo, ayuda, armar, h('div', { class: 'toolbar-fija' }, buscador, chips), lista, btn);
   pintarLista(); pintarBtn();

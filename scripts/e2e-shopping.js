@@ -141,7 +141,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   ok(true, 'entrar a #/elaborados lo devuelve a Pedir');
 
   // Contar: a ciegas (sin "Quedan"), vacío = no contado, 0 vale.
-  await e.locator('.tab', { hasText: 'Contar' }).click();
+  await e.goto(e.url().split('#')[0] + '#/contar');
   await e.waitForSelector('.cnt-prod');
   ok(/Todavía no se contó/.test(await e.locator('.cnt-ult').innerText()), 'avisa que todavía no se contó');
   ok(!/Quedan/.test(await e.locator('.cnt-lista').innerText()), 'cuenta a ciegas: no muestra lo que dice el sistema');
@@ -166,7 +166,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const { c: cB, p: b } = await nuevo(M, U_BRK, { nombre: 'Maru' });
   await b.goto(BASE + '#/pedir');
   await b.waitForSelector('.tab');
-  ok(await b.locator('.tab', { hasText: 'Elaborados' }).count() === 1 && await b.locator('.tab', { hasText: 'Contar' }).count() === 1, 'Brooklyn sigue con Elaborados y también tiene Contar');
+  ok(await b.locator('.tab', { hasText: 'Elaborados' }).count() === 1 && await b.locator('.tab', { hasText: 'Stock' }).count() === 1, 'Brooklyn sigue con Elaborados y también tiene Stock');
   await cB.close();
 
   // ===== Gerencia · PC =====
