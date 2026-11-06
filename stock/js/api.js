@@ -174,10 +174,13 @@ export const cargarStock = (localId) => todo(() => {
 export const cargarProveedoresBasico = async () => ok(await sb.from('proveedores_basico').select('id,nombre,dias_entrega,corte,tiene_minimo,activo').order('nombre'));
 const COLS_PROV = 'id,nombre,whatsapp,cuit,alias_cbu,dias_entrega,corte,pedido_minimo,notas,activo';
 const COLS_PROV_0011 = ',razon_social,contacto,telefono,email,whatsapp_pagos,email_pagos,banco';
-// Si todavía no se corrió 0011_proveedores_datos.sql, trae solo las columnas de siempre (sin contacto, email ni datos de cobranza).
+const COLS_PROV_0029 = ',cbu,numero_cuenta';
+// Si todavía no se corrió 0029 (CBU y número de cuenta) o 0011_proveedores_datos.sql, trae las columnas que haya.
 export async function cargarProveedores() {
-  const r = await sb.from('proveedores').select(COLS_PROV + COLS_PROV_0011).order('nombre');
-  if (r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''))) return ok(await sb.from('proveedores').select(COLS_PROV).order('nombre'));
+  const faltaCol = (r) => r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''));
+  let r = await sb.from('proveedores').select(COLS_PROV + COLS_PROV_0011 + COLS_PROV_0029).order('nombre');
+  if (faltaCol(r)) r = await sb.from('proveedores').select(COLS_PROV + COLS_PROV_0011).order('nombre');
+  if (faltaCol(r)) r = await sb.from('proveedores').select(COLS_PROV).order('nombre');
   return ok(r);
 }
 // Sin 0013_locales_razon_social.sql trae los locales sin razón social ni CUIT.
