@@ -145,7 +145,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.locator('.cnt-armar a').click();
   await e.waitForSelector('.lug-sec');
   ok(await e.locator('.chips [data-local]').count() === 0 && await e.locator('.subnav').count() === 0, 'el encargado ve solo su local, sin selector de locales ni menú de gerencia');
-  ok(await e.locator('[data-nav="stock"].is-active').count() > 0, 'en el menú queda marcado Stock');
+  ok(await e.locator('[data-nav="hoja"].is-active').count() > 0, 'en el menú queda marcada Hoja');
   for (const l of ['Cámara', 'Barra']) { await e.fill('#lug-nuevo', l); await e.locator('.lug-tool button', { hasText: 'Agregar' }).click(); }
   for (const [c, l] of [['Pastelería', 'Cámara'], ['Verdulería', 'Cámara'], ['Bebidas', 'Barra']]) {
     await e.selectOption('#lug-cat', c); await e.selectOption('#lug-dest', l); await e.locator('.lug-tool-cat button').click();
