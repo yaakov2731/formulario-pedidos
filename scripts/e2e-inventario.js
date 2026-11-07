@@ -147,7 +147,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.goto(BASE + '#/stock');
   await e.waitForSelector('.inv-fila');
   await e.waitForTimeout(300);
-  ok(await e.locator('[data-nav="stock"].is-active').count() > 0 && await e.locator('[data-nav="contar"]').count() === 0, 'el menú del encargado tiene Stock (Contar se entra desde ahí)');
+  ok(await e.locator('[data-nav="hoja"].is-active').count() > 0 && await e.locator('[data-nav="contar"], [data-nav="stock"]').count() === 0, 'Stock ya no está en el menú del encargado: queda marcada Hoja (0031)');
   const kv = async (id) => Number(await e.locator(`.inv-k-${id} .inv-kv`).innerText());
   ok(await kv('hay') === 8 && await kv('hoy') === 3 && await kv('cero') === 1, `filtros: Hay 8 · Entró hoy 3 · En cero 1 (${await kv('hay')}/${await kv('hoy')}/${await kv('cero')})`);
   const grupos = await e.locator('.inv-gt span').allTextContents();
@@ -175,7 +175,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   ok(await e.locator(`.inv-g[data-grupo="Heladera"] .inv-fila[data-prod="${P.jamon.id}"]`).count() === 1, 'el jamón ya aparece en Heladera');
   await e.locator('.inv-contar').click();
   await e.waitForSelector('.cnt-prod, .lug-card');
-  ok(await e.locator('[data-nav="stock"].is-active').count() > 0 && await e.locator('.vista-head a', { hasText: 'Stock' }).count() === 1, 'Contar: sigue marcado Stock y tiene "← Stock"');
+  ok(await e.locator('[data-nav="hoja"].is-active').count() > 0 && await e.locator('.vista-head a', { hasText: 'Stock' }).count() === 1, 'Contar: queda marcada Hoja y tiene "← Stock"');
   await cE.close();
 
   // ===== Gerencia: Stock =====

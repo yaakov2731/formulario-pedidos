@@ -231,3 +231,6 @@ export function porLugar(prods) {
   if (m.has(SIN_LUGAR)) { const v = m.get(SIN_LUGAR); m.delete(SIN_LUGAR); m.set(SIN_LUGAR, v); }
   return m;
 }
+
+// Jornada de la hoja por sector: hasta las 6 de la mañana sigue siendo el día anterior (la barra cierra después de medianoche).
+export function jornadaISO(d = new Date()) { const x = new Date(d.getTime()); if (x.getHours() < 6) x.setDate(x.getDate() - 1); return aISO(x); }
