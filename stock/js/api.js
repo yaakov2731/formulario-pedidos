@@ -519,3 +519,17 @@ export const crearNota = async (n) => (await ok(await sb.from('notas').insert(n)
 export const actualizarNota = async (id, cambios) => ok(await sb.from('notas').update(cambios).eq('id', id).select('id'));
 export const borrarNota = async (id) => ok(await sb.from('notas').delete().eq('id', id).select('id'));
 export const responderNota = async (r) => (await ok(await sb.from('nota_respuestas').insert(r).select('id,texto,autor_nombre,autor_rol,creado_en')))[0];
+
+// ---- Hoja por sector (0031_hoja_sector.sql) ----
+// El encargado anota por sector y por día: apertura, entró, devolví, merma, cierre. En el Shopping, retiros con destino.
+const COLS_HOJA = 'id,fecha,sector,producto_id,tipo,cantidad,otro,quien,creado_en';
+export const hojaRango = (localId, desde, hasta) => todo(() => sb.from('hoja_movs').select(COLS_HOJA)
+  .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('creado_en').order('id'));
+export const hojaDelDia = (localId, fecha) => hojaRango(localId, fecha, fecha);
+export const hojaContar = async (localId, sector, fecha, tipo, items, quien) =>
+  ok(await sb.rpc('hoja_contar', { p_local: localId, p_sector: sector, p_fecha: fecha, p_tipo: tipo, p_items: items, p_quien: quien || null }));
+export const hojaAnotar = async (localId, sector, fecha, productoId, tipo, cantidad, otro, quien) =>
+  ok(await sb.rpc('hoja_anotar', { p_local: localId, p_sector: sector, p_fecha: fecha, p_producto: productoId, p_tipo: tipo, p_cantidad: cantidad, p_otro: otro || null, p_quien: quien || null }));
+export const hojaBorrar = async (id) => ok(await sb.rpc('hoja_borrar', { p_id: id }));
+export const cargarDestinos = (localId) => todo(() => sb.from('destinos').select('id,nombre').eq('local_id', localId).order('nombre').order('id'));
+export const sinHojaSQL = (e) => !!(e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /hoja_movs|hoja_contar|hoja_anotar|destinos/.test(e.message || '')));

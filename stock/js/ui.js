@@ -31,7 +31,11 @@ const P = {
   persona: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
   bandeja: 'M3 13h5l1.5 3h5L16 13h5M5 5h14l2 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z',
   basura: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
-  mail: 'M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3.5 6l8.5 7 8.5-7'
+  mail: 'M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3.5 6l8.5 7 8.5-7',
+  atras: 'M15 18l-6-6 6-6',
+  flecha: 'M9 18l6-6-6-6',
+  hoja: 'M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M9 13h6M9 17h6',
+  retiro: 'M4 7h16v13H4zM9 3h6v4H9zM12 11v6M9 14l3 3 3-3'
 };
 export function icon(nombre, size = 20) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -117,5 +121,5 @@ export const SUBNAV_COMPRAS = [['compras', 'Enviar'], ['recibir', 'Recibir'], ['
 // En gerencia Gasto está en Compras; la contadora (sin Compras) lo sigue viendo en Pagos.
 export const navPagos = (ctx) => (ctx.rol === 'gerencia' ? SUBNAV_PAGOS.filter(([id]) => id !== 'gasto') : SUBNAV_PAGOS);
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['categorias', 'Categorías'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
-export const SUBNAV_STOCK = [['stock', 'Stock'], ['elaborados', 'Elaborados'], ['lugares', 'Lugares'], ['conteos', 'Conteos'], ['control', 'Control']];
+export const SUBNAV_STOCK = [['stock', 'Stock'], ['sector', 'Por sector'], ['g-retiros', 'Retiros'], ['elaborados', 'Elaborados'], ['lugares', 'Lugares'], ['conteos', 'Conteos'], ['control', 'Control']];
 export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción']];

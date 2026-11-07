@@ -7,8 +7,8 @@ const NAV = {
   encargado: [
     { id: 'pedir', label: 'Pedir', icono: 'pedir' },
     { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
-    { id: 'stock', label: 'Stock', icono: 'stock' },
-    { id: 'elaborados', label: 'Elaborados', icono: 'cocina' },
+    { id: 'hoja', label: 'Hoja', icono: 'hoja' },
+    { id: 'retiros', label: 'Retiros', icono: 'retiro' },
     { id: 'subir-factura', label: 'Facturas', icono: 'recibir' },
     { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
@@ -29,13 +29,13 @@ const NAV = {
 };
 const RUTAS_PAGOS = { 'gasto': () => import('./g-gasto.js'), 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
+  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'hoja': () => import('./hoja.js'), 'retiros': () => import('./retiros.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
     'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
-    'stock': () => import('./g-stock.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
+    'stock': () => import('./g-stock.js'), 'sector': () => import('./g-sector.js'), 'g-retiros': () => import('./g-retiros.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
     'resumen': () => import('./g-resumen.js'), 'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
     'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js'),
     'notas': () => import('./notas.js')
@@ -73,14 +73,19 @@ function pantallaSimple(titulo, texto, acciones) {
     h('h1', { class: 'titulo', text: titulo }), h('p', { class: 'sub', text: texto }), h('div', { class: 'acciones' }, acciones)));
 }
 
-// El encargado de un local que no elabora (Shopping) no ve Elaborados.
-const navDe = (c) => NAV[c.rol].filter(it => !(it.id === 'elaborados' && c.rol === 'encargado' && !elabora(c.codigoLocal)));
-const vistasDe = (c) => { const v = { ...VISTAS[c.rol] }; if (c.rol === 'encargado' && !elabora(c.codigoLocal)) delete v.elaborados; return v; };
+// Encargado: una sola Hoja por sector (apertura, entró, devolví, merma, cierre). Stock, Contar y Elaborados ya no están
+// en el menú (las rutas siguen andando). El Shopping (no elabora) suma Retiros: qué sale del depósito y a dónde va.
+const navDe = (c) => NAV[c.rol].filter(it => !(it.id === 'retiros' && c.rol === 'encargado' && elabora(c.codigoLocal)));
+const vistasDe = (c) => {
+  const v = { ...VISTAS[c.rol] };
+  if (c.rol === 'encargado') { if (elabora(c.codigoLocal)) delete v.retiros; else delete v.elaborados; }
+  return v;
+};
 
 // En el celular la barra de abajo muestra 4 secciones + "Más" (el resto y Salir), para que no se corten los nombres
 // y nadie cierre la sesión de un toque sin querer. En escritorio la barra lateral sigue mostrando todo.
 const EN_BARRA = {
-  encargado: ['pedir', 'mis-pedidos', 'stock', 'elaborados', 'subir-factura'],
+  encargado: ['pedir', 'mis-pedidos', 'hoja', 'retiros', 'subir-factura'],
   gerencia: ['tablero', 'pedidos', 'compras', 'stock'],
   contadora: ['pagos']
 };
@@ -118,8 +123,8 @@ function construirShell(c) {
 
 function marcarActivo(id) {
   // Gerencia: Recibir y Gasto viven dentro de Compras; la contadora sigue viendo Gasto en Pagos.
-  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'stock', lugares: 'stock', conteos: 'stock', control: 'stock', gasto: 'compras' })[id] : null;
-  const deEncargado = ctx && ctx.rol === 'encargado' ? ({ lugares: 'stock', contar: 'stock' })[id] : null;
+  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'stock', lugares: 'stock', conteos: 'stock', control: 'stock', sector: 'stock', 'g-retiros': 'stock', gasto: 'compras' })[id] : null;
+  const deEncargado = ctx && ctx.rol === 'encargado' ? ({ lugares: 'hoja', contar: 'hoja', stock: 'hoja', elaborados: 'hoja' })[id] : null;
   const act = deGerencia || deEncargado || ({ revisar: 'pedir', ventas: 'resumen', analisis: 'resumen', merma: 'resumen', produccion: 'recetas', gasto: 'pagos', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', categorias: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos', recibir: 'compras', 'recibir-factura': 'compras' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
