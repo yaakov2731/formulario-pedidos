@@ -157,7 +157,7 @@ async function shot(p, n, full = false) {
   const { c: cE, p: e } = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, U_ENC);
   await e.goto(BASE + '#/pedir');
   await e.waitForSelector('.tab');
-  ok(await e.locator('.tab', { hasText: 'Facturas' }).count() === 1, 'el encargado tiene la pestaña Facturas');
+  ok((await e.locator('.tab-mas').getAttribute('data-mas')).split(' ').includes('subir-factura'), 'el encargado tiene Facturas (en Más)');
   await e.goto(BASE + '#/subir-factura');
   await e.waitForSelector('#sf-archivo', { state: 'attached' });
   ok(await e.locator('button', { hasText: 'Mandar a gerencia' }).isDisabled(), 'sin foto no deja mandar');

@@ -9,7 +9,7 @@
   --fill: rgba(255, 255, 255, 0.08);
   --sep: rgba(255, 255, 255, 0.11);
   --text: #F6F1EC;
-  --text-2: #B3A69C;
+  --text-2: #C4B8AE;          /* gris secundario más claro: se lee sobre el brillo marrón */
   --accent: #F58220;          /* naranja brasa: botones con texto oscuro */
   --accent-deco: #F58220;
   --accent-text: #FFA149;     /* acento como texto sobre negro */
@@ -33,7 +33,8 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-display: "Poppins", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* números con la misma letra que el texto (cifras de ancho fijo): la mono separaba la coma ("6 , 5") */
+  --font-num: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -99,7 +100,7 @@ a { color: var(--accent-text); }
 .vista-head { text-align: center; margin-bottom: 16px; }
 .titulo { font: 700 28px/1.1 var(--font-display); letter-spacing: -0.01em; text-align: center; }
 .sub { color: var(--text-2); font-size: 15px; text-align: center; margin-top: 4px; }
-.cat-t { grid-column: 1 / -1; text-align: center; font: 700 13px/1 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); margin: 18px 0 2px; }
+.cat-t { grid-column: 1 / -1; text-align: left; padding: 0 4px; font: 700 13px/1 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); margin: 18px 0 2px; }
 .mas-buscar { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 22px 0 6px; padding: 12px 16px; border-radius: 14px; border: 1px dashed var(--sep); color: var(--text-2); font-size: 14px; text-align: center; }
 .mas-buscar svg { flex: none; }
 .tag-oculto { display: inline-block; padding: 2px 8px; border-radius: 8px; background: var(--fill); color: var(--text-2); font-size: 12px; font-weight: 600; }
@@ -203,6 +204,16 @@ select.input { text-align: center; text-align-last: center; }
 .prod-cat:hover { border-color: var(--text-2); }
 .prod-cat.is-off { opacity: 0.55; }
 .prod-stk .btn { min-height: 44px; margin-top: 4px; }
+
+/* Pedir y Revisar: fila compacta (nombre y Quedan a la izquierda, − / + a la derecha) para ver 6–7 productos por pantalla. */
+.prod.prod-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n p" "m p"; align-items: center; gap: 4px 10px; padding: 10px 10px 10px 14px; text-align: left; }
+.prod-fila .prod-n { grid-area: n; font-size: 16px; }
+.prod-fila .prod-m { grid-area: m; justify-content: flex-start; gap: 4px 8px; font-size: 13px; }
+.prod-fila .quedan { display: inline; padding: 1px 8px; border-radius: 8px; line-height: 1.6; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.prod-fila .prod-p { grid-area: p; margin: 0; }
+.prod-fila .prod-pl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.prod-fila .step-btn { width: 44px; height: 44px; }
+.prod-fila .step-val { width: 56px; height: 44px; font-size: 18px; }
 
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
 .step-btn { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1.5px solid var(--sep); color: var(--text); }
@@ -1467,3 +1478,11 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .inv-movs, .inv-det .field-l { text-align: left; }
 .cnt-volver { min-height: 44px; padding: 0 14px; }
 .inv-pedir { margin-top: 3px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+/* ---------- Celular: "Más" en la barra de abajo (resto de secciones y Cerrar sesión) ---------- */
+.mas-lista { display: flex; flex-direction: column; gap: 8px; }
+.mas-link { display: flex; align-items: center; gap: 14px; min-height: 54px; padding: 0 16px; border-radius: var(--r-field); border: 1.5px solid var(--sep); background: var(--surface-2); color: var(--text); font: 600 17px var(--font); text-decoration: none; }
+.mas-link svg { color: var(--accent-text); }
+.mas-link.is-active { border-color: var(--accent-deco); background: var(--accent-soft); }
+.mas-quien { margin: 10px 4px 0; color: var(--text-2); font-size: 14px; }
+.mas-salir { justify-content: center; gap: 10px; min-height: 50px; color: var(--bad-ink); }

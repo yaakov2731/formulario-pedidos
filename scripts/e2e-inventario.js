@@ -155,7 +155,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const fJamon = e.locator(`.inv-fila[data-prod="${P.jamon.id}"]`);
   ok(/Entró \+4,1 de El Criollo · hoy 12:05/.test(await fJamon.innerText()) && await fJamon.evaluate(x => x.classList.contains('is-hoy')), 'lo recibido hoy dice cuánto, de quién y a qué hora');
   ok(/Contado/.test(await e.locator(`.inv-fila[data-prod="${P.coca.id}"]`).innerText()), 'muestra cuándo se contó');
-  ok(/2,5 bolsas/.test(await e.locator(`.inv-fila[data-prod="${P.papas.id}"]`).innerText()), 'lo que viene por bulto dice también cuántos bultos (12,5 kg = 2,5 bolsas)');
+  ok(/2 bolsas \+ 2,5 kg/.test(await e.locator(`.inv-fila[data-prod="${P.papas.id}"]`).innerText()), 'lo que viene por bulto dice también cuántos bultos enteros (12,5 kg = 2 bolsas + 2,5 kg)');
   ok(!/\$/.test(await e.locator('.inv').innerText()), 'sin precios');
   await shot(e, '01-encargado-stock-m');
   await e.locator('.inv-k-hoy').click();

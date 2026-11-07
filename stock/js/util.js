@@ -124,10 +124,19 @@ export function plural(u, n) {
   return /[aeiou]$/i.test(t) ? t + 's' : t + 'es';
 }
 export const cantU = (n, u) => `${fmtNum(n, 2) || '0'}${u ? ' ' + plural(u, n) : ''}`;
-// "2,3 bolsas (11,5 kg)" si se compra por bulto; si no, "11,5 kg".
+// Bultos enteros + lo suelto: "2 cajas + 1 unidad", "2 bolsas" o '' si no llega a un bulto (nunca "2,3 cajas").
+export function enBultos(p, s) {
+  if (!esBulto(p)) return '';
+  const f = factorDe(p); const n = Math.floor(Number(s) / f + 1e-9);
+  if (!(n >= 1)) return '';
+  const resto = Math.round((Number(s) - n * f) * 100) / 100;
+  return `${fmtNum(n, 0)} ${plural(p.unidad_compra, n)}${resto > 0 ? ' + ' + cantU(resto, p.unidad_uso) : ''}`;
+}
+// "11,5 kg (2 bolsas + 1,5 kg)" si se compra por bulto; si no, "11,5 kg".
 export function textoStock(p, s) {
   const uso = cantU(s, p && p.unidad_uso);
-  return esBulto(p) ? `${cantU(Math.round(s / factorDe(p) * 10) / 10, p.unidad_compra)} (${uso})` : uso;
+  const b = enBultos(p, s);
+  return b ? `${uso} (${b})` : uso;
 }
 // "1 bolsa = 5 kg" o '' si se compra y se usa igual.
 export const textoBulto = (p) => esBulto(p) ? `1 ${p.unidad_compra} = ${fmtNum(factorDe(p), 3)} ${p.unidad_uso}` : '';

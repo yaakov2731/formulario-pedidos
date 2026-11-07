@@ -392,6 +392,7 @@ let fallas = 0;
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FAIL ') + msg); if (!cond) fallas++; };
 const VIVAS_E2E = ['borrador', 'aprobada'];
 const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.png'), fullPage: full });
+const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg.locator(`.mas-link[data-nav="${id}"]`).click(); };
 
 (async () => {
   const srv = await servidor();
@@ -1287,7 +1288,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   ok(db.items.filter(i => i.producto_id === 'p-trento').length === nCafe - 2, 'al marcar enviado, el café destildado sale de los dos pedidos de Trento');
   ok(db.ordenes.find(o => o.id === 'ord-tre-1').estado === 'cancelada', 'la orden de Trento que quedó vacía se cancela');
   ok(db.ordenes.find(o => o.local_id === L1 && o.proveedor_id === PV.barcena && o.estado === 'enviada'), 'lo de Umo para Barcena queda enviado');
-  await gm.getByRole('link', { name: 'Catálogo' }).click();
+  await irMas(gm, 'catalogo');
   await gm.waitForSelector('.prod-cat');
   await shot(gm, '17-g-catalogo-m');
   await cGerM.close();
@@ -1326,10 +1327,14 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const pm = await nuevaPagina(cPM, 'pagos-m');
   await loginGer(pm);
   await pm.waitForSelector('.tb-card');
-  const barra = await pm.locator('.tabbar').evaluate(el => ({ scroll: el.scrollWidth, ancho: el.clientWidth, overflowX: getComputedStyle(el).overflowX }));
-  ok(barra.scroll > barra.ancho && barra.overflowX === 'auto', `celular: la barra inferior con 9 secciones se desplaza (${barra.scroll} > ${barra.ancho})`);
-  await pm.locator('a.tab[data-nav="pagos"]').click();
+  const barra = await pm.locator('.tabbar').evaluate(el => ({ scroll: el.scrollWidth, ancho: el.clientWidth }));
+  ok(barra.scroll <= barra.ancho + 1 && await pm.locator('.tab').count() === 5, `celular: la barra inferior entra sin desplazarse (4 secciones + Más) (${barra.scroll} ≤ ${barra.ancho})`);
+  await pm.locator('.tab-mas').click();
+  ok(await pm.locator('.mas-link').count() === 5 && await pm.locator('.mas-salir').count() === 1, 'celular: Más tiene Notas, Ventas, Cocina, Pagos, Catálogo y Cerrar sesión');
+  await shot(pm, '50b-g-mas-m', false);
+  await pm.locator('.mas-link[data-nav="pagos"]').click();
   await pm.waitForSelector('.cc-fila');
+  ok(await pm.locator('.tab-mas.is-active').count() === 1, 'celular: Más queda marcado cuando la sección está adentro');
   await shot(pm, '52-g-cuentas-m', true);
   await pm.locator('.subnav-b', { hasText: 'Facturas' }).click();
   await pm.waitForSelector('.fac');
@@ -1357,7 +1362,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await pm.locator('.subnav-b', { hasText: /^Pagos$/ }).click();
   await pm.waitForSelector('.prod[data-pago]');
   await shot(pm, '57-g-pagos-lista-m', true);
-  await pm.locator('a.tab[data-nav="catalogo"]').click();
+  await irMas(pm, 'catalogo');
   await pm.locator('.subnav-b', { hasText: 'Proveedores' }).click();
   await pm.waitForSelector('.prod-cat[data-prov]');
   await pm.waitForSelector('.toast', { state: 'detached', timeout: 8000 }).catch(() => {});
@@ -1603,9 +1608,9 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const cV2 = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
   const vm = await nuevaPagina(cV2, 'ventas-m');
   await loginGer(vm);
-  ok(await vm.locator('.tab').count() === 10, 'celular: barra inferior con 9 secciones + Salir (se desplaza)');
+  ok(await vm.locator('.tab').count() === 5 && await vm.locator('.tabbar button', { hasText: 'Salir' }).count() === 0, 'celular: barra inferior con 4 secciones + Más, sin Salir');
   await shot(vm, '31-g-barra-m');
-  await vm.getByRole('link', { name: 'Ventas', exact: true }).click();
+  await irMas(vm, 'resumen');
   await vm.waitForSelector('.subnav-b');
   await vm.locator('.subnav-b', { hasText: 'Importar' }).click();
   await vm.waitForSelector('#f-archivo', { state: 'attached' });
@@ -1624,7 +1629,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await vm.getByRole('link', { name: 'Merma', exact: true }).click();
   await vm.waitForSelector('.tabla');
   await shot(vm, '35-g-merma-m', true);
-  await vm.getByRole('link', { name: 'Cocina' }).click();
+  await irMas(vm, 'recetas');
   await vm.waitForSelector('.prod-cat');
   await shot(vm, '36-g-recetas-m', true);
   await vm.getByRole('link', { name: 'Producción', exact: true }).click();
@@ -1644,7 +1649,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const cV4 = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
   const vb = await nuevaPagina(cV4, 'ventas-borrar');
   await loginGer(vb);
-  await vb.getByRole('link', { name: 'Ventas', exact: true }).click();
+  await irMas(vb, 'resumen');
   await vb.waitForSelector('.subnav-b');
   await vb.locator('.subnav-b', { hasText: 'Importar' }).click();
   await vb.waitForSelector('.imp-fila');
@@ -1659,6 +1664,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   await vb.getByRole('button', { name: 'Sí, borrar estas ventas' }).click();
   await vb.waitForSelector('.toast >> text=Ventas borradas');
   ok(db.borradas.length === 1 && db.borradas[0] === idBorrar && db.importaciones.length === 0, 'rpc borrar_importacion con el id de esa importación');
+  await vb.waitForFunction(() => document.querySelectorAll('.imp-fila').length === 0, null, { timeout: 5000 }).catch(() => {});
   ok(await vb.locator('.imp-fila').count() === 0, 'la importación borrada desaparece de la lista');
   await cV4.close();
 
