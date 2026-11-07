@@ -142,7 +142,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const { c: cE, p: e } = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' }, U_ENC, { nombre: 'Ruth Coronel' });
   await e.goto(BASE + '#/notas');
   await e.waitForSelector('.nb-postit');
-  ok(await e.locator('.tab', { hasText: 'Notas' }).count() === 1, 'el encargado tiene la pestaña Notas');
+  ok((await e.locator('.tab-mas').getAttribute('data-mas')).split(' ').includes('notas') && await e.locator('.tab-mas.is-active').count() === 1, 'el encargado tiene Notas (en Más)');
   ok(await e.locator('#app.tema-notas').count() === 1, 'la pantalla Notas usa el tema oscuro de vidrio');
   ok(await e.locator('.nb-postit').count() === 3, 'tres notas fijadas como post-its');
   ok(!(await e.locator('.nb').innerText()).includes('Trento'), 'el local no ve notas de otros locales');

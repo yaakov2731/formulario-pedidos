@@ -4,7 +4,7 @@
 // Por producto: cuánto hay ahora (último conteo + lo que entró − lo que se usó), dónde está, cuándo entró y cuándo se contó.
 // Al tocar un producto: cambiar dónde está (un toque) y ver sus movimientos de los últimos 30 días.
 // La ven los encargados: solo cantidades, nada de plata ni umbrales.
-import { h, sugerido, tokens, coincide, fmtNum, porTexto, esCarta, esBulto, factorDe, plural, fechaCorta, porLugar, lugarDe, SIN_LUGAR, norm, lsGet, lsSet } from './util.js';
+import { h, sugerido, tokens, coincide, fmtNum, porTexto, esCarta, esBulto, factorDe, plural, enBultos, fechaCorta, porLugar, lugarDe, SIN_LUGAR, norm, lsGet, lsSet } from './util.js';
 import { ubicarProductos, mensajeError } from './api.js';
 import { vacio, toast, hoja, icon } from './ui.js';
 
@@ -57,7 +57,6 @@ export function inventario(opts) {
   const u = (p) => p.unidad_uso || 'unidades';
   const n2 = (n) => fmtNum(n, 2) || '0';
   const cant = (p, n) => `${n2(n)} ${plural(u(p), n)}`;
-  const enBultos = (p, n) => { const b = Math.round(n / factorDe(p) * 10) / 10; return `${fmtNum(b, 1) || '0'} ${plural(p.unidad_compra, b)}`; };
 
   // Por producto: última entrada y último conteo, y sus movimientos (nuevo → viejo).
   let info = new Map();
@@ -116,7 +115,7 @@ export function inventario(opts) {
       h('div', { class: 'inv-der' },
         h('b', { class: 'inv-hay num', text: n2(s) }),
         h('span', { class: 'inv-u', text: plural(u(p), s) }),
-        esBulto(p) && s > 0 ? h('span', { class: 'inv-b', text: enBultos(p, s) }) : null,
+        enBultos(p, s) ? h('span', { class: 'inv-b', text: enBultos(p, s) }) : null,
         pedir ? h('span', { class: 'inv-pedir', text: pedir }) : null));
   }
 
@@ -196,7 +195,7 @@ export function inventario(opts) {
       h('div', { class: 'inv-det-hay' + (s <= 0 ? ' is-cero' : '') },
         h('span', { class: 'inv-det-k', text: 'Quedan' }),
         h('b', { class: 'num', text: cant(p, s) }),
-        esBulto(p) && s > 0 ? h('span', { class: 'inv-det-b', text: `${enBultos(p, s)} de ${n2(factorDe(p))} ${plural(u(p), factorDe(p))}` }) : null,
+        enBultos(p, s) ? h('span', { class: 'inv-det-b', text: `${enBultos(p, s)} · ${p.unidad_compra} de ${n2(factorDe(p))} ${plural(u(p), factorDe(p))}` }) : null,
         h('span', { class: 'inv-det-n', text: r.conteo ? `Último conteo ${cuando(r.conteo.creado_en)}: ${cant(p, r.conteo.contado)}${r.conteo.encargado ? ' · ' + r.conteo.encargado : ''}` : 'Todavía no se contó' })),
       h('section', { class: 'field' }, h('span', { class: 'field-l', text: '¿Dónde está?' }), chips, h('div', { class: 'inv-otro' }, otro, okOtro)),
       opts.acciones ? opts.acciones(p, () => cerrar()) : null,

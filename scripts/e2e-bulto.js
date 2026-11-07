@@ -195,7 +195,7 @@ const hojaShot = async (p, n) => { const d = p.locator('dialog[open]').last(); a
   const card = g.locator(`[data-prod="${P.papas.id}"]`);
   await card.waitFor();
   const cTxt = await card.innerText();
-  ok(/9,6/.test(cTxt) && /1,9 bolsas/.test(cTxt), 'stock muestra kg y 1,9 bolsas');
+  ok(/9,6/.test(cTxt) && /1 bolsa \+ 4,6 kg/.test(cTxt), 'stock muestra kg y 1 bolsa + 4,6 kg (bultos enteros + suelto)');
   ok(/Pedir 2 bolsas/.test(cTxt), 'el sugerido se dice en bolsas (15 − 9,6 = 5,4 kg → 2 bolsas) · ' + cTxt.replace(/\n/g, ' / '));
   await card.screenshot({ path: path.join(OUT, '04-stock-bolsas-pc.png') });
   await cG.close();
@@ -208,7 +208,7 @@ const hojaShot = async (p, n) => { const d = p.locator('dialog[open]').last(); a
   await e.waitForTimeout(400);
   const fila = e.locator(`.prod[data-id="${P.papas.id}"]`);
   const fTxt = await fila.innerText();
-  ok(/bolsa de 5 kg/.test(fTxt) && /Quedan\s+1,9 bolsas \(9,6 kg\)/.test(fTxt), 'Pedir: "bolsa de 5 kg" y "Quedan 1,9 bolsas (9,6 kg)" · ' + fTxt.replace(/\n/g, ' / '));
+  ok(/bolsa de 5 kg/.test(fTxt) && /Quedan\s+9,6 kg \(1 bolsa \+ 4,6 kg\)/.test(fTxt), 'Pedir: "bolsa de 5 kg" y "Quedan 9,6 kg (1 bolsa + 4,6 kg)" · ' + fTxt.replace(/\n/g, ' / '));
   await shot(e, '05-pedir-bolsa-m');
   await cE.close();
 

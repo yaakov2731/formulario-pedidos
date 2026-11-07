@@ -1,7 +1,7 @@
 // Arranque, sesión, ruteo por hash y estructura (barra lateral en escritorio, tab bar en celular).
 import { h, lsGet, lsSet, elabora } from './util.js';
 import { sb, perfilActual, codigoMiLocal, salir, mensajeError } from './api.js';
-import { icon, toast, esqueleto } from './ui.js';
+import { icon, toast, esqueleto, hoja } from './ui.js';
 
 const NAV = {
   encargado: [
@@ -77,19 +77,43 @@ function pantallaSimple(titulo, texto, acciones) {
 const navDe = (c) => NAV[c.rol].filter(it => !(it.id === 'elaborados' && c.rol === 'encargado' && !elabora(c.codigoLocal)));
 const vistasDe = (c) => { const v = { ...VISTAS[c.rol] }; if (c.rol === 'encargado' && !elabora(c.codigoLocal)) delete v.elaborados; return v; };
 
+// En el celular la barra de abajo muestra 4 secciones + "Más" (el resto y Salir), para que no se corten los nombres
+// y nadie cierre la sesión de un toque sin querer. En escritorio la barra lateral sigue mostrando todo.
+const EN_BARRA = {
+  encargado: ['pedir', 'mis-pedidos', 'stock', 'elaborados', 'subir-factura'],
+  gerencia: ['tablero', 'pedidos', 'compras', 'stock'],
+  contadora: ['pagos']
+};
+const MAX_BARRA = 4;
+
 function construirShell(c) {
   const items = navDe(c);
   $app.classList.remove('no-nav');
   const enlace = (it, clase) => h('a', { class: clase, href: '#/' + it.id, 'data-nav': it.id }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
-  const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
+  const cerrarSesion = async () => { ctx = null; await salir(); mostrarEntrar(); };
+  const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: cerrarSesion } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
   $side.replaceChildren(
     h('div', { class: 'side-brand' }, h('img', { src: 'icons/icon-192.png', alt: '', width: 36, height: 36 }), h('div', {}, h('b', { text: 'Docks del Puerto' }), h('small', { text: c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local')) }))),
     h('nav', { class: 'side-nav' }, items.map(it => enlace(it, 'side-link')), salirBtn('side-link side-out'))
   );
-  $tab.replaceChildren(...items.map(it => enlace(it, 'tab')), salirBtn('tab'));
+  const orden = EN_BARRA[c.rol] || [];
+  const enBarra = items.filter(it => orden.includes(it.id)).sort((a, b) => orden.indexOf(a.id) - orden.indexOf(b.id)).slice(0, MAX_BARRA);
+  const resto = items.filter(it => !enBarra.includes(it));
+  const abrirMas = () => {
+    const quien = c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local'));
+    let hojaMas = null;
+    const links = resto.map(it => h('a', { class: 'mas-link', href: '#/' + it.id, 'data-nav': it.id, on: { click: () => hojaMas && hojaMas.cerrar() } },
+      icon(it.icono, 22), h('span', { text: it.label })));
+    hojaMas = hoja('Más', h('div', { class: 'mas-lista' }, ...links,
+      h('p', { class: 'mas-quien', text: 'Entraste como ' + quien }),
+      h('button', { class: 'btn btn-ghost mas-salir', type: 'button', on: { click: () => { hojaMas.cerrar(); cerrarSesion(); } } }, icon('salir', 20), h('span', { text: 'Cerrar sesión' }))));
+    marcarActivo((location.hash || '').split('/')[1] || '');
+  };
+  const masBtn = h('button', { class: 'tab tab-mas', type: 'button', 'aria-label': 'Más secciones y cerrar sesión', 'data-mas': resto.map(it => it.id).join(' '), on: { click: abrirMas } },
+    icon('menu', 22), h('span', { text: 'Más' }));
+  $tab.replaceChildren(...enBarra.map(it => enlace(it, 'tab')), masBtn);
   $tab.hidden = false;
-  $tab.classList.toggle('tabbar-7', items.length + 1 > 6);
-  $tab.classList.toggle('tabbar-scroll', items.length + 1 > 7);
+  $tab.classList.remove('tabbar-7', 'tabbar-scroll');
 }
 
 function marcarActivo(id) {
@@ -100,8 +124,11 @@ function marcarActivo(id) {
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
     a.classList.toggle('is-active', on);
-    if (on) { a.setAttribute('aria-current', 'page'); if (a.classList.contains('tab') && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); } else a.removeAttribute('aria-current');
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  // "Más" se marca cuando la sección abierta no está en la barra de abajo.
+  const mas = document.querySelector('.tab-mas');
+  if (mas) mas.classList.toggle('is-active', (mas.getAttribute('data-mas') || '').split(' ').includes(act));
 }
 
 const VERSION_NUEVA = /does not provide an export named|dynamically imported module|Importing a module script failed|error loading dynamically imported|is not a valid JavaScript MIME/i;
