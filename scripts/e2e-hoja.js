@@ -293,6 +293,14 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await g.setViewportSize({ width: 390, height: 844 });
   await g.goto(BASE + '#/sector'); await g.waitForSelector('.gs-tabla');
   await shot(g, '12-g-por-sector-m');
+  // Stock en 3 pestañas (Qué hay · Control · Lugares) y Control con Día · Semana · Retiros · Conteos.
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Qué hay|Control|Lugares' && await g.locator('.subnav-b.is-on').innerText() === 'Control', 'Stock: Qué hay · Control · Lugares');
+  ok((await g.locator('.subnav2-b').allInnerTexts()).join('|') === 'Día|Semana|Retiros|Conteos' && await g.locator('.subnav2-b.is-on').innerText() === 'Día', 'Control: Día · Semana · Retiros · Conteos');
+  await g.goto(BASE + '#/stock'); await g.waitForSelector('.subnav-b.is-on');
+  ok(await g.locator('.subnav2').count() === 0 && await g.locator('.subnav-b.is-on').innerText() === 'Qué hay', 'Qué hay sin segunda fila');
+  await shot(g, '13-g-que-hay-m');
+  await g.goto(BASE + '#/recetas'); await g.waitForSelector('.subnav-b');
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Recetas|Producción|Elaborados', 'Elaborados pasó a Cocina');
   await cG.close();
 
   await browser.close(); srv.close();

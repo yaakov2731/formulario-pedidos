@@ -177,7 +177,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const { c: cG, p: g } = await nuevo({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 }, U_GER, { 'g:local': L1 });
   await g.goto(BASE + '#/conteos');
   await g.waitForSelector('.cnd-card');
-  ok(await g.locator('.subnav-b.is-on').innerText() === 'Conteos', 'Stock tiene la pestaña Conteos');
+  ok(await g.locator('.subnav-b.is-on').innerText() === 'Control' && await g.locator('.subnav2-b.is-on').innerText() === 'Conteos', 'Stock → Control → Conteos');
   ok(await g.locator('.cnd-card').count() === 2 && /1 con faltante · 1 con sobrante/.test(await g.locator('.cnd-card[data-conteo="c-viejo"]').innerText()), 'lista los 2 conteos con faltantes y sobrantes');
   await shot(g, '04-g-conteos-pc', true);
   await g.locator('.cnd-card[data-conteo="c-viejo"]').click();

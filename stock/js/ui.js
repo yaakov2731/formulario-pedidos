@@ -101,9 +101,18 @@ export function hoja(titulo, contenido, { onClose } = {}) {
 }
 
 // Sub-navegación entre pantallas hermanas (Ventas: Importar · Análisis · Merma; Cocina: Recetas · Producción).
+// Una pestaña puede agrupar pantallas (tercer elemento: [[id, texto], …]): queda marcada en cualquiera de ellas y abajo
+// aparece una segunda fila, más chica, para moverse dentro del grupo (Stock → Control: Día · Semana · Retiros · Conteos).
 export function subnav(items, actual) {
-  return h('nav', { class: 'subnav', 'aria-label': 'Sección' }, items.map(([id, texto]) =>
-    h('a', { class: 'subnav-b' + (id === actual ? ' is-on' : ''), href: '#/' + id, text: texto, 'aria-current': id === actual ? 'page' : null })));
+  const grupo = items.find(([, , hijos]) => hijos && hijos.some(([id]) => id === actual));
+  const nav = h('nav', { class: 'subnav', 'aria-label': 'Sección' }, items.map(([id, texto, hijos]) => {
+    const on = id === actual || (grupo && grupo[0] === id);
+    return h('a', { class: 'subnav-b' + (on ? ' is-on' : ''), href: '#/' + id, text: texto, 'aria-current': on ? 'page' : null });
+  }));
+  if (!grupo) return nav;
+  const nav2 = h('nav', { class: 'subnav2', 'aria-label': grupo[1] }, grupo[2].map(([id, texto]) =>
+    h('a', { class: 'subnav2-b' + (id === actual ? ' is-on' : ''), href: '#/' + id, text: texto, 'aria-current': id === actual ? 'page' : null })));
+  return h('div', { class: 'subnav-grupo' }, nav, nav2);
 }
 
 // Fila con barra proporcional (CSS): etiqueta, valor y porcentaje.
@@ -121,5 +130,8 @@ export const SUBNAV_COMPRAS = [['compras', 'Enviar'], ['recibir', 'Recibir'], ['
 // En gerencia Gasto está en Compras; la contadora (sin Compras) lo sigue viendo en Pagos.
 export const navPagos = (ctx) => (ctx.rol === 'gerencia' ? SUBNAV_PAGOS.filter(([id]) => id !== 'gasto') : SUBNAV_PAGOS);
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['categorias', 'Categorías'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
-export const SUBNAV_STOCK = [['stock', 'Stock'], ['sector', 'Por sector'], ['g-retiros', 'Retiros'], ['elaborados', 'Elaborados'], ['lugares', 'Lugares'], ['conteos', 'Conteos'], ['control', 'Control']];
-export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción']];
+// Gerencia · Stock en 3 pestañas: Qué hay (la foto de ahora), Control (lo que pasó: día por sector, semana entre conteos,
+// retiros del Shopping y los conteos guardados) y Lugares (cómo está armado cada local). Elaborados pasó a Cocina.
+export const SUBNAV_CONTROL = [['sector', 'Día'], ['control', 'Semana'], ['g-retiros', 'Retiros'], ['conteos', 'Conteos']];
+export const SUBNAV_STOCK = [['stock', 'Qué hay'], ['sector', 'Control', SUBNAV_CONTROL], ['lugares', 'Lugares']];
+export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción'], ['elaborados', 'Elaborados']];

@@ -232,14 +232,14 @@ async function elegir(sel, texto) { const v = await nombreOpt(sel, texto); if (!
   ok(/Elegí qué preparaste/.test(await e.locator('.toast').last().innerText().catch(() => '')), 'sin producto avisa');
   await cE.close();
 
-  // ===== Gerencia · PC: Stock → Elaborados =====
+  // ===== Gerencia · PC: Cocina → Elaborados =====
   const { c: cG, p: g } = await nuevo({ viewport: { width: 1366, height: 900 } }, U_GER, { 'g:local': L1 });
-  await g.goto(BASE + '#/stock');
+  await g.goto(BASE + '#/recetas');
   await g.waitForSelector('.subnav-b');
-  ok(await g.locator('.subnav-b', { hasText: 'Elaborados' }).count() === 1, 'Stock tiene la pestaña Elaborados');
+  ok(await g.locator('.subnav-b', { hasText: 'Elaborados' }).count() === 1, 'Cocina tiene la pestaña Elaborados');
   await g.locator('.subnav-b', { hasText: 'Elaborados' }).click();
   await g.waitForSelector('.el-form select.el-sel');
-  ok(await g.locator('.side-link.is-active').innerText() === 'Stock', 'en gerencia queda marcado Stock en el menú');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Cocina', 'en gerencia queda marcado Cocina en el menú');
   await elegir(g.locator('.el-form > select.el-sel'), 'Jamón feteado');
   await g.fill('.el-salio .el-cant', '2');
   await g.locator('.el-salio .el-cant').dispatchEvent('change');

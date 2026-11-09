@@ -7,7 +7,7 @@
 import { mount, h, norm, fmtNum, parseNum, porTexto, esCarta, lsGet, groupBy, elabora } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarLocales, cargarRecetas, registrarElaboracion, borrarElaboracion, cerrarServicio, elaboracionesDesde, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
-import { esqueleto, vacio, toast, banner, icon, subnav, SUBNAV_STOCK } from './ui.js';
+import { esqueleto, vacio, toast, banner, icon, subnav, SUBNAV_COCINA } from './ui.js';
 
 // Unidades que se pueden cargar en otra escala (se guarda siempre en la unidad de uso del producto).
 const ESCALAS = [
@@ -42,7 +42,7 @@ export async function render(root, ctx) {
   const quien = () => (ger ? (ctx.perfil.nombre || 'Gerencia') : (lsGet('nombre') || ctx.nombreGuardado || ''));
   const sub = h('p', { class: 'sub', text: 'Lo que preparás y lo que sacás para el turno' });
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Elaborados' }), sub);
-  const nav = ger ? subnav(SUBNAV_STOCK, 'elaborados') : null;
+  const nav = ger ? subnav(SUBNAV_COCINA, 'elaborados') : null;
   mount(root, cab, nav, esqueleto(4));
 
   // Datos del local: catálogo, stock y recetas (solo gerencia las lee).
