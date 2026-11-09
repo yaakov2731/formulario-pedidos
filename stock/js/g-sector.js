@@ -87,7 +87,7 @@ export function calcularSector(sector, movs, ventas, prods, precios) {
 }
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Control por sector' }),
+  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Control del día' }),
     h('p', { class: 'sub', text: 'Lo que anotó el encargado en la hoja del día y lo que calcula la app.' }));
   const nav = subnav(SUBNAV_STOCK, 'sector');
   mount(root, cab, nav, esqueleto(4));

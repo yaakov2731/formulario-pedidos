@@ -123,7 +123,7 @@ function construirShell(c) {
 
 function marcarActivo(id) {
   // Gerencia: Recibir y Gasto viven dentro de Compras; la contadora sigue viendo Gasto en Pagos.
-  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'stock', lugares: 'stock', conteos: 'stock', control: 'stock', sector: 'stock', 'g-retiros': 'stock', gasto: 'compras' })[id] : null;
+  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'recetas', lugares: 'stock', conteos: 'stock', control: 'stock', sector: 'stock', 'g-retiros': 'stock', gasto: 'compras' })[id] : null;
   const deEncargado = ctx && ctx.rol === 'encargado' ? ({ lugares: 'hoja', contar: 'hoja', stock: 'hoja', elaborados: 'hoja' })[id] : null;
   const act = deGerencia || deEncargado || ({ revisar: 'pedir', ventas: 'resumen', analisis: 'resumen', merma: 'resumen', produccion: 'recetas', gasto: 'pagos', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', categorias: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos', recibir: 'compras', 'recibir-factura': 'compras' })[id] || id;
   document.querySelectorAll('[data-nav]').forEach(a => {

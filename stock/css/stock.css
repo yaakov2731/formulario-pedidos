@@ -361,6 +361,12 @@ select.input { text-align: center; text-align-last: center; }
 .subnav { display: flex; gap: 4px; padding: 4px; background: var(--fill); border-radius: 12px; margin: 0 0 18px; }
 .subnav-b { flex: 1; min-height: 44px; display: grid; place-items: center; border-radius: 9px; font-weight: 700; color: var(--text-2); text-decoration: none; text-align: center; }
 .subnav-b.is-on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(14, 26, 43, 0.15); }
+.subnav-grupo { margin: 0 0 18px; }
+.subnav-grupo .subnav { margin-bottom: 8px; }
+.subnav2 { display: flex; justify-content: safe center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.subnav2::-webkit-scrollbar { display: none; }
+.subnav2-b { flex: 0 0 auto; min-height: 36px; padding: 0 14px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--sep); font-size: 14px; font-weight: 700; color: var(--text-2); text-decoration: none; white-space: nowrap; }
+.subnav2-b.is-on { background: var(--accent-soft); border-color: transparent; color: var(--accent-text); }
 .btn-sm { min-height: 40px; padding: 0 16px; font-size: 15px; }
 .centro { text-align: center; }
 .file-oculto { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip-path: inset(50%); }
