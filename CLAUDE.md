@@ -23,9 +23,9 @@ salvo que la tarea la requiera.
 
 - `.claude/settings.json` selecciona `opusplan` con `effortLevel` medium: Claude Code usa Opus mientras está en modo Plan y Sonnet al ejecutar. El cambio de fase no es automático: el modo Plan se inicia y se termina explícitamente.
 - Para tareas simples y habituales, trabajá directamente con el modelo de ejecución de `opusplan` (Sonnet), sin delegar.
-- Para tareas complejas, delegá automáticamente primero en `planificador-ia` (Opus) y después en `ejecutor-ia` (Sonnet), pasando un plan breve con aceptación. Si el usuario ya activó modo Plan, usá la ruta nativa `opusplan` y no crees otro planificador. Si sólo pidió planificar, no ejecutes.
+- Para tareas complejas, delegá automáticamente primero en `planificador-fable` (Fable, solo planifica) y después en el ejecutor que recomiende el plan: `ejecutor-opus` (delicado: lógica, varios archivos, datos o dinero) o `ejecutor-sonnet` (claro y mecánico), pasando un plan breve con aceptación. Si el usuario ya activó modo Plan, usá la ruta nativa `opusplan` y no crees otro planificador. Si sólo pidió planificar, no ejecutes.
 - La complejidad se evalúa según el contexto; estas pautas orientan la decisión y no son una detección automática ni determinista.
-- Si delegás, ejecutá planificador y ejecutor secuencialmente, con un máximo de un subagente activo a la vez. `ejecutor-ia` implementa el plan y corre las verificaciones pertinentes; no inicia agentes anidados.
+- Si delegás, ejecutá planificador y ejecutor secuencialmente, con un máximo de un subagente activo a la vez. El ejecutor implementa el plan y corre las verificaciones pertinentes; no inicia agentes anidados.
 - La selección configurada es una preferencia del proyecto; las instrucciones por sí solas no fuerzan una selección en otros entornos o versiones.
 - Consultá `/usage` al comenzar la jornada, a mitad y antes de trabajo grande.
 - Usá `/context` si el chat crece o consume más de lo esperado.

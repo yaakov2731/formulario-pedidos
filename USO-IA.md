@@ -39,7 +39,8 @@ determinista. Máximo un subagente activo a la vez, sin escrituras simultáneas.
 Claude: `.claude/settings.json` usa `opusplan`, con Opus en modo Plan y Sonnet
 en ejecución. Ese alias cambia el modelo según el modo, no cambia de modo por sí
 solo. Para tareas complejas fuera de modo Plan, las instrucciones piden delegar
-en `planificador-ia` (Opus, lectura) y luego `ejecutor-ia` (Sonnet). No combinar
+en `planificador-fable` (Fable, lectura) y luego `ejecutor-opus` u
+`ejecutor-sonnet`, según el plan. No combinar
 ambas rutas de planificación. Cambios simples se resuelven directamente.
 
 Abrí una sesión nueva en este proyecto para cargar las configuraciones. Comprobá
