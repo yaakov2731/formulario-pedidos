@@ -599,10 +599,12 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   ok(/Pagos sin avisar 1/i.test(tbAll) && /Pedidos por aprobar 3/i.test(tbAll) && /Cerveza rubia lata 473 ml \$ 19\.600/.test(tbAll) && /Datos pendientes 26/i.test(tbAll), 'Tablero: pagos sin avisar, pedidos por aprobar, faltantes más caros y datos pendientes');
   ok(db.consultasTablero.length === 1 && db.consultasTablero[0].p_local === null && db.consultasTablero[0].p_desde === '2026-10-26' && db.consultasTablero[0].p_hasta === '2026-10-26', 'Tablero: una sola llamada rpc tablero (todos los locales, lunes a hoy) ' + JSON.stringify(db.consultasTablero[0]));
   await shot(g, '39-g-tablero-pc', true);
-  await g.locator('.chip', { hasText: 'Umo Grill' }).click();
+  await g.locator('.sel-local').click();
+  await g.locator('dialog .lg-fila', { hasText: 'Umo Grill' }).click();
   await g.waitForFunction(() => /\$ 1\.140\.000/.test(document.querySelector('.tb-metricas').innerText));
   ok(db.consultasTablero.at(-1).p_local === L1, 'Tablero: filtrar por local vuelve a llamar con ese local');
-  await g.locator('.chip', { hasText: 'Todos los locales' }).click();
+  await g.locator('.sel-local').click();
+  await g.locator('dialog .lg-fila', { hasText: 'Todos los locales' }).click();
   await g.waitForFunction(() => /\$ 2\.850\.000/.test(document.querySelector('.tb-metricas').innerText));
   await g.locator('[data-card="por-aprobar"]').click();
   await g.waitForSelector('.ped-tabla', { timeout: 8000 });

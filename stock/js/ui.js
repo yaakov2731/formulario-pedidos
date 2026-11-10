@@ -1,5 +1,6 @@
-// Piezas de interfaz compartidas: iconos, toasts, stepper, esqueletos, hoja modal.
-import { h, parseNum, fmtNum } from './util.js';
+// Piezas de interfaz compartidas: iconos, avisos, stepper, esqueletos, hoja inferior y componentes estilo Apple
+// (lista agrupada, botón fijo abajo, título grande, aviso con Deshacer y selector de local).
+import { h, parseNum, fmtNum, lsGet, lsSet } from './util.js';
 
 const P = {
   pedir: 'M3 5h2l2.2 10.2a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L19 8H6.2M9 20.2a.9.9 0 1 0 0-.01M17 20.2a.9.9 0 1 0 0-.01',
@@ -33,6 +34,7 @@ const P = {
   basura: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   mail: 'M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3.5 6l8.5 7 8.5-7',
   atras: 'M15 18l-6-6 6-6',
+  abajo: 'M6 9l6 6 6-6',
   flecha: 'M9 18l6-6-6-6',
   hoja: 'M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M9 13h6M9 17h6',
   retiro: 'M4 7h16v13H4zM9 3h6v4H9zM12 11v6M9 14l3 3 3-3'
@@ -47,12 +49,20 @@ export function icon(nombre, size = 20) {
   return s;
 }
 
-export function toast(texto, tipo = 'info') {
+// Aviso arriba. Con { accion, onAccion } suma un botón (p. ej. "Deshacer") y dura más (5 s por defecto).
+// Devuelve { el, cerrar } para cerrarlo antes de tiempo.
+export function toast(texto, tipo = 'info', { accion, onAccion, ms } = {}) {
   const cont = document.getElementById('toasts');
-  const t = h('div', { class: `toast toast-${tipo}`, role: tipo === 'error' ? 'alert' : 'status', text: texto });
-  cont.append(t);
-  setTimeout(() => { t.classList.add('is-out'); setTimeout(() => t.remove(), 250); }, tipo === 'error' ? 6000 : 3200);
+  const t = h('div', { class: `toast toast-${tipo}` + (accion ? ' toast-accion' : ''), role: tipo === 'error' ? 'alert' : 'status' }, h('span', { class: 'toast-t', text: texto }));
+  let vivo = true;
+  const cerrar = () => { if (!vivo) return; vivo = false; t.classList.add('is-out'); setTimeout(() => t.remove(), 250); };
+  if (accion) t.append(h('button', { class: 'toast-b', type: 'button', text: accion, on: { click: () => { cerrar(); if (onAccion) onAccion(); } } }));
+  if (cont) cont.append(t);
+  setTimeout(cerrar, ms || (accion ? 5000 : (tipo === 'error' ? 6000 : 3200)));
+  return { el: t, cerrar };
 }
+// Aviso con "Deshacer" por 5 s: para acciones que se pueden revertir sin preguntar "¿Seguro?".
+export const avisoDeshacer = (texto, onDeshacer, ms = 5000) => toast(texto, 'info', { accion: 'Deshacer', onAccion: onDeshacer, ms });
 
 // Stepper −/+ con campo numérico. onChange(valor|null).
 export function stepper({ value = 0, label, paso = 1, onChange, max = 99999 }) {
@@ -86,18 +96,111 @@ export function campo(etiqueta, input, ayuda) {
   return h('label', { class: 'field' }, h('span', { class: 'field-l', text: etiqueta }), input, ayuda ? h('span', { class: 'field-h', text: ayuda }) : null);
 }
 
-// Hoja modal accesible (usa <dialog>). Devuelve { cuerpo, cerrar }.
-export function hoja(titulo, contenido, { onClose } = {}) {
+// Hoja inferior accesible (usa <dialog>): en el celular sube desde abajo; se cierra con la cruz, tocando fuera o
+// deslizándola hacia abajo desde la manija. { pie } fija un botón (p. ej. "Listo") abajo de todo. Devuelve { dlg, cerrar }.
+export function hoja(titulo, contenido, { onClose, pie } = {}) {
   const dlg = h('dialog', { class: 'sheet', 'aria-label': titulo });
   const cerrar = () => { if (dlg.open) dlg.close(); };
-  const head = h('div', { class: 'sheet-head' }, h('h2', { class: 'sheet-t', text: titulo }),
+  const head = h('div', { class: 'sheet-head' }, h('span', { class: 'sheet-grab', 'aria-hidden': 'true' }), h('h2', { class: 'sheet-t', text: titulo }),
     h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Cerrar', on: { click: cerrar } }, icon('cerrar', 20)));
   dlg.append(head, h('div', { class: 'sheet-body' }, contenido));
+  if (pie) dlg.append(h('div', { class: 'sheet-pie' }, pie));
   dlg.addEventListener('close', () => { dlg.remove(); if (onClose) onClose(); });
   dlg.addEventListener('click', (e) => { if (e.target === dlg) cerrar(); });
+  // Deslizar hacia abajo desde la cabecera: la hoja sigue al dedo y se cierra si bajó más de 80 px (o se tiró rápido).
+  let y0 = null, t0 = 0, dy = 0;
+  head.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; y0 = e.clientY; t0 = Date.now(); dy = 0; dlg.classList.add('is-arrastre'); try { head.setPointerCapture(e.pointerId); } catch (_e) { /* nada */ } });
+  head.addEventListener('pointermove', (e) => { if (y0 === null) return; dy = Math.max(0, e.clientY - y0); dlg.style.transform = dy ? `translateY(${dy}px)` : ''; });
+  const soltar = () => {
+    if (y0 === null) return;
+    const rapido = dy > 30 && dy / Math.max(1, Date.now() - t0) > 0.6;
+    y0 = null; dlg.classList.remove('is-arrastre');
+    if (dy > 80 || rapido) { dlg.style.transform = 'translateY(100%)'; setTimeout(cerrar, 160); } else dlg.style.transform = '';
+  };
+  head.addEventListener('pointerup', soltar); head.addEventListener('pointercancel', soltar);
   document.body.append(dlg);
   dlg.showModal();
   return { dlg, cerrar };
+}
+
+// ---------- Lista agrupada (tipo Ajustes de iPhone) ----------
+// Fila: texto a la izquierda (y una línea chica abajo), valor a la derecha con cifras tabulares, chevron si abre algo.
+// Con href es un enlace, con onClick un botón; si no, una fila quieta. attrs suma atributos (data-*, aria-*).
+export function filaLista({ texto, sub, valor, chevron, icono, href, onClick, check, clase = '', attrs = {} } = {}) {
+  const tag = href ? 'a' : (onClick ? 'button' : 'div');
+  const el = h(tag, { class: 'lg-fila' + (href || onClick ? ' is-toca' : '') + (clase ? ' ' + clase : ''), href: href || null, type: tag === 'button' ? 'button' : null, ...attrs, on: onClick ? { click: onClick } : undefined },
+    icono ? h('span', { class: 'lg-ic' }, typeof icono === 'string' ? icon(icono, 20) : icono) : null,
+    h('span', { class: 'lg-tx' }, h('span', { class: 'lg-n', text: texto }), sub ? h('span', { class: 'lg-s', text: sub }) : null),
+    valor !== undefined && valor !== null && valor !== '' ? (valor instanceof Node ? h('span', { class: 'lg-v' }, valor) : h('span', { class: 'lg-v num', text: String(valor) })) : null,
+    check ? h('span', { class: 'lg-check' }, icon('check', 20)) : null,
+    chevron ? h('span', { class: 'lg-chev' }, icon('flecha', 16)) : null);
+  return el;
+}
+// Grupo: título opcional arriba, filas en una tarjeta #1C1C1E con separadores finos y nota opcional abajo.
+export function listaGrupo(titulo, filas, { pie, clase = '' } = {}) {
+  return h('section', { class: 'lg' + (clase ? ' ' + clase : '') },
+    titulo ? h('h2', { class: 'lg-t', text: titulo }) : null,
+    h('ul', { class: 'lg-list', role: 'list' }, filas.filter(Boolean).map((f) => h('li', {}, f))),
+    pie ? h('p', { class: 'lg-pie', text: pie }) : null);
+}
+
+// ---------- Botón principal fijo abajo (ancho completo, 50 px, por encima de la barra) ----------
+export function botonFijo(texto, onClick, { clase = '', icono, hidden = false } = {}) {
+  return h('button', { class: 'btn-fijo' + (clase ? ' ' + clase : ''), type: 'button', hidden, on: onClick ? { click: onClick } : undefined },
+    icono ? icon(icono, 20) : null, h('span', { text: texto }));
+}
+
+// ---------- Título grande a la izquierda ----------
+// Cabecera de pantalla: título de 34 px, subtítulo y, a la derecha, una acción (p. ej. el selector de local).
+// Al bajar, activarTituloGrande() muestra el título chico en una barra fija arriba (como en iOS).
+export function tituloGrande(titulo, sub, { accion, volver, clase = '' } = {}) {
+  return h('header', { class: 'vista-head tg' + (accion ? ' tg-con-accion' : '') + (clase ? ' ' + clase : '') }, volver || null,
+    h('div', { class: 'tg-fila' }, h('div', { class: 'tg-tx' }, h('h1', { class: 'titulo', text: titulo }), sub ? h('p', { class: 'sub', text: sub }) : null), accion || null));
+}
+// Una sola vez al arrancar: barra con el título chico que aparece cuando el título grande sale de la pantalla.
+// En pantallas con buscador fijo (.toolbar-fija) no aparece: el buscador ya ocupa el borde de arriba.
+export function activarTituloGrande(scroller) {
+  if (!scroller || scroller.querySelector('.tg-barra')) return;
+  const barra = h('div', { class: 'tg-barra', 'aria-hidden': 'true' }, h('span', { class: 'tg-barra-t' }));
+  scroller.prepend(barra);
+  let pend = false;
+  const medir = () => {
+    pend = false;
+    const t = scroller.querySelector('#view .vista-head .titulo');
+    const on = !!t && !scroller.querySelector('#view .toolbar-fija') && t.getBoundingClientRect().bottom < barra.getBoundingClientRect().bottom;
+    if (on) barra.firstChild.textContent = t.textContent;
+    barra.classList.toggle('is-on', on);
+  };
+  scroller.addEventListener('scroll', () => { if (!pend) { pend = true; requestAnimationFrame(medir); } }, { passive: true });
+  window.addEventListener('hashchange', () => barra.classList.remove('is-on'));
+}
+
+// ---------- Selector de local en hoja ----------
+// Botón "Umo Grill ▾" que abre una hoja con los locales (y "Todos" si se pasa todos). Recuerda el último en clave.
+// locales: [{ id, nombre }]. onChange(id | null). Devuelve { el, valor, set }.
+export function selectorLocal({ locales, valor = null, todos = null, clave = null, onChange, titulo = 'Elegí el local' }) {
+  const ids = new Set(locales.map((l) => l.id));
+  let actual = valor;
+  if (clave) { const g = lsGet(clave); if (g === null ? !!todos : ids.has(g)) actual = g; }
+  if (actual !== null && !ids.has(actual)) actual = null;
+  if (actual === null && !todos && locales.length) actual = locales[0].id;
+  const nombre = () => (actual === null ? todos : (locales.find((l) => l.id === actual) || {}).nombre || '');
+  const txt = h('span', { class: 'sel-local-t' });
+  const el = h('button', { class: 'sel-local', type: 'button', 'aria-haspopup': 'dialog', on: { click: () => abrir() } }, txt, icon('abajo', 16));
+  const pintar = () => { txt.textContent = nombre(); el.setAttribute('aria-label', `Local: ${nombre()}. Cambiar`); el.setAttribute('data-local', actual || ''); };
+  const set = (id, emitir = true) => {
+    actual = id || null; pintar();
+    if (clave) lsSet(clave, actual);
+    if (emitir && onChange) onChange(actual);
+  };
+  function abrir() {
+    let hj = null;
+    const opciones = [...(todos ? [{ id: null, nombre: todos }] : []), ...locales];
+    hj = hoja(titulo, listaGrupo(null, opciones.map((l) => filaLista({ texto: l.nombre, check: l.id === actual, onClick: () => { hj.cerrar(); if (l.id !== actual) set(l.id); },
+      attrs: { 'data-local': l.id || '', 'aria-pressed': l.id === actual ? 'true' : 'false' } }))), {});
+  }
+  pintar();
+  return { el, valor: () => actual, set: (id) => set(id, false) };
 }
 
 // Sub-navegación entre pantallas hermanas (Ventas: Importar · Análisis · Merma; Cocina: Recetas · Producción).

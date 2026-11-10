@@ -1,7 +1,7 @@
 // Arranque, sesión, ruteo por hash y estructura (barra lateral en escritorio, tab bar en celular).
 import { h, lsGet, lsSet, elabora } from './util.js';
 import { sb, perfilActual, codigoMiLocal, salir, mensajeError } from './api.js';
-import { icon, toast, esqueleto, hoja } from './ui.js';
+import { icon, toast, esqueleto, hoja, listaGrupo, filaLista, activarTituloGrande } from './ui.js';
 
 const NAV = {
   encargado: [
@@ -107,9 +107,8 @@ function construirShell(c) {
   const abrirMas = () => {
     const quien = c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local'));
     let hojaMas = null;
-    const links = resto.map(it => h('a', { class: 'mas-link', href: '#/' + it.id, 'data-nav': it.id, on: { click: () => hojaMas && hojaMas.cerrar() } },
-      icon(it.icono, 22), h('span', { text: it.label })));
-    hojaMas = hoja('Más', h('div', { class: 'mas-lista' }, ...links,
+    const links = resto.map(it => filaLista({ texto: it.label, icono: it.icono, href: '#/' + it.id, chevron: true, clase: 'mas-link', attrs: { 'data-nav': it.id }, onClick: () => hojaMas && hojaMas.cerrar() }));
+    hojaMas = hoja('Más', h('div', { class: 'mas-lista' }, listaGrupo(null, links),
       h('p', { class: 'mas-quien', text: 'Entraste como ' + quien }),
       h('button', { class: 'btn btn-ghost mas-salir', type: 'button', on: { click: () => { hojaMas.cerrar(); cerrarSesion(); } } }, icon('salir', 20), h('span', { text: 'Cerrar sesión' }))));
     marcarActivo((location.hash || '').split('/')[1] || '');
@@ -207,4 +206,5 @@ function quitarSplash() {
 }
 
 registrarSW();
+activarTituloGrande($scroller);
 arrancar().finally(quitarSplash);
