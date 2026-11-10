@@ -92,3 +92,15 @@ falla, Ajustes → Probar conexión y la pestaña `LOG` de la planilla V3. Coord
 - Verificado: verify-app, verify-v2, verify-v3-backend y e2e-app claro/oscuro (paso nuevo: conteo firmado por el encargado elegido).
 
 - PR siguiente: local y encargado salen de la barra de arriba (y de la barra lateral) y pasan al encabezado de la tarjeta de Hoy (`.hero-sel`, dos casillas LOCAL / ENCARGADO). Las demás pantallas muestran el local en el subtítulo.
+
+## Rediseño estilo Apple · Fase 1 (rama `claude/project-thread-0g5hew`, PR #83)
+
+- Plan: `docs/plan-rediseno-apple.md`. Fase 1 hecha: tokens "Noche" en `:root` de `stock/css/stock.css` (negro liso, #1C1C1E, naranja #FF8A1F,
+  letra del sistema, radio 12, táctil 44, botón 50), texto a la izquierda y rótulos sin mayúsculas, brillo sólo en Entrar. Poppins fuera;
+  Public Sans sigue cargada porque la usan la impresión A4 y la imagen de WhatsApp (sin cambios).
+- `stock/js/ui.js`: `listaGrupo`, `filaLista`, `hoja` (sube desde abajo, se cierra tocando fuera o deslizando), `botonFijo`, `tituloGrande`,
+  `activarTituloGrande`, `toast(..., { accion })` / `avisoDeshacer`, `selectorLocal`. En uso: Más (lista agrupada), Tablero (selector de local),
+  Pedir (título grande y botón fijo).
+- Checks: verify-stock verde; e2e-hoja 33/33, e2e-control 23/23; e2e-stock 309 OK con un 404 de consola previo (rpc `contar_local` sin mock,
+  igual en main). Capturas en /mnt/project-files/app-stock/rediseno-apple/fase1/.
+- Próximo paso: Jacobo revisa capturas y dice "mergear"; después Fase 2 (navegación de 4 pestañas).

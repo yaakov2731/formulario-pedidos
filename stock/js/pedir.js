@@ -1,7 +1,7 @@
 // Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
 import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS, esBulto, factorDe, textoStock, plural } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
-import { icon, stepper, esqueleto, vacio, banner, toast, campo } from './ui.js';
+import { icon, stepper, esqueleto, vacio, banner, toast, campo, tituloGrande, botonFijo } from './ui.js';
 
 const S = { lid: null, uid: null, local: null, prods: [], stock: new Map(), provs: new Map(), draft: {}, guardado: null, listo: false, offline: false };
 const SIN_PROV = '__sin__';
@@ -58,7 +58,7 @@ export async function render(root, ctx, id) {
 function rafOnce(fn) { let q = false; return () => { if (q) return; q = true; requestAnimationFrame(() => { q = false; fn(); }); }; }
 
 function cabecera(titulo, sub) {
-  return h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }), sub ? h('p', { class: 'sub', text: sub }) : null);
+  return tituloGrande(titulo, sub);
 }
 
 // ---------- Pedir ----------
@@ -77,7 +77,7 @@ function pintarPedir(root, ctx) {
   const cats = [...new Set(activos.filter(aLaVista).map(p => p.categoria || 'Sin categoría'))].sort(porTexto);
 
   const lista = h('div', { class: 'lista', id: 'lista-prod' });
-  const pill = h('button', { class: 'pill', type: 'button', hidden: true, on: { click: () => ctx.ir('revisar') } });
+  const pill = botonFijo('', () => ctx.ir('revisar'), { clase: 'pill', hidden: true });
 
   const estado = h('div', { class: 'borrador', 'aria-live': 'polite' });
   const chipMio = h('button', { class: 'chip chip-mio', type: 'button' });

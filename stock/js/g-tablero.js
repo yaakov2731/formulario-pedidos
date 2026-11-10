@@ -3,11 +3,11 @@
 import { mount, h, fmtNum, fmtMoney, hoyISO, sumarDias } from './util.js';
 import { tablero, mensajeError } from './api.js';
 import { G, cargarG } from './datos.js';
-import { esqueleto, banner, barraFila } from './ui.js';
+import { esqueleto, banner, barraFila, tituloGrande, selectorLocal } from './ui.js';
 import { fechaDMA } from './pagos-util.js';
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Tablero' }), h('p', { class: 'sub', text: 'Cómo viene la semana' }));
+  let cab = tituloGrande('Tablero', 'Cómo viene la semana');
   mount(root, cab, esqueleto(4));
   try { await cargarG(['locales'], () => {}); } catch (e) { return mount(root, cab, banner(mensajeError(e), 'error')); }
   if (!ctx.alive()) return;
@@ -18,12 +18,11 @@ export async function render(root, ctx) {
   let localId = null, datos = null, error = null, cargando = false, vez = 0;
   const zona = h('div', {});
 
-  const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Local' }, [['', 'Todos los locales'], ...G.locales.filter((l) => l.activo).map((l) => [l.id, l.nombre])].map(([id, t]) =>
-    h('button', { class: 'chip' + (id === '' ? ' is-on' : ''), type: 'button', text: t, 'aria-pressed': id === '' ? 'true' : 'false', 'data-local': id, on: { click: () => {
-      localId = id || null;
-      chips.querySelectorAll('.chip').forEach((b) => { const on = b.getAttribute('data-local') === id; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-      cargar();
-    } } })));
+  // Selector de local en hoja (antes, píldoras que se cortaban en el celular). Recuerda el último elegido.
+  const selLocal = selectorLocal({ locales: G.locales.filter((l) => l.activo).map((l) => ({ id: l.id, nombre: l.nombre })), todos: 'Todos los locales', clave: 'g:tablero-local',
+    onChange: (id) => { localId = id; cargar(); } });
+  localId = selLocal.valor();
+  cab = tituloGrande('Tablero', 'Cómo viene la semana', { accion: selLocal.el });
 
   async function cargar() {
     const mi = ++vez; cargando = true; error = null; pintar();
@@ -86,6 +85,6 @@ export async function render(root, ctx) {
   }
   function pintar() { zona.replaceChildren(...(cargando && !datos ? [esqueleto(4)] : error ? [banner(error, 'error'), h('button', { class: 'btn btn-primary', type: 'button', text: 'Reintentar', on: { click: cargar } })] : datos ? pintarDatos(datos) : [])); }
 
-  mount(root, cab, h('div', { class: 'toolbar' }, chips), zona);
+  mount(root, cab, zona);
   cargar();
 }
