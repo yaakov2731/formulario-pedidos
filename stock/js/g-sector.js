@@ -22,7 +22,7 @@ export function faltaTexto(r) {
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Control del día' }),
-    h('p', { class: 'sub', text: 'Lo que anotó el encargado en la hoja del día y lo que calcula la app.' }));
+    h('p', { class: 'sub', text: 'La hoja del día y lo que calcula la app' }));
   const nav = subnav(SUBNAV_STOCK, 'sector');
   mount(root, cab, nav, esqueleto(4));
   try { await cargarG(['prods', 'locales', 'precios']); } catch (e) { toast('No se pudo cargar: ' + mensajeError(e), 'error'); }
@@ -65,7 +65,7 @@ export async function render(root, ctx) {
       kpi('Sin contar', String(faltan.length), 'falta apertura o cierre', faltan.length > 0));
     const th = (t, calc) => h('th', { class: calc ? 'is-calc' : null, scope: 'col', text: t });
     const tabla = h('div', { class: 'gs-tabla-w' }, h('table', { class: 'gs-tabla' },
-      h('thead', {}, h('tr', {}, h('th', { scope: 'col', text: 'Producto' }), th('Apertura'), th(todos ? '+ Entró de afuera' : '+ Entró'), th(todos ? '− Salió afuera' : '− Salió'), th('✕ Merma'), th('Cierre'),
+      h('thead', {}, h('tr', {}, h('th', { scope: 'col', text: 'Producto' }), th('Apertura'), th(todos ? 'Entró de afuera' : 'Entró'), th(todos ? 'Salió afuera' : 'Salió'), th('Merma'), th('Cierre'),
         th('Consumo', true), todos ? th('Vendido (recetas)', true) : null, todos ? th('Diferencia', true) : null, todos ? th('$', true) : null)),
       h('tbody', {}, filas.map(r => h('tr', { 'data-prod': r.p.id, class: r.dif != null && r.dif < 0 ? 'is-mal' : null },
         h('td', {}, h('b', { text: r.p.nombre }), h('small', { text: ' ' + (r.p.unidad_uso || '') })),
@@ -78,8 +78,8 @@ export async function render(root, ctx) {
           : h('td', { class: 'is-calc gs-falta', colspan: todos ? 4 : 1, text: faltaTexto(r) }))))));
     mount(cuerpo, kpis, tabla,
       h('p', { class: 'kpi-n gs-pie', text: todos
-        ? 'Columnas claras = lo que anotó el encargado. Columnas amarillas = lo calcula la app (solo gerencia). Consumo = Apertura + Entró − Salió − Merma − Cierre, sumando todos los sectores (los pases entre sectores se cancelan). Diferencia = Vendido − Consumo.'
-        : 'Consumo = Apertura + Entró − Salió − Merma − Cierre. Entró incluye lo que otro sector devolvió acá; Salió, lo que se devolvió y lo que otro sector sacó de acá.' }));
+        ? 'Consumo = Apertura + Entró − Salió − Merma − Cierre, de todos los sectores. Diferencia = Vendido − Consumo.'
+        : 'Consumo = Apertura + Entró − Salió − Merma − Cierre.' }));
   }
 
   async function cargar() {

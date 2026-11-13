@@ -48,8 +48,7 @@ export async function render(root, ctx) {
   // Misma cabecera que Compras (título y pestañas arriba) para que no salte al cambiar entre Enviar, Recibir y Gasto.
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir' }), h('p', { class: 'sub', text: 'Pedidos enviados que esperan mercadería' }));
   const nav = [subnav(SUBNAV_COMPRAS, 'recibir'), h('div', { class: 'vista-head rec-factura-box' },
-    h('a', { class: 'btn btn-primary rec-factura', href: '#/recibir-factura' }, icon('recibir', 18), h('span', { text: 'Recibir con factura' })),
-    h('p', { class: 'sub rec-factura-h', text: 'Foto o PDF de la factura: sirve también para lo que se pidió fuera de la app.' }))];
+    h('a', { class: 'btn btn-ghost rec-factura', href: '#/recibir-factura' }, icon('recibir', 18), h('span', { text: 'Recibir con factura' })))];
 
   function tarjeta(o) {
     const prov = G.provs.get(o.proveedor_id);
@@ -159,7 +158,7 @@ export async function render(root, ctx) {
       pintarOpc(); setTimeout(() => buscador.focus(), 50);
     }
 
-    const btnAgregar = h('button', { class: 'btn btn-ghost btn-block rec-agregar', type: 'button', on: { click: agregar } }, icon('mas', 18), h('span', { text: 'Agregar producto que no estaba en el pedido' }));
+    const btnAgregar = h('button', { class: 'btn btn-ghost btn-block rec-agregar', type: 'button', on: { click: agregar }, 'aria-label': 'Agregar producto que no estaba en el pedido' }, icon('mas', 18), h('span', { text: 'Agregar producto' }));
     const btn = h('button', { class: 'btn btn-primary btn-block rec-ok', type: 'button', text: 'Llegó todo', on: { click: async () => {
       const lineas = filas.map(f => {
         const pr = parseNum(f.inPrecio.value);
@@ -230,8 +229,7 @@ export async function render(root, ctx) {
         h('div', { class: 'fl-acc' }, h('a', { class: 'btn btn-primary btn-sm', href: '#/recibir-factura/' + s.id }, icon('recibir', 16), h('span', { text: 'Leer y recibir' })), ...ver, descartar));
     };
     return h('section', { class: 'grupo-prov fl-grupo' },
-      h('header', { class: 'gp-head' }, h('h2', { class: 'gp-t', text: 'Facturas que subieron los locales' }), h('span', { class: 'estado estado-borrador', text: String(subidas.length) })),
-      h('p', { class: 'orden-m', text: 'Los encargados mandan la foto sin ver precios: leela acá para sumar el stock y cargar los montos.' }),
+      h('header', { class: 'gp-head rec-head' }, h('h2', { class: 'gp-t', text: 'Facturas de los locales' }), h('span', { class: 'estado', text: String(subidas.length) })),
       ...subidas.map(tarj));
   }
 

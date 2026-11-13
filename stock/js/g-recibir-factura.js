@@ -15,9 +15,9 @@ import { achicarFoto, aBase64, base64ABlob, unirFotos, PDF_MAX } from './fotos.j
 const isoValido = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : '';
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir con factura' }),
-    h('p', { class: 'sub', text: 'Sacale una foto a la factura o subí el PDF: la app lee los productos y suma el stock' }));
-  const volver = h('a', { class: 'btn btn-text', href: '#/recibir', text: '← Volver a Recibir' });
+  const volver = h('a', { class: 'volver', href: '#/recibir' }, icon('atras', 20), h('span', { text: 'Recibir' }));
+  const cab = h('header', { class: 'vista-head' }, volver, h('h1', { class: 'titulo', text: 'Recibir con factura' }),
+    h('p', { class: 'sub', text: 'La app lee la factura y suma el stock' }));
   mount(root, cab, esqueleto(3));
   try { await cargarG(['prods', 'provs', 'locales', 'precios'], () => {}); }
   catch (e) { if (ctx.alive()) mount(root, cab, banner(mensajeError(e), 'error')); return; }
@@ -45,7 +45,7 @@ export async function render(root, ctx) {
           pdf = { file, data: await aBase64(file) }; fotos = [];
         } else fotos.push({ file: blob, ...(await achicarFoto(new File([blob], `foto${i + 1}.jpg`, { type: blob.type || 'image/jpeg' }))) });
       }
-    } catch (e) { if (!ctx.alive()) return; subida = null; mount(root, cab, banner(mensajeError(e), 'error'), volver); return; }
+    } catch (e) { if (!ctx.alive()) return; subida = null; mount(root, cab, banner(mensajeError(e), 'error')); return; }
     if (!ctx.alive()) return;
   }
   const avisoSubida = () => (subida ? banner(`Factura que subió ${subida.subida_por_nombre || 'el encargado'} de ${nombreLocal(subida.local_id)} el ${fechaCorta(subida.creado_en)}`
@@ -67,7 +67,7 @@ export async function render(root, ctx) {
       drop.querySelector('.drop-t').textContent = pdf || fotos.length ? 'Agregar otra foto' : 'Sacar foto o elegir archivo';
     };
     const drop = h('label', { class: 'drop', for: 'rf-archivo' }, icon('recibir', 30), h('span', { class: 'drop-t', text: 'Sacar foto o elegir archivo' }),
-      h('span', { class: 'sub', text: 'Foto de la factura o remito (si es larga, varias fotos en orden) o el PDF que mandó el proveedor.' }), input);
+      h('span', { class: 'sub', text: 'Si es larga, varias fotos en orden. También PDF.' }), input);
     input.addEventListener('change', async () => {
       const files = [...input.files]; input.value = '';
       try {
@@ -86,7 +86,7 @@ export async function render(root, ctx) {
     });
     leer.addEventListener('click', () => leyendo());
     mount(root, cab, error ? banner(error, 'error') : null, avisoSubida(),
-      h('section', { class: 'bloque rf-paso' }, campo('Local que recibe', selLocal), drop, lista, leer), volver);
+      h('section', { class: 'bloque rf-paso' }, campo('Local que recibe', selLocal), drop, lista, leer));
     pintarFotos();
   }
 
@@ -394,7 +394,7 @@ export async function render(root, ctx) {
         h('label', { class: 'rf-check' }, f.guardar, h('span', { text: 'Guardar también la factura en Pagos (si ya estaba cargada, se usa esa)' })),
         pedidoBox),
       h('h2', { class: 'rf-h2', text: 'Productos de la factura' }), listaEl, resumen, err, btn,
-      h('button', { class: 'btn btn-text', type: 'button', text: 'Leer otra factura', on: { click: () => { fotos = []; pdf = null; paso1(); } } }), volver);
+      h('button', { class: 'btn btn-text', type: 'button', text: 'Leer otra factura', on: { click: () => { fotos = []; pdf = null; paso1(); } } }));
     pintarLista();
   }
 

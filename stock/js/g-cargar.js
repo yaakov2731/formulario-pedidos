@@ -2,6 +2,7 @@
 // El pedido entra como cualquier otro (en revisión) y aparece en Pedidos.
 import { h } from './util.js';
 import { cargarG, chipsLocal } from './datos.js';
+import { icon } from './ui.js';
 import * as pedir from './pedir.js';
 
 export async function render(root, ctx, id) {
@@ -21,7 +22,7 @@ export async function render(root, ctx, id) {
   };
   const sel = chipsLocal((lid) => abrir(lid));
   root.replaceChildren(
-    h('a', { class: 'volver', href: '#/pedidos', text: '‹ Volver a Pedidos' }),
+    h('a', { class: 'volver', href: '#/pedidos' }, icon('atras', 20), h('span', { text: 'Pedidos' })),
     h('div', { class: 'cargar-local' }, h('p', { class: 'cargar-k', text: 'Cargar pedido para' }), sel.el),
     cuerpo);
   await abrir(sel.get());

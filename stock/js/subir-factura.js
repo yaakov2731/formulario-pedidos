@@ -13,7 +13,7 @@ const seguro = (s) => String(s || 'archivo').normalize('NFD').replace(/[̀-ͯ]/g
 export async function render(root, ctx) {
   const localId = ctx.perfil.local_id;
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Facturas' }),
-    h('p', { class: 'sub', text: 'Sacale una foto a la factura o remito que llegó y mandala a gerencia.' }));
+    h('p', { class: 'sub', text: 'Foto de la factura o remito para gerencia' }));
   mount(root, cab, esqueleto(3));
   let provs = [], subidas = [];
   try {
@@ -38,7 +38,7 @@ export async function render(root, ctx) {
   const err = h('p', { class: 'form-err', role: 'alert' });
   const mandar = h('button', { class: 'btn btn-primary btn-block', type: 'button', text: 'Mandar a gerencia', disabled: true });
   const drop = h('label', { class: 'drop', for: 'sf-archivo' }, icon('recibir', 30), h('span', { class: 'drop-t', text: 'Sacar foto o elegir archivo' }),
-    h('span', { class: 'sub', text: 'Si es larga, sacá varias fotos en orden. También sirve el PDF que mandó el proveedor.' }), input);
+    h('span', { class: 'sub', text: 'Si es larga, varias fotos en orden. También PDF.' }), input);
   const $hist = h('section', { class: 'sf-hist' });
 
   function pintarFotos() {
@@ -112,8 +112,7 @@ export async function render(root, ctx) {
   }
 
   mount(root, cab,
-    h('section', { class: 'bloque rf-paso' }, drop, lista, campo('Proveedor', selProv), campo('Nota para gerencia (opcional)', nota), err, mandar,
-      h('p', { class: 'sub sf-aviso', text: 'Acá no se ven precios: gerencia revisa la factura y suma la mercadería al stock.' })),
+    h('section', { class: 'bloque rf-paso' }, drop, lista, campo('Proveedor', selProv), campo('Nota para gerencia (opcional)', nota), err, mandar),
     $hist);
   pintarFotos(); pintarHist();
 }

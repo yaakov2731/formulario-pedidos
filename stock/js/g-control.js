@@ -90,7 +90,7 @@ export function calcularSemana(sem, movs, ordenes, prods, precios) {
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Control semanal' }),
-    h('p', { class: 'sub', text: 'Lo que se usó entre el conteo de apertura y el de cierre, por lugar, y lo que piden.' }));
+    h('p', { class: 'sub', text: 'Lo que se usó entre apertura y cierre' }));
   const nav = subnav(SUBNAV_STOCK, 'control');
   mount(root, cab, nav, esqueleto(4));
   try { await cargarG(['prods', 'locales', 'precios']); } catch (e) { toast('No se pudo cargar: ' + mensajeError(e), 'error'); }
@@ -197,7 +197,7 @@ export async function render(root, ctx) {
       const ap = [...conteos].find(c => c.tipo === 'apertura');
       return cuerpo.replaceChildren(ap
         ? vacio('Falta el conteo de cierre', `Hay apertura del ${dia(ap.creado_en)}. Cuando el encargado cuente el último día de servicio y marque Cierre, aparece la semana.`)
-        : vacio('Todavía no hay una semana para controlar', 'El encargado cuenta el primer día de servicio (Apertura) y el último (Cierre) en Contar. También podés marcarlos en Stock → Conteos.'));
+        : vacio('Todavía no hay una semana para controlar', 'Aparece cuando el local cuenta la apertura y el cierre de la semana.'));
     }
     if (!semanas.some(s => s.ap.id === semId)) semId = semanas[0].ap.id;
     zonaSem.replaceChildren(...semanas.slice(0, 8).map(s => h('button', { class: 'chip' + (s.ap.id === semId ? ' is-on' : ''), type: 'button', 'data-sem': s.ap.id,

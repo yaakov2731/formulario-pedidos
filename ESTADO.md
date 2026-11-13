@@ -112,3 +112,18 @@ falla, Ajustes → Probar conexión y la pestaña `LOG` de la planilla V3. Coord
 - Sin SQL: la tabla `precios` ya guarda cada cambio de precio.
 - Pruebas: `scripts/e2e-recibir.js` (nuevo, capturas en `/mnt/project-files/app-stock/recibir-precios/`), verify-stock, e2e-recibir-factura, e2e-hoy verdes; e2e-stock igual que main (1 error 404 de consola).
 - Próximo paso: Jacobo revisa capturas y dice "mergear".
+
+## Tanda Apple: Fases 2–4, 6, pérdida y revisión general (rama `claude/project-thread-wj2w6l`, PR #85, 13/11/2026)
+
+- Hecho en la tanda: Fase 2 (4 pestañas + Más tipo Ajustes, rutas viejas redirigen), Fase 3 (Hoy de encargado, Shopping y gerencia),
+  Fase 4 (pedido sugerido con redondeo al bulto, Mis pedidos dentro de Pedir), Fase 6 (un estado por compra, recibir contra lo pedido,
+  reclamo, subas de precio) y Pérdida de la semana por local con productos clave (gerencia).
+- Revisión general (solo presentación, sin tocar consultas ni base): elegido en chips/locales neutro (el naranja queda para la acción),
+  botón principal deshabilitado en gris, estados como texto (rojo solo incompleto/vencido/cancelado), barras sin vidrio (el título chico ya
+  no deja ver el contenido detrás), KPIs como lista agrupada en el celular, Notas con el tema Noche (sin post-its ni degradés), flechas y
+  tildes de texto cambiadas por íconos SVG, "volver" como enlace, textos explicativos acortados, plural de Merma, Retiros como lista.
+  Escritorio: el body ya no se desplaza con scrollIntoView (en Mis pedidos se cortaba la barra lateral).
+- Capturas antes/después (390 px y 1366 px, por rol): `/mnt/project-files/app-stock/revision-general/{antes,despues}/`.
+- Pendiente de diseño (no hecho): tarjetas de Pagos/Cuentas y de Facturas siguen siendo tarjetas; tabla de Control del día ancha en el
+  celular; Hoja y Retiros de Fase 5 sin rehacer.
+- Próximo paso: Jacobo revisa capturas y dice "mergear"; después Fase 5 (hoja más simple y avisos).

@@ -354,7 +354,7 @@ export async function render(root, ctx, id) {
         h('span', { class: 'pt-c pt-prods' }, h('b', { text: `${e.items.length} ${e.items.length === 1 ? 'producto' : 'productos'}` }), h('span', { class: 'pt-muestra', text: muestra })),
         h('span', { class: 'pt-c pt-provs' }, provs.map(p => h('span', { class: 'tag-prov' + (p === SIN ? ' is-sin' : ''), text: p === SIN ? 'Sin proveedor' : nombreProv(p) }))),
         h('span', { class: 'pt-c pt-est' }, h('span', { class: claseEstado(estadoDeVarias(e.ordenes)), 'data-estado': estadoDeVarias(e.ordenes), text: textoEstado(estadoDeVarias(e.ordenes)) }), e.nota ? h('span', { class: 'pt-tiene-nota', title: 'Tiene nota', text: 'Nota' }) : null),
-        h('span', { class: 'pt-c pt-chev', 'aria-hidden': 'true', text: abierto ? '▴' : '▾' }));
+        h('span', { class: 'pt-c pt-chev', 'aria-hidden': 'true' }, icon(abierto ? 'arriba' : 'abajo', 18)));
       return h('div', { class: 'pt-envio' + (abierto ? ' is-open' : '') }, fila, abierto ? detalleEnvio(e) : null);
     });
 
@@ -551,7 +551,7 @@ export async function render(root, ctx, id) {
     return h('span', { class: 'pp-locales' }, pares.map(({ o, it }) => {
       // si el mismo local lo pidió dos veces (dos encargados), se aclara quién
       const loc = nombreLocal(o.local_id) + (veces.get(o.local_id).length > 1 && o.cargado_por_nombre ? ' · ' + o.cargado_por_nombre : '');
-      const ok = o.estado === 'aprobada' ? h('span', { class: 'pp-loc-ok', title: 'Aprobado', 'aria-label': 'aprobado', text: '✓' }) : null;
+      const ok = o.estado === 'aprobada' ? h('span', { class: 'pp-loc-ok', title: 'Aprobado', 'aria-label': 'aprobado' }, icon('check', 14)) : null;
       if (!editable(o) || fuera.has(it.id)) return h('span', { class: 'pp-loc' }, h('span', { text: loc }), h('b', { class: 'num', text: fmtNum(it.cantidad_pedida, 3) }), ok);
       const inp = h('input', { class: 'input input-sm num pp-loc-inp', type: 'text', inputmode: 'decimal', value: fmtNum(it.cantidad_pedida, 3), 'aria-label': `Cantidad de ${nombreProd(it)} para ${loc}`,
         on: { focus: (ev) => ev.target.select(), change: (ev) => {
@@ -651,7 +651,7 @@ export async function render(root, ctx, id) {
           h('span', { class: claseEstado(estadoDeVarias(os)), 'data-estado': estadoDeVarias(os), text: textoEstado(estadoDeVarias(os)) }))),
       min && tot < min ? h('p', { class: 'gp-nota gp-warn', text: `Pedido mínimo ${fmtMoney(min)}: faltan ${fmtMoney(min - tot)}.` }) : null,
       sacados ? h('p', { class: 'gp-nota gp-info', text: `${sacados} ${sacados === 1 ? 'producto destildado: no se manda ni se imprime' : 'productos destildados: no se mandan ni se imprimen'}. Al marcarlo como enviado sale del pedido.` }) : null,
-      !sinProv && hayBorrador ? h('p', { class: 'gp-nota gp-warn pp-falta-aprobar', text: `Revisá las cantidades de cada local y aprobá para poder enviarlo${pendLocales.length ? ' · falta aprobar: ' + pendLocales.join(', ') : ''}.` }) : null,
+      !sinProv && hayBorrador ? h('p', { class: 'gp-nota gp-warn pp-falta-aprobar', text: `Aprobá las cantidades para enviarlo${pendLocales.length ? ' · falta aprobar: ' + pendLocales.join(', ') : ''}.` }) : null,
       !sinProv && facturasDe(os) ? h('p', { class: 'pp-facturar', text: 'Facturar a ' + facturasDe(os) }) : null,
       sinProv ? h('p', { class: 'gp-nota gp-warn', text: sugs.length ? 'Elegí el proveedor de cada producto o usá los sugeridos.' : 'Elegí el proveedor de cada producto.' }) : null,
       prov && !prov.whatsapp ? h('p', { class: 'gp-nota ' + (prov.email ? 'gp-info' : 'gp-warn'), text: prov.email ? `Sin WhatsApp: se manda por email a ${prov.email}.` : 'Sin WhatsApp ni email cargado: cargalo en Catálogo → Proveedores.' }) : null,
@@ -719,7 +719,7 @@ export async function render(root, ctx, id) {
     if (vista === 'proveedor') {
       return mount(root,
         h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }),
-          h('p', { class: 'sub', text: 'Lo pendiente de todos los locales, sumado por proveedor para aprobar y mandar' })),
+          h('p', { class: 'sub', text: 'Por proveedor, de todos los locales' })),
         nav, ...vistaProveedor());
     }
     // En Pedidos, un acceso a Compras cuando hay proveedores esperando que se les mande el pedido.

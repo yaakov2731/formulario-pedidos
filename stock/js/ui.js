@@ -35,6 +35,7 @@ const P = {
   mail: 'M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3.5 6l8.5 7 8.5-7',
   atras: 'M15 18l-6-6 6-6',
   abajo: 'M6 9l6 6 6-6',
+  arriba: 'M6 15l6-6 6 6',
   flecha: 'M9 18l6-6-6-6',
   hoja: 'M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M9 13h6M9 17h6',
   retiro: 'M4 7h16v13H4zM9 3h6v4H9zM12 11v6M9 14l3 3 3-3',

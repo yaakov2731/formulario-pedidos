@@ -16,7 +16,7 @@ const listaNombres = (xs, n = 4) => xs.slice(0, n).map(x => x.p.nombre).join(', 
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Pérdida de la semana' }),
-    h('p', { class: 'sub', text: 'Faltante sin explicar y merma anotada, a costo.' }));
+    h('p', { class: 'sub', text: 'A costo de compra' }));
   const nav = subnav(SUBNAV_STOCK, 'perdida');
   mount(root, cab, nav, esqueleto(4));
   try { await cargarG(['prods', 'locales', 'precios']); } catch (e) { toast('No se pudo cargar: ' + mensajeError(e), 'error'); }
@@ -64,7 +64,7 @@ export async function render(root, ctx) {
       if (pk.sinCosto.length) filas.push(filaLista({ texto: 'Falta cargar costos', sub: listaNombres(pk.sinCosto), valor: nProd(pk.sinCosto.length), clase: 'perd-sincosto', attrs: { 'data-clave': 'falta-costo' } }));
       const pct = pk.total > 0 ? Math.round(pk.acum / pk.total * 100) : 0;
       gClave = listaGrupo('Productos clave', filas, { clase: 'perd-clave',
-        pie: pk.clave.length ? `${nProd(pk.clave.length)} = ${pct} % del costo consumido en ${VENTANA / 7} semanas${pk.clave.length >= CLAVE_TOPE ? ' (máximo ' + CLAVE_TOPE + ')' : ''}. Propuesta: no cambia lo que cuenta el encargado.` : null });
+        pie: pk.clave.length ? `${nProd(pk.clave.length)} = ${pct} % del costo consumido en ${VENTANA / 7} semanas${pk.clave.length >= CLAVE_TOPE ? ' (máximo ' + CLAVE_TOPE + ')' : ''}.` : null });
     }
     mount(cuerpo, gSemana, gTop, gClave);
   }

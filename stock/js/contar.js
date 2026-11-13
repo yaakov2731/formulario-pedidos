@@ -72,8 +72,8 @@ export async function render(root, ctx) {
       on: { click: () => abrirConteo(ultimo, { prods: new Map(prods.map(p => [p.id, p])), alCambiar: alCambiarConteo }) } }) : null);
   pintarUltimo();
   const ayuda = banner(conLugares
-    ? 'Elegí un lugar y contá lo que hay ahí, en el orden de los estantes. Lo que no contaste dejalo vacío. Si no queda nada, poné 0.'
-    : 'Contá lo que hay en depósito, cámara y barra. Lo que no contaste dejalo vacío. Si no queda nada, poné 0. Para contar por lugar, primero armá los lugares del local.', 'info');
+    ? 'Lo que no contaste, dejalo vacío. Si no queda nada, poné 0.'
+    : 'Lo que no contaste, dejalo vacío. Si no queda nada, poné 0.', 'info');
   // El encargado arma u ordena los lugares de su local (Stock → Lugares de gerencia, solo con su local).
   const armar = h('div', { class: 'cnt-armar' }, h('a', { class: 'btn btn-ghost', href: '#/lugares' },
     icon('mas', 18), h('span', { text: conLugares ? 'Cambiar los lugares' : 'Armar los lugares del local' })));
@@ -157,7 +157,7 @@ export async function render(root, ctx) {
     };
     lista.replaceChildren(
       h('div', { class: 'lug-cab' },
-        h('button', { class: 'btn btn-ghost lug-volver', type: 'button', on: { click: () => irA(null) } }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Lugares' })),
+        h('button', { class: 'volver lug-volver', type: 'button', on: { click: () => irA(null) } }, icon('atras', 20), h('span', { text: 'Lugares' })),
         h('div', { class: 'lug-cab-t' }, h('h2', { class: 'lug-cab-n', text: lugar }), cuenta)),
       ...ps.map(p => fila(p)), pie);
     alCambiar();
@@ -181,7 +181,7 @@ export async function render(root, ctx) {
     lista.replaceChildren(...[...grupos].flatMap(([c, ps]) => [h('h2', { class: 'cat-t', text: c }), ...ps.map(p => fila(p))]));
   }
 
-  const volver = h('a', { class: 'btn btn-ghost cnt-volver', href: '#/stock' }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Stock' }));
+  const volver = h('a', { class: 'volver cnt-volver', href: '#/stock' }, icon('atras', 20), h('span', { text: 'Stock' }));
 
   async function guardar() {
     if (guardando) return;
