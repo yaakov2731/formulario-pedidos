@@ -197,11 +197,11 @@ const plata = (n) => '$ ' + Math.round(n).toLocaleString('es-AR');
   const { p: pc } = await nuevo({ viewport: { width: 1366, height: 900 } });
   await pc.goto(BASE + '#/resumen');
   await pc.waitForSelector('.vg-hero');
-  ok(await pc.locator('.side-link.is-active', { hasText: 'Ventas' }).count() === 1, 'PC: Ventas marcado en la barra lateral');
+  ok(await pc.locator('.side-link.is-active', { hasText: 'Más' }).count() === 1, 'PC: Ventas (Números) queda marcado en Más en la barra lateral');
   await shot(pc, '07-resumen-pc', true);
   await pc.goto(BASE + '#/ventas');
   await pc.waitForSelector('#f-archivo', { state: 'attached' });
-  ok(await pc.locator('.side-link.is-active', { hasText: 'Ventas' }).count() === 1 && await pc.locator('.subnav-b.is-on').innerText() === 'Importar', 'Importar sigue en #/ventas y marca Ventas');
+  ok(await pc.locator('.side-link.is-active', { hasText: 'Más' }).count() === 1 && await pc.locator('.subnav-b.is-on').innerText() === 'Importar', 'Importar sigue en #/ventas y marca Más');
 
   // ===== sin ventas =====
   items.length = 0; pedidos.length = 0;

@@ -173,6 +173,14 @@ export function avisoCierre(fecha = new Date()) {
 }
 export const esFlorida = (nombre) => /florida/i.test(nombre || '');
 export const esMartin = (nombre) => /ridder/i.test(nombre || '');
+// ¿El proveedor entrega hoy (dow: 0 domingo … 6 sábado)? Si el texto de días de entrega nombra días ("Martes y viernes"),
+// tiene que estar el de hoy; si no nombra ninguno ("1 día"), no se puede saber y se toma como que sí.
+const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'mi[eé]rcoles', 'jueves', 'viernes', 's[aá]bado'];
+export function entregaHoy(diasEntrega, dow) {
+  const t = String(diasEntrega || '').toLowerCase().replace(/(antes|hasta|despu[eé]s)\s+(del?|el)\s+\S+/g, ''); // "pedir antes del jueves" es el corte, no la entrega
+  const dice = (d) => new RegExp('(^|[^a-zñáéíóú])' + d).test(t);
+  return !DIAS_SEMANA.some(dice) || dice(DIAS_SEMANA[dow]);
+}
 
 export const ESTADOS = {
   borrador: 'En revisión', aprobada: 'Aprobado', enviada: 'Enviado al proveedor',

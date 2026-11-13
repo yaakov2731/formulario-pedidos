@@ -162,7 +162,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.goto(BASE + '#/hoja');
   await e.waitForSelector('.hj-sector');
   const tabs = await e.locator('.tabbar .tab').allInnerTexts();
-  ok(tabs.map(x => x.trim()).join(',') === 'Pedir,Mis pedidos,Hoja,Facturas,Más', 'barra del encargado: Pedir · Mis pedidos · Hoja · Facturas · Más · ' + tabs.join(','));
+  ok(tabs.map(x => x.trim()).join(',') === 'Hoy,Pedir,Hoja,Más', 'barra del encargado: Hoy · Pedir · Hoja · Más · ' + tabs.join(','));
   ok(await e.locator('[data-nav="stock"], [data-nav="elaborados"], [data-nav="retiros"]').count() === 0, 'sin Stock, Elaborados ni Retiros en el menú de Umo');
   const secs = await e.locator('.hj-sector').evaluateAll(xs => xs.map(x => x.getAttribute('data-sector')));
   ok(JSON.stringify(secs) === JSON.stringify(['Barra', 'Cocina']), 'los sectores son los lugares del local · ' + secs.join(','));
@@ -238,7 +238,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await s.goto(BASE + '#/retiros');
   await s.waitForSelector('.rt-nuevo');
   const tabsS = (await s.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',');
-  ok(tabsS === 'Pedir,Mis pedidos,Hoja,Retiros,Más', 'barra del Shopping: Pedir · Mis pedidos · Hoja · Retiros · Más · ' + tabsS);
+  ok(tabsS === 'Hoy,Pedir,Retiros,Más', 'barra del Shopping: Hoy · Pedir · Retiros · Más (la hoja del depósito se abre desde Hoy y Más) · ' + tabsS);
   await s.locator('.rt-nuevo').click(); await s.waitForSelector('dialog.sheet');
   await s.locator('dialog input[type="search"]').fill('bolsas');
   await s.locator(`dialog .rt-op[data-id="${P.bolsas.id}"]`).click();
@@ -281,11 +281,12 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   ok(await celda(P.cerveza.id, 2) === '6' && await celda(P.cerveza.id, 3) === '24', 'Cocina: lo que la Barra sacó de acá cuenta como salida y lo devuelto como entrada');
   await g.goto(BASE + '#/g-retiros');
   await g.waitForSelector('.gs-kpis');
-  await g.locator('.chip[data-local="' + L2 + '"]').click().catch(() => {});
   await g.waitForSelector('.gr-tabla');
   const dest = await g.locator('.gr-tabla tr[data-destino]').evaluateAll(xs => xs.map(x => x.getAttribute('data-destino')));
   ok(dest.includes('Baños planta baja') && dest.includes('Patio de comidas') && dest.includes('Limpieza pasillos'), 'retiros por destino · ' + dest.join(', '));
-  ok(await g.locator('.chip[data-local="' + L1 + '"]').count() === 0, 'en Retiros solo aparece el Shopping');
+  await g.locator('.sel-local').click(); await g.waitForSelector('dialog.sheet');
+  ok(await g.locator('dialog .lg-fila[data-local="' + L1 + '"]').count() === 0 && await g.locator('dialog .lg-fila[data-local="' + L2 + '"]').count() === 1, 'en Retiros solo aparece el Shopping (selector de local en hoja)');
+  await g.keyboard.press('Escape'); await g.waitForSelector('dialog.sheet', { state: 'detached' });
   await shot(g, '10-g-retiros-destino-pc');
   await g.locator('.seg-b[data-vista="deposito"]').click();
   ok(/Falta contar la cierre|Falta contar el cierre|Falta contar/.test(await g.locator('.gs-tabla').innerText()), 'control del depósito avisa que falta el cierre');
@@ -293,11 +294,15 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await g.setViewportSize({ width: 390, height: 844 });
   await g.goto(BASE + '#/sector'); await g.waitForSelector('.gs-tabla');
   await shot(g, '12-g-por-sector-m');
-  // Stock en 3 pestañas (Qué hay · Control · Lugares) y Control con Día · Semana · Retiros · Conteos.
+  // Stock en 3 pestañas (Qué hay · Control · Lugares). Control: filtro Hoy · Semana y desde ahí Retiros y Conteos (sin tercer nivel).
   ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Qué hay|Control|Lugares' && await g.locator('.subnav-b.is-on').innerText() === 'Control', 'Stock: Qué hay · Control · Lugares');
-  ok((await g.locator('.subnav2-b').allInnerTexts()).join('|') === 'Día|Semana|Retiros|Conteos' && await g.locator('.subnav2-b.is-on').innerText() === 'Día', 'Control: Día · Semana · Retiros · Conteos');
+  ok((await g.locator('.subnav-f').allInnerTexts()).join('|') === 'Hoy|Semana' && await g.locator('.subnav-f.is-on').innerText() === 'Hoy', 'Control: filtro Hoy · Semana');
+  ok((await g.locator('.subnav-ir-b').allInnerTexts()).map(x => x.trim()).join('|') === 'Retiros|Conteos', 'Control: Retiros y Conteos se abren desde ahí');
+  await g.locator('.subnav-ir-b[data-ir="conteos"]').click(); await g.waitForSelector('.subnav-volver');
+  ok(await g.locator('.subnav-b.is-on').innerText() === 'Control' && await g.locator('.subnav-f').count() === 0 && /Control/.test(await g.locator('.subnav-volver').innerText()), 'Conteos: queda en Control, con ‹ Control para volver');
+  await g.goto(BASE + '#/sector'); await g.waitForSelector('.gs-tabla');
   await g.goto(BASE + '#/stock'); await g.waitForSelector('.subnav-b.is-on');
-  ok(await g.locator('.subnav2').count() === 0 && await g.locator('.subnav-b.is-on').innerText() === 'Qué hay', 'Qué hay sin segunda fila');
+  ok(await g.locator('.subnav-fila, .subnav-volver').count() === 0 && await g.locator('.subnav-b.is-on').innerText() === 'Qué hay', 'Qué hay sin segunda fila');
   await shot(g, '13-g-que-hay-m');
   await g.goto(BASE + '#/recetas'); await g.waitForSelector('.subnav-b');
   ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Recetas|Producción|Elaborados', 'Elaborados pasó a Cocina');

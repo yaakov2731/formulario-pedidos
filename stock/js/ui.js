@@ -37,7 +37,8 @@ const P = {
   abajo: 'M6 9l6 6 6-6',
   flecha: 'M9 18l6-6-6-6',
   hoja: 'M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M9 13h6M9 17h6',
-  retiro: 'M4 7h16v13H4zM9 3h6v4H9zM12 11v6M9 14l3 3 3-3'
+  retiro: 'M4 7h16v13H4zM9 3h6v4H9zM12 11v6M9 14l3 3 3-3',
+  hoy: 'M7 3v3M17 3v3M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 9h16M9 14.5l2 2 4-4'
 };
 export function icon(nombre, size = 20) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -203,20 +204,33 @@ export function selectorLocal({ locales, valor = null, todos = null, clave = nul
   return { el, valor: () => actual, set: (id) => set(id, false) };
 }
 
-// Sub-navegación entre pantallas hermanas (Ventas: Importar · Análisis · Merma; Cocina: Recetas · Producción).
-// Una pestaña puede agrupar pantallas (tercer elemento: [[id, texto], …]): queda marcada en cualquiera de ellas y abajo
-// aparece una segunda fila, más chica, para moverse dentro del grupo (Stock → Control: Día · Semana · Retiros · Conteos).
+// Sub-navegación entre pantallas hermanas (Ventas: Resumen · Importar · Análisis · Merma; Cocina: Recetas · Producción).
+// Como máximo dos niveles: barra de abajo + este selector. Una pestaña puede agrupar pantallas ([id, texto, filtro, extra]):
+//   filtro: [[id, texto], …] se muestra como filtro chico debajo (Control: Hoy · Semana), no como otra fila de pestañas.
+//   extra: [[id, texto], …] pantallas que se abren desde ahí (Retiros, Conteos) y tienen "‹ Control" para volver.
 export function subnav(items, actual) {
-  const grupo = items.find(([, , hijos]) => hijos && hijos.some(([id]) => id === actual));
-  const nav = h('nav', { class: 'subnav', 'aria-label': 'Sección' }, items.map(([id, texto, hijos]) => {
+  const en = (lista) => !!lista && lista.some(([id]) => id === actual);
+  const grupo = items.find(([, , filtro, extra]) => en(filtro) || en(extra));
+  const nav = h('nav', { class: 'subnav', 'aria-label': 'Sección' }, items.map(([id, texto]) => {
     const on = id === actual || (grupo && grupo[0] === id);
     return h('a', { class: 'subnav-b' + (on ? ' is-on' : ''), href: '#/' + id, text: texto, 'aria-current': on ? 'page' : null });
   }));
   if (!grupo) return nav;
-  const nav2 = h('nav', { class: 'subnav2', 'aria-label': grupo[1] }, grupo[2].map(([id, texto]) =>
-    h('a', { class: 'subnav2-b' + (id === actual ? ' is-on' : ''), href: '#/' + id, text: texto, 'aria-current': id === actual ? 'page' : null })));
-  return h('div', { class: 'subnav-grupo' }, nav, nav2);
+  const [gid, gtexto, filtro = [], extra = []] = grupo;
+  if (!en(filtro)) {
+    return h('div', { class: 'subnav-grupo' }, nav,
+      h('a', { class: 'subnav-volver', href: '#/' + gid, 'data-volver': gid }, icon('atras', 18), h('span', { text: gtexto })));
+  }
+  const fil = h('div', { class: 'subnav-filtro', role: 'group', 'aria-label': gtexto }, filtro.map(([id, texto]) =>
+    h('a', { class: 'subnav-f' + (id === actual ? ' is-on' : ''), href: '#/' + id, text: texto, 'aria-current': id === actual ? 'page' : null })));
+  const ir = extra.length ? h('div', { class: 'subnav-ir' }, extra.map(([id, texto]) =>
+    h('a', { class: 'subnav-ir-b', href: '#/' + id, 'data-ir': id }, h('span', { text: texto }), icon('flecha', 14)))) : null;
+  return h('div', { class: 'subnav-grupo' }, nav, h('div', { class: 'subnav-fila' }, fil, ir));
 }
+
+// Hoy → tarea: se recuerda de qué tarea se vino para mostrar "‹ Hoy" arriba de esa pantalla (main.js) y volver.
+export const CLAVE_DESDE_HOY = 'stock:desde-hoy';
+export function desdeHoy(id) { try { sessionStorage.setItem(CLAVE_DESDE_HOY, id); } catch (_e) { /* nada */ } }
 
 // Fila con barra proporcional (CSS): etiqueta, valor y porcentaje.
 export function barraFila(etiqueta, valorTexto, fraccion, detalle) {
@@ -228,13 +242,14 @@ export function barraFila(etiqueta, valorTexto, fraccion, detalle) {
 
 export const SUBNAV_VENTAS = [['resumen', 'Resumen'], ['ventas', 'Importar'], ['analisis', 'Análisis'], ['merma', 'Merma']];
 export const SUBNAV_PAGOS = [['gasto', 'Gasto'], ['pagos', 'Cuentas'], ['facturas', 'Facturas'], ['historial', 'Pagos'], ['cargar-pago', 'Cargar']];
-// Gerencia · Compras: lo que se manda a proveedores, lo que llega y cuánto se lleva gastado.
-export const SUBNAV_COMPRAS = [['compras', 'Enviar'], ['recibir', 'Recibir'], ['gasto', 'Gasto']];
+// Gerencia · Compras: lo que pidió cada local, lo que se manda a proveedores, lo que llega y cuánto se lleva gastado.
+export const SUBNAV_COMPRAS = [['pedidos', 'Pedidos'], ['compras', 'Enviar'], ['recibir', 'Recibir'], ['gasto', 'Gasto']];
 // En gerencia Gasto está en Compras; la contadora (sin Compras) lo sigue viendo en Pagos.
 export const navPagos = (ctx) => (ctx.rol === 'gerencia' ? SUBNAV_PAGOS.filter(([id]) => id !== 'gasto') : SUBNAV_PAGOS);
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['categorias', 'Categorías'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
-// Gerencia · Stock en 3 pestañas: Qué hay (la foto de ahora), Control (lo que pasó: día por sector, semana entre conteos,
-// retiros del Shopping y los conteos guardados) y Lugares (cómo está armado cada local). Elaborados pasó a Cocina.
-export const SUBNAV_CONTROL = [['sector', 'Día'], ['control', 'Semana'], ['g-retiros', 'Retiros'], ['conteos', 'Conteos']];
-export const SUBNAV_STOCK = [['stock', 'Qué hay'], ['sector', 'Control', SUBNAV_CONTROL], ['lugares', 'Lugares']];
+// Gerencia · Stock en 3 pestañas: Qué hay (la foto de ahora), Control (lo que pasó, con filtro Hoy · Semana; desde ahí se
+// abren Retiros del Shopping y Conteos guardados) y Lugares (cómo está armado cada local). Elaborados pasó a Cocina.
+export const SUBNAV_CONTROL = [['sector', 'Hoy'], ['control', 'Semana']];
+export const CONTROL_ABRE = [['g-retiros', 'Retiros'], ['conteos', 'Conteos']];
+export const SUBNAV_STOCK = [['stock', 'Qué hay'], ['sector', 'Control', SUBNAV_CONTROL, CONTROL_ABRE], ['lugares', 'Lugares']];
 export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción'], ['elaborados', 'Elaborados']];

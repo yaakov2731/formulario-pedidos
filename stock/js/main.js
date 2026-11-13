@@ -1,39 +1,56 @@
 // Arranque, sesión, ruteo por hash y estructura (barra lateral en escritorio, tab bar en celular).
-import { h, lsGet, lsSet, elabora } from './util.js';
+import { h, lsGet, elabora } from './util.js';
 import { sb, perfilActual, codigoMiLocal, salir, mensajeError } from './api.js';
-import { icon, toast, esqueleto, hoja, listaGrupo, filaLista, activarTituloGrande } from './ui.js';
+import { icon, toast, esqueleto, activarTituloGrande, CLAVE_DESDE_HOY } from './ui.js';
 
+// Cuatro pestañas por rol y la primera es Hoy (rediseño estilo Apple, fase 2). incluye: pantallas que viven dentro de esa
+// pestaña (quedan marcadas en ella). Lo demás está en Más, una lista tipo Ajustes (mas.js, MAS de abajo).
 const NAV = {
   encargado: [
-    { id: 'pedir', label: 'Pedir', icono: 'pedir' },
-    { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
-    { id: 'hoja', label: 'Hoja', icono: 'hoja' },
-    { id: 'retiros', label: 'Retiros', icono: 'retiro' },
+    { id: 'hoy', label: 'Hoy', icono: 'hoy' },
+    { id: 'pedir', label: 'Pedir', icono: 'pedir', incluye: ['revisar', 'mis-pedidos'] },
+    { id: 'hoja', label: 'Hoja', icono: 'hoja', incluye: ['lugares', 'contar', 'stock', 'elaborados'] },
+    { id: 'retiros', label: 'Retiros', icono: 'retiro', incluye: ['hoja', 'lugares', 'contar', 'stock'] },
+    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['subir-factura', 'notas'] }
+  ],
+  gerencia: [
+    { id: 'hoy', label: 'Hoy', icono: 'hoy' },
+    { id: 'compras', label: 'Compras', icono: 'pedir', incluye: ['pedidos', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
+    { id: 'stock', label: 'Stock', icono: 'stock', incluye: ['sector', 'control', 'g-retiros', 'conteos', 'lugares'] },
+    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['resumen', 'ventas', 'analisis', 'merma', 'recetas', 'produccion', 'elaborados', 'pagos', 'facturas', 'historial', 'cargar-pago',
+      'catalogo', 'categorias', 'proveedores', 'locales', 'notas'] }
+  ],
+  contadora: [
+    { id: 'pagos', label: 'Pagos', icono: 'pagos', incluye: ['gasto', 'facturas', 'historial', 'cargar-pago'] },
+    { id: 'mas', label: 'Más', icono: 'menu' }
+  ]
+};
+// Más: filas tipo Ajustes. Encargado: Facturas y Notas (el Shopping suma su hoja del depósito). Gerencia: Números, Cocina,
+// Pagos, Catálogo y Notas. Abajo de todo, con quién se entró y Cerrar sesión.
+const MAS = {
+  encargado: [
+    { id: 'hoja', label: 'Hoja del depósito', icono: 'hoja', soloShopping: true },
     { id: 'subir-factura', label: 'Facturas', icono: 'recibir' },
     { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
   gerencia: [
-    { id: 'tablero', label: 'Tablero', icono: 'tablero' },
-    { id: 'pedidos', label: 'Pedidos', icono: 'lista' },
-    { id: 'compras', label: 'Compras', icono: 'pedir' },
-    { id: 'notas', label: 'Notas', icono: 'nota' },
-    { id: 'stock', label: 'Stock', icono: 'stock' },
-    { id: 'resumen', label: 'Ventas', icono: 'ventas' },
-    { id: 'recetas', label: 'Cocina', icono: 'cocina' },
-    { id: 'pagos', label: 'Pagos', icono: 'pagos' },
-    { id: 'catalogo', label: 'Catálogo', icono: 'catalogo' }
+    { id: 'resumen', label: 'Números', icono: 'ventas', sub: 'Ventas, análisis, merma' },
+    { id: 'recetas', label: 'Cocina', icono: 'cocina', sub: 'Recetas, producción, elaborados' },
+    { id: 'pagos', label: 'Pagos', icono: 'pagos', sub: 'Cuentas, facturas, pagos' },
+    { id: 'catalogo', label: 'Catálogo', icono: 'catalogo', sub: 'Productos, proveedores, locales' },
+    { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
-  contadora: [
-    { id: 'pagos', label: 'Pagos', icono: 'pagos' }
-  ]
+  contadora: []
 };
+// Rutas viejas que cambiaron de nombre: siguen andando y llevan a la nueva.
+const ALIAS = { 'gerencia/tablero': 'hoy' };
 const RUTAS_PAGOS = { 'gasto': () => import('./g-gasto.js'), 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'hoja': () => import('./hoja.js'), 'retiros': () => import('./retiros.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
+  encargado: { 'hoy': () => import('./hoy.js'), 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'hoja': () => import('./hoja.js'), 'retiros': () => import('./retiros.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
-    'tablero': () => import('./g-tablero.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
+    'hoy': () => import('./g-hoy.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
     'stock': () => import('./g-stock.js'), 'sector': () => import('./g-sector.js'), 'g-retiros': () => import('./g-retiros.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
     'resumen': () => import('./g-resumen.js'), 'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
@@ -74,65 +91,58 @@ function pantallaSimple(titulo, texto, acciones) {
 }
 
 // Encargado: una sola Hoja por sector (apertura, entró, devolví, merma, cierre). Stock, Contar y Elaborados ya no están
-// en el menú (las rutas siguen andando). El Shopping (no elabora) suma Retiros: qué sale del depósito y a dónde va.
-const navDe = (c) => NAV[c.rol].filter(it => !(it.id === 'retiros' && c.rol === 'encargado' && elabora(c.codigoLocal)));
+// en el menú (las rutas siguen andando). El Shopping (no elabora) tiene Retiros en lugar de Hoja: qué sale del depósito y
+// a dónde va; su hoja (abrir y cerrar el depósito) se abre desde Hoy y desde Más.
+const shopping = (c) => c.rol === 'encargado' && !elabora(c.codigoLocal);
+const navDe = (c) => NAV[c.rol].filter(it => !(c.rol === 'encargado' && it.id === (shopping(c) ? 'hoja' : 'retiros')));
+const masDe = (c) => (MAS[c.rol] || []).filter(it => !it.soloShopping || shopping(c));
 const vistasDe = (c) => {
-  const v = { ...VISTAS[c.rol] };
+  const v = { ...VISTAS[c.rol], mas: () => import('./mas.js') };
   if (c.rol === 'encargado') { if (elabora(c.codigoLocal)) delete v.retiros; else delete v.elaborados; }
   return v;
 };
-
-// En el celular la barra de abajo muestra 4 secciones + "Más" (el resto y Salir), para que no se corten los nombres
-// y nadie cierre la sesión de un toque sin querer. En escritorio la barra lateral sigue mostrando todo.
-const EN_BARRA = {
-  encargado: ['pedir', 'mis-pedidos', 'hoja', 'retiros', 'subir-factura'],
-  gerencia: ['tablero', 'pedidos', 'compras', 'stock'],
-  contadora: ['pagos']
-};
-const MAX_BARRA = 4;
+// Pestaña que queda marcada para una pantalla.
+function pestanaDe(id) {
+  if (!ctx) return id;
+  const items = navDe(ctx);
+  const it = items.find(x => x.id === id) || items.find(x => (x.incluye || []).includes(id));
+  return it ? it.id : id;
+}
 
 function construirShell(c) {
   const items = navDe(c);
+  const mas = masDe(c);
   $app.classList.remove('no-nav');
-  const enlace = (it, clase) => h('a', { class: clase, href: '#/' + it.id, 'data-nav': it.id }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
-  const cerrarSesion = async () => { ctx = null; await salir(); mostrarEntrar(); };
+  const enlace = (it, clase) => h('a', { class: clase + (it.id === 'mas' && clase === 'tab' ? ' tab-mas' : ''), href: '#/' + it.id, 'data-nav': it.id, 'data-mas': it.id === 'mas' ? mas.map(x => x.id).join(' ') : null }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
   const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: cerrarSesion } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
+  // En escritorio la barra lateral muestra las mismas pestañas (Más solo si tiene secciones) y Salir.
+  const lateral = items.filter(it => it.id !== 'mas' || mas.length);
   $side.replaceChildren(
-    h('div', { class: 'side-brand' }, h('img', { src: 'icons/icon-192.png', alt: '', width: 36, height: 36 }), h('div', {}, h('b', { text: 'Docks del Puerto' }), h('small', { text: c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local')) }))),
-    h('nav', { class: 'side-nav' }, items.map(it => enlace(it, 'side-link')), salirBtn('side-link side-out'))
+    h('div', { class: 'side-brand' }, h('img', { src: 'icons/icon-192.png', alt: '', width: 36, height: 36 }), h('div', {}, h('b', { text: 'Docks del Puerto' }), h('small', { text: quienEs(c) }))),
+    h('nav', { class: 'side-nav' }, lateral.map(it => enlace(it, 'side-link')), salirBtn('side-link side-out'))
   );
-  const orden = EN_BARRA[c.rol] || [];
-  const enBarra = items.filter(it => orden.includes(it.id)).sort((a, b) => orden.indexOf(a.id) - orden.indexOf(b.id)).slice(0, MAX_BARRA);
-  const resto = items.filter(it => !enBarra.includes(it));
-  const abrirMas = () => {
-    const quien = c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local'));
-    let hojaMas = null;
-    const links = resto.map(it => filaLista({ texto: it.label, icono: it.icono, href: '#/' + it.id, chevron: true, clase: 'mas-link', attrs: { 'data-nav': it.id }, onClick: () => hojaMas && hojaMas.cerrar() }));
-    hojaMas = hoja('Más', h('div', { class: 'mas-lista' }, listaGrupo(null, links),
-      h('p', { class: 'mas-quien', text: 'Entraste como ' + quien }),
-      h('button', { class: 'btn btn-ghost mas-salir', type: 'button', on: { click: () => { hojaMas.cerrar(); cerrarSesion(); } } }, icon('salir', 20), h('span', { text: 'Cerrar sesión' }))));
-    marcarActivo((location.hash || '').split('/')[1] || '');
-  };
-  const masBtn = h('button', { class: 'tab tab-mas', type: 'button', 'aria-label': 'Más secciones y cerrar sesión', 'data-mas': resto.map(it => it.id).join(' '), on: { click: abrirMas } },
-    icon('menu', 22), h('span', { text: 'Más' }));
-  $tab.replaceChildren(...enBarra.map(it => enlace(it, 'tab')), masBtn);
+  $tab.replaceChildren(...items.map(it => enlace(it, 'tab')));
   $tab.hidden = false;
   $tab.classList.remove('tabbar-7', 'tabbar-scroll');
 }
+const quienEs = (c) => (c.rol === 'gerencia' ? 'Gerencia' : (c.rol === 'contadora' ? 'Administración' : (c.perfil.nombre || 'Local')));
+async function cerrarSesion() { ctx = null; await salir(); mostrarEntrar(); }
 
 function marcarActivo(id) {
-  // Gerencia: Recibir y Gasto viven dentro de Compras; la contadora sigue viendo Gasto en Pagos.
-  const deGerencia = ctx && ctx.rol === 'gerencia' ? ({ elaborados: 'recetas', lugares: 'stock', conteos: 'stock', control: 'stock', sector: 'stock', 'g-retiros': 'stock', gasto: 'compras' })[id] : null;
-  const deEncargado = ctx && ctx.rol === 'encargado' ? ({ lugares: 'hoja', contar: 'hoja', stock: 'hoja', elaborados: 'hoja' })[id] : null;
-  const act = deGerencia || deEncargado || ({ revisar: 'pedir', ventas: 'resumen', analisis: 'resumen', merma: 'resumen', produccion: 'recetas', gasto: 'pagos', facturas: 'pagos', 'cargar-pago': 'pagos', historial: 'pagos', proveedores: 'catalogo', categorias: 'catalogo', locales: 'catalogo', cargar: 'pedidos', 'cargar-revisar': 'pedidos', recibir: 'compras', 'recibir-factura': 'compras' })[id] || id;
+  const act = pestanaDe(id);
   document.querySelectorAll('[data-nav]').forEach(a => {
     const on = a.getAttribute('data-nav') === act;
     a.classList.toggle('is-active', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
-  // "Más" se marca cuando la sección abierta no está en la barra de abajo.
-  const mas = document.querySelector('.tab-mas');
-  if (mas) mas.classList.toggle('is-active', (mas.getAttribute('data-mas') || '').split(' ').includes(act));
+}
+
+// "‹ Hoy" arriba de la pantalla a la que se llegó desde una tarea de Hoy.
+function volverAHoy(id) {
+  let desde = null;
+  try { desde = sessionStorage.getItem(CLAVE_DESDE_HOY); } catch (_e) { /* nada */ }
+  if (desde !== id) { if (desde && id !== 'hoy') { try { sessionStorage.removeItem(CLAVE_DESDE_HOY); } catch (_e) { /* nada */ } } return null; }
+  return h('a', { class: 'volver-hoy', href: '#/hoy', on: { click: () => { try { sessionStorage.removeItem(CLAVE_DESDE_HOY); } catch (_e) { /* nada */ } } } }, icon('atras', 20), h('span', { text: 'Hoy' }));
 }
 
 const VERSION_NUEVA = /does not provide an export named|dynamically imported module|Importing a module script failed|error loading dynamically imported|is not a valid JavaScript MIME/i;
@@ -142,6 +152,8 @@ async function ruta() {
   const [, id] = (location.hash || '').split('/');
   const vistas = vistasDe(ctx);
   const def = navDe(ctx)[0].id;
+  const alias = ALIAS[ctx.rol + '/' + id];
+  if (alias) { location.replace('#/' + alias); return; }
   if (!id || !vistas[id]) { location.replace('#/' + def); return; }
   const mi = ++ticket;
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
@@ -151,8 +163,9 @@ async function ruta() {
     const mod = await vistas[id]();
     if (mi !== ticket) return;
     const root = h('div', { class: 'vista' });
-    $view.replaceChildren(root);
-    const vctx = { ...ctx, alive: () => mi === ticket, ir: (r) => { location.hash = '#/' + r; } };
+    const volver = volverAHoy(id);
+    $view.replaceChildren(...(volver ? [volver, root] : [root]));
+    const vctx = { ...ctx, alive: () => mi === ticket, ir: (r) => { location.hash = '#/' + r; }, mas: masDe(ctx), quien: quienEs(ctx), salir: cerrarSesion };
     const res = await mod.render(root, vctx, id);
     if (mi === ticket && typeof res === 'function') limpiar = res;
     window.scrollTo(0, 0);
@@ -181,7 +194,7 @@ async function arrancar() {
   if (!perfil) return mostrarEntrar();
   if (perfil.sinPerfil || !['encargado', 'gerencia', 'contadora'].includes(perfil.rol)) {
     return pantallaSimple('Sin permisos', 'Tu usuario todavía no tiene permisos para esta app. Avisale a gerencia.',
-      h('button', { class: 'btn btn-ghost', type: 'button', text: 'Salir', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }));
+      h('button', { class: 'btn btn-ghost', type: 'button', text: 'Salir', on: { click: cerrarSesion } }));
   }
   if (perfil.rol === 'encargado' && !perfil.local_id) {
     return pantallaSimple('Sin local', 'Tu usuario no tiene un local asignado. Avisale a gerencia.', h('button', { class: 'btn btn-ghost', type: 'button', text: 'Salir', on: { click: async () => { ctx = null; await salir(); mostrarEntrar(); } } }));
