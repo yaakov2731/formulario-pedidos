@@ -15,7 +15,7 @@ const check = (n, ok, x) => { console.log((ok ? 'OK   ' : 'FAIL ') + n + (!ok &&
 
 const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'css/stock.css', 'vendor/supabase.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png', 'icons/icon.svg',
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
-  'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
+  'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/sugerido.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-resumen.js', 'js/ventas-global.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
   'js/g-hoy.js', 'js/hoy.js', 'js/compras-estado.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
@@ -34,14 +34,17 @@ check('todo el SHELL del SW existe', shell.every(f => fs.existsSync(S(f))), shel
 
 // Vistas del encargado: sin costos ni umbrales internos visibles.
 const permitido = (t) => t.replace(/pedido m[ií]nimo/gi, '').replace(/tiene_minimo/g, '');
-for (const f of ['js/pedir.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js', 'js/hoy.js']) {
+for (const f of ['js/pedir.js', 'js/sugerido.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js', 'js/hoy.js']) {
   const t = permitido(read(f));
   check(`${f}: sin "precio"/"costo"`, !/precio|costo|importe/i.test(t));
   check(`${f}: sin "mínimo" ni "par" visibles`, !/m[ií]nimo/i.test(t) && !/\bpar\b/i.test(t));
 }
 check('encargado no importa vistas de gerencia', !/from '\.\/(g-[a-z-]+|nucleo|analisis|datos|aviso|pagos-util|comprobante|pdf-texto)\.js'/.test(read('js/pedir.js') + read('js/entrar.js')));
 check('encargado: ni ventas, recetas, producción ni lector de Excel en pedir.js/entrar.js', !/ventas|receta|producci[oó]n|xlsx|merma|importar_/i.test(read('js/pedir.js') + read('js/entrar.js')));
-check('encargado: Pedir arranca vacío (sin pedido precargado)', !/cargarSugerido|sugeridoDe/.test(read('js/pedir.js')));
+check('fase 4: Pedir trae el sugerido cargado (sugerido.js), sin historial lo deja vacío y Mis pedidos queda abajo de Pedir',
+  /from '\.\/sugerido\.js'/.test(read('js/pedir.js')) && /Sin historial todavía/.test(read('js/pedir.js')) && /seccionMis\(/.test(read('js/pedir.js'))
+  && !/renderMis/.test(read('js/pedir.js')) && /'mis-pedidos': \(\) => import\('\.\/pedir\.js'\)/.test(read('js/main.js')) && read('sw.js').includes('./js/sugerido.js'));
+check('fase 4: el sugerido no usa la cantidad ideal ni precios (solo consumo, lo que queda y lo pedido)', !/\.par\b|precio|costo|importe/i.test(read('js/sugerido.js')) && !/cargarSugerido/.test(read('js/pedir.js')));
 const main = read('js/main.js');
 const navEnc = (main.match(/encargado: \[[\s\S]*?\],\s*gerencia:/) || [''])[0];
 check('el menú del encargado no tiene Ventas ni Cocina', navEnc.length > 0 && !/ventas|recetas|merma|produccion/.test(navEnc));

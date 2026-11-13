@@ -1,38 +1,59 @@
-// Vista del encargado: Pedir, Revisar pedido y Mis pedidos.
-import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS, esBulto, factorDe, textoStock, plural } from './util.js';
-import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError } from './api.js';
+// Vista del encargado: Pedir (con el pedido sugerido cargado), Revisar pedido y, abajo de Pedir, Mis pedidos.
+import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS, esBulto, factorDe, textoStock, plural, hoyISO } from './util.js';
+import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError, datosSugerido } from './api.js';
 import { icon, stepper, esqueleto, vacio, banner, toast, campo, tituloGrande, botonFijo } from './ui.js';
+import { sugerencias, entregaDe } from './sugerido.js';
 
-const S = { lid: null, uid: null, local: null, prods: [], stock: new Map(), provs: new Map(), draft: {}, guardado: null, listo: false, offline: false };
+const S = { lid: null, uid: null, local: null, prods: [], stock: new Map(), provs: new Map(), draft: {}, guardado: null, listo: false, offline: false,
+  cons: new Map(), pend: new Map(), sug: new Map(), mis: null, misErr: null };
 const SIN_PROV = '__sin__';
 
-// Cada encargado arma su propio pedido del local, que queda guardado en el celular hasta que lo envía (no hay pedido precargado).
+// Cada encargado arma su propio pedido del local, que queda guardado en el celular hasta que lo envía. Arranca con el sugerido:
+// en el borrador queda solo lo que el encargado tocó (también un 0, que quiere decir "esto no"). Los 0 valen para la semana
+// de pedido en curso (de jueves a miércoles); las cantidades cargadas, 21 días como antes.
 const claveBorrador = () => 'pedido:' + S.lid + ':' + (S.uid || '');
+const semanaPedido = (d = new Date()) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 3) % 7)); return x.getTime(); };
 function cargarBorrador() {
   const d = lsGet(claveBorrador());
   const vigente = d && d.t && Date.now() - d.t < 21 * 864e5;
-  S.draft = vigente ? Object.fromEntries(Object.entries(d.q || {}).filter(([, v]) => v > 0)) : {};
+  const mismaSemana = vigente && d.sem === semanaPedido();
+  S.draft = vigente ? Object.fromEntries(Object.entries(d.q || {}).filter(([, v]) => v > 0 || (v === 0 && mismaSemana))) : {};
   S.guardado = vigente && Object.keys(S.draft).length ? d.t : null;
 }
 function guardarBorrador() {
-  for (const k of Object.keys(S.draft)) if (!(S.draft[k] > 0)) delete S.draft[k];
+  for (const k of Object.keys(S.draft)) if (!(S.draft[k] >= 0)) delete S.draft[k];
   S.guardado = Object.keys(S.draft).length ? Date.now() : null;
-  lsSet(claveBorrador(), { t: Date.now(), q: S.draft });
+  lsSet(claveBorrador(), { t: Date.now(), sem: semanaPedido(), q: S.draft });
 }
-const cantidad = (p) => S.draft[p.id] || 0;
+const tocado = (p) => Object.prototype.hasOwnProperty.call(S.draft, p.id);
+const cantidad = (p) => (tocado(p) ? S.draft[p.id] : (S.sug.get(p.id) || 0));
+const sinHistorial = (p) => S.sug.has(p.id) && S.sug.get(p.id) === null;
+const recalcular = () => { S.sug = sugerencias({ prods: S.prods, stock: S.stock, cons: S.cons, pend: S.pend, provs: S.provs }); };
 const quedan = (p) => S.stock.get(p.id) || 0;
 const pedidoActual = () => S.prods.filter(p => p.activo !== false && !esCarta(p) && cantidad(p) > 0);
 
 async function cargar(ctx, alActualizar) {
   const lid = ctx.perfil.local_id, uid = ctx.perfil.id || null;
-  if (S.lid !== lid || S.uid !== uid) { Object.assign(S, { lid, uid, prods: [], stock: new Map(), provs: new Map(), local: null, listo: false, jcat: null, jstk: null, jprv: null, jloc: null }); cargarBorrador(); }
-  const pon = (clave, fn) => (d, _cache, err) => { const j = JSON.stringify(d); if (j === (S['j' + clave])) return; S['j' + clave] = j; fn(d); S.offline = !!err; alActualizar(); };
+  if (S.lid !== lid || S.uid !== uid) {
+    Object.assign(S, { lid, uid, prods: [], stock: new Map(), provs: new Map(), local: null, listo: false, cons: new Map(), pend: new Map(), sug: new Map(), mis: null, misErr: null,
+      jcat: null, jstk: null, jprv: null, jloc: null, jsug: null, jmis: null });
+    cargarBorrador();
+  }
+  const pon = (clave, fn) => (d, _cache, err) => { const j = JSON.stringify(d); if (j === (S['j' + clave])) return; S['j' + clave] = j; fn(d); S.offline = !!err; recalcular(); alActualizar(); };
   const tareas = [
     swr('cat:' + lid, () => cargarCatalogo(lid), pon('cat', d => { S.prods = d; })),
     swr('stk:' + lid, () => cargarStock(lid), pon('stk', d => { S.stock = new Map(d.map(r => [r.producto_id, Number(r.stock)])); })),
     swr('provb', cargarProveedoresBasico, pon('prv', d => { S.provs = new Map(d.map(p => [p.id, p])); })),
     swr('locales', cargarLocales, pon('loc', d => { S.local = d.find(l => l.id === lid) || d[0] || null; }))
   ];
+  // El sugerido y Mis pedidos no frenan la pantalla: si fallan, Pedir anda igual (sin sugerido: "Sin historial todavía").
+  const hoy = hoyISO();
+  swr('sug:' + lid, () => datosSugerido(lid, hoy), pon('sug', d => { if (d && d.hoy === hoy) { S.cons = new Map(d.cons); S.pend = new Map(d.pend); } })).catch(() => {});
+  if (!ctx.gerencia) swr('ord:' + lid, () => misOrdenes(lid), (d, _c, e) => {
+    S.misErr = e ? 'Sin conexión: mostrando lo último que guardamos.' : null;
+    const j = JSON.stringify(d); if (j === S.jmis) return; S.jmis = j; S.mis = d; alActualizar();
+  })
+    .catch((e) => { if (!S.mis) { S.mis = []; S.misErr = mensajeError(e); alActualizar(); } });
   const res = await Promise.allSettled(tareas);
   S.listo = true;
   const fallo = res.find(r => r.status === 'rejected');
@@ -43,12 +64,13 @@ async function cargar(ctx, alActualizar) {
 
 // ---------- render principal ----------
 export async function render(root, ctx, id) {
-  if (id === 'mis-pedidos') return renderMis(root, ctx);
   let pinta;
   const act = rafOnce(() => pinta && pinta());
   if (S.lid !== ctx.perfil.local_id) { S.lid = null; }
+  // #/mis-pedidos (ruta vieja y destino después de enviar) abre Pedir con Mis pedidos a la vista.
+  const opc = { aMis: id === 'mis-pedidos' && !ctx.gerencia };
   if (id === 'revisar') pinta = () => pintarRevisar(root, ctx);
-  else pinta = () => pintarPedir(root, ctx);
+  else pinta = () => pintarPedir(root, ctx, opc);
   const p = cargar(ctx, () => { if (ctx.alive()) act(); });
   try { await p; } catch (e) { if (!S.prods.length) throw e; }
   if (ctx.alive()) pinta();
@@ -67,7 +89,7 @@ const MI_PEDIDO = '__mio__';
 let extraIds = null; // ids que devolvió la búsqueda del servidor
 let listaPrevia = null; // al repintar con datos frescos se mantiene lo que ya se veía
 
-function pintarPedir(root, ctx) {
+function pintarPedir(root, ctx, opc = {}) {
   const nombreLocal = S.local ? S.local.nombre : '';
   const aviso = avisoCierre();
   const activos = S.prods.filter(p => p.activo !== false && !esCarta(p));
@@ -78,38 +100,53 @@ function pintarPedir(root, ctx) {
 
   const lista = h('div', { class: 'lista', id: 'lista-prod' });
   const pill = botonFijo('', () => ctx.ir('revisar'), { clase: 'pill', hidden: true });
+  const conSug = [...S.sug.values()].some(v => v > 0);
 
   const estado = h('div', { class: 'borrador', 'aria-live': 'polite' });
   const chipMio = h('button', { class: 'chip chip-mio', type: 'button' });
   const actualizarPill = () => {
     const n = pedidoActual().length;
     pill.hidden = n === 0;
-    pill.replaceChildren(icon('pedir', 20), h('span', { text: `Revisar pedido · ${n} ${n === 1 ? 'ítem' : 'ítems'}` }));
+    pill.replaceChildren(icon('pedir', 20), h('span', { text: `Confirmar pedido · ${n} ${n === 1 ? 'ítem' : 'ítems'}` }));
     chipMio.textContent = n ? `En mi pedido · ${n}` : 'En mi pedido';
-    estado.hidden = n === 0;
-    if (n) {
+    // El aviso de "guardado" aparece cuando el encargado tocó algo (lo sugerido no hace falta guardarlo).
+    const tocados = Object.keys(S.draft).length;
+    estado.hidden = !tocados || (n === 0 && !conSug);
+    if (!estado.hidden) {
       const hora = S.guardado ? new Date(S.guardado).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
-      estado.replaceChildren(icon('check', 16), h('span', { text: `Tu pedido de ${nombreLocal || 'este local'} está guardado${hora ? ' (' + hora + ')' : ''}. Seguí cuando quieras.` }),
-        h('button', { class: 'btn btn-text', type: 'button', text: 'Vaciar', on: { click: vaciar } }));
+      estado.replaceChildren(icon('check', 16), h('span', { text: n ? `Tu pedido de ${nombreLocal || 'este local'} está guardado${hora ? ' (' + hora + ')' : ''}. Seguí cuando quieras.` : 'Pedido vacío.' }),
+        conSug ? h('button', { class: 'btn btn-text', type: 'button', text: 'Volver al sugerido', on: { click: alSugerido } }) : null,
+        n ? h('button', { class: 'btn btn-text', type: 'button', text: 'Vaciar', on: { click: vaciar } }) : null);
     }
   };
   function vaciar() {
-    if (!confirm('¿Vaciar el pedido? Se borran todas las cantidades que cargaste.')) return;
-    S.draft = {}; guardarBorrador();
+    if (!confirm('¿Vaciar el pedido? Se borran todas las cantidades, también las sugeridas.')) return;
+    S.draft = {};
+    for (const [id, v] of S.sug) if (v > 0) S.draft[id] = 0;
+    guardarBorrador();
     if (filtro.cat === MI_PEDIDO) filtro.cat = 'todas';
+    pintarPedir(root, ctx);
+  }
+  function alSugerido() {
+    if (!confirm('¿Volver al pedido sugerido? Se borran los cambios que hiciste.')) return;
+    S.draft = {}; guardarBorrador();
     pintarPedir(root, ctx);
   }
 
   const fila = (p) => {
     const q = cantidad(p);
+    // Sin historial suficiente: campo vacío y el aviso; nunca un número inventado.
+    const vacioSinHist = sinHistorial(p) && !tocado(p);
     const st = stepper({ value: q, label: `Pedir ${p.nombre}`, onChange: (v) => {
       S.draft[p.id] = v; guardarBorrador(); actualizarPill();
       row.classList.toggle('is-on', v > 0);
     } });
-    const row = h('article', { class: 'prod prod-fila' + (q > 0 ? ' is-on' : ''), 'data-id': p.id },
+    if (vacioSinHist) st.el.querySelector('input').value = '';
+    const row = h('article', { class: 'prod prod-fila' + (q > 0 ? ' is-on' : ''), 'data-id': p.id, 'data-sug': S.sug.has(p.id) ? String(S.sug.get(p.id)) : null },
       h('h3', { class: 'prod-n', text: p.nombre }),
       h('p', { class: 'prod-m' }, p.unidad_compra ? h('span', { class: 'prod-u', text: esBulto(p) ? `${p.unidad_compra} de ${fmtNum(factorDe(p), 3)} ${plural(p.unidad_uso, factorDe(p))}` : p.unidad_compra }) : null,
-        h('span', { class: 'quedan' }, 'Quedan ', h('b', { class: 'num', text: esBulto(p) ? textoStock(p, quedan(p)) : fmtNum(quedan(p), 2) || '0' }))),
+        h('span', { class: 'quedan' }, 'Quedan ', h('b', { class: 'num', text: esBulto(p) ? textoStock(p, quedan(p)) : fmtNum(quedan(p), 2) || '0' })),
+        sinHistorial(p) ? h('span', { class: 'sin-hist', text: 'Sin historial todavía' }) : null),
       h('div', { class: 'prod-p' }, h('span', { class: 'prod-pl', text: 'Pedir' }), st.el));
     return row;
   };
@@ -146,13 +183,17 @@ function pintarPedir(root, ctx) {
       const empieza = (p) => (q && norm(p.nombre).startsWith(tokens(q)[0]) ? 0 : 1);
       porTandas(lista, vis.sort((a, b) => empieza(a) - empieza(b) || porTexto(a.nombre, b.nombre)).map(p => () => fila(p)), 60, inicial); return;
     }
-    const g = groupBy(vis, p => p.categoria || 'Sin categoría');
+    // Agrupado por proveedor (como se manda el pedido), con el corte de cada uno a la derecha. Sin proveedor, al final.
+    const g = groupBy(vis, p => (p.proveedor_id && S.provs.has(p.proveedor_id)) ? p.proveedor_id : SIN_PROV);
+    const nombreDe = (k) => (k === SIN_PROV ? 'Sin proveedor' : S.provs.get(k).nombre);
     const frag = [];
-    for (const k of [...g.keys()].sort(porTexto)) {
-      frag.push(() => h('h2', { class: 'cat-t', text: k }), ...g.get(k).map(p => () => fila(p)));
+    for (const k of [...g.keys()].sort((a, b) => (a === SIN_PROV) - (b === SIN_PROV) || porTexto(nombreDe(a), nombreDe(b)))) {
+      const corte = k === SIN_PROV ? '' : entregaDe(nombreDe(k)).corte;
+      frag.push(() => h('h2', { class: 'cat-t pv-t', 'data-prov': nombreDe(k) }, h('span', { class: 'pv-n', text: nombreDe(k) }), corte ? h('span', { class: 'pv-c', text: corte }) : null),
+        ...g.get(k).sort((a, b) => porTexto(a.nombre, b.nombre)).map(p => () => fila(p)));
     }
     if (nOcultos) frag.push(() => h('p', { class: 'mas-buscar' }, icon('buscar', 16), h('span', { text: `Hay ${nOcultos} productos más que se piden poco. Buscalos por nombre arriba.` })));
-    porTandas(lista, frag, 60, inicial);
+    porTandas(lista, frag, 60, opc.aMis ? frag.length : inicial);
   };
 
   const buscarRemoto = debounce(async (q) => {
@@ -182,13 +223,16 @@ function pintarPedir(root, ctx) {
 
   const previo = listaPrevia && listaPrevia.isConnected ? listaPrevia._n : 0;
   listaPrevia = lista;
+  const mis = ctx.gerencia ? null : seccionMis();
   mount(root,
     cabecera('Pedir', nombreLocal),
     S.offline ? banner('Sin conexión: mostrando lo último que guardamos.', 'warn') : null,
     aviso.tipo === 'ok' ? h('p', { class: 'aviso-ok', text: aviso.texto }) : banner(aviso.texto, aviso.tipo === 'warn' ? 'warn' : 'info'),
     h('div', { class: 'toolbar toolbar-fija' }, caja, chips),
-    estado, lista, pill);
+    estado, lista, mis, pill);
   pintarLista(previo); actualizarPill();
+  // Se busca la sección al momento de scrollear: si otro repintado llega antes, la de este ya no está en la página.
+  if (opc.aMis && mis && S.mis) requestAnimationFrame(() => { const m = root.querySelector('#mis-pedidos'); if (m && opc.aMis) { opc.aMis = false; m.scrollIntoView({ block: 'start' }); } });
 }
 
 // ---------- Revisar ----------
@@ -258,11 +302,13 @@ function pintarRevisar(root, ctx) {
           enviado.ordenes[g.key] = oid;
         }
         await agregarItems(oid, g.items.map(p => ({ producto_id: p.id, cantidad: cantidad(p) })));
-        g.items.forEach(p => { S.draft[p.id] = 0; });
+        // Lo enviado pasa a "pedido sin recibir" (el sugerido lo descuenta) y queda en 0 hasta la semana de pedido siguiente:
+        // si el encargado pidió menos de lo sugerido, la app no vuelve a insistir con la diferencia.
+        g.items.forEach(p => { S.pend.set(p.id, (S.pend.get(p.id) || 0) + cantidad(p)); S.draft[p.id] = 0; });
         enviado.hechos.add(g.key); ok++;
       } catch (e) { fallos++; err.append(banner(`${g.nombre}: ${mensajeError(e)}`, 'error')); }
     }
-    guardarBorrador();
+    recalcular(); guardarBorrador();
     if (!fallos) {
       enviado = { ordenes: {}, hechos: new Set() };
       toast(ctx.gerencia ? `Pedido de ${S.local ? S.local.nombre : 'el local'} cargado: quedó en Pedidos para revisar.` : 'Pedido enviado. Gerencia lo revisa.', 'ok');
@@ -280,33 +326,24 @@ function pintarRevisar(root, ctx) {
     err, btn);
 }
 
-// ---------- Mis pedidos ----------
-async function renderMis(root, ctx) {
-  const lid = ctx.perfil.local_id;
-  mount(root, cabecera('Mis pedidos'), esqueleto(4));
-  let provs = new Map(), prods = new Map();
-  const pintar = (ordenes, err) => {
-    if (!ctx.alive()) return;
-    const cab = cabecera('Mis pedidos', S.local ? S.local.nombre : '');
-    if (!ordenes.length) { mount(root, cab, err ? banner(err, 'warn') : null, vacio('Todavía no enviaste pedidos', 'Cuando envíes uno, lo ves acá.'), h('a', { class: 'btn btn-primary', href: '#/pedir', text: 'Hacer un pedido' })); return; }
-    mount(root, cab, err ? banner(err, 'warn') : null, h('div', { class: 'ped-lista' }, ordenes.map(o => {
-      const items = (o.orden_items || []).filter(i => Number(i.cantidad_pedida) > 0); // sin lo que gerencia agregó al recibir
-      const det = h('ul', { class: 'ped-items', hidden: true }, items.map(i => { const p = prods.get(i.producto_id); return h('li', {}, h('span', { text: p ? p.nombre : 'Producto' }), h('b', { class: 'num', text: fmtNum(i.cantidad_pedida, 3) + (p && p.unidad_compra ? ' ' + p.unidad_compra : '') })); }));
-      const prov = provs.get(o.proveedor_id);
-      return h('article', { class: 'ped' },
-        h('button', { class: 'ped-b', type: 'button', 'aria-expanded': 'false', on: { click: (e) => { const b = e.currentTarget; det.hidden = !det.hidden; b.setAttribute('aria-expanded', String(!det.hidden)); } } },
-          h('span', { class: 'ped-prov', text: prov ? prov.nombre : (o.proveedor_id ? 'Proveedor' : 'Sin proveedor') }),
-          h('span', { class: 'estado estado-' + o.estado, text: ESTADOS[o.estado] || o.estado }),
-          h('span', { class: 'ped-meta', text: `${fechaCorta(o.creado_en)} · ${items.length} ${items.length === 1 ? 'ítem' : 'ítems'}${o.cargado_por_nombre ? ' · ' + o.cargado_por_nombre : ''}` })),
-        det, o.nota ? h('p', { class: 'ped-nota', text: 'Nota: ' + o.nota }) : null);
-    })));
-  };
-  try {
-    await Promise.allSettled([
-      swr('provb', cargarProveedoresBasico, (d) => { provs = new Map(d.map(p => [p.id, p])); }),
-      swr('cat:' + lid, () => cargarCatalogo(lid), (d) => { prods = new Map(d.map(p => [p.id, p])); }),
-      swr('locales', cargarLocales, (d) => { S.local = d.find(l => l.id === lid) || d[0] || null; })
-    ]);
-    await swr('ord:' + lid, () => misOrdenes(lid), (d, esCache, e) => pintar(d, e ? 'Sin conexión: mostrando lo último que guardamos.' : null));
-  } catch (e) { if (ctx.alive()) mount(root, cabecera('Mis pedidos'), banner(mensajeError(e), 'error')); }
+// ---------- Mis pedidos (sección abajo de Pedir) ----------
+const MAX_MIS = 20;
+function seccionMis() {
+  const sec = h('section', { class: 'mis', id: 'mis-pedidos', 'aria-label': 'Mis pedidos' }, h('h2', { class: 'cat-t mis-t', text: 'Mis pedidos' }));
+  if (S.mis === null) { sec.append(esqueleto(2)); return sec; }
+  if (S.misErr) sec.append(banner(S.misErr, 'warn'));
+  if (!S.mis.length) { sec.append(h('p', { class: 'mis-vacio', text: 'Todavía no enviaste pedidos.' })); return sec; }
+  const prods = new Map(S.prods.map(p => [p.id, p]));
+  sec.append(h('div', { class: 'ped-lista' }, S.mis.slice(0, MAX_MIS).map(o => {
+    const items = (o.orden_items || []).filter(i => Number(i.cantidad_pedida) > 0); // sin lo que gerencia agregó al recibir
+    const det = h('ul', { class: 'ped-items', hidden: true }, items.map(i => { const p = prods.get(i.producto_id); return h('li', {}, h('span', { text: p ? p.nombre : 'Producto' }), h('b', { class: 'num', text: fmtNum(i.cantidad_pedida, 3) + (p && p.unidad_compra ? ' ' + plural(p.unidad_compra, Number(i.cantidad_pedida)) : '') })); }));
+    const prov = S.provs.get(o.proveedor_id);
+    return h('article', { class: 'ped' },
+      h('button', { class: 'ped-b', type: 'button', 'aria-expanded': 'false', on: { click: (e) => { const b = e.currentTarget; det.hidden = !det.hidden; b.setAttribute('aria-expanded', String(!det.hidden)); } } },
+        h('span', { class: 'ped-prov', text: prov ? prov.nombre : (o.proveedor_id ? 'Proveedor' : 'Sin proveedor') }),
+        h('span', { class: 'estado estado-' + o.estado, text: ESTADOS[o.estado] || o.estado }),
+        h('span', { class: 'ped-meta', text: `${fechaCorta(o.creado_en)} · ${items.length} ${items.length === 1 ? 'ítem' : 'ítems'}${o.cargado_por_nombre ? ' · ' + o.cargado_por_nombre : ''}` })),
+      det, o.nota ? h('p', { class: 'ped-nota', text: 'Nota: ' + o.nota }) : null);
+  })));
+  return sec;
 }
