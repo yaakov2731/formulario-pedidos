@@ -12,7 +12,7 @@ const SUGERIDOS = ['Cámara', 'Freezer', 'Heladera', 'Depósito', 'Barra', 'Coci
 export async function render(root, ctx) {
   const esGerencia = ctx.rol === 'gerencia';
   const cab = h('header', { class: 'vista-head' },
-    esGerencia ? null : h('a', { class: 'btn btn-ghost lug-volver', href: '#/hoja' }, h('span', { 'aria-hidden': 'true', text: '← ' }), h('span', { text: 'Hoja' })),
+    esGerencia ? null : h('a', { class: 'volver lug-volver', href: '#/hoja' }, icon('atras', 20), h('span', { text: 'Hoja' })),
     h('h1', { class: 'titulo', text: 'Lugares' }),
     h('p', { class: 'sub', text: 'Dónde está cada cosa y en qué orden se cuenta' }));
   const nav = esGerencia ? subnav(SUBNAV_STOCK, 'lugares') : null;
@@ -90,8 +90,8 @@ export async function render(root, ctx) {
       h('div', { class: 'lug-fila-t' }, h('b', { text: p.nombre }), h('span', { text: p.categoria || 'Sin categoría' })),
       sel,
       l !== SIN_LUGAR ? h('div', { class: 'lug-flechas' },
-        h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Subir ${p.nombre}`, disabled: i === 0, on: { click: () => correr(ids, i, -1) } }, h('span', { 'aria-hidden': 'true', text: '↑' })),
-        h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Bajar ${p.nombre}`, disabled: i === ids.length - 1, on: { click: () => correr(ids, i, 1) } }, h('span', { 'aria-hidden': 'true', text: '↓' }))) : null);
+        h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Subir ${p.nombre}`, disabled: i === 0, on: { click: () => correr(ids, i, -1) } }, icon('arriba', 20)),
+        h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Bajar ${p.nombre}`, disabled: i === ids.length - 1, on: { click: () => correr(ids, i, 1) } }, icon('abajo', 20))) : null);
   }
   function seccion(l, k) {
     const ids = en.get(l) || [];
@@ -103,8 +103,8 @@ export async function render(root, ctx) {
       h('header', { class: 'lug-sec-h' },
         h('div', { class: 'lug-sec-t' }, h('h2', { class: 'cat-t', text: esSin ? 'Sin lugar' : `${k + 1}. ${l}` }), h('span', { class: 'lug-sec-c', text: `${ids.length} ${ids.length === 1 ? 'producto' : 'productos'}` })),
         esSin ? null : h('div', { class: 'lug-flechas' },
-          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Contar ${l} antes`, disabled: k === 0, on: { click: () => correr(orden, k, -1) } }, h('span', { 'aria-hidden': 'true', text: '↑' })),
-          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Contar ${l} después`, disabled: k === orden.length - 1, on: { click: () => correr(orden, k, 1) } }, h('span', { 'aria-hidden': 'true', text: '↓' })),
+          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Contar ${l} antes`, disabled: k === 0, on: { click: () => correr(orden, k, -1) } }, icon('arriba', 20)),
+          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Contar ${l} después`, disabled: k === orden.length - 1, on: { click: () => correr(orden, k, 1) } }, icon('abajo', 20)),
           h('button', { class: 'icon-btn lug-borrar', type: 'button', 'aria-label': `Borrar el lugar ${l}`, title: 'Borrar lugar', on: { click: () => borrarLugar(l) } }, icon('basura', 18)))),
       ids.length
         ? h('ol', { class: 'lug-filas' }, vis.map(([id, i]) => fila(id, l, i, ids)))
@@ -152,8 +152,8 @@ export async function render(root, ctx) {
   armar();
   mount(root, cab, nav, locales.el,
     h('p', { class: 'lug-ayuda', text: esGerencia
-      ? 'Ordená los lugares como se camina el local y, en cada uno, los productos como están en los estantes. El encargado los cuenta en ese orden.'
-      : 'Agregá los lugares del local (Cámara, Freezer, Depósito…) y pasá a cada uno lo que hay ahí: de a uno o toda una categoría junta. Ordenalos como se camina el local. Después, en Contar, elegís un lugar y contás en ese orden.' }),
+      ? 'En el orden en que se camina el local: así se cuenta.'
+      : 'Cámara, freezer, depósito… en el orden en que se camina el local.' }),
     herramientas, h('div', { class: 'toolbar-fija' }, buscador), lista, btn);
   pintar();
   const avisar = (e) => { if (sucio) { e.preventDefault(); e.returnValue = ''; } };

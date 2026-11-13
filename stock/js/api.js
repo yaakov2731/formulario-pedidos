@@ -1,5 +1,6 @@
 // Acceso a Supabase: cliente, sesión, caché stale-while-revalidate y errores en español.
-import { lsGet, lsSet, lsDel } from './util.js';
+import { lsGet, lsSet, lsDel, sumarDias } from './util.js';
+import { consumoPorProducto, pendientePorProducto, VENTANA, DIAS_PENDIENTE } from './sugerido.js';
 
 const CFG = window.STOCK_CONFIG;
 export const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY, {
@@ -211,6 +212,20 @@ export async function vincularEncargado(localId) {
 }
 // De a 1000 como el catálogo: sin paginar, PostgREST cortaba en 1000 y con ~8.300 precios la mayoría de los productos figuraban sin precio.
 export const cargarPrecios = () => todo(() => sb.from('precio_actual').select('producto_id,precio').order('producto_id'));
+// Historial de precios (cada cambio queda en la tabla precios): para avisar subas al recibir y en Hoy. Solo gerencia (RLS).
+const COLS_PRECIO = 'producto_id,proveedor_id,precio,fecha,creado_en,origen';
+export async function historialPrecios(productoIds) {
+  const ids = [...new Set(productoIds)].filter(Boolean), out = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    out.push(...await ok(await sb.from('precios').select(COLS_PRECIO).in('producto_id', ids.slice(i, i + 100)).order('fecha', { ascending: false }).order('creado_en', { ascending: false }).limit(2000)));
+  }
+  return out;
+}
+// Precios guardados desde una fecha (aaaa-mm-dd) y los anteriores de esos mismos productos, para comparar.
+export async function subasDesde(desde) {
+  const nuevos = await ok(await sb.from('precios').select(COLS_PRECIO).gte('fecha', desde).in('origen', ['recepcion', 'factura']).order('fecha', { ascending: false }).limit(1000));
+  return nuevos.length ? historialPrecios(nuevos.map(r => r.producto_id)) : [];
+}
 export const buscarServidor = async (q, localId) => ok(await sb.rpc('buscar_productos', { q, p_local: localId || null }));
 
 export async function misOrdenes(localId) {
@@ -533,3 +548,20 @@ export const hojaAnotar = async (localId, sector, fecha, productoId, tipo, canti
 export const hojaBorrar = async (id) => ok(await sb.rpc('hoja_borrar', { p_id: id }));
 export const cargarDestinos = (localId) => todo(() => sb.from('destinos').select('id,nombre').eq('local_id', localId).order('nombre').order('id'));
 export const sinHojaSQL = (e) => !!(e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /hoja_movs|hoja_contar|hoja_anotar|destinos/.test(e.message || '')));
+
+// ---- Pedido sugerido (fase 4, sugerido.js) ----
+// Salidas de stock y hoja por sector de las últimas 4 semanas, y lo pedido sin recibir, ya resumidos por producto (la caché
+// guarda poco). Sin lo pedido no se sugiere (se volvería a pedir lo que está por llegar): esa consulta tiene que andar.
+// De las otras dos alcanza con una; si fallan las dos, no hay sugerido ("Sin historial todavía").
+export async function datosSugerido(localId, hoy) {
+  const desde = sumarDias(hoy, -(VENTANA + 1));
+  const nada = Symbol('nada');
+  const [movs, hoja, ords] = await Promise.all([
+    movimientosLocal(localId, desde).catch(() => nada),
+    hojaRango(localId, desde, hoy).catch(() => nada),
+    ordenesLocalDesde(localId, sumarDias(hoy, -(DIAS_PENDIENTE + 1)))
+  ]);
+  if (movs === nada && hoja === nada) throw new Error('Sin datos para el sugerido');
+  const cons = consumoPorProducto({ movs: movs === nada ? [] : movs, hoja: hoja === nada ? [] : hoja, hoy });
+  return { hoy, cons: [...cons], pend: [...pendientePorProducto(ords, hoy)] };
+}

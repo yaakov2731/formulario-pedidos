@@ -1,5 +1,5 @@
 // Gerencia · Merma y control: consumo teórico (ventas + producción) contra los ajustes por conteo, valuados al costo actual.
-import { mount, h, fmtNum, fmtMoney, hoyISO, sumarDias } from './util.js';
+import { mount, h, fmtNum, fmtMoney, hoyISO, sumarDias, plural } from './util.js';
 import { mermaControl, mensajeError } from './api.js';
 import { cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, banner, subnav, barraFila, campo, SUBNAV_VENTAS } from './ui.js';
@@ -46,7 +46,7 @@ export async function render(root, ctx) {
         kpi('Productos con conteo', fmtNum(filas.filter(f => f.ajuste !== 0).length, 0), `${sobrantes.length} con sobrante`)),
       h('section', { class: 'bloque' }, h('h2', { class: 'bloque-t', text: 'Faltantes más caros' }),
         faltantes.length ? h('ul', { class: 'barras' }, faltantes.slice(0, 10).map(f => barraFila(f.nombre, f.valor_ajuste === null ? 'sin costo' : fmtMoney(Math.abs(f.valor_ajuste)), Math.abs(f.valor_ajuste || 0) / peor,
-          `Faltan ${fmtNum(Math.abs(f.ajuste), 3)} ${un(f)} · se esperaba usar ${fmtNum(f.teorico, 3)}`))) : h('p', { class: 'mute centro', text: 'Los conteos no dejaron faltantes.' })),
+          `Faltan ${fmtNum(Math.abs(f.ajuste), 3)} ${plural(un(f), Math.abs(f.ajuste))} · se esperaba usar ${fmtNum(f.teorico, 3)}`))) : h('p', { class: 'mute centro', text: 'Los conteos no dejaron faltantes.' })),
       h('section', { class: 'bloque' }, h('h2', { class: 'bloque-t', text: 'Consumo por producto' }),
         h('div', { class: 'tabla', role: 'table', 'aria-label': 'Consumo teórico contra conteo' },
           h('div', { class: 'tabla-h', role: 'row' }, h('span', { role: 'columnheader', text: 'Producto' }), h('span', { role: 'columnheader', text: 'Teórico' }), h('span', { role: 'columnheader', text: 'Conteo' })),

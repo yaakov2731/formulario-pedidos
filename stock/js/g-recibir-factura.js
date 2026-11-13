@@ -4,7 +4,8 @@
 // si hay un pedido abierto del mismo proveedor y local, lo da por recibido y muestra lo que faltó.
 // #/recibir-factura/<id> abre una factura que subió un local (migración 0022) con sus archivos ya cargados.
 import { mount, h, fmtNum, fmtMoney, parseNum, porTexto, hoyISO, esCarta, tokens, coincide, norm, lsGet, lsSet, plural, fechaCorta } from './util.js';
-import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subirComprobante, facturaLocal, bajarComprobante, marcarFacturaLocal, guardarProducto, mensajeError } from './api.js';
+import { leerFactura, aliasProveedor, recibirConFactura, ordenesPorEstado, subirComprobante, facturaLocal, bajarComprobante, marcarFacturaLocal, guardarProducto, historialPrecios, mensajeError } from './api.js';
+import { subaPrecio, textoSuba, ultimoPrecio } from './compras-estado.js';
 import { G, cargarG, nombreLocal, codigoLocal, refrescarPrecio } from './datos.js';
 import { esqueleto, banner, campo, hoja, toast, icon, vacio } from './ui.js';
 import { proveedorDe, cruzarRenglones, compararConPedido, facturaParcial, unidadDeFactura, nombreDeFactura, proximoCodigo } from './factura-match.js';
@@ -14,9 +15,9 @@ import { achicarFoto, aBase64, base64ABlob, unirFotos, PDF_MAX } from './fotos.j
 const isoValido = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : '';
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Recibir con factura' }),
-    h('p', { class: 'sub', text: 'Sacale una foto a la factura o subí el PDF: la app lee los productos y suma el stock' }));
-  const volver = h('a', { class: 'btn btn-text', href: '#/recibir', text: '← Volver a Recibir' });
+  const volver = h('a', { class: 'volver', href: '#/recibir' }, icon('atras', 20), h('span', { text: 'Recibir' }));
+  const cab = h('header', { class: 'vista-head' }, volver, h('h1', { class: 'titulo', text: 'Recibir con factura' }),
+    h('p', { class: 'sub', text: 'La app lee la factura y suma el stock' }));
   mount(root, cab, esqueleto(3));
   try { await cargarG(['prods', 'provs', 'locales', 'precios'], () => {}); }
   catch (e) { if (ctx.alive()) mount(root, cab, banner(mensajeError(e), 'error')); return; }
@@ -44,7 +45,7 @@ export async function render(root, ctx) {
           pdf = { file, data: await aBase64(file) }; fotos = [];
         } else fotos.push({ file: blob, ...(await achicarFoto(new File([blob], `foto${i + 1}.jpg`, { type: blob.type || 'image/jpeg' }))) });
       }
-    } catch (e) { if (!ctx.alive()) return; subida = null; mount(root, cab, banner(mensajeError(e), 'error'), volver); return; }
+    } catch (e) { if (!ctx.alive()) return; subida = null; mount(root, cab, banner(mensajeError(e), 'error')); return; }
     if (!ctx.alive()) return;
   }
   const avisoSubida = () => (subida ? banner(`Factura que subió ${subida.subida_por_nombre || 'el encargado'} de ${nombreLocal(subida.local_id)} el ${fechaCorta(subida.creado_en)}`
@@ -66,7 +67,7 @@ export async function render(root, ctx) {
       drop.querySelector('.drop-t').textContent = pdf || fotos.length ? 'Agregar otra foto' : 'Sacar foto o elegir archivo';
     };
     const drop = h('label', { class: 'drop', for: 'rf-archivo' }, icon('recibir', 30), h('span', { class: 'drop-t', text: 'Sacar foto o elegir archivo' }),
-      h('span', { class: 'sub', text: 'Foto de la factura o remito (si es larga, varias fotos en orden) o el PDF que mandó el proveedor.' }), input);
+      h('span', { class: 'sub', text: 'Si es larga, varias fotos en orden. También PDF.' }), input);
     input.addEventListener('change', async () => {
       const files = [...input.files]; input.value = '';
       try {
@@ -85,7 +86,7 @@ export async function render(root, ctx) {
     });
     leer.addEventListener('click', () => leyendo());
     mount(root, cab, error ? banner(error, 'error') : null, avisoSubida(),
-      h('section', { class: 'bloque rf-paso' }, campo('Local que recibe', selLocal), drop, lista, leer), volver);
+      h('section', { class: 'bloque rf-paso' }, campo('Local que recibe', selLocal), drop, lista, leer));
     pintarFotos();
   }
 
@@ -152,6 +153,29 @@ export async function render(root, ctx) {
     const resumen = h('div', { class: 'rf-resumen' });
     const err = h('p', { class: 'form-err', role: 'alert' });
     let ordenSel = null;
+
+    // Suba de precio: cada renglón se compara con el último precio pagado del mismo producto a este proveedor
+    // (historial de la tabla precios). Mientras no llega, o si no se puede leer, con el precio actual del producto.
+    let historial = null;
+    const pedidos = new Set();
+    function pedirHistorial() {
+      const ids = filas.filter(x => x.producto && !pedidos.has(x.producto.id)).map(x => x.producto.id);
+      if (!ids.length) return;
+      ids.forEach(id => pedidos.add(id));
+      historialPrecios(ids).then((r) => { historial = [...(historial || []), ...r]; if (ctx.alive()) { filas.forEach(avisoSuba); pintarResumen(); } }).catch(() => { /* se compara con el precio actual */ });
+    }
+    const subaDe = (fila) => {
+      if (!fila.producto || !fila.incluir) return null;
+      const id = fila.producto.id;
+      const previo = historial && pedidos.has(id) ? ultimoPrecio(historial, id, f.prov.value || null) : (G.precios.has(id) ? G.precios.get(id) : null);
+      return subaPrecio(fila.precio, previo);
+    };
+    function avisoSuba(fila) {
+      if (!fila.subaEl) return;
+      const s = subaDe(fila);
+      fila.subaEl.hidden = !s;
+      fila.subaEl.textContent = s ? textoSuba(s) : '';
+    }
 
     const textoProv = () => {
       const leido = [fac.proveedor, fac.cuit ? 'CUIT ' + fac.cuit : ''].filter(Boolean).join(' · ');
@@ -277,7 +301,9 @@ export async function render(root, ctx) {
       const inQty = h('input', { class: 'input num inp-num', type: 'text', inputmode: 'decimal', value: fmtNum(fila.cantidad, 3), 'aria-label': `Cantidad de ${fila.r.descripcion}` });
       const inPr = h('input', { class: 'input num inp-num', type: 'text', inputmode: 'decimal', value: fila.precio == null ? '' : String(Math.round(fila.precio * 100) / 100).replace('.', ','), placeholder: '0', 'aria-label': `Precio unitario de ${fila.r.descripcion}` });
       inQty.addEventListener('input', () => { const v = parseNum(inQty.value); fila.cantidad = v === null || v < 0 ? 0 : v; pintarResumen(); });
-      inPr.addEventListener('input', () => { fila.precio = parseNum(inPr.value); pintarResumen(); });
+      inPr.addEventListener('input', () => { fila.precio = parseNum(inPr.value); avisoSuba(fila); pintarResumen(); });
+      fila.subaEl = h('p', { class: 'rec-suba', 'data-suba': '', 'aria-live': 'polite', hidden: true });
+      avisoSuba(fila);
       const chk = h('input', { type: 'checkbox', checked: fila.incluir, 'aria-label': `Recibir ${fila.r.descripcion}`, on: { change: (e) => { fila.incluir = e.target.checked; pintarLista(); } } });
       const unidadFac = [fmtNum(fila.r.cantidad, 3), fila.r.unidad].filter(Boolean).join(' ');
       const etiqueta = { alias: 'Como la última vez', codigo: 'Por código', nombre: 'Parecido', manual: 'Elegido', nuevo: 'Nuevo en el catálogo' }[fila.por] || '';
@@ -291,11 +317,13 @@ export async function render(root, ctx) {
             p && etiqueta ? h('span', { class: 'estado estado-' + (fila.por === 'nombre' ? 'aprobada' : 'recibida'), text: etiqueta }) : null) : h('p', { class: 'sub', text: 'No se recibe' }),
           fila.incluir ? h('div', { class: 'rec-campos' },
             h('label', { class: 'rec-c' }, h('span', { text: p && p.unidad_compra ? `Llegó (${plural(p.unidad_compra, 2)})` : 'Llegó' }), inQty),
-            h('label', { class: 'rec-c' }, h('span', { text: 'Precio unitario' }), inPr)) : null));
+            h('label', { class: 'rec-c' }, h('span', { text: 'Precio unitario' }), inPr)) : null,
+          fila.incluir ? fila.subaEl : null));
     }
 
     function pintarLista() {
       listaEl.replaceChildren(...(filas.length ? filas.map(filaEl) : [vacio('No se leyeron productos', 'Probá con una foto más clara o cargá la recepción a mano desde el pedido.')]));
+      pedirHistorial();
       pintarResumen();
     }
     function pintarResumen() {
@@ -308,6 +336,8 @@ export async function render(root, ctx) {
         sinProd ? h('button', { class: 'btn btn-ghost btn-block rf-crear-todos', type: 'button', text: sinProd === 1 ? 'Crear el que falta como producto nuevo' : `Crear los ${sinProd} que faltan como productos nuevos`, on: { click: crearFaltantes } }) : null,
         h('p', { class: 'sub' }, `Suma de renglones ${fmtMoney(suma)}`, total ? ` · Total factura ${fmtMoney(total)}` : '',
           total && fac.subtotal && Math.abs(suma - fac.subtotal) < Math.abs(suma - total) ? ' (los precios son sin IVA)' : '')];
+      const subas = act.filter(subaDe).length;
+      if (subas) partes.push(h('p', { class: 'rf-alerta rf-subas', text: `${subas} ${subas === 1 ? 'precio subió' : 'precios subieron'} más de 5 % contra la última compra` }));
       if (fac.observaciones) partes.push(banner('Al leer: ' + fac.observaciones, 'info'));
       if (ordenSel) {
         const cmp = compararConPedido(ordenSel, act.filter(x => x.producto).map(x => ({ producto_id: x.producto.id, cantidad: x.cantidad })));
@@ -317,7 +347,7 @@ export async function render(root, ctx) {
         else partes.push(h('p', { class: 'rf-ok', text: 'Llegó todo lo pedido.' }));
         if (cmp.deMas.length) partes.push(h('p', { class: 'sub', text: `No estaban en el pedido: ${cmp.deMas.map(nom).join(', ')}` }));
       }
-      resumen.replaceChildren(...partes);
+      resumen.replaceChildren(...partes.filter(Boolean));
     }
 
     const btn = h('button', { class: 'btn btn-primary btn-block', type: 'button', text: 'Confirmar recepción' });
@@ -350,7 +380,7 @@ export async function render(root, ctx) {
       } catch (e) { err.textContent = mensajeError(e); btn.disabled = false; btn.textContent = 'Confirmar recepción'; }
     });
 
-    f.prov.addEventListener('change', () => { textoProv(); pintarPedido(); pintarResumen(); });
+    f.prov.addEventListener('change', () => { textoProv(); pintarPedido(); filas.forEach(avisoSuba); pintarResumen(); });
     f.total.addEventListener('input', pintarResumen);
     textoProv(); pintarPedido();
     mount(root, cab,
@@ -364,7 +394,7 @@ export async function render(root, ctx) {
         h('label', { class: 'rf-check' }, f.guardar, h('span', { text: 'Guardar también la factura en Pagos (si ya estaba cargada, se usa esa)' })),
         pedidoBox),
       h('h2', { class: 'rf-h2', text: 'Productos de la factura' }), listaEl, resumen, err, btn,
-      h('button', { class: 'btn btn-text', type: 'button', text: 'Leer otra factura', on: { click: () => { fotos = []; pdf = null; paso1(); } } }), volver);
+      h('button', { class: 'btn btn-text', type: 'button', text: 'Leer otra factura', on: { click: () => { fotos = []; pdf = null; paso1(); } } }));
     pintarLista();
   }
 

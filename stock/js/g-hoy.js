@@ -1,13 +1,16 @@
 // Gerencia · Hoy (inicio, reemplaza al Tablero): lo que necesita una decisión, en listas agrupadas.
 //   Arriba, una línea con ventas, compras y margen de la semana (rpc tablero). Después: pedidos para aprobar por proveedor,
-//   entregas de hoy, facturas por vencer en 7 días, diferencias del día en $ (hoja por sector, a costo) y locales sin pedido
-//   o sin cierre. Lo que no está cargado dice "Falta cargar"; nunca se inventa un número.
+//   entregas de hoy, facturas por vencer en 7 días, pérdida de la semana por local (perdida.js: sin explicar + merma, a costo;
+//   toca → Stock → Control → Pérdida), diferencias del día en $ (hoja por sector, a costo) y locales sin pedido
+//   o sin cierre, y subas de precio de los últimos 7 días (más de 5 % contra la compra anterior al mismo proveedor; sin
+//   historial de precios la sección no aparece). Lo que no está cargado dice "Falta cargar"; nunca se inventa un número.
 import { mount, h, fmtNum, fmtMoney, hoyISO, sumarDias, jornadaISO, lsSet, porTexto, entregaHoy } from './util.js';
-import { tablero, facturasLista, ordenesPorEstado, ordenesHistorial, hojaRango, movimientosDesde, sinHojaSQL, mensajeError } from './api.js';
+import { tablero, facturasLista, ordenesPorEstado, ordenesHistorial, hojaRango, movimientosDesde, sinHojaSQL, subasDesde, mensajeError } from './api.js';
+import { subasRecientes } from './compras-estado.js';
 import { G, cargarG, nombreLocal } from './datos.js';
 import { esqueleto, vacio, banner, listaGrupo, filaLista, tituloGrande, selectorLocal, desdeHoy } from './ui.js';
 import { fechaDMA } from './pagos-util.js';
-import { calcularSector, TODOS } from './g-sector.js';
+import { calcularSector, TODOS, perdidaSemana, hayPerdida, lunesDe, deJornada } from './perdida.js';
 
 const MAX_FILAS = 6;
 // En la línea de la semana los millones van abreviados ("$ 4,12 M") para que entren en el celular; el monto completo queda en el title.
@@ -106,34 +109,41 @@ export async function render(root, ctx) {
     }
 
     // ---- diferencias del día y locales sin pedido o sin cierre (se completan después: leen la hoja de cada local) ----
-    const zonaHojas = h('div', { class: 'gh-hojas' }, listaGrupo('Diferencias del día', [filaLista({ texto: 'Revisando las hojas…', clase: 'gh-cargando' })]));
-    const pintar = (conHojas) => {
-      const hayAlgo = grupos.length || conHojas;
+    const zonaHojas = h('div', { class: 'gh-hojas' }, listaGrupo('Pérdida de la semana', [filaLista({ texto: 'Revisando las hojas…', clase: 'gh-cargando' })]));
+    // pendientes: cuántos grupos de las hojas piden algo (la pérdida de la semana se muestra siempre, pero no es una tarea).
+    const pintar = (conHojas, pendientes = 0) => {
+      const hayAlgo = grupos.length || pendientes;
       zona.replaceChildren(...[semana, errores.length ? banner('Parte de los datos no cargó: ' + errores[0], 'warn') : null,
-        ...grupos, conHojas === undefined ? zonaHojas : conHojas, !hayAlgo && conHojas !== undefined ? vacio('Todo listo por hoy') : null].filter(Boolean));
+        ...grupos, !hayAlgo && conHojas !== undefined ? vacio('Todo listo por hoy') : null, conHojas === undefined ? zonaHojas : conHojas].filter(Boolean));
     };
     pintar(undefined);
 
+    const desdeSubas = sumarDias(hoy, -7);
+    const pSubas = subasDesde(desdeSubas).catch(() => null);
     const lista = localId ? locales.filter(l => l.id === localId) : locales;
-    const jornada = jornadaISO(), ayer = sumarDias(jornada, -1);
+    const jornada = jornadaISO(), ayer = sumarDias(jornada, -1), lunesJ = lunesDe(jornada);
+    const desdeHoja = ayer < lunesJ ? ayer : lunesJ; // la hoja de la semana (pérdida) y la de ayer (diferencias, cierres)
     const [y, m, d] = ayer.split('-').map(Number);
-    const desdeAyer = new Date(y, m - 1, d, 6), finAyer = new Date(y, m - 1, d + 1, 6);
+    const finAyer = new Date(y, m - 1, d + 1, 6);
+    const [yh, mh, dh] = desdeHoja.split('-').map(Number);
+    const desdeMovs = new Date(yh, mh - 1, dh, 6);
     try { await cargarG(['prods', 'precios'], () => {}); } catch (_e) { /* sin costos: las diferencias dicen "Falta cargar costos" */ }
     const hojas = await Promise.all(lista.map(async (l) => {
       try {
-        const [hm, mv] = await Promise.all([hojaRango(l.id, ayer, jornada), movimientosDesde(l.id, desdeAyer.toISOString())]);
+        const [hm, mv] = await Promise.all([hojaRango(l.id, desdeHoja, jornada), movimientosDesde(l.id, desdeMovs.toISOString())]);
         return { l, hm: hm || [], mv: mv || [] };
       } catch (e) { return { l, error: e }; }
     }));
     if (mi !== vez || !ctx.alive()) return;
 
     const sinSQL = hojas.some(x => x.error && sinHojaSQL(x.error));
-    const difs = [], faltan = new Map();
+    const difs = [], faltan = new Map(), perdidas = [];
     const marcar = (l, motivo) => { if (!faltan.has(l.id)) faltan.set(l.id, { l, motivos: [] }); faltan.get(l.id).motivos.push(motivo); };
     for (const x of hojas) {
       if (x.error) continue;
       const deDia = (f) => x.hm.filter(r => r.fecha === f);
-      const vtas = (f) => x.mv.filter(r => { const t = Date.parse(r.creado_en); return f === ayer ? t < finAyer.getTime() : t >= finAyer.getTime(); });
+      const vtas = (f) => (f === ayer ? deJornada(x.mv, ayer) : x.mv.filter(r => Date.parse(r.creado_en) >= finAyer.getTime()));
+      perdidas.push({ l: x.l, ...perdidaSemana({ hoja: x.hm, movs: x.mv, desde: lunesJ, hasta: jornada, prods: G.prods, precios: G.precios }) });
       let dia = 'Hoy', r = diferenciaDia(deDia(jornada), vtas(jornada));
       if (!r.completos) { dia = 'Ayer'; r = diferenciaDia(deDia(ayer), vtas(ayer)); }
       if (r.productos) difs.push({ l: x.l, dia, ...r });
@@ -150,6 +160,19 @@ export async function render(root, ctx) {
     }
 
     const bloques = [];
+    // ---- pérdida de la semana por local: un número (sin explicar + merma, a costo), de mayor a menor ----
+    if (perdidas.length) {
+      const filas = perdidas.sort((a, b) => (hayPerdida(b) - hayPerdida(a)) || (b.total - a.total) || porTexto(a.l.nombre, b.l.nombre)).map(x => {
+        const con = hayPerdida(x);
+        const sinCosto = x.sinCosto.length ? ` · falta costo de ${x.sinCosto.length}` : '';
+        const sub = !con ? 'Sin cierres esta semana'
+          : (x.diasConCierre ? `Sin explicar ${fmtMoney(x.sinExplicar)}` : 'Sin explicar: faltan cierres') + ` · Merma ${fmtMoney(x.merma)}${sinCosto}`;
+        return filaLista({ texto: x.l.nombre, sub, valor: con ? fmtMoney(x.total) : 'Falta cargar', href: '#/perdida', chevron: true,
+          clase: 'gh-fila gh-perdida' + (con && x.total > 0 ? ' is-perdida' : ''), attrs: { 'data-grupo': 'perdida', 'data-local': x.l.id },
+          onClick: () => { lsSet('g:local', x.l.id); desdeHoy('perdida'); } });
+      });
+      bloques.push(listaGrupo('Pérdida de la semana', filas, { clase: 'gh-perdidas' }));
+    }
     if (difs.length) {
       const filas = difs.sort((a, b) => a.plata - b.plata).map(x => filaLista({ texto: x.l.nombre,
         sub: `${x.dia} · ${plural(x.productos, 'producto', 'productos')}${x.sinCosto ? ` · falta costo de ${x.sinCosto}` : ''}`,
@@ -165,8 +188,18 @@ export async function render(root, ctx) {
       });
       bloques.push(listaGrupo('Locales', filas, { clase: 'gh-locales' }));
     }
+    // ---- subas de precio de la semana (solo con historial de precios) ----
+    const histPrecios = await pSubas;
+    if (mi !== vez || !ctx.alive()) return;
+    const subas = subasRecientes(histPrecios || [], desdeSubas).filter(x => { const p = G.prods.get(x.producto_id); return p && enScope(p.local_id); });
+    if (subas.length) {
+      const filas = subas.slice(0, MAX_FILAS).map(x => { const p = G.prods.get(x.producto_id);
+        return filaLista({ texto: p.nombre, sub: [prov(x.proveedor_id), localId ? null : nombreLocal(p.local_id), `antes ${fmtMoney(x.previo)}`].filter(Boolean).join(' · '),
+          valor: `+${x.pct} %`, clase: 'gh-fila gh-suba', attrs: { 'data-grupo': 'subas', 'data-producto': x.producto_id } }); });
+      bloques.push(listaGrupo('Subas de precio', filas, { clase: 'gh-subas', pie: subas.length > MAX_FILAS ? `Y ${plural(subas.length - MAX_FILAS, 'suba más', 'subas más')} en los últimos 7 días` : null }));
+    }
     if (sinSQL) bloques.push(banner('Falta activar la hoja por sector en el servidor: no se pueden ver diferencias ni cierres.', 'warn'));
-    pintar(bloques.length ? h('div', { class: 'gh-hojas' }, ...bloques) : null);
+    pintar(bloques.length ? h('div', { class: 'gh-hojas' }, ...bloques) : null, bloques.length - (perdidas.length ? 1 : 0));
   }
 
   await cargar();

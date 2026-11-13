@@ -8,7 +8,7 @@ import { abrirConteo, TIPO_CONTEO } from './conteo-detalle.js';
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Conteos' }),
-    h('p', { class: 'sub', text: 'Lo que se contó en cada local. Si algo quedó mal, sacalo o borrá el conteo.' }));
+    h('p', { class: 'sub', text: 'Lo que se contó en cada local' }));
   const nav = subnav(SUBNAV_STOCK, 'conteos');
   mount(root, cab, nav, esqueleto(4));
   try { await cargarG(['prods', 'locales']); } catch (e) { toast('No se pudo cargar: ' + mensajeError(e), 'error'); }

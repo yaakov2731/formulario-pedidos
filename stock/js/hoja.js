@@ -69,7 +69,7 @@ export async function render(root, ctx) {
           h('span', { class: 'hj-ic', 'aria-hidden': 'true', text: s.slice(0, 1).toUpperCase() }),
           h('span', { class: 'hj-sector-t' }, h('b', { text: s }), h('small', { text: `${sub} · ${sectores.get(s).length} ${sectores.get(s).length === 1 ? 'producto' : 'productos'}` })),
           icon('flecha', 20)),
-        h('div', { class: 'hj-pasos' }, PASOS.map(([id, t]) => h('span', { class: pasoCls(id) }, pasoCls(id).includes('is-ok') ? '✓ ' : '', t))));
+        h('div', { class: 'hj-pasos' }, PASOS.map(([id, t]) => h('span', { class: pasoCls(id) }, pasoCls(id).includes('is-ok') ? icon('check', 14) : null, t))));
     });
     const sinSectores = nombres.length === 1 && nombres[0] === TODO_EL_LOCAL;
     mount(root,
@@ -115,7 +115,7 @@ export async function render(root, ctx) {
     const seg = h('div', { class: 'seg hj-seg', role: 'tablist', 'aria-label': 'Paso' }, PASOS.map(([id, t]) => {
       const ok = id === 'apertura' ? e.ap.length > 0 : id === 'cierre' ? e.ci.length > 0 : e.anot.length > 0;
       return h('button', { class: 'seg-b' + (paso === id ? ' is-on' : '') + (ok && paso !== id ? ' is-ok' : ''), type: 'button', role: 'tab', 'aria-selected': paso === id ? 'true' : 'false', 'data-paso': id,
-        on: { click: () => { paso = id; pintarSector(); } } }, ok && paso !== id ? '✓ ' : '', t);
+        on: { click: () => { paso = id; pintarSector(); } } }, ok && paso !== id ? icon('check', 16) : null, t);
     }));
     const hint = h('p', { class: 'hj-hint', text: paso === 'apertura' ? 'Contá lo que hay al abrir. Vacío = no lo contaste. Si no hay nada, poné 0.'
       : paso === 'cierre' ? 'Contá lo que queda al cerrar. No mostramos la apertura para que cuentes lo que ves.'
