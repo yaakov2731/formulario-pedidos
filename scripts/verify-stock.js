@@ -202,7 +202,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('fase 2: ningún rol con más de 4 pestañas (Hoy primero, Más al final)', pestanas(navEnc) <= 5 && pestanas(navGer) === 4 && pestanas(navCon) <= 4
     && /\[\s*\{ id: 'hoy'/.test(navEnc) && /id: 'mas'/.test(navGer) && /id: 'mas'/.test(navEnc) && /navDe = \(c\) => NAV\[c\.rol\]\.filter\(it => !\(c\.rol === 'encargado' && it\.id === \(shopping\(c\) \? 'hoja' : 'retiros'\)\)\)/.test(m4),
     'encargado tiene Hoja o Retiros, nunca los dos');
-  check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
+  check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana · Pérdida; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\], \['perdida', 'Pérdida'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
   check('fase 2: Compras junta Pedidos · Enviar · Recibir · Gasto', /SUBNAV_COMPRAS = \[\['pedidos', 'Pedidos'\], \['compras', 'Enviar'\], \['recibir', 'Recibir'\], \['gasto', 'Gasto'\]\]/.test(ui));
   check('fase 2: un solo selector de local (chipsLocal usa selectorLocal)', /selectorLocal\(\{ locales, clave: 'g:local'/.test(read('js/datos.js')) && !/class: 'chip' \+ \(l\.id === localId/.test(read('js/g-stock.js')));
   check('fase 2: Más es una pantalla para todos los roles', /mas: \(\) => import\('\.\/mas\.js'\)/.test(m4));
@@ -219,6 +219,16 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('fase 6: Recibir abre con lo pedido, «Llegó todo» y «Reclamar faltante»', /'Llegó todo'/.test(gr) && /Reclamar faltante/.test(gr) && /textoReclamo\(/.test(gr) && /razonLocal\(o\.local_id\)/.test(gr));
   check('fase 6: aviso de suba en Recibir y Recibir con factura; Subas de precio en Hoy', /subaPrecio\(/.test(gr) && /subaPrecio\(/.test(grf) && /'Subas de precio'/.test(gh) && /'data-grupo': 'subas'/.test(gh));
   check('fase 6: lo de compras no llega a pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js'].some(f => /compras-estado|g-recibir/.test(read(f))));
+
+  // ---- Pérdida de la semana y productos clave (solo gerencia) ----
+  const pe = read('js/perdida.js'), gpe = read('js/g-perdida.js');
+  check('pérdida: una sola cuenta del día (calcularSector vive en perdida.js; g-sector, g-hoy y g-perdida la importan)', /export function calcularSector/.test(pe) && !/function calcularSector/.test(read('js/g-sector.js'))
+    && /from '\.\/perdida\.js'/.test(read('js/g-sector.js')) && /from '\.\/perdida\.js'/.test(gh) && /costoUnidad/.test(read('js/g-control.js')));
+  check('pérdida: perdida.js es pura (sin DOM ni Supabase)', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(pe));
+  check('pérdida: Hoy de gerencia con "Pérdida de la semana" (Sin explicar · Merma) que abre Stock → Control → Pérdida', /'Pérdida de la semana'/.test(gh) && /'data-grupo': 'perdida'/.test(gh) && /Sin explicar/.test(gh) && /desdeHoy\('perdida'\)/.test(gh));
+  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /incluye: \['sector', 'control', 'perdida'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
+  check('pérdida: detalle con lo que más pesa, semana anterior y productos clave; sin datos no estima', /'Lo que más pesa'/.test(gpe) && /'Semana anterior'/.test(gpe) && /'Productos clave'/.test(gpe) && /Sin historial todavía/.test(gpe) && /Falta cargar costos/.test(gpe));
+  check('pérdida: nada de esto en pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js', 'js/inventario.js', 'js/stock-local.js', 'js/retiros.js'].some(f => /perdida/.test(read(f))) && !/encargado: \{[^}]*perdida/.test(m4));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

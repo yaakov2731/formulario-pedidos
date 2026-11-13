@@ -9,6 +9,7 @@ import { mount, h, fmtNum, fmtMoney, porTexto, lsGet, lsSet, esBulto, factorDe, 
 import { listarConteos, hayTipoConteo, movimientosDesde, ordenesLocalDesde, mensajeError } from './api.js';
 import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, banner, subnav, SUBNAV_STOCK, icon } from './ui.js';
+import { costoUnidad } from './perdida.js';
 
 const ENTRA = ['recepcion', 'produccion_alta'];
 const ANOTADO = ['venta', 'produccion_consumo', 'merma', 'uso_dia'];
@@ -69,7 +70,7 @@ export function calcularSemana(sem, movs, ordenes, prods, precios) {
     const r = { p, habia: ap.get(id), entro: entro.get(id) || 0, quedo: ci.get(id), anotado: anot.get(id) || 0, pide: pide.get(id) || 0, pideBultos: pideBultos.get(id) || 0 };
     r.uso = Math.round((r.habia + r.entro - r.quedo) * 1000) / 1000;
     r.sinAnotar = hayAnotado ? Math.round((r.uso - r.anotado) * 1000) / 1000 : 0;
-    const pu = precios.get(id) ? precios.get(id) / factorDe(p) : null;
+    const pu = costoUnidad(p, precios);
     r.valorUso = pu != null && r.uso > 0 ? r.uso * pu : null;
     r.valorFalta = pu != null && r.sinAnotar > 0 ? r.sinAnotar * pu : null;
     r.avisos = [];

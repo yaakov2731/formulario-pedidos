@@ -247,9 +247,9 @@ export const SUBNAV_COMPRAS = [['pedidos', 'Pedidos'], ['compras', 'Enviar'], ['
 // En gerencia Gasto está en Compras; la contadora (sin Compras) lo sigue viendo en Pagos.
 export const navPagos = (ctx) => (ctx.rol === 'gerencia' ? SUBNAV_PAGOS.filter(([id]) => id !== 'gasto') : SUBNAV_PAGOS);
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['categorias', 'Categorías'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
-// Gerencia · Stock en 3 pestañas: Qué hay (la foto de ahora), Control (lo que pasó, con filtro Hoy · Semana; desde ahí se
+// Gerencia · Stock en 3 pestañas: Qué hay (la foto de ahora), Control (lo que pasó, con filtro Hoy · Semana · Pérdida; desde ahí se
 // abren Retiros del Shopping y Conteos guardados) y Lugares (cómo está armado cada local). Elaborados pasó a Cocina.
-export const SUBNAV_CONTROL = [['sector', 'Hoy'], ['control', 'Semana']];
+export const SUBNAV_CONTROL = [['sector', 'Hoy'], ['control', 'Semana'], ['perdida', 'Pérdida']];
 export const CONTROL_ABRE = [['g-retiros', 'Retiros'], ['conteos', 'Conteos']];
 export const SUBNAV_STOCK = [['stock', 'Qué hay'], ['sector', 'Control', SUBNAV_CONTROL, CONTROL_ABRE], ['lugares', 'Lugares']];
 export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción'], ['elaborados', 'Elaborados']];

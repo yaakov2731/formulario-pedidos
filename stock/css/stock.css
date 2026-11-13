@@ -1689,6 +1689,16 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .gh .lg-v { max-width: 45%; }
 .gh-dif .lg-v { color: var(--bad-ink); }
 .gh-suba .lg-v { color: var(--warn-ink); }
+.gh-perdida.is-perdida .lg-v { color: var(--bad-ink); }
+/* Stock → Control → Pérdida: listas agrupadas, números tabulares a la derecha. */
+.perd .lg { margin-top: 20px; }
+.perd .lg:first-child { margin-top: 8px; }
+.perd .lg-v { max-width: 48%; }
+.perd-total .lg-n { font-weight: 600; }
+.perd-total .lg-v { font-weight: 600; color: var(--text); }
+.perd-total.is-perdida .lg-v { color: var(--bad-ink); }
+.perd-total.is-falta .lg-v { font-weight: 400; color: var(--text-2); }
+.perd-sincosto .lg-n { color: var(--warn-ink); }
 .gh-fila.is-vencida .lg-s { color: var(--bad-ink); }
 .gh-cargando .lg-n { color: var(--text-2); font-size: 15px; }
 .gh-ver .lg-n { color: var(--accent-text); }
