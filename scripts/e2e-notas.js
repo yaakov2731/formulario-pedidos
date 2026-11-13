@@ -190,7 +190,7 @@ const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.p
   const { c: cG, p: g } = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' }, U_GER);
   await g.goto(BASE + '#/notas');
   await g.waitForSelector('.nb-postit');
-  ok(await g.locator('.side-link', { hasText: 'Notas' }).count() === 1, 'gerencia tiene Notas en la barra lateral');
+  ok(await g.locator('.side-link[data-nav="mas"][data-mas~="notas"]').count() === 1, 'gerencia tiene Notas en Más (barra lateral)');
   ok((await g.locator('.nb').innerText()).includes('No llegó la leche'), 'gerencia ve las notas de todos los locales');
   ok(await g.locator('.nb-nueva-b').count() >= 2, 'gerencia ve las notas sin leer marcadas como "Nueva"');
   await shot(g, '05-notas-pc');

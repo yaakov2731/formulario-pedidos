@@ -4,7 +4,7 @@
 // Vista "Métricas": valor del stock, consumo con días de cobertura, producción disponible y platos que se pueden servir.
 import { mount, h, fmtNum, fmtMoney, parseNum, lsGet, lsSet, esCarta, fechaCorta, fechaLarga, hoyISO, porTexto, esBulto, factorDe, plural, textoBulto, elabora } from './util.js';
 import { contarProducto, contarLocal, registrarAjuste, movimientosDesde, listarConteos, ordenesLocalDesde, ultimaVentaSubida, cargarRecetas, mensajeError } from './api.js';
-import { G, cargarG, nombreLocal, codigoLocal } from './datos.js';
+import { G, cargarG, nombreLocal, codigoLocal, chipsLocal } from './datos.js';
 import { esqueleto, toast, hoja, campo, icon, subnav, SUBNAV_STOCK } from './ui.js';
 import { inventario, planillaConteo, DIAS_MOV } from './inventario.js';
 
@@ -198,14 +198,10 @@ export async function render(root, ctx) {
   const locales = G.locales.filter(l => l.activo);
   if (!locales.some(l => l.id === localId)) localId = (locales[0] || {}).id;
   const ponerSub = () => { sub.textContent = nombreLocal(localId); };
-  const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Local' }, locales.map(l => h('button', {
-    class: 'chip' + (l.id === localId ? ' is-on' : ''), type: 'button', text: l.nombre, 'aria-pressed': l.id === localId ? 'true' : 'false', 'data-local': l.id,
-    on: { click: async () => {
-      localId = l.id; lsSet('g:local', localId); movs = []; conteos = []; movsLocal = null; inv = null; ponerSub();
-      chips.querySelectorAll('.chip').forEach(b => { const on = b.getAttribute('data-local') === l.id; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-      await refrescar();
-    } }
-  })));
+  const chips = chipsLocal(async (id) => {
+    localId = id; movs = []; conteos = []; movsLocal = null; inv = null; ponerSub();
+    await refrescar();
+  }).el;
   const segVista = h('div', { class: 'seg seg-ped', role: 'tablist', 'aria-label': 'Vista de stock' });
   const cuerpo = h('div', {});
   const pintarVista = () => {

@@ -157,6 +157,11 @@ async function montarApi(ctx) {
     if (!u.pathname.startsWith('/rest/v1/')) return json({}, 404);
 
     if (t === 'rpc/locales_login') return json(db.locales.map(l => ({ codigo: l.codigo, nombre: l.nombre, encargados: l.encargados })));
+    if (t === 'hoja_movs') {
+      const l = eq(q.get('local_id')); const fs = q.getAll('fecha'); const gte = (fs.find(x => x.startsWith('gte.')) || '').slice(4), lte = (fs.find(x => x.startsWith('lte.')) || '').slice(4);
+      return json((db.hoja || []).filter(m => (!l || m.local_id === l) && (!gte || m.fecha >= gte) && (!lte || m.fecha <= lte)));
+    }
+    if (t === 'destinos') return json([]);
     if (!rol) return json({ code: '42501', message: 'permission denied' }, 401);
     const esGet = req.method() === 'GET';
     const ver = (arr) => arr;
@@ -393,6 +398,18 @@ const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FAIL ') + msg); if (!
 const VIVAS_E2E = ['borrador', 'aprobada'];
 const shot = (p, n, full = false) => p.screenshot({ path: path.join(OUT, n + '.png'), fullPage: full });
 const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg.locator(`.mas-link[data-nav="${id}"]`).click(); };
+// Ir a una sección: por la barra (lateral o de abajo) si está, si no por Más (lista tipo Ajustes) o, si es una pantalla
+// dentro de una pestaña (Pedidos dentro de Compras), por su ruta.
+// Selector de local único: botón "Local ▾" que abre una hoja con los locales.
+const elegirLocal = async (pg, nombre, dentro = '') => { await pg.locator((dentro ? dentro + ' ' : '') + '.sel-local').first().click(); await pg.locator('dialog.sheet .lg-fila', { hasText: nombre }).click(); await pg.waitForSelector('dialog.sheet', { state: 'detached' }); };
+const irSec = async (pg, id) => {
+  const vis = pg.locator(`.sidebar a[data-nav="${id}"]:visible, a.tab[data-nav="${id}"]:visible`).first();
+  if (await vis.count()) return vis.click();
+  await pg.locator('[data-nav="mas"]:visible').first().click(); await pg.waitForSelector('.mas-link');
+  const fila = pg.locator(`.mas-link[data-nav="${id}"]`);
+  if (await fila.count()) return fila.click();
+  await pg.evaluate((r) => { location.hash = '#/' + r; }, id);
+};
 
 (async () => {
   const srv = await servidor();
@@ -426,8 +443,17 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await shot(e, '02-entrar-error-m');
   await e.locator('#in-pin').fill('1234');
   await e.locator('form button[type=submit]').click();
+  // Rediseño fase 3: el encargado abre en Hoy (lo que toca ahora) y desde ahí va a Pedir.
+  await e.waitForSelector('.hoy-lista, .empty');
+  ok(await e.locator('h1').first().innerText() === 'Hoy', 'encargado cae en "Hoy"');
+  ok((await e.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',') === 'Hoy,Pedir,Hoja,Más', 'encargado: Hoy · Pedir · Hoja · Más');
+  ok(await e.locator('[data-tarea="pedir"]').count() === 1 && /Cierra el miércoles/.test(await e.locator('[data-tarea="pedir"]').innerText()), 'Hoy (lunes): "Hacer el pedido · Cierra el miércoles"');
+  ok(!/\$|precio|costo|m[ií]nimo|\bpar\b/i.test(await e.locator('#view').innerText()), 'Hoy del encargado sin plata, mínimo ni par');
+  await shot(e, '02b-hoy-encargado-m');
+  await e.locator('[data-tarea="pedir"]').click();
   await e.waitForSelector('.prod');
-  ok(await e.locator('h1').first().innerText() === 'Pedir', 'encargado cae en "Pedir"');
+  ok(await e.locator('.volver-hoy').count() === 1, 'desde Hoy, Pedir muestra "‹ Hoy" para volver');
+  ok(await e.locator('h1').first().innerText() === 'Pedir', 'la tarea lleva a "Pedir"');
   ok((await e.locator('.vista-head .sub').innerText()).includes('Umo Grill'), 'muestra el local');
   ok(await e.locator('.prod').count() === 8, 'catálogo solo del local (8 productos, sin los de Trento)');
   ok(await e.locator('.prod[data-id="p-chorizo"] .step-val').inputValue() === '0', 'sin pedido precargado: Chorizo arranca en 0');
@@ -524,9 +550,14 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   ok(await e.locator('a[data-nav]').count() === 4 || await e.locator('.tab').count() >= 2, 'encargado solo tiene Pedir / Mis pedidos / Notas / Salir');
   const navTxt = (await e.locator('.tabbar').innerText()).toLowerCase();
   ok(!/recibir|cat[aá]logo|ventas|pagos/.test(navTxt), 'encargado sin secciones de gerencia (Stock es el suyo: qué hay y Contar)');
+  // Más: lista tipo Ajustes con Facturas y Notas, quién entró y Cerrar sesión.
+  await e.locator('.tab[data-nav="mas"]').click();
+  await e.waitForSelector('.mas-link');
+  ok((await e.locator('.mas-link').allInnerTexts()).map(x => x.trim()).join('|') === 'Facturas|Notas' && await e.locator('.mas-salir').count() === 1, 'Más del encargado: Facturas, Notas y Cerrar sesión');
+  ok(await e.locator('.tab-mas.is-active').count() === 1, 'Más queda marcado');
   await e.goto(BASE + '#/catalogo');
-  await e.waitForSelector('.prod');
-  ok(await e.locator('h1').first().innerText() === 'Pedir', 'ruta de gerencia redirige al encargado a Pedir');
+  await e.waitForSelector('.hoy-lista, .empty');
+  ok(await e.locator('h1').first().innerText() === 'Hoy', 'ruta de gerencia redirige al encargado a Hoy');
   await cEnc.close();
 
   // ===== Encargado · celular, oscuro, jueves =====
@@ -540,6 +571,8 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await d.locator('#in-nombre').fill('Lucía');
   await d.locator('#in-pin').fill('1234');
   await d.locator('form button[type=submit]').click();
+  await d.waitForSelector('.hoy-lista, .empty');
+  await d.locator('[data-nav="pedir"]:visible').first().click();
   await d.waitForSelector('.prod');
   ok((await d.locator('.banner-warn').first().innerText()).includes('Distribuidora Florida'), 'jueves: aviso de cierre (solo Distribuidora Florida)');
   await d.getByRole('button', { name: 'Más · Pedir Chorizo parrillero', exact: true }).click();
@@ -559,6 +592,8 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await w.getByRole('radio', { name: 'Maru' }).click();
   await w.locator('#in-pin').fill('1234');
   await w.locator('form button[type=submit]').click();
+  await w.waitForSelector('.hoy-lista, .empty');
+  await w.locator('[data-nav="pedir"]:visible').first().click();
   await w.waitForSelector('.prod');
   await shot(w, '09-pedir-pc');
   // recarga: sesión persistente y arranque con caché
@@ -576,6 +611,9 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
     { id: 'it-tre-2', orden_id: 'ord-tre-2', producto_id: 'p-limon', cantidad_pedida: 3, cantidad_recibida: null },
     { id: 'it-tre-h', orden_id: 'ord-tre-h', producto_id: 'p-limon', cantidad_pedida: 2, cantidad_recibida: 2 });
 
+  // Hoja de ayer en Umo (abrió y cerró la Barra): para las diferencias del día en Hoy de gerencia.
+  db.hoja = [{ id: 'hj-1', local_id: L1, fecha: '2026-10-25', sector: 'Barra', producto_id: 'p-chorizo', tipo: 'apertura', cantidad: 10, otro: null, quien: 'Ruth', creado_en: '2026-10-25T12:00:00Z' },
+    { id: 'hj-2', local_id: L1, fecha: '2026-10-25', sector: 'Barra', producto_id: 'p-chorizo', tipo: 'cierre', cantidad: 2, otro: null, quien: 'Ruth', creado_en: '2026-10-26T01:00:00Z' }];
   // ===== Gerencia · escritorio =====
   const cGer = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light', permissions: ['clipboard-read', 'clipboard-write'] });
   const g = await nuevaPagina(cGer, 'gerencia');
@@ -585,30 +623,47 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await g.locator('#in-email').fill('jacobo@ejemplo.com');
   await g.locator('#in-pass').fill('clave-segura');
   await g.locator('form button[type=submit]').click();
-  await g.waitForSelector('.tb-card', { timeout: 8000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 400)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Tablero no cargó'); });
-  ok(await g.locator('h1').first().innerText() === 'Tablero', 'gerencia cae en el Tablero (inicio)');
-  ok(await g.locator('.sidebar .side-link').count() === 10, 'gerencia: barra lateral con 9 secciones (Tablero, Pedidos, Compras, Notas, Stock, Ventas, Cocina, Pagos, Catálogo) + Salir');
-  // ---- Tablero ----
-  const tbTxt = async () => (await g.locator('.tb-metricas').innerText()).replace(/\s+/g, ' ');
-  ok(/VENTAS \$ 2\.850\.000 Anterior \$ 2\.610\.000 · ▲ 9 %/i.test(await tbTxt()), 'Tablero: ventas de la semana contra la anterior con variación (+9 %) ' + await tbTxt());
-  ok(/COMPRAS \$ 1\.240\.000 Anterior \$ 1\.480\.000 · ▼ 16 %/i.test(await tbTxt()) && /MARGEN BRUTO ESTIMADO \$ 1\.940\.000/i.test(await tbTxt()) && /COSTO DE MERCADERÍA VENDIDA \$ 910\.000/i.test(await tbTxt()), 'Tablero: compras, costo de mercadería vendida y margen estimado');
-  for (const c of ['ventas', 'compras', 'cmv', 'margen', 'stock', 'deuda', 'sin-avisar', 'por-aprobar', 'faltantes', 'pendientes']) ok(await g.locator(`[data-card="${c}"]`).count() === 1, `Tablero: tarjeta ${c}`);
-  const tbAll = (await g.locator('.vista').innerText()).replace(/\s+/g, ' ');
-  ok(/Plata parada en stock \$ 3\.120\.000/i.test(tbAll) && /Trento Café \$ 870\.000/.test(tbAll), 'Tablero: plata parada en stock por local');
-  ok(/Deuda con proveedores \$ 640\.000 2 facturas vencidas · \$ 130\.000/i.test(tbAll), 'Tablero: deuda y facturas vencidas');
-  ok(/Pagos sin avisar 1/i.test(tbAll) && /Pedidos por aprobar 3/i.test(tbAll) && /Cerveza rubia lata 473 ml \$ 19\.600/.test(tbAll) && /Datos pendientes 26/i.test(tbAll), 'Tablero: pagos sin avisar, pedidos por aprobar, faltantes más caros y datos pendientes');
-  ok(db.consultasTablero.length === 1 && db.consultasTablero[0].p_local === null && db.consultasTablero[0].p_desde === '2026-10-26' && db.consultasTablero[0].p_hasta === '2026-10-26', 'Tablero: una sola llamada rpc tablero (todos los locales, lunes a hoy) ' + JSON.stringify(db.consultasTablero[0]));
-  await shot(g, '39-g-tablero-pc', true);
+  await g.waitForSelector('.gh-diferencias', { timeout: 10000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 600)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Hoy de gerencia no cargó'); });
+  ok(await g.locator('h1').first().innerText() === 'Hoy', 'gerencia cae en Hoy (inicio, reemplaza al Tablero)');
+  ok((await g.locator('.sidebar .side-link').allInnerTexts()).map(x => x.trim()).join('|') === 'Hoy|Compras|Stock|Más|Salir', 'gerencia: barra lateral Hoy · Compras · Stock · Más + Salir');
+  // ---- Hoy ----
+  const semTxt = async () => (await g.locator('.gh-sem').innerText()).replace(/\s+/g, ' ');
+  ok(/Ventas \$ 2,85 M Compras \$ 1,24 M Margen Falta cargar costos/.test(await semTxt()), 'Hoy: una línea con ventas y compras de la semana; margen "Falta cargar costos" (hay productos sin costo) · ' + await semTxt());
+  ok(await g.locator('.tb-card, .kpi').count() === 0, 'Hoy: sin tarjetas grandes de KPIs');
+  const aprobar = (await g.locator('[data-grupo="aprobar"]').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  ok(aprobar.length === 4 && aprobar.some(x => /^Barcena Trento Café · Umo Grill \d+ ítems?$/.test(x)) && aprobar.some(x => /^Sin proveedor Trento Café · Umo Grill/.test(x)), 'Hoy: pedidos para aprobar por proveedor (con los locales) · ' + aprobar.join(' / '));
+  const facts = (await g.locator('[data-grupo="facturas"]').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  ok(facts.length === 2 && /^Distribuidora Demo Venció el 01\/09 \$ 100\.000$/.test(facts[0]) && /Barcena/.test(facts[1]), 'Hoy: facturas por vencer (las vencidas primero) · ' + facts.join(' / '));
+  const difs = (await g.locator('[data-grupo="diferencias"]').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  ok(difs.length === 1 && /^Umo Grill Ayer · 1 producto −\$ 49\.600$/.test(difs[0]), 'Hoy: diferencia del día en $ (Umo, ayer: se usaron 8 kg de chorizo y no se vendió nada) · ' + difs.join(' / '));
+  const locs = (await g.locator('[data-grupo="locales"]').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  ok(locs.length === 4 && locs.every(x => /Sin cierre ayer/.test(x)) && !locs.some(x => /Umo Grill/.test(x)), 'Hoy: locales sin cierre ayer (Umo cerró) · ' + locs.join(' / '));
+  ok(!/Sin pedido esta semana/.test(await g.locator('#view').innerText()), 'Hoy (lunes): todavía no avisa locales sin pedido');
+  ok(db.consultasTablero.length === 1 && db.consultasTablero[0].p_local === null && db.consultasTablero[0].p_desde === '2026-10-26' && db.consultasTablero[0].p_hasta === '2026-10-26', 'Hoy: una sola llamada rpc tablero (todos los locales, lunes a hoy) ' + JSON.stringify(db.consultasTablero[0]));
+  await g.screenshot({ path: path.join(OUT, '39-g-hoy-pc.png') });
   await g.locator('.sel-local').click();
   await g.locator('dialog .lg-fila', { hasText: 'Umo Grill' }).click();
-  await g.waitForFunction(() => /\$ 1\.140\.000/.test(document.querySelector('.tb-metricas').innerText));
-  ok(db.consultasTablero.at(-1).p_local === L1, 'Tablero: filtrar por local vuelve a llamar con ese local');
+  await g.waitForFunction(() => /\$ 1,14 M/.test((document.querySelector('.gh-sem') || {}).innerText));
+  ok(db.consultasTablero.at(-1).p_local === L1, 'Hoy: filtrar por local vuelve a llamar con ese local');
+  await g.waitForSelector('[data-grupo="aprobar"]');
+  ok((await g.locator('[data-grupo="aprobar"]').allInnerTexts()).every(x => !/Trento/.test(x)), 'Hoy: con Umo elegido, solo lo de Umo');
   await g.locator('.sel-local').click();
   await g.locator('dialog .lg-fila', { hasText: 'Todos los locales' }).click();
-  await g.waitForFunction(() => /\$ 2\.850\.000/.test(document.querySelector('.tb-metricas').innerText));
-  await g.locator('[data-card="por-aprobar"]').click();
+  await g.waitForFunction(() => /\$ 2,85 M/.test((document.querySelector('.gh-sem') || {}).innerText));
+  await g.locator('[data-grupo="aprobar"][data-prov="' + PV.barcena + '"]').click();
+  await g.waitForSelector('.grupo-prov', { timeout: 8000 });
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.volver-hoy').count() === 1, 'Para aprobar lleva a Compras (por proveedor) con "‹ Hoy" para volver');
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Enviar|Recibir|Gasto', 'Compras: Pedidos · Enviar · Recibir · Gasto');
+  await g.locator('.volver-hoy').click();
+  await g.waitForSelector('.gh-sem');
+  ok(await g.locator('h1').first().innerText() === 'Hoy', '"‹ Hoy" vuelve a Hoy');
+  await g.goto(BASE + '#/tablero');
+  await g.waitForFunction(() => location.hash === '#/hoy');
+  ok(true, 'la ruta vieja #/tablero lleva a Hoy');
+  await g.waitForSelector('.gh-sem');
+  await g.goto(BASE + '#/pedidos');
   await g.waitForSelector('.ped-tabla', { timeout: 8000 });
-  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos' && await g.locator('.grupo-prov').count() === 0, 'Pedidos abre en "De los locales" (tabla), sin lo de proveedores');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Pedidos' && await g.locator('.grupo-prov').count() === 0, 'Pedidos (dentro de Compras) abre en "De los locales" (tabla), sin lo de proveedores');
   ok(await g.locator('[data-accion="ir-compras"]').count() === 1, 'Pedidos tiene el acceso a Compras cuando hay algo para mandar');
   ok(await g.locator('.pt-envio').count() === 2, `tabla: un renglón por pedido de cada local (Umo de Ruth y Trento de Angelica), no por proveedor (${await g.locator('.pt-envio').count()})`);
   ok(await g.locator('.pt-h').isVisible(), 'en PC la tabla tiene encabezados');
@@ -688,10 +743,10 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   db.items = db.items.filter(i => i !== itQ && i.orden_id !== ordTreDemo.id); db.ordenes = db.ordenes.filter(o => o !== ordTreDemo); choIt.cantidad_pedida = choA;
   await g.reload(); await g.waitForSelector('.ped-tabla');
   // ---- Compras (por proveedor) ----
-  await g.locator('.sidebar a[data-nav="compras"]').click();
+  await irSec(g, 'compras');
   await g.waitForSelector('.grupo-prov');
   ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Enviar', 'Compras: pestaña propia, abre en Enviar (por proveedor)');
-  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Enviar|Recibir|Gasto', 'Compras: Enviar · Recibir · Gasto');
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Enviar|Recibir|Gasto', 'Compras: Pedidos · Enviar · Recibir · Gasto');
   ok(await g.locator('.zona-pruebas').count() === 0 && await g.locator('[data-accion="cargar"]').count() === 0, 'Compras no repite Cargar ni Borrar todo');
   ok(await g.locator('.grupo-prov').count() === 4, `Por proveedor: Barcena, Florida, Martín + Sin proveedor (${await g.locator('.grupo-prov').count()})`);
   const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');
@@ -824,10 +879,10 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await g.waitForTimeout(500);
   ok(db.ordenes.find(o => o.proveedor_id === PV.florida).estado === 'enviada', 'marca la orden como "enviada"');
   // Cargar un pedido desde gerencia en nombre de un local
-  await g.locator('.sidebar a[data-nav="pedidos"]').click();
+  await irSec(g, 'pedidos');
   await g.locator('[data-accion="cargar"]').click();
   await g.waitForSelector('.cargar-local');
-  await g.locator('.cargar-local .chip', { hasText: 'Trento Café' }).click();
+  await elegirLocal(g, 'Trento Café', '.cargar-local');
   await g.waitForSelector('.prod[data-id="p-trento"]');
   ok(await g.locator('.prod').count() === 3 && !(await g.locator('#view').innerText()).includes('$'), 'Cargar: catálogo del local elegido (Trento, 3 productos), sin precios');
   await g.getByRole('button', { name: 'Más · Pedir Café en grano', exact: true }).click();
@@ -836,7 +891,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await shot(g, '10d-g-cargar-pc');
   await g.locator('.pill').click();
   await g.waitForSelector('#rev-nombre');
-  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos', 'Cargar queda marcado dentro de Pedidos');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras', 'Cargar queda marcado dentro de Compras');
   const nOrd = db.ordenes.length;
   await g.getByRole('button', { name: 'Enviar pedido' }).click();
   await g.waitForSelector('.ped-tabla');
@@ -844,7 +899,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   ok(nueva.length === 1 && nueva[0].local_id === L2 && nueva[0].proveedor_id === PV.barcena && nueva[0].estado === 'borrador' && nueva[0].cargado_por_nombre === 'Jacobo', 'Cargar: crea la orden del local elegido, en revisión, cargada por Jacobo ' + JSON.stringify(nueva[0]));
   ok(db.items.some(i => i.orden_id === nueva[0].id && i.producto_id === 'p-trento' && i.cantidad_pedida === 2), 'Cargar: con sus productos');
   // Recibir
-  await g.locator('.sidebar a[data-nav="compras"]').click();
+  await irSec(g, 'compras');
   await g.waitForSelector('.subnav');
   await g.locator('.subnav-b', { hasText: 'Recibir' }).click();
   await g.waitForSelector('.rec-factura');
@@ -891,9 +946,9 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   ok(db.items.some(i => i.orden_id === ordFlo.id && i.producto_id === 'p-gaseosa' && i.no_vino && i.cantidad_pedida > 0), 'la gaseosa queda pedida y marcada como faltante');
   ok(db.movimientos.some(m => m.producto_id === 'p-agua' && m.tipo === 'recepcion' && m.cantidad === 24), 'el agua suma stock (2 packs × 12)');
   // Stock
-  await g.locator('.sidebar a[data-nav="stock"]').click();
+  await irSec(g, 'stock');
   await g.waitForSelector('.inv-filtros .inv-k');
-  await g.locator('.chip', { hasText: 'Umo Grill' }).click();
+  await elegirLocal(g, 'Umo Grill');
   await g.waitForSelector('.inv-filtros .inv-k');
   const est = (await g.locator('.inv-filtros').innerText()).replace(/\s+/g, ' ');
   ok(/HAY/i.test(est) && /ENTRÓ HOY/i.test(est) && /EN CERO/i.test(est) && !/m[ií]nimo|par\b/i.test(await g.locator('.stk-prod').innerText()), `Stock: filtros Hay / Entró hoy / En cero sin "mínimo" ni "par" (${est})`);
@@ -942,7 +997,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await g.waitForSelector('.toast-ok >> text=Diferencia');
   ok(db.conteos.length === 1 && db.conteos[0].p_producto === 'p-chorizo' && db.conteos[0].p_cantidad_contada === 4, 'Contar llama a registrar_conteo');
   // Catálogo
-  await g.getByRole('link', { name: 'Catálogo' }).click();
+  await irSec(g, 'catalogo');
   await g.waitForSelector('.prod-cat');
   await shot(g, '14-g-catalogo-pc');
   await g.locator('.prod-cat', { hasText: 'Chorizo parrillero' }).click();
@@ -992,7 +1047,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await g.locator('dialog[open] .icon-btn[aria-label="Cerrar"]').click();
   await g.setViewportSize({ width: 1366, height: 900 });
   // ===== Gerencia · Pagos, facturas, comprobantes, avisos y proveedores (escritorio) =====
-  await g.locator('.sidebar a[data-nav="pagos"]').click();
+  await irSec(g, 'pagos');
   await g.waitForSelector('.cc-fila');
   ok(await g.locator('h1').first().innerText() === 'Pagos', 'pantalla Pagos (cuentas corrientes)');
   const kp = (await g.locator('.kpis').innerText()).replace(/\s+/g, ' ');
@@ -1165,8 +1220,8 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
 
   // Proveedores (Catálogo → Proveedores): sin el SQL 0011 la ficha avisa y guarda solo lo de siempre
   db.sin0011 = true;
-  await g.reload(); await g.waitForSelector('.sidebar a[data-nav="catalogo"]'); // los proveedores quedan 2 min en memoria: recargar los vuelve a pedir
-  await g.locator('.sidebar a[data-nav="catalogo"]').click();
+  await g.reload(); await g.waitForSelector('.sidebar a[data-nav="mas"]'); // los proveedores quedan 2 min en memoria: recargar los vuelve a pedir
+  await irSec(g, 'catalogo');
   await g.locator('.subnav-b', { hasText: 'Proveedores' }).click();
   await g.waitForSelector('.prod-cat[data-prov="Barcena"]');
   await g.waitForTimeout(400);
@@ -1246,10 +1301,10 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await gm.locator('#in-email').fill('jacobo@ejemplo.com');
   await gm.locator('#in-pass').fill('clave-segura');
   await gm.locator('form button[type=submit]').click();
-  await gm.waitForSelector('.tb-card');
+  await gm.waitForSelector('.gh-sem'); await gm.waitForSelector('.gh-cargando', { state: 'detached' });
   await gm.waitForTimeout(400);
-  await shot(gm, '16a-g-tablero-m', true);
-  await gm.locator('a.tab[data-nav="stock"]').click();
+  await shot(gm, '16a-g-hoy-m', true);
+  await irSec(gm, 'stock');
   await gm.waitForSelector('.inv-fila');
   await gm.waitForTimeout(300);
   ok(await gm.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'Stock celular: sin desplazamiento horizontal');
@@ -1263,14 +1318,14 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await gm.waitForSelector('[data-metricas]');
   await shot(gm, '16e-g-stock-metricas-m');
   await gm.locator('[data-vista="productos"]').click();
-  await gm.locator('a.tab[data-nav="pedidos"]').click();
+  await irSec(gm, 'pedidos');
   await gm.waitForSelector('.ped-tabla');
   await shot(gm, '16-g-pedidos-m');
   await gm.locator('[data-filtro="aprobados"]').click(); // lo de Trento ya quedó aprobado en la PC
   await gm.locator('.pt-envio', { hasText: 'Angelica' }).locator('.pt-fila').click();
   await gm.waitForSelector('.pt-det');
   await shot(gm, '16b-g-pedidos-detalle-m');
-  await gm.locator('a.tab[data-nav="compras"]').click();
+  await irSec(gm, 'compras');
   await gm.waitForSelector('.grupo-prov');
   await shot(gm, '16c-g-pedidos-proveedor-m');
   // imprimir y marcar como enviado: lo destildado sale del pedido; la orden que queda vacía se cancela
@@ -1303,9 +1358,9 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await gd.locator('#in-email').fill('jacobo@ejemplo.com');
   await gd.locator('#in-pass').fill('clave-segura');
   await gd.locator('form button[type=submit]').click();
-  await gd.waitForSelector('.tb-card');
-  await shot(gd, '51-g-tablero-pc-oscuro', true);
-  await gd.locator('.sidebar a[data-nav="stock"]').click();
+  await gd.waitForSelector('.gh-sem'); await gd.waitForSelector('.gh-cargando', { state: 'detached' });
+  await shot(gd, '51-g-hoy-pc-oscuro', true);
+  await irSec(gd, 'stock');
   await gd.waitForSelector('.inv-fila');
   await shot(gd, '18-g-stock-pc-oscuro');
   await cGerD.close();
@@ -1328,11 +1383,11 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   });
   const pm = await nuevaPagina(cPM, 'pagos-m');
   await loginGer(pm);
-  await pm.waitForSelector('.tb-card');
+  await pm.waitForSelector('.gh-sem'); await pm.waitForSelector('.gh-cargando', { state: 'detached' });
   const barra = await pm.locator('.tabbar').evaluate(el => ({ scroll: el.scrollWidth, ancho: el.clientWidth }));
-  ok(barra.scroll <= barra.ancho + 1 && await pm.locator('.tab').count() === 5, `celular: la barra inferior entra sin desplazarse (4 secciones + Más) (${barra.scroll} ≤ ${barra.ancho})`);
-  await pm.locator('.tab-mas').click();
-  ok(await pm.locator('.mas-link').count() === 5 && await pm.locator('.mas-salir').count() === 1, 'celular: Más tiene Notas, Ventas, Cocina, Pagos, Catálogo y Cerrar sesión');
+  ok(barra.scroll <= barra.ancho + 1 && (await pm.locator('.tab').allInnerTexts()).map(x => x.trim()).join('|') === 'Hoy|Compras|Stock|Más', `celular: la barra inferior entra sin desplazarse (Hoy · Compras · Stock · Más) (${barra.scroll} ≤ ${barra.ancho})`);
+  await pm.locator('.tab-mas').click(); await pm.waitForSelector('.mas-link');
+  ok((await pm.locator('.mas-link .lg-n').allInnerTexts()).join('|') === 'Números|Cocina|Pagos|Catálogo|Notas' && await pm.locator('.mas-salir').count() === 1, 'celular: Más es una lista tipo Ajustes con Números, Cocina, Pagos, Catálogo, Notas y Cerrar sesión');
   await shot(pm, '50b-g-mas-m', false);
   await pm.locator('.mas-link[data-nav="pagos"]').click();
   await pm.waitForSelector('.cc-fila');
@@ -1409,8 +1464,8 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   const cV = await nuevo({ viewport: { width: 1366, height: 900 }, colorScheme: 'light' });
   const v = await nuevaPagina(cV, 'ventas-pc');
   await loginGer(v);
-  ok(await v.locator('.sidebar .side-link').count() === 10, 'gerencia: Ventas y Cocina en la barra lateral');
-  await v.getByRole('link', { name: 'Ventas', exact: true }).click();
+  ok(await v.locator('.sidebar .side-link').count() === 5, 'gerencia: barra lateral de 4 pestañas + Salir (Ventas y Cocina en Más)');
+  await irSec(v, 'resumen');
   await v.waitForSelector('.subnav-b');
   await v.locator('.subnav-b', { hasText: 'Importar' }).click();
   await v.waitForSelector('#f-archivo', { state: 'attached' });
@@ -1514,7 +1569,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   ok(rg && rg.p_rinde === 1 && rg.p_items.length === 3 && rg.p_items.some(i => i.cantidad === 0.15) && rg.p_items.some(i => i.insumo_id === 'p-chorizo' && i.cantidad === 0.25) && rg.p_items.some(i => i.insumo_id === 'p-queso' && i.cantidad === 0.1), 'guardar_receta: insumos con cantidad en su unidad de uso y rinde');
   ok(await v.locator('.sr-b').count() === 1, 'el plato con receta sale de la lista de sin receta');
   // Elaborado desde Catálogo + receta + producción
-  await v.getByRole('link', { name: 'Catálogo' }).click();
+  await irSec(v, 'catalogo');
   await v.waitForSelector('.prod-cat');
   await v.getByRole('button', { name: 'Nuevo producto' }).click();
   await v.locator('#f-nombre').fill('Salsa criolla');
@@ -1525,7 +1580,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await v.getByRole('button', { name: 'Crear producto' }).click();
   await v.waitForSelector('.toast-ok >> text=Producto creado');
   ok(db.productos.find(p => p.codigo === 'UMO-060').es_elaborado === true, 'Catálogo: producto marcado como elaborado');
-  await v.getByRole('link', { name: 'Cocina' }).click();
+  await irSec(v, 'recetas');
   await v.waitForSelector('.prod-cat');
   await v.locator('.chip', { hasText: 'Elaborados' }).click();
   await v.getByRole('button', { name: 'Receta de Salsa criolla' }).click();
@@ -1557,7 +1612,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   ok(await v.locator('.bloque .bfila').count() === 1, 'queda en las últimas producciones');
   await shot(v, '28-g-produccion-hecha-pc');
   // Stock: producción disponible con la receta cargada
-  await v.locator('.sidebar a[data-nav="stock"]').click();
+  await irSec(v, 'stock');
   await v.locator('[data-vista="metricas"]').click();
   await v.waitForSelector('[data-bloque="produccion"] .bfila');
   const pd = (await v.locator('[data-bloque="produccion"]').innerText()).replace(/\s+/g, ' ');
@@ -1568,7 +1623,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await shot(v, '28b-g-stock-produccion-pc');
   // Recetas estándar estimadas: se marcan y se filtran
   db.recetas.forEach(r => { r.estimada = true; });
-  await v.getByRole('link', { name: 'Cocina' }).click();
+  await irSec(v, 'recetas');
   await v.getByRole('link', { name: 'Recetas', exact: true }).click();
   await v.waitForSelector('#lista-rec .prod-cat');
   ok(await v.locator('#lista-rec .chip-aviso', { hasText: 'Estimada' }).count() >= 1, 'Recetas: las estándar se ven como "Estimada"');
@@ -1580,7 +1635,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   await shot(v, '28c-g-receta-estimada-pc');
   await v.keyboard.press('Escape');
   // Análisis
-  await v.getByRole('link', { name: 'Ventas', exact: true }).click();
+  await irSec(v, 'resumen');
   await v.waitForSelector('.subnav');
   await v.getByRole('link', { name: 'Análisis', exact: true }).click();
   await v.waitForSelector('.franja');
@@ -1610,7 +1665,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   const cV2 = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
   const vm = await nuevaPagina(cV2, 'ventas-m');
   await loginGer(vm);
-  ok(await vm.locator('.tab').count() === 5 && await vm.locator('.tabbar button', { hasText: 'Salir' }).count() === 0, 'celular: barra inferior con 4 secciones + Más, sin Salir');
+  ok(await vm.locator('.tab').count() === 4 && await vm.locator('.tabbar button', { hasText: 'Salir' }).count() === 0, 'celular: barra inferior con 4 pestañas (la última, Más), sin Salir');
   await shot(vm, '31-g-barra-m');
   await irMas(vm, 'resumen');
   await vm.waitForSelector('.subnav-b');
@@ -1674,7 +1729,7 @@ const irMas = async (pg, id) => { await pg.locator('.tab-mas').click(); await pg
   const cP = await nuevo({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'light' });
   const pb = await nuevaPagina(cP, 'pedidos-borrar');
   await loginGer(pb);
-  await pb.locator('a.tab[data-nav="pedidos"]').click();
+  await irSec(pb, 'pedidos');
   await pb.waitForSelector('.zona-pruebas');
   await pb.locator('.zona-pruebas').scrollIntoViewIfNeeded();
   await shot(pb, '60-g-pedidos-zona-pruebas-m');

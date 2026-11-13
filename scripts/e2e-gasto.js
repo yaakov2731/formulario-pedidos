@@ -138,7 +138,7 @@ const plata = (n) => '$ ' + Math.round(n).toLocaleString('es-AR');
   ok((await m.locator('.subnav-b').allInnerTexts()).join('|') === 'Cuentas|Facturas|Pagos|Cargar', 'en gerencia Pagos ya no repite Gasto');
   await m.goto(BASE + '#/compras');
   await m.waitForSelector('.subnav-b');
-  ok((await m.locator('.subnav-b').allInnerTexts()).join('|') === 'Enviar|Recibir|Gasto', 'Gasto está en Compras');
+  ok((await m.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Enviar|Recibir|Gasto', 'Gasto está en Compras');
   await m.locator('.subnav-b', { hasText: 'Gasto' }).click();
   await m.waitForSelector('.vg-hero');
   ok(await m.locator('.tab.is-active', { hasText: 'Compras' }).count() === 1, 'la pestaña Compras queda marcada');

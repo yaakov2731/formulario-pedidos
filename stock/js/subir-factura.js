@@ -1,7 +1,7 @@
 // Encargado · Facturas: sube la foto o el PDF de la factura/remito que llegó al local, sin ver precios ni totales.
 // Queda pendiente en Gerencia → Recibir, que la lee con Recibir con factura (ahí sí se ven montos) y suma el stock.
 // El encargado solo puede subir a comprobantes/locales/<su local>/ y no puede abrir los archivos (migración 0022).
-import { mount, h, porTexto, lsGet, fechaCorta } from './util.js';
+import { mount, h, porTexto, lsGet, lsSet, fechaCorta, jornadaISO } from './util.js';
 import { cargarProveedoresBasico, subirArchivoLocal, crearFacturaLocal, facturasLocales, borrarFacturaLocal, mensajeError } from './api.js';
 import { esqueleto, banner, campo, toast, icon, vacio } from './ui.js';
 import { achicarFoto, base64ABlob, PDF_MAX } from './fotos.js';
@@ -79,6 +79,7 @@ export async function render(root, ctx) {
       const fila = await crearFacturaLocal({ local_id: localId, proveedor_id: selProv.value || null, archivos, nota: nota.value.trim(),
         subida_por_nombre: lsGet('nombre') || ctx.nombreGuardado || '' });
       subidas.unshift(fila);
+      lsSet('factura-subida:' + localId + ':' + jornadaISO(), 1); // Hoy la marca como hecha
       fotos = []; pdf = null; nota.value = ''; selProv.value = '';
       pintarFotos(); pintarHist();
       toast('Listo: la factura le llegó a gerencia', 'ok');

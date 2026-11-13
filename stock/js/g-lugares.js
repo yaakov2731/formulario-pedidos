@@ -140,13 +140,10 @@ export async function render(root, ctx) {
     pintar();
   }
 
-  let volviendo = false;
   // El encargado arma solo su local: sin selector de locales.
   const locales = !esGerencia ? { el: null, get: () => ctx.perfil.local_id } : chipsLocal((id) => {
-    if (volviendo) { volviendo = false; return; }
     if (sucio && !confirm('Hay cambios sin guardar en este local. ¿Cambiar de local igual?')) {
-      const atras = locales.el.querySelector(`[data-local="${localId}"]`);
-      if (atras) { volviendo = true; atras.click(); }
+      locales.set(localId);
       return;
     }
     localId = id; q = ''; buscador.value = ''; armar(); pintar();

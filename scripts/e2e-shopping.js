@@ -134,11 +134,11 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.waitForSelector('.tab');
   const tabs = await e.locator('.tab').allInnerTexts();
   ok(!tabs.some(x => /Elaborados/.test(x)), 'el Shopping no tiene la pestaña Elaborados · ' + tabs.join(' / '));
-  ok(tabs.some(x => /Pedir/.test(x)) && tabs.some(x => /Facturas/.test(x)), 'sigue con Pedir y Facturas');
+  ok(tabs.map(x => x.trim()).join(',') === 'Hoy,Pedir,Retiros,Más', 'Hoy · Pedir · Retiros · Más (Facturas está en Más) · ' + tabs.join(','));
   await shot(e, '01-shopping-sin-elaborados-m');
   await e.goto(BASE + '#/elaborados');
-  await e.waitForFunction(() => location.hash === '#/pedir');
-  ok(true, 'entrar a #/elaborados lo devuelve a Pedir');
+  await e.waitForFunction(() => location.hash === '#/hoy');
+  ok(true, 'entrar a #/elaborados lo devuelve a Hoy');
 
   // Contar: a ciegas (sin "Quedan"), vacío = no contado, 0 vale.
   await e.goto(e.url().split('#')[0] + '#/contar');
@@ -171,13 +171,16 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
 
   // ===== Gerencia · PC =====
   const { c: cG, p: g } = await nuevo({ viewport: { width: 1280, height: 860 } }, U_GER, { 'g:local': L1, 'g:stk-vista': 'metricas' });
+  // Selector de local único (botón que abre una hoja): las opciones son las filas de la hoja.
+  const opcionesLocal = async () => { await g.locator('.sel-local').first().click(); await g.waitForSelector('dialog.sheet .lg-fila');
+    const t = (await g.locator('dialog.sheet .lg-fila').allInnerTexts()).map(x => x.trim()); await g.keyboard.press('Escape'); await g.waitForSelector('dialog.sheet', { state: 'detached' }); return t; };
   await g.goto(BASE + '#/elaborados');
-  await g.waitForSelector('.chips .chip');
-  const chipsE = await g.locator('.chips .chip').allInnerTexts();
+  await g.waitForSelector('.sel-local');
+  const chipsE = await opcionesLocal();
   ok(!chipsE.includes('Shopping') && chipsE.includes('Brooklyn'), 'Stock → Elaborados no ofrece el Shopping · ' + chipsE.join(', '));
   await g.goto(BASE + '#/produccion');
-  await g.waitForSelector('.chips .chip');
-  const chipsP = await g.locator('.chips .chip').allInnerTexts();
+  await g.waitForSelector('.sel-local');
+  const chipsP = await opcionesLocal();
   ok(!chipsP.includes('Shopping'), 'Cocina → Producción no ofrece el Shopping · ' + chipsP.join(', '));
 
   await g.evaluate((l) => localStorage.setItem('stock:g:local', JSON.stringify(l)), L1);

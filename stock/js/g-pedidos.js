@@ -709,7 +709,7 @@ export async function render(root, ctx, id) {
 
   // ---------- pantalla ----------
   const titulo = vista === 'locales' ? 'Pedidos' : 'Compras';
-  const nav = vista === 'locales' ? null : subnav(SUBNAV_COMPRAS, 'compras');
+  const nav = subnav(SUBNAV_COMPRAS, vista === 'locales' ? 'pedidos' : 'compras');
 
   function pintar() {
     if (!ctx.alive()) return;
@@ -723,10 +723,11 @@ export async function render(root, ctx, id) {
     const nProv = new Set(vivas().map(o => o.proveedor_id || SIN)).size;
     mount(root,
       h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }),
-        h('p', { class: 'sub', text: 'Qué pidió cada local, quién y cuándo' }),
-        h('div', { class: 'ped-accesos' },
+        h('p', { class: 'sub', text: 'Qué pidió cada local, quién y cuándo' })),
+      nav,
+      h('div', { class: 'ped-accesos ped-accesos-sueltos' },
           h('a', { class: 'btn btn-ghost btn-cargar', href: '#/cargar', 'data-accion': 'cargar' }, icon('mas', 18), h('span', { text: 'Cargar pedido para un local' })),
-          nProv ? h('a', { class: 'btn btn-ghost', href: '#/compras', 'data-accion': 'ir-compras' }, icon('pedir', 18), h('span', { text: `Mandar a proveedores · ${nProv}` })) : null)),
+          nProv ? h('a', { class: 'btn btn-ghost', href: '#/compras', 'data-accion': 'ir-compras' }, icon('pedir', 18), h('span', { text: `Mandar a proveedores · ${nProv}` })) : null),
       ...vistaLocales(),
       zonaPruebas());
   }

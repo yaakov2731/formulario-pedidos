@@ -1647,3 +1647,39 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .gr-tabla .gr-que { text-align: left; color: var(--text-2); font-size: 13px; }
 .gr-vistas { margin: 4px 0 12px; }
 .gs-pie { margin-top: 10px; text-align: left; }
+
+/* ---------- Rediseño estilo Apple · fases 2 y 3: navegación de 4 pestañas, Más y pantallas Hoy ---------- */
+/* Control de Stock: filtro Hoy · Semana (no es otra fila de pestañas) y accesos a Retiros y Conteos. */
+.subnav-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.subnav-filtro { display: inline-flex; gap: 2px; padding: 2px; background: var(--fill); border-radius: 9px; }
+.subnav-f { min-width: 72px; min-height: 36px; padding: 0 14px; display: grid; place-items: center; border-radius: 7px; font-size: 14px; font-weight: 600; color: var(--text-2); text-decoration: none; }
+.subnav-f.is-on { background: var(--seg-on); color: var(--text); }
+.subnav-ir { display: inline-flex; gap: 4px; }
+.subnav-ir-b { display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap); padding: 0 8px; color: var(--accent-text); font-size: 15px; font-weight: 600; text-decoration: none; }
+.subnav-volver { display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap); color: var(--accent-text); font-size: 15px; font-weight: 600; text-decoration: none; }
+.sel-local-fila { display: flex; margin: 0 0 14px; }
+.ped-accesos-sueltos { margin: 0 0 16px; }
+/* "‹ Hoy": volver de una tarea a la lista de Hoy. */
+.volver-hoy { display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap); margin: -6px 0 2px -6px; padding: 0 6px; color: var(--accent-text); font-size: 17px; text-decoration: none; }
+/* Más: lista tipo Ajustes */
+.mas-quien-fila .lg-v { color: var(--text-2); }
+#view .mas-salir { display: flex; width: 100%; max-width: none; }
+/* Hoy (encargado y gerencia) */
+.hoy-lista .lg-fila { min-height: 56px; }
+.hoy-hechas .lg-n { color: var(--text-2); }
+.hoy-hechas .lg-check { color: var(--done); }
+.gh-sem { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 22px; padding: 10px 0; background: var(--surface); border-radius: var(--r-group); color: inherit; text-decoration: none; }
+.gh-sem-c { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 0 14px; }
+.gh-sem-c + .gh-sem-c { border-left: 0.5px solid var(--sep); }
+.gh-sem-k { font-size: 13px; color: var(--text-2); }
+.gh-sem-v { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gh-sem-c.is-falta .gh-sem-v { font-size: 14px; font-weight: 400; color: var(--text-2); white-space: normal; }
+.gh .lg-v { max-width: 45%; }
+.gh-dif .lg-v { color: var(--bad-ink); }
+.gh-fila.is-vencida .lg-s { color: var(--bad-ink); }
+.gh-cargando .lg-n { color: var(--text-2); font-size: 15px; }
+.gh-ver .lg-n { color: var(--accent-text); }
+@media (min-width: 820px) {
+  .gh-sem-v { font-size: 17px; }
+  .gh-sem-c { padding: 0 18px; }
+}

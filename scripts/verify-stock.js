@@ -17,7 +17,7 @@ const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'c
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-resumen.js', 'js/ventas-global.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
-  'js/g-tablero.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
+  'js/g-hoy.js', 'js/hoy.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -34,7 +34,7 @@ check('todo el SHELL del SW existe', shell.every(f => fs.existsSync(S(f))), shel
 
 // Vistas del encargado: sin costos ni umbrales internos visibles.
 const permitido = (t) => t.replace(/pedido m[ií]nimo/gi, '').replace(/tiene_minimo/g, '');
-for (const f of ['js/pedir.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js']) {
+for (const f of ['js/pedir.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js', 'js/hoy.js']) {
   const t = permitido(read(f));
   check(`${f}: sin "precio"/"costo"`, !/precio|costo|importe/i.test(t));
   check(`${f}: sin "mínimo" ni "par" visibles`, !/m[ií]nimo/i.test(t) && !/\bpar\b/i.test(t));
@@ -151,11 +151,12 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   const m4 = read('js/main.js');
   const navGer = (m4.match(/gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0];
   const navCon = (m4.match(/contadora: \[[\s\S]*?\]\s*\};/) || [''])[0];
-  check('gerencia: el tablero es el inicio (primera sección) y tiene Pagos', /\[\s*\{ id: 'tablero'/.test(navGer) && /id: 'pagos'/.test(navGer));
+  const masGer = (m4.match(/const MAS = \{[\s\S]*?gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0].split('gerencia:')[1] || '';
+  check('gerencia: Hoy es el inicio (primera sección) y Pagos está en Más', /\[\s*\{ id: 'hoy'/.test(navGer) && /id: 'pagos'/.test(masGer));
   check('contadora: solo la sección Pagos', navCon.length > 0 && /id: 'pagos'/.test(navCon) && !/pedidos|stock|ventas|tablero|catalogo|recetas|recibir/.test(navCon), navCon);
   check('el menú del encargado no tiene Pagos ni Tablero', navEnc.length > 0 && !/pagos|tablero|facturas|proveedores/.test(navEnc));
   check('las rutas de pagos, facturas y comprobantes están en gerencia y contadora; tablero y proveedores solo en gerencia',
-    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'tablero': \(\) => import\('\.\/g-tablero\.js'\), 'proveedores'/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
+    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'hoy': \(\) => import\('\.\/g-hoy\.js'\), 'proveedores'/.test(m4) && /ALIAS = \{ 'gerencia\/tablero': 'hoy' \}/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
   check('el perfil contadora puede entrar a la app', /\['encargado', 'gerencia', 'contadora'\]\.includes\(perfil\.rol\)/.test(m4));
   check('vendor pdf.js 4.x anotado en vendor/README.md', /pdf\.min\.mjs.*4\.\d+\.\d+/.test(read('vendor/README.md')) && /pdf\.worker\.min\.mjs/.test(read('vendor/README.md')));
   check('pdf.js se carga solo en Cargar pago (import dinámico), no en index.html ni en el arranque', !/pdf\.|pdfjs/i.test(html) && /import\('\.\.\/vendor\/pdf\.min\.mjs'\)/.test(read('js/pdf-texto.js')) && !/pdf-texto|pdf\.min/.test(m4));
@@ -166,12 +167,13 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('WhatsApp: el aviso se abre por un botón (click) con navigator.share con archivos o wa.me; marca avisado al compartir', /navigator\.share\(\{ files: \[file\]/.test(av) && /canShare/.test(av) && /window\.open\(url, '_blank'/.test(av) && /marcarAvisado/.test(av) && !/^\s*(window\.open|navigator\.share)/m.test(av.split('on: { click')[0].split('export function abrirAviso')[0]));
   check('el encargado no ve pagos: pedir.js/entrar.js sin pagos, facturas, comprobantes ni tablero', !/pago|factura|comprobante|tablero|cuenta_corriente/i.test(read('js/pedir.js') + read('js/entrar.js')));
   const sw = read('sw.js');
-  check('el SW precachea los módulos nuevos', ['g-tablero', 'g-cuentas', 'g-facturas', 'g-historial', 'g-cargar-pago', 'g-proveedores', 'aviso', 'pagos-util', 'comprobante', 'pdf-texto'].every(m => sw.includes(`./js/${m}.js`)));
+  check('el SW precachea los módulos nuevos', ['g-hoy', 'hoy', 'mas', 'g-cuentas', 'g-facturas', 'g-historial', 'g-cargar-pago', 'g-proveedores', 'aviso', 'pagos-util', 'comprobante', 'pdf-texto'].every(m => sw.includes(`./js/${m}.js`)));
   check('api.js: sube comprobantes al bucket privado y guarda con registrar_pago (rpc transaccional)', /from\('comprobantes'\)/.test(read('js/api.js')) && /rpc\('registrar_pago'/.test(read('js/api.js')) && /rpc\('tablero'/.test(read('js/api.js')));
 
   // ---- Notas del equipo ----
   const nt = read('js/notas.js');
-  check('notas: pantalla en el menú del encargado y de gerencia, con ruta en ambos', /id: 'notas'/.test(navEnc) && /id: 'notas'/.test(navGer) && (m4.match(/'notas': \(\) => import\('\.\/notas\.js'\)/g) || []).length === 2);
+  const masEnc = (m4.match(/const MAS = \{\s*encargado: \[[\s\S]*?\],\s*gerencia:/) || [''])[0];
+  check('notas: en Más del encargado y de gerencia, con ruta en ambos', /id: 'notas'/.test(masEnc) && /id: 'notas'/.test(masGer) && (m4.match(/'notas': \(\) => import\('\.\/notas\.js'\)/g) || []).length === 2);
   check('notas: el SW precachea notas.js', sw.includes('./js/notas.js'));
   check('notas: sin precios ni costos', !/precio|costo|importe/i.test(nt));
   check('notas: el tema oscuro se saca al salir de la pantalla', /classList\.add\('tema-notas'\)/.test(nt) && /classList\.remove\('tema-notas'\)/.test(nt));
@@ -190,6 +192,22 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('elaborados: el SW precachea elaborados.js y no muestra precios', sw.includes('./js/elaborados.js') && !/precio|costo|importe/i.test(el));
   check('elaborados: migración 0014 con permiso por local, uso del día y borrar', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0014_elaborados.sql'), 'utf8'); return /mi_local\(\) = p_local/.test(q) && /uso_dia/.test(q) && /borrar_elaboracion/.test(q) && /cerrar_servicio/.test(q); })());
   check('notas: migración 0010 con RLS por local y aviso Telegram opcional', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0010_notas.sql'), 'utf8'); return /enable row level security/.test(q) && /local_id = public\.mi_local\(\)/.test(q) && /avisar_nota_telegram/.test(q); })());
+
+  // ---- Rediseño estilo Apple · fases 2 y 3 ----
+  const ui = read('js/ui.js');
+  const pestanas = (bloque) => (bloque.match(/\{ id: '/g) || []).length;
+  check('fase 2: ningún rol con más de 4 pestañas (Hoy primero, Más al final)', pestanas(navEnc) <= 5 && pestanas(navGer) === 4 && pestanas(navCon) <= 4
+    && /\[\s*\{ id: 'hoy'/.test(navEnc) && /id: 'mas'/.test(navGer) && /id: 'mas'/.test(navEnc) && /navDe = \(c\) => NAV\[c\.rol\]\.filter\(it => !\(c\.rol === 'encargado' && it\.id === \(shopping\(c\) \? 'hoja' : 'retiros'\)\)\)/.test(m4),
+    'encargado tiene Hoja o Retiros, nunca los dos');
+  check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
+  check('fase 2: Compras junta Pedidos · Enviar · Recibir · Gasto', /SUBNAV_COMPRAS = \[\['pedidos', 'Pedidos'\], \['compras', 'Enviar'\], \['recibir', 'Recibir'\], \['gasto', 'Gasto'\]\]/.test(ui));
+  check('fase 2: un solo selector de local (chipsLocal usa selectorLocal)', /selectorLocal\(\{ locales, clave: 'g:local'/.test(read('js/datos.js')) && !/class: 'chip' \+ \(l\.id === localId/.test(read('js/g-stock.js')));
+  check('fase 2: Más es una pantalla para todos los roles', /mas: \(\) => import\('\.\/mas\.js'\)/.test(m4));
+  const hy = read('js/hoy.js'), gh = read('js/g-hoy.js');
+  check('fase 3: Hoy del encargado con abrir, pedido, mercadería, factura y cierre; vacío "Todo listo por hoy"', ['abrir', 'pedir', 'llego', 'factura', 'cerrar'].every(t => hy.includes(`tarea('${t}'`)) && /Todo listo por hoy/.test(hy) && /depósito/.test(hy));
+  check('fase 3: Hoy del encargado sin precios, facturas de gerencia ni tablero', !/fmtMoney|precio|costo|tablero|facturasLista|facturasLocales/.test(hy) && !/from '\.\/(g-[a-z-]+|datos)\.js'/.test(hy));
+  check('fase 3: Hoy de gerencia con aprobar, entregas, facturas por vencer, diferencias y locales; solo consultas de api.js', ['aprobar', 'entregas', 'facturas', 'diferencias', 'locales'].every(g => gh.includes(`'data-grupo': '${g}'`)) && /Todo listo por hoy/.test(gh) && /Falta cargar/.test(gh) && !/sb\.|supabase/.test(gh));
+  check('fase 3: g-tablero.js absorbido por g-hoy.js', !fs.existsSync(S('js/g-tablero.js')) && !/g-tablero/.test(m4 + sw));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

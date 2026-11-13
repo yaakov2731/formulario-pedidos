@@ -177,7 +177,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const { c: cG, p: g } = await nuevo({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 }, U_GER, { 'g:local': L1 });
   await g.goto(BASE + '#/conteos');
   await g.waitForSelector('.cnd-card');
-  ok(await g.locator('.subnav-b.is-on').innerText() === 'Control' && await g.locator('.subnav2-b.is-on').innerText() === 'Conteos', 'Stock → Control → Conteos');
+  ok(await g.locator('.subnav-b.is-on').innerText() === 'Control' && await g.locator('.subnav-volver[data-volver="sector"]').count() === 1, 'Stock → Control → Conteos (con ‹ Control para volver, sin tercer nivel)');
   ok(await g.locator('.cnd-card').count() === 2 && /1 con faltante · 1 con sobrante/.test(await g.locator('.cnd-card[data-conteo="c-viejo"]').innerText()), 'lista los 2 conteos con faltantes y sobrantes');
   await shot(g, '04-g-conteos-pc', true);
   await g.locator('.cnd-card[data-conteo="c-viejo"]').click();
@@ -240,8 +240,10 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   ok(JSON.stringify(db.patch[db.patch.length - 1]) === '{"activo":false}', 'la baja solo cambia activo');
   await gl.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
   await shot(gl, '10-g-locales-m', true);
-  await gl.goto(BASE + '#/conteos'); await gl.waitForSelector('.chips');
-  ok(await gl.locator('.chips [data-local="loc-eve"]').count() === 0, 'el local dado de baja no aparece en el selector de local');
+  await gl.goto(BASE + '#/conteos'); await gl.waitForSelector('.sel-local');
+  await gl.locator('.sel-local').click(); await gl.waitForSelector('dialog.sheet .lg-fila');
+  ok(await gl.locator('dialog.sheet .lg-fila[data-local="loc-eve"]').count() === 0 && await gl.locator('dialog.sheet .lg-fila').count() > 0, 'el local dado de baja no aparece en el selector de local');
+  await gl.keyboard.press('Escape');
   await gl.goto(BASE + '#/locales'); await gl.waitForSelector('[data-local="EVE"]');
   await gl.locator('[data-local="EVE"]').click();
   await gl.locator('dialog.sheet[open] .cat-borrar').click();
