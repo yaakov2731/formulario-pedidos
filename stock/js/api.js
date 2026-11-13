@@ -211,6 +211,20 @@ export async function vincularEncargado(localId) {
 }
 // De a 1000 como el catálogo: sin paginar, PostgREST cortaba en 1000 y con ~8.300 precios la mayoría de los productos figuraban sin precio.
 export const cargarPrecios = () => todo(() => sb.from('precio_actual').select('producto_id,precio').order('producto_id'));
+// Historial de precios (cada cambio queda en la tabla precios): para avisar subas al recibir y en Hoy. Solo gerencia (RLS).
+const COLS_PRECIO = 'producto_id,proveedor_id,precio,fecha,creado_en,origen';
+export async function historialPrecios(productoIds) {
+  const ids = [...new Set(productoIds)].filter(Boolean), out = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    out.push(...await ok(await sb.from('precios').select(COLS_PRECIO).in('producto_id', ids.slice(i, i + 100)).order('fecha', { ascending: false }).order('creado_en', { ascending: false }).limit(2000)));
+  }
+  return out;
+}
+// Precios guardados desde una fecha (aaaa-mm-dd) y los anteriores de esos mismos productos, para comparar.
+export async function subasDesde(desde) {
+  const nuevos = await ok(await sb.from('precios').select(COLS_PRECIO).gte('fecha', desde).in('origen', ['recepcion', 'factura']).order('fecha', { ascending: false }).limit(1000));
+  return nuevos.length ? historialPrecios(nuevos.map(r => r.producto_id)) : [];
+}
 export const buscarServidor = async (q, localId) => ok(await sb.rpc('buscar_productos', { q, p_local: localId || null }));
 
 export async function misOrdenes(localId) {

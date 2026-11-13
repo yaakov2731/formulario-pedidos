@@ -1,9 +1,11 @@
 // Gerencia · Hoy (inicio, reemplaza al Tablero): lo que necesita una decisión, en listas agrupadas.
 //   Arriba, una línea con ventas, compras y margen de la semana (rpc tablero). Después: pedidos para aprobar por proveedor,
 //   entregas de hoy, facturas por vencer en 7 días, diferencias del día en $ (hoja por sector, a costo) y locales sin pedido
-//   o sin cierre. Lo que no está cargado dice "Falta cargar"; nunca se inventa un número.
+//   o sin cierre, y subas de precio de los últimos 7 días (más de 5 % contra la compra anterior al mismo proveedor; sin
+//   historial de precios la sección no aparece). Lo que no está cargado dice "Falta cargar"; nunca se inventa un número.
 import { mount, h, fmtNum, fmtMoney, hoyISO, sumarDias, jornadaISO, lsSet, porTexto, entregaHoy } from './util.js';
-import { tablero, facturasLista, ordenesPorEstado, ordenesHistorial, hojaRango, movimientosDesde, sinHojaSQL, mensajeError } from './api.js';
+import { tablero, facturasLista, ordenesPorEstado, ordenesHistorial, hojaRango, movimientosDesde, sinHojaSQL, subasDesde, mensajeError } from './api.js';
+import { subasRecientes } from './compras-estado.js';
 import { G, cargarG, nombreLocal } from './datos.js';
 import { esqueleto, vacio, banner, listaGrupo, filaLista, tituloGrande, selectorLocal, desdeHoy } from './ui.js';
 import { fechaDMA } from './pagos-util.js';
@@ -114,6 +116,8 @@ export async function render(root, ctx) {
     };
     pintar(undefined);
 
+    const desdeSubas = sumarDias(hoy, -7);
+    const pSubas = subasDesde(desdeSubas).catch(() => null);
     const lista = localId ? locales.filter(l => l.id === localId) : locales;
     const jornada = jornadaISO(), ayer = sumarDias(jornada, -1);
     const [y, m, d] = ayer.split('-').map(Number);
@@ -164,6 +168,16 @@ export async function render(root, ctx) {
           onClick: () => { lsSet('g:local', l.id); desdeHoy(sinPedido ? 'pedidos' : 'sector'); } });
       });
       bloques.push(listaGrupo('Locales', filas, { clase: 'gh-locales' }));
+    }
+    // ---- subas de precio de la semana (solo con historial de precios) ----
+    const histPrecios = await pSubas;
+    if (mi !== vez || !ctx.alive()) return;
+    const subas = subasRecientes(histPrecios || [], desdeSubas).filter(x => { const p = G.prods.get(x.producto_id); return p && enScope(p.local_id); });
+    if (subas.length) {
+      const filas = subas.slice(0, MAX_FILAS).map(x => { const p = G.prods.get(x.producto_id);
+        return filaLista({ texto: p.nombre, sub: [prov(x.proveedor_id), localId ? null : nombreLocal(p.local_id), `antes ${fmtMoney(x.previo)}`].filter(Boolean).join(' · '),
+          valor: `+${x.pct} %`, clase: 'gh-fila gh-suba', attrs: { 'data-grupo': 'subas', 'data-producto': x.producto_id } }); });
+      bloques.push(listaGrupo('Subas de precio', filas, { clase: 'gh-subas', pie: subas.length > MAX_FILAS ? `Y ${plural(subas.length - MAX_FILAS, 'suba más', 'subas más')} en los últimos 7 días` : null }));
     }
     if (sinSQL) bloques.push(banner('Falta activar la hoja por sector en el servidor: no se pueden ver diferencias ni cierres.', 'warn'));
     pintar(bloques.length ? h('div', { class: 'gh-hojas' }, ...bloques) : null);

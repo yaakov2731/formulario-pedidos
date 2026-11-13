@@ -385,6 +385,7 @@ async function montarApi(ctx) {
     }
     if (t === 'orden_item_precios') { const b = body(); db.itemPrecios.push(b); return json([b], 201); }
     if (t === 'precios' && req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(r => { db.preciosNuevos.push(r); db.precios[r.producto_id] = r.precio; }); return json([{ id: 'pr' }], 201); }
+    if (t === 'precios' && req.method() === 'GET') return json([]); // historial de precios (subas): vacío en este mock
     if (t === 'facturas_locales' && req.method() === 'GET') return json([]);
     if (t === 'conteos' && req.method() === 'GET') return json([]);
     return json({ message: 'mock: ruta no prevista ' + req.method() + ' ' + t }, 404);
@@ -669,7 +670,7 @@ const irSec = async (pg, id) => {
   ok(await g.locator('.pt-h').isVisible(), 'en PC la tabla tiene encabezados');
   const filaUmo = g.locator('.pt-envio', { hasText: 'Umo Grill' });
   const txtUmo = (await filaUmo.innerText()).replace(/\s+/g, ' ');
-  ok(/Ruth Coronel/.test(txtUmo) && /6 productos/.test(txtUmo) && /Barcena/.test(txtUmo) && /Sin proveedor/.test(txtUmo) && /En revisión/.test(txtUmo) && /Nota/.test(txtUmo), 'fila: local, encargado, productos, proveedores, estado y nota · ' + txtUmo);
+  ok(/Ruth Coronel/.test(txtUmo) && /6 productos/.test(txtUmo) && /Barcena/.test(txtUmo) && /Sin proveedor/.test(txtUmo) && /Para aprobar/.test(txtUmo) && /Nota/.test(txtUmo), 'fila: local, encargado, productos, proveedores, estado y nota · ' + txtUmo);
   ok((await g.locator('.pt-envio').first().innerText()).includes('Umo Grill'), 'lo más nuevo arriba');
   await g.locator('[data-filtro="enviados"]').click();
   ok(await g.locator('.pt-envio').count() === 1 && /Recibido/.test(await g.locator('.pt-envio').innerText()), 'filtro Enviados muestra el historial (pedido recibido de Trento)');
@@ -936,7 +937,7 @@ const irSec = async (pg, id) => {
   await shot(g, '12b-g-recibir-corregir-pc');
   const nRec = db.recepciones.length;
   await g.getByRole('button', { name: 'Confirmar recepción' }).click();
-  await g.waitForSelector('.toast-ok >> text=Recepción completa');
+  await g.waitForSelector('.rec-incompletas [data-incompleta]');
   const rc = db.recepciones[nRec];
   ok(rc && rc.p_items.some(i => i.producto_id === 'p-agua' && !i.orden_item_id && i.cantidad_recibida === 2 && i.precio_unitario === 5100), 'el agregado viaja con producto_id, cantidad y costo');
   ok(rc && rc.p_items.some(i => i.orden_item_id && i.no_vino === true && i.cantidad_recibida === 0), 'la gaseosa viaja como no vino');

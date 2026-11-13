@@ -104,3 +104,11 @@ falla, Ajustes → Probar conexión y la pestaña `LOG` de la planilla V3. Coord
 - Checks: verify-stock verde; e2e-hoja 33/33, e2e-control 23/23; e2e-stock 309 OK con un 404 de consola previo (rpc `contar_local` sin mock,
   igual en main). Capturas en /mnt/project-files/app-stock/rediseno-apple/fase1/.
 - Próximo paso: Jacobo revisa capturas y dice "mergear"; después Fase 2 (navegación de 4 pestañas).
+
+## Rediseño Apple · Fase 6 + reclamo + subas de precio (rama `claude/project-thread-wj2w6l`, 13/11/2026)
+
+- `stock/js/compras-estado.js` (nuevo, en el SW): un solo estado por orden (Para aprobar, Para enviar, Enviado, Llegó incompleto, Recibido), faltantes, texto de reclamo, suba > 5 %.
+- Recibir (`g-recibir.js`): abre con lo pedido, «Llegó todo» / «Confirmar recepción», «Volver a lo pedido», «Reclamar faltante» (WhatsApp con razón social del local), lista «Llegó incompleto» de 7 días. Aviso de suba por fila; también en `g-recibir-factura.js`. Hoy de gerencia: «Subas de precio» (7 días; sin historial no aparece).
+- Sin SQL: la tabla `precios` ya guarda cada cambio de precio.
+- Pruebas: `scripts/e2e-recibir.js` (nuevo, capturas en `/mnt/project-files/app-stock/recibir-precios/`), verify-stock, e2e-recibir-factura, e2e-hoy verdes; e2e-stock igual que main (1 error 404 de consola).
+- Próximo paso: Jacobo revisa capturas y dice "mergear".

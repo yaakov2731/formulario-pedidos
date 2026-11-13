@@ -106,6 +106,7 @@ function montarApi(ctx, db) {
     if (t === 'facturas_pendientes') return rol === 'gerencia' ? json(filtro(db.facturas, q)) : json({ code: '42501', message: 'permission denied' }, 403);
     if (t === 'rpc/tablero') return rol === 'gerencia' ? json(db.tablero) : json({ code: '42501', message: 'permission denied' }, 403);
     if (t === 'notas' || t === 'conteos') return json([]);
+    if (t === 'precios') return json([]); // historial de precios: sin subas en este mock (la sección no aparece)
     errores.push('mock: ruta no prevista ' + req.method() + ' ' + u.pathname + (rol ? ' (' + rol + ')' : ''));
     return json({ message: 'mock: ruta no prevista ' + t }, 404);
   });

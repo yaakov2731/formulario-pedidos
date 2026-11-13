@@ -17,7 +17,7 @@ const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'c
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-resumen.js', 'js/ventas-global.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
-  'js/g-hoy.js', 'js/hoy.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
+  'js/g-hoy.js', 'js/hoy.js', 'js/compras-estado.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -208,6 +208,14 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('fase 3: Hoy del encargado sin precios, facturas de gerencia ni tablero', !/fmtMoney|precio|costo|tablero|facturasLista|facturasLocales/.test(hy) && !/from '\.\/(g-[a-z-]+|datos)\.js'/.test(hy));
   check('fase 3: Hoy de gerencia con aprobar, entregas, facturas por vencer, diferencias y locales; solo consultas de api.js', ['aprobar', 'entregas', 'facturas', 'diferencias', 'locales'].every(g => gh.includes(`'data-grupo': '${g}'`)) && /Todo listo por hoy/.test(gh) && /Falta cargar/.test(gh) && !/sb\.|supabase/.test(gh));
   check('fase 3: g-tablero.js absorbido por g-hoy.js', !fs.existsSync(S('js/g-tablero.js')) && !/g-tablero/.test(m4 + sw));
+
+  // ---- Fase 6 · Compras con un estado, recibir contra lo pedido, reclamo y subas de precio ----
+  const ce = read('js/compras-estado.js'), gp = read('js/g-pedidos.js'), gr = read('js/g-recibir.js'), grf = read('js/g-recibir-factura.js');
+  check('fase 6: estados visibles Para aprobar · Para enviar · Enviado · Llegó incompleto · Recibido', ['Para aprobar', 'Para enviar', "'Enviado'", 'Llegó incompleto', "'Recibido'"].every(t => ce.includes(t)));
+  check('fase 6: Compras y Recibir muestran un solo estado (sin lista de estados por tarjeta)', !/estados\.map\(/.test(gp) && !/ESTADOS\[/.test(gp + gr) && /estadoDeVarias\(os\)/.test(gp) && /claseEstado\(k\)/.test(gr));
+  check('fase 6: Recibir abre con lo pedido, «Llegó todo» y «Reclamar faltante»', /'Llegó todo'/.test(gr) && /Reclamar faltante/.test(gr) && /textoReclamo\(/.test(gr) && /razonLocal\(o\.local_id\)/.test(gr));
+  check('fase 6: aviso de suba en Recibir y Recibir con factura; Subas de precio en Hoy', /subaPrecio\(/.test(gr) && /subaPrecio\(/.test(grf) && /'Subas de precio'/.test(gh) && /'data-grupo': 'subas'/.test(gh));
+  check('fase 6: lo de compras no llega a pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js'].some(f => /compras-estado|g-recibir/.test(read(f))));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

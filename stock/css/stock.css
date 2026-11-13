@@ -280,6 +280,7 @@ select.input { text-align: left; text-align-last: left; }
 .estado-enviada, .estado-parcial { background: var(--accent-soft); color: var(--accent-text); }
 .estado-recibida { background: var(--ok-soft); color: var(--ok-ink); }
 .estado-cancelada { background: var(--bad-soft); color: var(--bad-ink); }
+.estado-incompleto { background: var(--bad-soft); color: var(--bad-ink); }
 .grupo-prov .acciones { margin-top: 6px; }
 .grupo-prov .acciones .btn { flex: 1 1 180px; }
 .rec-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 360px; }
@@ -296,6 +297,17 @@ select.input { text-align: left; text-align-last: left; }
 .rec-cerrar { text-align: left; margin-bottom: 4px; }
 .rec-cerrar[hidden] { display: none; }
 .det-rec { font-size: 13px; font-weight: 700; color: var(--warn-ink); }
+.rec-head { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 12px; width: 100%; }
+.rec-suba { margin: 2px 0 0; font-size: 14px; font-weight: 700; color: var(--warn-ink); text-align: left; font-variant-numeric: tabular-nums; }
+.rec-suba[hidden] { display: none; }
+.rec-falt-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border-radius: 10px; background: var(--bad-soft); }
+.rec-falt-t { margin: 0; font-size: 14px; font-weight: 600; color: var(--bad-ink); text-align: left; flex: 1 1 200px; }
+.rec-falt-box .btn { display: inline-flex; align-items: center; gap: 6px; }
+.rec-volver { align-self: center; }
+.rec-volver[hidden] { display: none; }
+.rec-reclamo .lg { margin: 0; }
+.rec-reclamo .aviso-txt { white-space: pre-line; }
+.rec-incompletas { margin-top: 8px; }
 .det-rec-extra { color: var(--accent-text); }
 /* Recibir con factura */
 .rec-factura { margin: 12px auto 0; display: inline-flex; align-items: center; gap: 8px; }
@@ -1676,6 +1688,7 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .gh-sem-c.is-falta .gh-sem-v { font-size: 14px; font-weight: 400; color: var(--text-2); white-space: normal; }
 .gh .lg-v { max-width: 45%; }
 .gh-dif .lg-v { color: var(--bad-ink); }
+.gh-suba .lg-v { color: var(--warn-ink); }
 .gh-fila.is-vencida .lg-s { color: var(--bad-ink); }
 .gh-cargando .lg-n { color: var(--text-2); font-size: 15px; }
 .gh-ver .lg-n { color: var(--accent-text); }
