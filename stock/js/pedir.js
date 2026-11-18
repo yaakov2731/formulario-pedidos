@@ -1,8 +1,9 @@
 // Vista del encargado: Pedir (con el pedido sugerido cargado), Revisar pedido y, abajo de Pedir, Mis pedidos.
-import { mount, h, norm, tokens, coincide, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS, esBulto, factorDe, textoStock, plural, hoyISO } from './util.js';
+import { mount, h, norm, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS, esBulto, factorDe, textoStock, plural, hoyISO } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError, datosSugerido } from './api.js';
 import { icon, stepper, esqueleto, vacio, banner, toast, campo, tituloGrande, botonFijo } from './ui.js';
 import { sugerencias, entregaDe } from './sugerido.js';
+import { buscar, frecuencia, masUsados, anotarUso, textoUso } from './busqueda.js';
 
 const S = { lid: null, uid: null, local: null, prods: [], stock: new Map(), provs: new Map(), draft: {}, guardado: null, listo: false, offline: false,
   cons: new Map(), pend: new Map(), sug: new Map(), mis: null, misErr: null };
@@ -49,7 +50,8 @@ async function cargar(ctx, alActualizar) {
   // El sugerido y Mis pedidos no frenan la pantalla: si fallan, Pedir anda igual (sin sugerido: "Sin historial todavía").
   const hoy = hoyISO();
   swr('sug:' + lid, () => datosSugerido(lid, hoy), pon('sug', d => { if (d && d.hoy === hoy) { S.cons = new Map(d.cons); S.pend = new Map(d.pend); } })).catch(() => {});
-  if (!ctx.gerencia) swr('ord:' + lid, () => misOrdenes(lid), (d, _c, e) => {
+  // Los pedidos enviados alimentan también "Lo de siempre" y el orden del buscador (gerencia los usa sin la sección).
+  swr('ord:' + lid, () => misOrdenes(lid), (d, _c, e) => {
     S.misErr = e ? 'Sin conexión: mostrando lo último que guardamos.' : null;
     const j = JSON.stringify(d); if (j === S.jmis) return; S.jmis = j; S.mis = d; alActualizar();
   })
@@ -86,6 +88,7 @@ function cabecera(titulo, sub) {
 // ---------- Pedir ----------
 let filtro = { q: '', cat: 'todas' };
 const MI_PEDIDO = '__mio__';
+const FRECUENTES = '__frec__';
 let extraIds = null; // ids que devolvió la búsqueda del servidor
 let listaPrevia = null; // al repintar con datos frescos se mantiene lo que ya se veía
 
@@ -98,6 +101,8 @@ function pintarPedir(root, ctx, opc = {}) {
   const nOcultos = activos.filter(p => p.oculto).length;
   const cats = [...new Set(activos.filter(aLaVista).map(p => p.categoria || 'Sin categoría'))].sort(porTexto);
 
+  const frec = frecuencia(S.lid, S.mis || []);
+  const top = masUsados(activos, frec, 24);
   const lista = h('div', { class: 'lista', id: 'lista-prod' });
   const pill = botonFijo('', () => ctx.ir('revisar'), { clase: 'pill', hidden: true });
   const conSug = [...S.sug.values()].some(v => v > 0);
@@ -133,12 +138,14 @@ function pintarPedir(root, ctx, opc = {}) {
     pintarPedir(root, ctx);
   }
 
+  let aprox = null; // ids encontrados con algún error de tipeo
   const fila = (p) => {
     const q = cantidad(p);
     // Sin historial suficiente: campo vacío y el aviso; nunca un número inventado.
     const vacioSinHist = sinHistorial(p) && !tocado(p);
     const st = stepper({ value: q, label: `Pedir ${p.nombre}`, onChange: (v) => {
       S.draft[p.id] = v; guardarBorrador(); actualizarPill();
+      if (v > 0) anotarUso(S.lid, p.id);
       row.classList.toggle('is-on', v > 0);
     } });
     if (vacioSinHist) st.el.querySelector('input').value = '';
@@ -146,7 +153,9 @@ function pintarPedir(root, ctx, opc = {}) {
       h('h3', { class: 'prod-n', text: p.nombre }),
       h('p', { class: 'prod-m' }, p.unidad_compra ? h('span', { class: 'prod-u', text: esBulto(p) ? `${p.unidad_compra} de ${fmtNum(factorDe(p), 3)} ${plural(p.unidad_uso, factorDe(p))}` : p.unidad_compra }) : null,
         h('span', { class: 'quedan' }, 'Quedan ', h('b', { class: 'num', text: esBulto(p) ? textoStock(p, quedan(p)) : fmtNum(quedan(p), 2) || '0' })),
-        sinHistorial(p) ? h('span', { class: 'sin-hist', text: 'Sin historial todavía' }) : null),
+        sinHistorial(p) ? h('span', { class: 'sin-hist', text: 'Sin historial todavía' }) : null,
+        frec.get(p.id) && frec.get(p.id).veces ? h('span', { class: 'prod-uso', text: textoUso(frec.get(p.id), p.unidad_compra ? plural(p.unidad_compra, frec.get(p.id).ultCant || 1) : '') }) : null,
+        aprox && aprox.has(p.id) ? h('span', { class: 'tag-aprox', text: 'Parecido' }) : null),
       h('div', { class: 'prod-p' }, h('span', { class: 'prod-pl', text: 'Pedir' }), st.el));
     return row;
   };
@@ -156,13 +165,17 @@ function pintarPedir(root, ctx, opc = {}) {
     let vis = activos;
     // Con una categoría elegida (ej.: Verdulería) la búsqueda queda dentro de esa categoría: "tomate" no trae "puré de tomate".
     // Con "Todas" o "En mi pedido" se busca en todo el catálogo del local.
-    const enCat = filtro.cat !== 'todas' && filtro.cat !== MI_PEDIDO;
+    const enCat = filtro.cat !== 'todas' && filtro.cat !== MI_PEDIDO && filtro.cat !== FRECUENTES;
     if (!q) vis = vis.filter(aLaVista);
     if (filtro.cat === MI_PEDIDO && !q) vis = vis.filter(p => cantidad(p) > 0);
+    else if (filtro.cat === FRECUENTES && !q) vis = top;
     else if (enCat) vis = vis.filter(p => (p.categoria || 'Sin categoría') === filtro.cat);
+    aprox = null;
     if (q) {
-      const toks = tokens(q);
-      const local = vis.filter(p => coincide(p.nombre + ' ' + p.codigo, toks));
+      // Tolerante a errores ("chorzio", "muzarela", "cocacola") y con lo que más usa el local primero.
+      const res = buscar(vis, filtro.q, { frec });
+      aprox = new Set(res.filter(r => r.aprox).map(r => r.p.id));
+      const local = res.map(r => r.p);
       const ids = new Set(local.map(p => p.id));
       const extra = extraIds ? vis.filter(p => extraIds.has(p.id) && !ids.has(p.id)) : [];
       vis = [...local, ...extra];
@@ -171,6 +184,7 @@ function pintarPedir(root, ctx, opc = {}) {
     cuenta.textContent = q ? (vis.length ? `${vis.length} ${vis.length === 1 ? 'producto' : 'productos'}${enCat ? ' en ' + filtro.cat : ''}` : '') : '';
     if (!vis.length) {
       if (filtro.cat === MI_PEDIDO && !q) { lista.replaceChildren(vacio('Tu pedido está vacío', 'Buscá un producto o elegí una categoría y sumá con +.')); return; }
+      if (filtro.cat === FRECUENTES && !q) { lista.replaceChildren(vacio('Todavía no hay historial', 'Cuando el local envíe pedidos, acá aparece lo que más se pide.')); return; }
       if (q && enCat) {
         lista.replaceChildren(vacio(`No hay "${filtro.q.trim()}" en ${filtro.cat}`, 'Probá con otra palabra o buscalo en todas las categorías.'),
           h('p', { class: 'mas-buscar' }, h('button', { class: 'btn btn-text', type: 'button', text: 'Buscar en todas las categorías', on: { click: () => elegir('todas') } })));
@@ -178,10 +192,15 @@ function pintarPedir(root, ctx, opc = {}) {
       }
       lista.replaceChildren(vacio(q ? 'No encontramos ese producto' : 'Sin productos', q ? 'Probá con otra palabra.' : 'Todavía no hay productos cargados para este local.')); return;
     }
-    if (q || filtro.cat === MI_PEDIDO) {
-      // Primero lo que empieza con lo buscado ("Tomate", "Tomate cherry") y después el resto ("Puré de tomate").
-      const empieza = (p) => (q && norm(p.nombre).startsWith(tokens(q)[0]) ? 0 : 1);
-      porTandas(lista, vis.sort((a, b) => empieza(a) - empieza(b) || porTexto(a.nombre, b.nombre)).map(p => () => fila(p)), 60, inicial); return;
+    if (q || filtro.cat === FRECUENTES) {
+      // Ya viene ordenado: lo que mejor y entre parecidos lo que más pide el local.
+      const soloAprox = q && vis.length && vis.every(p => aprox.has(p.id));
+      const cab = soloAprox ? [() => h('p', { class: 'quisiste', text: `No hay "${filtro.q.trim()}" exacto. ¿Quisiste decir…?` })]
+        : filtro.cat === FRECUENTES && !q ? [() => h('p', { class: 'quisiste', text: `Lo que más pide ${nombreLocal || 'el local'}, de más a menos.` })] : [];
+      porTandas(lista, [...cab, ...vis.map(p => () => fila(p))], 60, inicial); return;
+    }
+    if (filtro.cat === MI_PEDIDO) {
+      porTandas(lista, vis.sort((a, b) => porTexto(a.nombre, b.nombre)).map(p => () => fila(p)), 60, inicial); return;
     }
     // Agrupado por proveedor (como se manda el pedido), con el corte de cada uno a la derecha. Sin proveedor, al final.
     const g = groupBy(vis, p => (p.proveedor_id && S.provs.has(p.proveedor_id)) ? p.proveedor_id : SIN_PROV);
@@ -205,19 +224,30 @@ function pintarPedir(root, ctx, opc = {}) {
     } catch (_e) { /* la búsqueda local alcanza */ }
   }, 300);
 
-  const ph = (c) => c !== 'todas' && c !== MI_PEDIDO ? `Buscar en ${c}` : 'Buscar producto (ej.: queso, coca, servilleta)';
+  const ph = (c) => c !== 'todas' && c !== MI_PEDIDO && c !== FRECUENTES ? `Buscar en ${c}` : 'Buscar producto (ej.: queso, coca, servilleta)';
   const cuenta = h('span', { class: 'busca-n', 'aria-live': 'polite' });
   const limpiar = h('button', { class: 'busca-x', type: 'button', 'aria-label': 'Borrar búsqueda', hidden: !filtro.q, on: { click: () => { buscador.value = ''; alBuscar(''); buscador.focus(); } } }, icon('cerrar', 18));
   const alBuscar = (v) => { filtro.q = v; limpiar.hidden = !v; extraIds = null; pintarLista(); buscarRemoto(v); };
   const buscador = h('input', { class: 'input input-search', type: 'search', id: 'buscar', placeholder: ph(filtro.cat), autocomplete: 'off', enterkeyhint: 'search', 'aria-label': 'Buscar producto', value: filtro.q,
     on: { input: (e) => alBuscar(e.target.value) } });
   const caja = h('div', { class: 'busca' }, icon('buscar', 20), buscador, limpiar, cuenta);
+  // Al tocar el buscador vacío aparecen los atajos: lo que más pide el local, a un toque.
+  const atajos = h('div', { class: 'atajos', hidden: true, role: 'group', 'aria-label': 'Lo que más pedís' },
+    h('span', { class: 'atajos-t', text: 'Lo que más pedís' }),
+    h('div', { class: 'atajos-l' }, top.slice(0, 8).map(p => h('button', { class: 'atajo', type: 'button', 'data-id': p.id, text: p.nombre,
+      on: { pointerdown: (e) => e.preventDefault(), click: () => { buscador.value = p.nombre; alBuscar(p.nombre); atajos.hidden = true; buscador.blur(); } } }))));
+  const verAtajos = () => { atajos.hidden = !(top.length && !buscador.value && document.activeElement === buscador); };
+  buscador.addEventListener('focus', verAtajos);
+  buscador.addEventListener('input', verAtajos);
+  buscador.addEventListener('blur', () => { atajos.hidden = true; });
 
   const marcar = (c) => chips.querySelectorAll('.chip').forEach(b => { const on = b.dataset.cat === c; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
   // Al cambiar de categoría se mantiene lo que se está buscando, ahora dentro de la categoría nueva.
   const elegir = (c) => { filtro.cat = c; buscador.placeholder = ph(c); marcar(c); pintarLista(); };
   chipMio.dataset.cat = MI_PEDIDO; chipMio.addEventListener('click', () => elegir(MI_PEDIDO));
-  const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categorías' }, chipMio,
+  if (filtro.cat === FRECUENTES && !top.length) filtro.cat = 'todas';
+  const chipFrec = top.length ? h('button', { class: 'chip chip-frec', type: 'button', 'data-cat': FRECUENTES, on: { click: () => elegir(FRECUENTES) } }, icon('estrella', 15), h('span', { text: 'Lo de siempre' })) : null;
+  const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': 'Categorías' }, chipFrec, chipMio,
     ['todas', ...cats].map(c => h('button', { class: 'chip', type: 'button', 'data-cat': c, text: c === 'todas' ? 'Todas' : c, on: { click: () => elegir(c) } })));
   marcar(filtro.cat);
 
@@ -228,7 +258,7 @@ function pintarPedir(root, ctx, opc = {}) {
     cabecera('Pedir', nombreLocal),
     S.offline ? banner('Sin conexión: mostrando lo último que guardamos.', 'warn') : null,
     aviso.tipo === 'ok' ? h('p', { class: 'aviso-ok', text: aviso.texto }) : banner(aviso.texto, aviso.tipo === 'warn' ? 'warn' : 'info'),
-    h('div', { class: 'toolbar toolbar-fija' }, caja, chips),
+    h('div', { class: 'toolbar toolbar-fija' }, caja, atajos, chips),
     estado, lista, mis, pill);
   pintarLista(previo); actualizarPill();
   // Se busca la sección al momento de scrollear: si otro repintado llega antes, la de este ya no está en la página.

@@ -1,8 +1,9 @@
 // Encargado del Shopping · Retiros: qué sale del depósito, cuánto, a dónde va y quién lo retira.
 // En el Shopping el control es por retiro y destino, no contra ventas. Cada retiro resta del stock del local
 // y gerencia ve el gasto por destino en Stock → Retiros (0031_hoja_sector.sql). El destino nuevo queda guardado.
-import { mount, h, tokens, coincide, fmtNum, porTexto, lsGet, lsSet, esCarta, esBulto, plural, fechaLarga, lugarDe, SIN_LUGAR, jornadaISO, sumarDias, textoBulto } from './util.js';
+import { mount, h, tokens, fmtNum, porTexto, lsGet, lsSet, esCarta, esBulto, plural, fechaLarga, lugarDe, SIN_LUGAR, jornadaISO, sumarDias, textoBulto } from './util.js';
 import { swr, cargarCatalogo, cargarLocales, hojaRango, hojaAnotar, hojaBorrar, cargarDestinos, sinHojaSQL, mensajeError } from './api.js';
+import { buscar as buscarProds, frecuencia, masUsados, anotarUso } from './busqueda.js';
 import { esqueleto, vacio, banner, toast, icon, hoja as hojaModal, stepper } from './ui.js';
 
 const hora = (iso) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -83,8 +84,9 @@ export async function render(root, ctx) {
       }
       elegido.replaceChildren();
       const toks = tokens(q);
-      const vis = (toks.length ? activos.filter(p => coincide(p.nombre, toks)) : activos).slice(0, 8);
-      resultados.replaceChildren(...vis.map(p => h('button', { class: 'rt-op', type: 'button', 'data-id': p.id, text: p.nombre, on: { click: () => { prod = p; pintarProd(); } } })));
+      const frec = frecuencia(lid);
+      const vis = (toks.length ? buscarProds(activos, q, { frec, texto: (p) => p.nombre }).map(r => r.p) : [...masUsados(activos, frec, 8), ...activos]).filter((p, i, a) => a.indexOf(p) === i).slice(0, 8);
+      resultados.replaceChildren(...vis.map(p => h('button', { class: 'rt-op', type: 'button', 'data-id': p.id, text: p.nombre, on: { click: () => { prod = p; anotarUso(lid, p.id); pintarProd(); } } })));
     }
     function pintarDest(limpiarOtro = true) {
       chipsDest.replaceChildren(...destinos.map(d => h('button', { class: 'chip' + (destino === d ? ' is-on' : ''), type: 'button', 'aria-pressed': destino === d ? 'true' : 'false', 'data-destino': d, text: d,

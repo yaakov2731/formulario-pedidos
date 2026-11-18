@@ -163,6 +163,7 @@ async function ruta() {
     const mod = await vistas[id]();
     if (mi !== ticket) return;
     const root = h('div', { class: 'vista' });
+    root.classList.add('entra'); setTimeout(() => root.classList.remove('entra'), 600); // aparece suave solo al entrar
     const volver = volverAHoy(id);
     $view.replaceChildren(...(volver ? [volver, root] : [root]));
     const vctx = { ...ctx, alive: () => mi === ticket, ir: (r) => { location.hash = '#/' + r; }, mas: masDe(ctx), quien: quienEs(ctx), salir: cerrarSesion };

@@ -244,7 +244,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     await p.waitForSelector('.gh-sem'); await p.waitForSelector('.gh-cargando', { state: 'detached' });
     if (ancho === 390) {
       ok(await p.locator('h1').first().innerText() === 'Hoy', 'gerencia: abre en Hoy');
-      ok((await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' ') === 'Ventas $ 4,12 M Compras $ 1,89 M Margen 68 %', 'gerencia: una línea con ventas, compras y margen de la semana');
+      ok((await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' ').toLowerCase() === 'Ventas $ 4,12 M Compras $ 1,89 M Margen 68 %'.toLowerCase(), 'gerencia: una línea con ventas, compras y margen de la semana');
       ok((await texto(p, '[data-grupo="aprobar"]')).join(' / ') === 'Barcena Shopping · Umo Grill 3 ítems / Distribuidora Florida Umo Grill 1 ítem', 'gerencia: para aprobar por proveedor · ' + (await texto(p, '[data-grupo="aprobar"]')).join(' / '));
       ok((await texto(p, '[data-grupo="entregas"]')).join(' / ') === 'Barcena Umo Grill 2 ítems', 'gerencia: entregas de hoy (Barcena entrega los miércoles)');
       const f = await texto(p, '[data-grupo="facturas"]');
@@ -283,7 +283,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     await p.waitForSelector('.gh-sem'); await p.waitForSelector('.gh-cargando', { state: 'detached' });
     if (ancho === 390) {
       ok(await p.locator('.empty-t').innerText() === 'Todo listo por hoy', 'gerencia vacía: "Todo listo por hoy"');
-      ok((await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' ') === 'Ventas Falta cargar Compras $ 0 Margen Sin historial todavía', 'gerencia vacía: sin ventas dice "Falta cargar", sin inventar margen · ' + (await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' '));
+      ok((await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' ').toLowerCase() === 'Ventas Falta cargar Compras $ 0 Margen Sin historial todavía'.toLowerCase(), 'gerencia vacía: sin ventas dice "Falta cargar", sin inventar margen · ' + (await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' '));
       ok(await sinDesborde(p), 'gerencia vacía 390: sin desbordes');
     }
     await shot(p, 'hoy-gerencia-vacio-' + ancho);

@@ -3,8 +3,9 @@
 // El encargado solo anota: no ve consumo, diferencias ni precios. Los cálculos los ve gerencia en Stock → Por sector.
 // Los sectores son los lugares del local (0025_lugares.sql); si no hay, la hoja es una sola para todo el local.
 // Lo que se elabora entra como "+ Entró · Lo elaboré". La merma también resta del stock del local (0031_hoja_sector.sql).
-import { mount, h, tokens, coincide, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaLarga, porLugar, SIN_LUGAR, jornadaISO, elabora, textoBulto } from './util.js';
+import { mount, h, tokens, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaLarga, porLugar, SIN_LUGAR, jornadaISO, elabora, textoBulto } from './util.js';
 import { swr, cargarCatalogo, cargarLocales, hojaDelDia, hojaContar, hojaAnotar, hojaBorrar, sinHojaSQL, mensajeError } from './api.js';
+import { buscar as buscarProds, frecuencia, anotarUso } from './busqueda.js';
 import { esqueleto, vacio, banner, toast, icon, hoja as hojaModal, stepper } from './ui.js';
 
 export const TODO_EL_LOCAL = 'Todo el local';
@@ -169,7 +170,7 @@ export async function render(root, ctx) {
 
     function pintarFilas() {
       const toks = tokens(q);
-      const vis = toks.length ? lista.filter(p => coincide(p.nombre, toks)) : lista;
+      const vis = toks.length ? buscarProds(lista, q, { frec: frecuencia(lid), texto: (p) => p.nombre }).map(r => r.p) : lista;
       mount(filas, vis.length ? vis.map(p => (paso === 'durante' ? filaDia(p) : filaConteo(p))) : h('p', { class: 'hj-hint', text: 'No hay productos con ese nombre en este sector.' }));
       actualizarPill();
     }
@@ -204,6 +205,7 @@ export async function render(root, ctx) {
 
   // ---------- Anotar: entró, devolví, merma ----------
   function anotar(p, tipoIni) {
+    anotarUso(lid, p.id);
     let tipo = tipoIni, otro = null, cuanto = 0, enviando = false;
     const st = stepper({ value: 0, label: 'Cantidad', onChange: (n) => { cuanto = n; } });
     const segT = h('div', { class: 'seg seg-form hj-tipos', role: 'tablist', 'aria-label': 'Qué pasó' });
