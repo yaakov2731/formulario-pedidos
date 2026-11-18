@@ -305,7 +305,7 @@ export async function render(root, ctx) {
       E.existente ? h('div', { class: 'existe' }, banner(`Ya hay ventas importadas de este día${E.existente.n_pedidos ? ' (' + E.existente.n_pedidos + ' pedidos)' : ''}. Al confirmar se reemplazan.`, 'warn'),
         h('button', { class: 'btn btn-text btn-danger', type: 'button', text: 'Borrar las de este día', on: { click: () => pedirBorrar({ ...E.existente, fecha_desde: E.fecha }) } })) : null,
       h('div', { class: 'subida' }, h('label', { class: 'btn ' + (imp ? 'btn-ghost' : 'btn-primary'), for: 'f-archivo' }, h('span', { text: imp ? 'Sumar otro Excel' : 'Elegir Excel de Núcleo' })), inpArchivo,
-        h('p', { class: 'sub', text: 'Subí el detalle por pedido y las formas de pago del mismo día. También sirve "Pedidos por producto".' })),
+        h('p', { class: 'sub', text: 'Detalle por pedido y formas de pago del mismo día.' })),
       archivos, fechaDif ? banner(`Los archivos son del ${res.fecha.split('-').reverse().join('/')} pero elegiste otra fecha.`, 'warn') : null,
       res && res.ignoraSimple ? banner('Se usa el detalle por pedido; "Pedidos por producto" se ignora.', 'info') : null,
       prev, zonaLista,

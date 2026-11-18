@@ -39,7 +39,7 @@ export async function render(root, ctx) {
       const p = porId.get(m.producto_id);
       return h('article', { class: 'rt-item', 'data-id': m.id },
         h('div', { class: 'rt-t' }, h('b', { text: p ? p.nombre : 'Producto' }),
-          h('div', { class: 'hj-tags' }, h('span', { class: 'hj-tag is-entro', text: `${cant(m.cantidad)}${uni(p, Number(m.cantidad))}` }), h('span', { class: 'hj-tag is-ab', text: '→ ' + (m.otro || '') })),
+          h('span', { class: 'rt-dest', text: `${cant(m.cantidad)}${uni(p, Number(m.cantidad))}${m.otro ? ' a ' + m.otro : ''}` }),
           h('small', { text: `${m.quien ? m.quien + ' · ' : ''}${hora(m.creado_en)}` })),
         m.fecha >= sumarDias(fecha, -2) ? h('button', { class: 'btn btn-text btn-danger btn-sm', type: 'button', text: 'Sacar', 'aria-label': 'Sacar el retiro de ' + (p ? p.nombre : ''), on: { click: () => sacar(m) } }) : null);
     };

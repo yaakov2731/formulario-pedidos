@@ -16,7 +16,7 @@ const NAV = {
   gerencia: [
     { id: 'hoy', label: 'Hoy', icono: 'hoy' },
     { id: 'compras', label: 'Compras', icono: 'pedir', incluye: ['pedidos', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
-    { id: 'stock', label: 'Stock', icono: 'stock', incluye: ['sector', 'control', 'g-retiros', 'conteos', 'lugares'] },
+    { id: 'stock', label: 'Stock', icono: 'stock', incluye: ['sector', 'control', 'perdida', 'g-retiros', 'conteos', 'lugares'] },
     { id: 'mas', label: 'Más', icono: 'menu', incluye: ['resumen', 'ventas', 'analisis', 'merma', 'recetas', 'produccion', 'elaborados', 'pagos', 'facturas', 'historial', 'cargar-pago',
       'catalogo', 'categorias', 'proveedores', 'locales', 'notas'] }
   ],
@@ -52,7 +52,7 @@ const VISTAS = {
     ...RUTAS_PAGOS,
     'hoy': () => import('./g-hoy.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
-    'stock': () => import('./g-stock.js'), 'sector': () => import('./g-sector.js'), 'g-retiros': () => import('./g-retiros.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
+    'stock': () => import('./g-stock.js'), 'sector': () => import('./g-sector.js'), 'g-retiros': () => import('./g-retiros.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'perdida': () => import('./g-perdida.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
     'resumen': () => import('./g-resumen.js'), 'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
     'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js'),
     'notas': () => import('./notas.js')

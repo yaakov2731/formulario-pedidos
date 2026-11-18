@@ -14,7 +14,7 @@ const RAZONES = ['SUMA ACTIVA S.A.', 'SPMAR S.A.'];
 const emailEncargado = (codigo) => `local-${String(codigo || '').toLowerCase()}@docks-stock.app`;
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Locales' }), h('p', { class: 'sub', text: 'Qué locales hay y a nombre de quién compra cada uno' }));
+  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Locales' }), h('p', { class: 'sub', text: 'Locales y a nombre de quién compran' }));
   mount(root, cab, subnav(SUBNAV_CATALOGO, 'locales'), esqueleto(3));
   const lista = h('div', { class: 'lista' });
   const hayColumna = () => G.locales.some((l) => 'razon_social' in l);

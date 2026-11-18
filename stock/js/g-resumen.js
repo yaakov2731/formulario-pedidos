@@ -179,7 +179,7 @@ export async function render(root, ctx) {
     if (!ctx.alive()) return;
     if (cargando) return zona.replaceChildren(esqueleto(3));
     if (error) return zona.replaceChildren(banner(error, 'error'));
-    if (!R || !R.hay) return zona.replaceChildren(vacio('No hay ventas en esas fechas', 'Importá el Excel de Núcleo de cada local en Ventas → Importar.'),
+    if (!R || !R.hay) return zona.replaceChildren(vacio('No hay ventas en esas fechas', 'Importá el Excel de Núcleo de cada local.'),
       h('div', { class: 'centro' }, h('a', { class: 'btn btn-primary', href: '#/ventas', text: 'Importar ventas' })));
     const y = zona.closest('.main') ? zona.closest('.main').scrollTop : 0;
     zona.replaceChildren(hero(), kpis(),

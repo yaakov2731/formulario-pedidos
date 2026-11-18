@@ -36,7 +36,7 @@ function anteriorDe(clave, desde, hasta) {
 }
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Gasto en compras' }), h('p', { class: 'sub', text: 'Lo que suman las facturas y recibos X que vas cargando' }));
+  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Gasto en compras' }), h('p', { class: 'sub', text: 'Facturas y recibos X cargados' }));
   mount(root, cab, subnav(ctx.rol === 'gerencia' ? SUBNAV_COMPRAS : SUBNAV_PAGOS, 'gasto'), esqueleto(3));
 
   let clave = lsGet('gc:rango', 'mes'); if (clave !== 'manual' && !RANGOS.some(r => r[0] === clave)) clave = 'mes';
@@ -154,8 +154,7 @@ export async function render(root, ctx) {
     if (cargando) return zona.replaceChildren(esqueleto(3));
     if (error) return zona.replaceChildren(banner(error, 'error'));
     R = resumenGasto(gastos, desde, hasta, ant, tipo);
-    if (!R.totalAmbos) return zona.replaceChildren(vacio('No hay compras cargadas en esas fechas', 'Cargá facturas o recibos X en Pagos → Facturas, o recibí mercadería leyendo la factura.'),
-      h('div', { class: 'centro acciones' }, h('a', { class: 'btn btn-primary', href: '#/facturas', text: 'Cargar factura o recibo X', on: { click: abrirNueva } })));
+    if (!R.totalAmbos) return zona.replaceChildren(vacio('No hay compras en esas fechas', 'Probá con otras fechas o cargá una factura.'));
     const y = zona.closest('.main') ? zona.closest('.main').scrollTop : 0;
     zona.replaceChildren(segTipo(), hero(), tipo === 'todo' ? mezcla() : null,
       R.hay ? kpis() : null,

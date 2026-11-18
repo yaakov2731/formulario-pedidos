@@ -10,7 +10,7 @@ import { G, cargarG, chipsLocal } from './datos.js';
 import { esqueleto, vacio, toast, banner, subnav, SUBNAV_STOCK } from './ui.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
-const VISTAS = [['destino', 'Por destino'], ['producto', 'Por producto'], ['deposito', 'Control del depósito']];
+const VISTAS = [['destino', 'Destino'], ['producto', 'Producto'], ['deposito', 'Depósito']];
 
 export function periodos(hoy = jornadaISO()) {
   const [y, m] = hoy.split('-').map(Number);
@@ -49,7 +49,7 @@ export function controlDeposito(movs, recs, prods, precios) {
 
 export async function render(root, ctx) {
   const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Retiros' }),
-    h('p', { class: 'sub', text: 'Qué salió del depósito, a dónde fue y quién lo retiró. Sin comparar contra ventas.' }));
+    h('p', { class: 'sub', text: 'Qué salió del depósito y a dónde fue' }));
   const nav = subnav(SUBNAV_STOCK, 'g-retiros');
   mount(root, cab, nav, esqueleto(4));
   try { await cargarG(['prods', 'locales', 'precios']); } catch (e) { toast('No se pudo cargar: ' + mensajeError(e), 'error'); }
@@ -106,7 +106,7 @@ export async function render(root, ctx) {
         }))));
     } else {
       tabla = h('div', { class: 'gs-tabla-w' }, h('table', { class: 'gs-tabla' },
-        h('thead', {}, h('tr', {}, ['Producto', 'Apertura', '+ Entró', '− Retiros', '✕ Merma', 'Cierre'].map(t => h('th', { scope: 'col', text: t })), h('th', { scope: 'col', class: 'is-calc', text: 'Sin retiro anotado' }), h('th', { scope: 'col', class: 'is-calc', text: '$' }))),
+        h('thead', {}, h('tr', {}, ['Producto', 'Apertura', 'Entró', 'Retiros', 'Merma', 'Cierre'].map(t => h('th', { scope: 'col', text: t })), h('th', { scope: 'col', class: 'is-calc', text: 'Sin retiro anotado' }), h('th', { scope: 'col', class: 'is-calc', text: '$' }))),
         h('tbody', {}, ctrl.map(r => h('tr', { 'data-prod': r.p.id, class: r.sinAnotar > 0 ? 'is-mal' : null }, h('td', {}, h('b', { text: r.p.nombre }), h('small', { text: ' ' + (r.p.unidad_uso || '') })),
           r.completo ? [h('td', { class: 'num', text: n(r.ap) }), h('td', { class: 'num', text: n(r.entro) }), h('td', { class: 'num', text: n(r.retiros) }), h('td', { class: 'num', text: n(r.merma) }), h('td', { class: 'num', text: n(r.ci) }),
             h('td', { class: 'num is-calc' + (r.sinAnotar > 0 ? ' is-neg' : ' is-ok'), text: n(r.sinAnotar) }), h('td', { class: 'num is-calc' + (r.valor ? ' is-neg' : ''), text: r.valor ? fmtMoney(r.valor) : '—' })]
@@ -116,7 +116,7 @@ export async function render(root, ctx) {
     mount(cuerpo, kpis, zonaVista, tabla,
       h('p', { class: 'kpi-n gs-pie', text: vista === 'deposito'
         ? 'Sin retiro anotado = Apertura + Entró (recepciones) − Retiros − Merma − Cierre, entre la primera apertura y el último cierre del período. No se compara contra ventas.'
-        : 'Lo anota el encargado del Shopping en Retiros. El costo sale del último precio de compra.' }));
+        : 'A último precio de compra.' }));
   }
 
   async function cargar() {

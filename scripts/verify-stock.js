@@ -15,9 +15,9 @@ const check = (n, ok, x) => { console.log((ok ? 'OK   ' : 'FAIL ') + n + (!ok &&
 
 const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'css/stock.css', 'vendor/supabase.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png', 'icons/icon.svg',
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
-  'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
+  'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/sugerido.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-resumen.js', 'js/ventas-global.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
-  'js/g-hoy.js', 'js/hoy.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
+  'js/g-hoy.js', 'js/hoy.js', 'js/compras-estado.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -34,14 +34,17 @@ check('todo el SHELL del SW existe', shell.every(f => fs.existsSync(S(f))), shel
 
 // Vistas del encargado: sin costos ni umbrales internos visibles.
 const permitido = (t) => t.replace(/pedido m[ií]nimo/gi, '').replace(/tiene_minimo/g, '');
-for (const f of ['js/pedir.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js', 'js/hoy.js']) {
+for (const f of ['js/pedir.js', 'js/sugerido.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js', 'js/hoy.js']) {
   const t = permitido(read(f));
   check(`${f}: sin "precio"/"costo"`, !/precio|costo|importe/i.test(t));
   check(`${f}: sin "mínimo" ni "par" visibles`, !/m[ií]nimo/i.test(t) && !/\bpar\b/i.test(t));
 }
 check('encargado no importa vistas de gerencia', !/from '\.\/(g-[a-z-]+|nucleo|analisis|datos|aviso|pagos-util|comprobante|pdf-texto)\.js'/.test(read('js/pedir.js') + read('js/entrar.js')));
 check('encargado: ni ventas, recetas, producción ni lector de Excel en pedir.js/entrar.js', !/ventas|receta|producci[oó]n|xlsx|merma|importar_/i.test(read('js/pedir.js') + read('js/entrar.js')));
-check('encargado: Pedir arranca vacío (sin pedido precargado)', !/cargarSugerido|sugeridoDe/.test(read('js/pedir.js')));
+check('fase 4: Pedir trae el sugerido cargado (sugerido.js), sin historial lo deja vacío y Mis pedidos queda abajo de Pedir',
+  /from '\.\/sugerido\.js'/.test(read('js/pedir.js')) && /Sin historial todavía/.test(read('js/pedir.js')) && /seccionMis\(/.test(read('js/pedir.js'))
+  && !/renderMis/.test(read('js/pedir.js')) && /'mis-pedidos': \(\) => import\('\.\/pedir\.js'\)/.test(read('js/main.js')) && read('sw.js').includes('./js/sugerido.js'));
+check('fase 4: el sugerido no usa la cantidad ideal ni precios (solo consumo, lo que queda y lo pedido)', !/\.par\b|precio|costo|importe/i.test(read('js/sugerido.js')) && !/cargarSugerido/.test(read('js/pedir.js')));
 const main = read('js/main.js');
 const navEnc = (main.match(/encargado: \[[\s\S]*?\],\s*gerencia:/) || [''])[0];
 check('el menú del encargado no tiene Ventas ni Cocina', navEnc.length > 0 && !/ventas|recetas|merma|produccion/.test(navEnc));
@@ -199,7 +202,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('fase 2: ningún rol con más de 4 pestañas (Hoy primero, Más al final)', pestanas(navEnc) <= 5 && pestanas(navGer) === 4 && pestanas(navCon) <= 4
     && /\[\s*\{ id: 'hoy'/.test(navEnc) && /id: 'mas'/.test(navGer) && /id: 'mas'/.test(navEnc) && /navDe = \(c\) => NAV\[c\.rol\]\.filter\(it => !\(c\.rol === 'encargado' && it\.id === \(shopping\(c\) \? 'hoja' : 'retiros'\)\)\)/.test(m4),
     'encargado tiene Hoja o Retiros, nunca los dos');
-  check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
+  check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana · Pérdida; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\], \['perdida', 'Pérdida'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
   check('fase 2: Compras junta Pedidos · Enviar · Recibir · Gasto', /SUBNAV_COMPRAS = \[\['pedidos', 'Pedidos'\], \['compras', 'Enviar'\], \['recibir', 'Recibir'\], \['gasto', 'Gasto'\]\]/.test(ui));
   check('fase 2: un solo selector de local (chipsLocal usa selectorLocal)', /selectorLocal\(\{ locales, clave: 'g:local'/.test(read('js/datos.js')) && !/class: 'chip' \+ \(l\.id === localId/.test(read('js/g-stock.js')));
   check('fase 2: Más es una pantalla para todos los roles', /mas: \(\) => import\('\.\/mas\.js'\)/.test(m4));
@@ -208,6 +211,24 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('fase 3: Hoy del encargado sin precios, facturas de gerencia ni tablero', !/fmtMoney|precio|costo|tablero|facturasLista|facturasLocales/.test(hy) && !/from '\.\/(g-[a-z-]+|datos)\.js'/.test(hy));
   check('fase 3: Hoy de gerencia con aprobar, entregas, facturas por vencer, diferencias y locales; solo consultas de api.js', ['aprobar', 'entregas', 'facturas', 'diferencias', 'locales'].every(g => gh.includes(`'data-grupo': '${g}'`)) && /Todo listo por hoy/.test(gh) && /Falta cargar/.test(gh) && !/sb\.|supabase/.test(gh));
   check('fase 3: g-tablero.js absorbido por g-hoy.js', !fs.existsSync(S('js/g-tablero.js')) && !/g-tablero/.test(m4 + sw));
+
+  // ---- Fase 6 · Compras con un estado, recibir contra lo pedido, reclamo y subas de precio ----
+  const ce = read('js/compras-estado.js'), gp = read('js/g-pedidos.js'), gr = read('js/g-recibir.js'), grf = read('js/g-recibir-factura.js');
+  check('fase 6: estados visibles Para aprobar · Para enviar · Enviado · Llegó incompleto · Recibido', ['Para aprobar', 'Para enviar', "'Enviado'", 'Llegó incompleto', "'Recibido'"].every(t => ce.includes(t)));
+  check('fase 6: Compras y Recibir muestran un solo estado (sin lista de estados por tarjeta)', !/estados\.map\(/.test(gp) && !/ESTADOS\[/.test(gp + gr) && /estadoDeVarias\(os\)/.test(gp) && /claseEstado\(k\)/.test(gr));
+  check('fase 6: Recibir abre con lo pedido, «Llegó todo» y «Reclamar faltante»', /'Llegó todo'/.test(gr) && /Reclamar faltante/.test(gr) && /textoReclamo\(/.test(gr) && /razonLocal\(o\.local_id\)/.test(gr));
+  check('fase 6: aviso de suba en Recibir y Recibir con factura; Subas de precio en Hoy', /subaPrecio\(/.test(gr) && /subaPrecio\(/.test(grf) && /'Subas de precio'/.test(gh) && /'data-grupo': 'subas'/.test(gh));
+  check('fase 6: lo de compras no llega a pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js'].some(f => /compras-estado|g-recibir/.test(read(f))));
+
+  // ---- Pérdida de la semana y productos clave (solo gerencia) ----
+  const pe = read('js/perdida.js'), gpe = read('js/g-perdida.js');
+  check('pérdida: una sola cuenta del día (calcularSector vive en perdida.js; g-sector, g-hoy y g-perdida la importan)', /export function calcularSector/.test(pe) && !/function calcularSector/.test(read('js/g-sector.js'))
+    && /from '\.\/perdida\.js'/.test(read('js/g-sector.js')) && /from '\.\/perdida\.js'/.test(gh) && /costoUnidad/.test(read('js/g-control.js')));
+  check('pérdida: perdida.js es pura (sin DOM ni Supabase)', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(pe));
+  check('pérdida: Hoy de gerencia con "Pérdida de la semana" (Sin explicar · Merma) que abre Stock → Control → Pérdida', /'Pérdida de la semana'/.test(gh) && /'data-grupo': 'perdida'/.test(gh) && /Sin explicar/.test(gh) && /desdeHoy\('perdida'\)/.test(gh));
+  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /incluye: \['sector', 'control', 'perdida'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
+  check('pérdida: detalle con lo que más pesa, semana anterior y productos clave; sin datos no estima', /'Lo que más pesa'/.test(gpe) && /'Semana anterior'/.test(gpe) && /'Productos clave'/.test(gpe) && /Sin historial todavía/.test(gpe) && /Falta cargar costos/.test(gpe));
+  check('pérdida: nada de esto en pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js', 'js/inventario.js', 'js/stock-local.js', 'js/retiros.js'].some(f => /perdida/.test(read(f))) && !/encargado: \{[^}]*perdida/.test(m4));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

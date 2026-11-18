@@ -385,6 +385,7 @@ async function montarApi(ctx) {
     }
     if (t === 'orden_item_precios') { const b = body(); db.itemPrecios.push(b); return json([b], 201); }
     if (t === 'precios' && req.method() === 'POST') { const b = body(); (Array.isArray(b) ? b : [b]).forEach(r => { db.preciosNuevos.push(r); db.precios[r.producto_id] = r.precio; }); return json([{ id: 'pr' }], 201); }
+    if (t === 'precios' && req.method() === 'GET') return json([]); // historial de precios (subas): vacío en este mock
     if (t === 'facturas_locales' && req.method() === 'GET') return json([]);
     if (t === 'conteos' && req.method() === 'GET') return json([]);
     return json({ message: 'mock: ruta no prevista ' + req.method() + ' ' + t }, 404);
@@ -456,11 +457,14 @@ const irSec = async (pg, id) => {
   ok(await e.locator('h1').first().innerText() === 'Pedir', 'la tarea lleva a "Pedir"');
   ok((await e.locator('.vista-head .sub').innerText()).includes('Umo Grill'), 'muestra el local');
   ok(await e.locator('.prod').count() === 8, 'catálogo solo del local (8 productos, sin los de Trento)');
-  ok(await e.locator('.prod[data-id="p-chorizo"] .step-val').inputValue() === '0', 'sin pedido precargado: Chorizo arranca en 0');
-  ok(await e.locator('.prod[data-id="p-mozza"] .step-val').inputValue() === '0', 'sin pedido precargado: Mozzarella arranca en 0');
+  // Fase 4: el sugerido sale de 4 semanas de salidas y hoja; acá solo hay movimientos de hoy, así que no hay historial:
+  // campo vacío y "Sin historial todavía" (nunca un número inventado ni la cantidad ideal).
+  await e.waitForSelector('.prod[data-id="p-mozza"][data-sug]');
+  ok(await e.locator('.prod[data-id="p-chorizo"] .step-val').inputValue() === '' && /Sin historial todavía/.test(await e.locator('.prod[data-id="p-chorizo"]').innerText()), 'sin historial: Chorizo vacío y "Sin historial todavía"');
+  ok(await e.locator('.prod[data-id="p-mozza"] .step-val').inputValue() === '', 'sin historial: Mozzarella vacío (no usa la cantidad ideal)');
   ok(!db.log.some(l => l.t === 'rpc/sugerido_pedido'), 'Pedir ya no pide el sugerido');
   ok((await e.locator('.prod[data-id="p-chorizo"] .quedan').innerText()).replace(/\s+/g, ' ').includes('Quedan 3'), '"Quedan 3" visible');
-  ok(await e.locator('.prod[data-id="p-bondiola"] .step-val').inputValue() === '0', 'sin par: Pedir arranca en 0');
+  ok(await e.locator('.prod[data-id="p-bondiola"] .step-val').inputValue() === '', 'sin par ni historial: Pedir vacío');
   ok(await e.locator('.pill').isHidden(), 'sin cantidades no hay píldora de Revisar');
   ok(await e.locator('.borrador').isHidden(), 'sin cantidades no hay aviso de pedido guardado');
   await shot(e, '03-pedir-m');
@@ -540,7 +544,7 @@ const irSec = async (pg, id) => {
   ok(posts.every(l => !/precio|costo|importe/i.test(JSON.stringify(l.b))), 'ningún POST del encargado incluye costos');
   const itemsEnviados = posts.filter(l => l.t === 'orden_items').flatMap(l => l.b);
   ok(itemsEnviados.length === 6 && itemsEnviados.some(i => i.producto_id === 'p-servilleta'), `6 ítems enviados, incluida la servilleta sin proveedor (${itemsEnviados.length})`);
-  ok(db.log.slice(antes).every(l => !(l.t === 'movimientos')), 'el encargado no escribe movimientos');
+  ok(db.log.slice(antes).every(l => !(l.t === 'movimientos' && l.m !== 'GET')), 'el encargado no escribe movimientos (solo los lee para el sugerido)');
   ok(db.log.filter(l => l.rol === 'encargado').every(l => !/ventas|receta|produccion|merma|alias|importar|precio|pago|factura|cuenta_corriente|tablero|comprobante|storage/i.test(l.t)), 'el encargado nunca consulta ventas, recetas, producción, merma ni precios ' + [...new Set(db.log.filter(l => l.rol === 'encargado' && /ventas|receta|produccion|merma|alias|importar|precio|pago|factura|cuenta_corriente|tablero|comprobante|storage/i.test(l.t)).map(l => l.t))].join());
   ok(db.log.filter(l => l.t === 'rpc/sugerido_pedido').every(l => l.rol !== null), 'sugerido_pedido solo con sesión');
   ok(await e.locator('.ped').count() === 4, 'Mis pedidos lista 4 pedidos');
@@ -669,7 +673,7 @@ const irSec = async (pg, id) => {
   ok(await g.locator('.pt-h').isVisible(), 'en PC la tabla tiene encabezados');
   const filaUmo = g.locator('.pt-envio', { hasText: 'Umo Grill' });
   const txtUmo = (await filaUmo.innerText()).replace(/\s+/g, ' ');
-  ok(/Ruth Coronel/.test(txtUmo) && /6 productos/.test(txtUmo) && /Barcena/.test(txtUmo) && /Sin proveedor/.test(txtUmo) && /En revisión/.test(txtUmo) && /Nota/.test(txtUmo), 'fila: local, encargado, productos, proveedores, estado y nota · ' + txtUmo);
+  ok(/Ruth Coronel/.test(txtUmo) && /6 productos/.test(txtUmo) && /Barcena/.test(txtUmo) && /Sin proveedor/.test(txtUmo) && /Para aprobar/.test(txtUmo) && /Nota/.test(txtUmo), 'fila: local, encargado, productos, proveedores, estado y nota · ' + txtUmo);
   ok((await g.locator('.pt-envio').first().innerText()).includes('Umo Grill'), 'lo más nuevo arriba');
   await g.locator('[data-filtro="enviados"]').click();
   ok(await g.locator('.pt-envio').count() === 1 && /Recibido/.test(await g.locator('.pt-envio').innerText()), 'filtro Enviados muestra el historial (pedido recibido de Trento)');
@@ -936,7 +940,7 @@ const irSec = async (pg, id) => {
   await shot(g, '12b-g-recibir-corregir-pc');
   const nRec = db.recepciones.length;
   await g.getByRole('button', { name: 'Confirmar recepción' }).click();
-  await g.waitForSelector('.toast-ok >> text=Recepción completa');
+  await g.waitForSelector('.rec-incompletas [data-incompleta]');
   const rc = db.recepciones[nRec];
   ok(rc && rc.p_items.some(i => i.producto_id === 'p-agua' && !i.orden_item_id && i.cantidad_recibida === 2 && i.precio_unitario === 5100), 'el agregado viaja con producto_id, cantidad y costo');
   ok(rc && rc.p_items.some(i => i.orden_item_id && i.no_vino === true && i.cantidad_recibida === 0), 'la gaseosa viaja como no vino');

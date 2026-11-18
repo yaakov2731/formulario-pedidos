@@ -296,7 +296,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await shot(g, '12-g-por-sector-m');
   // Stock en 3 pestañas (Qué hay · Control · Lugares). Control: filtro Hoy · Semana y desde ahí Retiros y Conteos (sin tercer nivel).
   ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Qué hay|Control|Lugares' && await g.locator('.subnav-b.is-on').innerText() === 'Control', 'Stock: Qué hay · Control · Lugares');
-  ok((await g.locator('.subnav-f').allInnerTexts()).join('|') === 'Hoy|Semana' && await g.locator('.subnav-f.is-on').innerText() === 'Hoy', 'Control: filtro Hoy · Semana');
+  ok((await g.locator('.subnav-f').allInnerTexts()).join('|') === 'Hoy|Semana|Pérdida' && await g.locator('.subnav-f.is-on').innerText() === 'Hoy', 'Control: filtro Hoy · Semana · Pérdida');
   ok((await g.locator('.subnav-ir-b').allInnerTexts()).map(x => x.trim()).join('|') === 'Retiros|Conteos', 'Control: Retiros y Conteos se abren desde ahí');
   await g.locator('.subnav-ir-b[data-ir="conteos"]').click(); await g.waitForSelector('.subnav-volver');
   ok(await g.locator('.subnav-b.is-on').innerText() === 'Control' && await g.locator('.subnav-f').count() === 0 && /Control/.test(await g.locator('.subnav-volver').innerText()), 'Conteos: queda en Control, con ‹ Control para volver');

@@ -16,7 +16,7 @@ const hayCuenta = () => !G.provs.size || [...G.provs.values()].some((p) => 'cbu'
 const cuitConGuiones = (d) => `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`;
 
 export async function render(root, ctx) {
-  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Proveedores' }), h('p', { class: 'sub', text: 'Datos para los pedidos y para mandar los comprobantes' }));
+  const cab = h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: 'Proveedores' }), h('p', { class: 'sub', text: 'Contacto, entregas y pagos' }));
   mount(root, cab, subnav(SUBNAV_CATALOGO, 'proveedores'), esqueleto(4));
   let q = '';
   const lista = h('div', { class: 'lista' });

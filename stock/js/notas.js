@@ -59,7 +59,7 @@ export async function render(root, ctx) {
     if (ger) {
       const loc = (id, txt, n) => h('button', { class: 'nb-folder nb-loc' + (st.local === id ? ' is-on' : ''), type: 'button', 'aria-pressed': st.local === id ? 'true' : 'false',
         on: { click: () => { st.local = id; lsSet('notas_local', id); pintar(); } } },
-        h('span', { class: 'nb-loc-ic', text: id === '' ? '★' : (id === '__todos' ? '◎' : iniciales(txt)) }), h('span', { class: 'nb-folder-t', text: txt }),
+        (id === '' || id === '__todos' ? h('span', { class: 'nb-loc-ic' }, icon(id === '' ? 'bandeja' : 'equipo', 14)) : h('span', { class: 'nb-loc-ic', text: iniciales(txt) })), h('span', { class: 'nb-folder-t', text: txt }),
         h('span', { class: 'nb-folder-n', text: String(n) }));
       const abiertas = (notas || []).filter(n => !n.resuelta_en);
       items.push(h('p', { class: 'nb-side-t', text: 'Locales' }),
