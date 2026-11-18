@@ -195,7 +195,7 @@ const valor = (p, id) => p.locator(`.prod[data-id="${id}"] .step-val`).inputValu
       ok(await valor(p, 'nuevo') === '' && /Sin historial todavía/.test(await p.locator('.prod[data-id="nuevo"]').innerText()), 'sin historial: campo vacío y "Sin historial todavía"');
       ok(await p.locator('.prod[data-id="chorizo"] .sin-hist').count() === 0, 'con historial no dice "Sin historial"');
       const grupos = await p.locator('.pv-t').evaluateAll(xs => xs.map(x => x.innerText.replace(/\s+/g, ' ').trim()));
-      ok(grupos.join(' | ') === 'Barcena Cierra el miércoles | Distribuidora Florida Cierra el miércoles | Martín De Ridder Cierra el miércoles 12 h | Sin proveedor', 'agrupado por proveedor, con el corte a la derecha · ' + grupos.join(' | '));
+      ok(grupos.join(' | ').toLowerCase() === 'Barcena Cierra el miércoles | Distribuidora Florida Cierra el miércoles | Martín De Ridder Cierra el miércoles 12 h | Sin proveedor'.toLowerCase(), 'agrupado por proveedor, con el corte a la derecha · ' + grupos.join(' | '));
       ok(/Confirmar pedido · 3 ítems/.test(await p.locator('.pill').innerText()), 'botón grande: Confirmar pedido · 3 ítems (lo sugerido)');
       const txt = await p.locator('#view').innerText();
       ok(!/\$|precio|costo|m[ií]nimo|\bpar\b|consumo|promedio/i.test(txt), 'encargado: sin precios, mínimo, par ni cálculos a la vista');

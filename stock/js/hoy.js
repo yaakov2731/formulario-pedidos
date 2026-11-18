@@ -2,7 +2,7 @@
 //   Abrir sector → Hacer el pedido (lunes a miércoles; el viernes solo Florida) → Llegó mercadería → Subir factura →
 //   Cerrar sector (después de las 18 h). Cada fila lleva a su pantalla, que muestra "‹ Hoy" para volver.
 // En el Shopping el sector es el depósito: "Abrir depósito" / "Cerrar depósito". Sin montos ni cantidades internas.
-import { mount, lsGet, lsSet, jornadaISO, hoyISO, sumarDias, fechaLarga, esFlorida, esCarta, elabora, entregaHoy } from './util.js';
+import { mount, h, lsGet, lsSet, jornadaISO, hoyISO, sumarDias, fechaLarga, esFlorida, esCarta, elabora, entregaHoy } from './util.js';
 import { swr, cargarCatalogo, cargarLocales, cargarProveedoresBasico, misOrdenes, hojaDelDia, sinHojaSQL, mensajeError } from './api.js';
 import { esqueleto, vacio, banner, listaGrupo, filaLista, tituloGrande, desdeHoy } from './ui.js';
 import { sectoresDe, TODO_EL_LOCAL, PROVEEDOR } from './hoja.js';
@@ -86,6 +86,26 @@ export async function render(root, ctx) {
     tituloGrande('Hoy', `${local ? local.nombre + ' · ' : ''}${fechaLarga(fecha)}`),
     error ? banner(error, 'warn') : null,
     sinSQL ? banner('Falta activar la hoja por sector en el servidor.', 'warn') : null,
+    avanceDelDia(hechas.length, pendientes.length),
     pendientes.length ? listaGrupo('Para hacer', pendientes, { clase: 'hoy-lista' }) : vacio('Todo listo por hoy'),
     hechas.length ? listaGrupo('Hecho', hechas, { clase: 'hoy-lista hoy-hechas' }) : null);
+}
+
+// Avance del día: anillo con lo hecho sobre el total de tareas que armó la app. Sin tareas, no se muestra.
+function avanceDelDia(hechas, faltan) {
+  const total = hechas + faltan;
+  if (!total) return null;
+  const r = 22, c = 2 * Math.PI * r, f = hechas / total;
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 56 56'); svg.setAttribute('width', '56'); svg.setAttribute('height', '56'); svg.setAttribute('aria-hidden', 'true');
+  const arco = (cls, len) => { const e = document.createElementNS(ns, 'circle'); e.setAttribute('cx', '28'); e.setAttribute('cy', '28'); e.setAttribute('r', String(r)); e.setAttribute('class', cls);
+    if (len != null) { e.setAttribute('stroke-dasharray', `${len} ${c}`); } return e; };
+  svg.append(arco('av-fondo'), arco('av-arco', Math.max(0.001, f * c)));
+  return h('section', { class: 'hoy-avance' + (faltan ? '' : ' is-listo'), 'aria-label': `Hiciste ${hechas} de ${total} tareas` },
+    h('div', { class: 'av-anillo' }, svg, h('b', { class: 'av-n', text: `${Math.round(f * 100)}%` })),
+    h('div', { class: 'av-tx' },
+      h('span', { class: 'av-k', text: 'Tu día' }),
+      h('b', { class: 'av-t', text: faltan ? `${hechas} de ${total} tareas hechas` : 'Todo hecho por hoy' }),
+      h('span', { class: 'av-s', text: faltan ? (faltan === 1 ? 'Te falta 1' : `Te faltan ${faltan}`) : '¡Buen trabajo!' })));
 }

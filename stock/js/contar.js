@@ -6,8 +6,9 @@
 // gerencia ve en Stock → Control lo que se usó en la semana (0028_conteo_apertura_cierre.sql).
 // Por lugar (0025_lugares.sql): si gerencia ya ubicó los productos, primero se elige el lugar (Cámara, Freezer, Depósito…)
 // y se ve solo lo que hay ahí, en el orden de los estantes, con el avance de cada lugar. Si no, la lista por categoría.
-import { mount, h, norm, tokens, coincide, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaCorta, porLugar, lugarDe, SIN_LUGAR } from './util.js';
+import { mount, h, norm, tokens, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaCorta, porLugar, lugarDe, SIN_LUGAR } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarLocales, contarLocal, ultimoConteo, mensajeError } from './api.js';
+import { buscar as buscarProds, frecuencia } from './busqueda.js';
 import { esqueleto, vacio, banner, toast, icon } from './ui.js';
 import { abrirConteo } from './conteo-detalle.js';
 
@@ -172,7 +173,7 @@ export async function render(root, ctx) {
     let vis = activos;
     if (!conLugares && cat === 'faltan') vis = vis.filter(p => !hecho(p));
     else if (!conLugares && cat !== 'todas') vis = vis.filter(p => (p.categoria || 'Sin categoría') === cat);
-    if (tk.length) vis = vis.filter(p => coincide(p.nombre + ' ' + p.codigo, tk));
+    if (tk.length) vis = buscarProds(vis, q, { frec: frecuencia(lid) }).map(r => r.p); // tolerante a errores, lo más usado primero
     if (!vis.length) return lista.replaceChildren(vacio(cat === 'faltan' ? 'Contaste todo' : 'No hay productos', cat === 'faltan' ? 'Tocá Guardar conteo.' : 'Probá con otra palabra.'));
     // Al buscar con lugares, cada producto dice dónde está.
     if (conLugares) return lista.replaceChildren(...vis.map(p => fila(p, true)));
