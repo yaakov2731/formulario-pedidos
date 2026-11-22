@@ -153,7 +153,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     { id: 'o-env', local_id: L1, proveedor_id: PV.barcena, estado: 'enviada', creado_en: '2026-11-05T12:00:00Z', cargado_por_nombre: 'Lucas', nota: null, orden_items: [{ producto_id: P.limon.id, cantidad_pedida: 3 }] }
   ] };
   for (const ancho of [390, 1366]) {
-    const { c, p } = await abrir(ancho, U_ENC, dbEnc, LUNES);
+    const { c, p } = await abrir(ancho, U_ENC, dbEnc, LUNES, '#/hoy');
     await p.waitForSelector('.hoy-lista');
     if (ancho === 390) {
       ok(await p.locator('h1').first().innerText() === 'Hoy', 'encargado: abre en Hoy');
@@ -163,30 +163,30 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
       ok(/^Abrir Cocina/.test(txt[0]) && /^Hacer el pedido Cierra el miércoles/.test(txt[1]) && /^Llegó mercadería Barcena/.test(txt[2]) && /^Cerrar Barra/.test(txt[3]), 'encargado: textos de las tareas · ' + txt.join(' / '));
       ok(/Abrir Barra 10:05/.test((await texto(p, '.hoy-hechas .lg-fila')).join(' ')), 'encargado: lo hecho queda abajo, con la hora');
       ok(!/\$|precio|costo|m[ií]nimo|\bpar\b/i.test(await p.locator('#view').innerText()), 'encargado: sin plata, mínimo ni par');
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoy|Pedir|Hoja|Más', 'encargado: barra Hoy · Pedir · Hoja · Más');
+      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoja|Pedir|Mis pedidos|Más', 'encargado: barra Hoja · Pedir · Mis pedidos · Más (Hoy sigue por su ruta)');
       ok(await sinDesborde(p), 'encargado 390: sin desbordes ni texto cortado');
       await shot(p, 'hoy-encargado-390');
       await p.locator('.tabbar').screenshot({ path: path.join(OUT, 'barra-encargado-390.png') });
       // La tarea lleva a la hoja del sector y "‹ Hoy" vuelve.
       await p.locator('[data-tarea="abrir"]').click();
       await p.waitForSelector('.volver-hoy');
-      await p.waitForSelector('.hj-fila, .hj-paso, .hj-sector');
-      ok(/Cocina/.test(await p.locator('#view').innerText()) && await p.locator('.tab.is-active').innerText() === 'Hoja', 'Abrir Cocina lleva a la hoja de Cocina (pestaña Hoja)');
+      await p.waitForSelector('.cd-grupo');
+      ok(/Cocina/.test(await p.locator('#view').innerText()) && await p.locator('.tab.is-active').innerText() === 'Hoja', 'Abrir Cocina lleva a la Hoja (pestaña Hoja)');
       await shot(p, 'hoy-encargado-tarea-390');
       await p.locator('.volver-hoy').click();
       await p.waitForSelector('.hoy-lista');
-      ok(await p.locator('.tab.is-active').innerText() === 'Hoy', '"‹ Hoy" vuelve a Hoy');
+      ok(await p.locator('h1').first().innerText() === 'Hoy' && await p.locator('.tab.is-active').innerText() === 'Hoja', '"‹ Hoy" vuelve a Hoy (queda marcada Hoja)');
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
       ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Facturas|Notas', 'encargado: Más con Facturas y Notas');
       await shot(p, 'mas-encargado-390');
       await p.goto(BASE + '#/mis-pedidos'); await p.waitForSelector('.ped, .empty');
-      ok(await p.locator('.tab.is-active').innerText() === 'Pedir', 'ruta vieja #/mis-pedidos sigue andando (dentro de Pedir)');
+      ok(await p.locator('.tab.is-active').innerText() === 'Mis pedidos', '#/mis-pedidos es su pestaña');
       await p.goto(BASE + '#/contar'); await p.waitForSelector('#view .vista');
       ok(await p.locator('.tab.is-active').innerText() === 'Hoja', 'ruta vieja #/contar sigue andando (dentro de Hoja)');
       ok(dbEnc.log.filter(l => l.rol === 'encargado').every(l => !/factura|tablero|precio/.test(l.t)), 'encargado: Hoy no consulta facturas, tablero ni precios');
     } else {
       ok(await sinDesborde(p), 'encargado 1366: sin desbordes ni texto cortado');
-      ok((await texto(p, '.sidebar .side-link')).join('|') === 'Hoy|Pedir|Hoja|Más|Salir', 'encargado PC: barra lateral Hoy · Pedir · Hoja · Más + Salir');
+      ok((await texto(p, '.sidebar .side-link')).join('|') === 'Hoja|Pedir|Mis pedidos|Más|Salir', 'encargado PC: barra lateral Hoja · Pedir · Mis pedidos · Más + Salir');
       await shot(p, 'hoy-encargado-1366');
       await p.locator('.sidebar').screenshot({ path: path.join(OUT, 'barra-encargado-1366.png') });
     }
@@ -197,18 +197,18 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
   const LUNES9 = new Date('2026-11-09T09:00:00-03:00');
   const dbShp = { log: [], hoja: [], movs: [], facturas: [], tablero: null, ordenes: [] };
   for (const ancho of [390, 1366]) {
-    const { c, p } = await abrir(ancho, U_SHP, dbShp, LUNES9);
+    const { c, p } = await abrir(ancho, U_SHP, dbShp, LUNES9, '#/hoy');
     await p.waitForSelector('.hoy-lista');
     if (ancho === 390) {
       const txt = await texto(p, '[data-tarea]');
       ok(/^Abrir depósito/.test(txt[0]) && /^Hacer el pedido/.test(txt[1]) && txt.length === 2, 'Shopping: "Abrir depósito" y el pedido · ' + txt.join(' / '));
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoy|Pedir|Retiros|Más', 'Shopping: barra Hoy · Pedir · Retiros · Más');
+      ok((await texto(p, '.tabbar .tab')).join('|') === 'Retiros|Pedir|Mis pedidos|Más', 'Shopping: barra Retiros · Pedir · Mis pedidos · Más');
       ok(await sinDesborde(p), 'Shopping 390: sin desbordes');
       await shot(p, 'hoy-shopping-390');
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
-      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Hoja del depósito|Facturas|Notas', 'Shopping: Más con la hoja del depósito, Facturas y Notas');
-      await p.goto(BASE + '#/elaborados'); await p.waitForFunction(() => location.hash === '#/hoy');
-      ok(true, 'Shopping: #/elaborados lleva a Hoy');
+      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Hoy|Hoja del depósito|Facturas|Notas', 'Shopping: Más con Hoy, la hoja del depósito, Facturas y Notas');
+      await p.goto(BASE + '#/elaborados'); await p.waitForFunction(() => location.hash === '#/retiros');
+      ok(true, 'Shopping: #/elaborados lleva a Retiros');
     } else {
       await shot(p, 'hoy-shopping-1366');
     }
@@ -240,10 +240,10 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     movs: [{ local_id: L1, producto_id: P.nalga.id, tipo: 'venta', cantidad: -4, nota: '', creado_en: '2026-11-10T22:00:00Z', ref_id: null }]
   };
   for (const ancho of [390, 1366]) {
-    const { c, p } = await abrir(ancho, U_GER, dbGer, MIER);
+    const { c, p } = await abrir(ancho, U_GER, dbGer, MIER, '#/tablero');
     await p.waitForSelector('.gh-sem'); await p.waitForSelector('.gh-cargando', { state: 'detached' });
     if (ancho === 390) {
-      ok(await p.locator('h1').first().innerText() === 'Hoy', 'gerencia: abre en Hoy');
+      ok(await p.locator('h1').first().innerText() === 'Hoy', 'gerencia: el tablero (Hoy) sigue en #/tablero');
       ok((await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' ').toLowerCase() === 'Ventas $ 4,12 M Compras $ 1,89 M Margen 68 %'.toLowerCase(), 'gerencia: una línea con ventas, compras y margen de la semana');
       ok((await texto(p, '[data-grupo="aprobar"]')).join(' / ') === 'Barcena Shopping · Umo Grill 3 ítems / Distribuidora Florida Umo Grill 1 ítem', 'gerencia: para aprobar por proveedor · ' + (await texto(p, '[data-grupo="aprobar"]')).join(' / '));
       ok((await texto(p, '[data-grupo="entregas"]')).join(' / ') === 'Barcena Umo Grill 2 ítems', 'gerencia: entregas de hoy (Barcena entrega los miércoles)');
@@ -252,7 +252,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
       ok((await texto(p, '[data-grupo="diferencias"]')).join(' / ') === 'Umo Grill Ayer · 1 producto −$ 24.000', 'gerencia: diferencias del día en $ · ' + (await texto(p, '[data-grupo="diferencias"]')).join(' / '));
       ok((await texto(p, '[data-grupo="locales"]')).join(' / ') === 'Shopping Sin cierre ayer / Trento Café Sin cierre ayer · Sin pedido esta semana', 'gerencia: locales sin cierre o sin pedido · ' + (await texto(p, '[data-grupo="locales"]')).join(' / '));
       ok(await p.locator('.tb-card, .kpi').count() === 0 && !/estimad/i.test(await p.locator('#view').innerText()), 'gerencia: sin tarjetas grandes ni "margen estimado"');
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoy|Compras|Stock|Más', 'gerencia: barra Hoy · Compras · Stock · Más');
+      ok((await texto(p, '.tabbar .tab')).join('|') === 'Comprar|Lo que hay|Pedidos|Más', 'gerencia: barra Comprar · Lo que hay · Pedidos · Más');
       ok(await sinDesborde(p), 'gerencia 390: sin desbordes ni texto cortado');
       await shot(p, 'hoy-gerencia-datos-390');
       await p.locator('#scroller').evaluate(el => el.scrollTo(0, el.scrollHeight));
@@ -260,11 +260,11 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
       await p.locator('#scroller').evaluate(el => el.scrollTo(0, 0));
       // Más
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
-      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Números|Cocina|Pagos|Catálogo|Notas', 'gerencia: Más con Números, Cocina, Pagos, Catálogo y Notas');
+      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Tablero|Compras|Stock y control|Números|Cocina|Pagos|Catálogo|Ajustes|Notas', 'gerencia: Más con Tablero, Compras, Stock y control, Números, Cocina, Pagos, Catálogo, Ajustes y Notas');
       ok(await sinDesborde(p), 'Más 390: sin desbordes');
       await shot(p, 'mas-gerencia-390');
-      await p.goto(BASE + '#/tablero'); await p.waitForFunction(() => location.hash === '#/hoy');
-      ok(true, 'gerencia: la ruta vieja #/tablero lleva a Hoy');
+      await p.goto(BASE + '#/hoy'); await p.waitForFunction(() => location.hash === '#/comprar');
+      ok(true, 'gerencia: la ruta vieja #/hoy lleva a Comprar');
     } else {
       ok(await sinDesborde(p), 'gerencia 1366: sin desbordes');
       await shot(p, 'hoy-gerencia-datos-1366');
@@ -279,7 +279,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     tablero: { actual: { ventas: 0, compras: 0, cmv: 0, margen: 0, margen_pct: null }, anterior: {}, pendientes: { sin_precio: { n: 3 }, sin_proveedor: { n: 0 }, sin_receta: { n: 0 } } },
     hoja: LOCALES.flatMap((l, i) => ['apertura', 'cierre'].map((tipo) => ({ id: `v${i}${tipo}`, local_id: l.id, fecha: '2026-11-08', sector: 'Depósito', producto_id: Object.values(P).find(x => x.local_id === l.id).id, tipo, cantidad: 5, otro: null, quien: 'x', creado_en: '2026-11-08T15:00:00Z' }))) };
   for (const ancho of [390, 1366]) {
-    const { c, p } = await abrir(ancho, U_GER, dbVacio, LUNES9);
+    const { c, p } = await abrir(ancho, U_GER, dbVacio, LUNES9, '#/tablero');
     await p.waitForSelector('.gh-sem'); await p.waitForSelector('.gh-cargando', { state: 'detached' });
     if (ancho === 390) {
       ok(await p.locator('.empty-t').innerText() === 'Todo listo por hoy', 'gerencia vacía: "Todo listo por hoy"');

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Prueba de punta a punta (manual, no corre en CI) de la hoja por sector (0031_hoja_sector.sql). API de Supabase mockeada.
-// 1) Encargado de Umo: barra con Hoja (sin Stock ni Elaborados), elige Barra, guarda la apertura, anota +Entró del Depósito,
-//    ↩ Devolví y ✕ Merma, y cierra a ciegas (el cierre no muestra la apertura).
+// 1) Encargado de Umo: Hoja nueva (Apertura | Cierre, una lista por lugar), cierra a ciegas con una sola llamada a
+//    hoja_guardar; lo de la Barra durante el día (entró, devolví, merma) se siembra para gerencia.
 // 2) Encargado del Shopping: Retiros con destino y quién retira; el destino nuevo queda guardado.
 // 3) Gerencia: Stock → Por sector (consumo, vendido por recetas, diferencia) y Stock → Retiros por destino y control del depósito.
 // Uso: node scripts/e2e-hoja.js [carpeta-de-capturas]
@@ -118,6 +118,15 @@ async function montarApi(ctx) {
       }
       return json(n);
     }
+    if (t === 'rpc/hoja_guardar') {
+      const b = JSON.parse(req.postData() || '{}'); let n = 0;
+      for (const it of b.p_items) {
+        db.hoja = db.hoja.filter(m => !(m.local_id === b.p_local && m.fecha === b.p_fecha && m.producto_id === it.producto_id && m.tipo === b.p_tipo));
+        if (it.cantidad === '' || it.cantidad == null) continue;
+        mov(b.p_local, it.sector, it.producto_id, b.p_tipo, Number(it.cantidad), null, b.p_quien, b.p_fecha); n++;
+      }
+      return json(n);
+    }
     if (t === 'rpc/hoja_anotar') {
       const b = JSON.parse(req.postData() || '{}');
       mov(b.p_local, b.p_sector, b.p_producto, b.p_tipo, b.p_cantidad, b.p_otro, b.p_quien, b.p_fecha);
@@ -157,79 +166,40 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const PC = { viewport: { width: 1280, height: 860 }, deviceScaleFactor: 2 };
   const fila = (p, x) => p.locator(`.hj-fila[data-id="${x.id}"]`);
 
-  // ===== 1) Encargado de Umo =====
+  // ===== 1) Encargado de Umo: la Hoja nueva (Apertura | Cierre, 0032). La hoja por sector queda para el Shopping. =====
+  // Lo que antes se anotaba a mano en la Barra se siembra directo para las vistas de gerencia de abajo.
+  mov(L1, 'Barra', P.coca.id, 'apertura', 24); mov(L1, 'Barra', P.agua.id, 'apertura', 18); mov(L1, 'Barra', P.cerveza.id, 'apertura', 30);
+  mov(L1, 'Barra', P.limon.id, 'apertura', 2.5); mov(L1, 'Barra', P.tortas.id, 'apertura', 6);
+  mov(L1, 'Barra', P.coca.id, 'entro', 12, 'Proveedor'); mov(L1, 'Barra', P.cerveza.id, 'entro', 24, 'Cocina'); mov(L1, 'Barra', P.cerveza.id, 'devolvi', 6, 'Cocina');
+  mov(L1, 'Barra', P.limon.id, 'merma', 0.5);
   const { c: cE, p: e } = await nuevo(M, U_ENC, { nombre: 'Lucas' });
   await e.goto(BASE + '#/hoja');
-  await e.waitForSelector('.hj-sector');
+  await e.waitForSelector('.cd-seg');
   const tabs = await e.locator('.tabbar .tab').allInnerTexts();
-  ok(tabs.map(x => x.trim()).join(',') === 'Hoy,Pedir,Hoja,Más', 'barra del encargado: Hoy · Pedir · Hoja · Más · ' + tabs.join(','));
+  ok(tabs.map(x => x.trim()).join(',') === 'Hoja,Pedir,Mis pedidos,Más', 'barra del encargado: Hoja · Pedir · Mis pedidos · Más · ' + tabs.join(','));
   ok(await e.locator('[data-nav="stock"], [data-nav="elaborados"], [data-nav="retiros"]').count() === 0, 'sin Stock, Elaborados ni Retiros en el menú de Umo');
-  const secs = await e.locator('.hj-sector').evaluateAll(xs => xs.map(x => x.getAttribute('data-sector')));
-  ok(JSON.stringify(secs) === JSON.stringify(['Barra', 'Cocina']), 'los sectores son los lugares del local · ' + secs.join(','));
-  ok(/Cerrada/.test(await e.locator('.hj-sector[data-sector="Cocina"]').innerText()), 'Cocina figura cerrada');
-  await shot(e, '01-hoja-sectores-m');
-
-  await e.locator('.hj-sector[data-sector="Barra"]').click();
-  await e.waitForSelector('.hj-fila');
-  ok(await e.locator('.seg-b[data-paso="apertura"].is-on').count() === 1, 'arranca en Apertura');
-  ok(await fila(e, P.tortas).locator('.hj-in').count() === 2, 'la minitorta por caja tiene cajas + sueltas');
-  await fila(e, P.coca).locator('.hj-in').fill('24');
-  await fila(e, P.agua).locator('.hj-in').fill('18');
-  await fila(e, P.cerveza).locator('.hj-in').fill('30');
-  await fila(e, P.limon).locator('.hj-in').fill('2,5');
-  await fila(e, P.tortas).locator('.hj-in').nth(0).fill('1'); await fila(e, P.tortas).locator('.hj-in').nth(1).fill('2');
-  ok((await fila(e, P.tortas).locator('.hj-total').innerText()).trim() === '= 6 unidades', '1 caja + 2 sueltas = 6 unidades');
-  ok(/5 de 5/.test(await e.locator('.hj-pill').innerText()), 'el botón cuenta lo contado · ' + await e.locator('.hj-pill').innerText());
-  await shot(e, '02-apertura-m');
-  await e.locator('.hj-pill').click();
-  await e.waitForSelector('.seg-b[data-paso="durante"].is-on');
-  const ap = db.rpc.find(r => r.fn === 'hoja_contar' && r.p_tipo === 'apertura');
-  const got = Object.fromEntries(ap.p_items.map(x => [x.producto_id, x.cantidad]));
-  ok(ap.p_sector === 'Barra' && got[P.coca.id] === 24 && got[P.limon.id] === 2.5 && got[P.tortas.id] === 6, 'guarda la apertura de la Barra en unidades · ' + JSON.stringify(got));
-
-  // Durante el día
-  ok(/Abrió 24/.test(await fila(e, P.coca).innerText()), 'durante el día muestra con cuánto abrió');
-  await fila(e, P.coca).locator('.hj-mini.is-in').click();
-  await e.waitForSelector('dialog.sheet');
-  ok(JSON.stringify(await e.locator('dialog .chip').allInnerTexts()) === JSON.stringify(['Cocina', 'Proveedor', 'Lo elaboré']), 'de dónde vino: otros sectores, Proveedor y Lo elaboré');
-  await e.locator('dialog .step-val').fill('12'); await e.locator('dialog .step-val').dispatchEvent('change');
-  await e.locator('dialog .chip[data-otro="Proveedor"]').click();
-  await shot(e, '04-anotar-entro-m');
-  await e.locator('dialog .hj-anotar').click();
-  await e.waitForSelector('dialog.sheet', { state: 'detached' });
-  await fila(e, P.cerveza).locator('.hj-mini.is-in').click(); await e.waitForSelector('dialog.sheet');
-  await e.locator('dialog .step-val').fill('24'); await e.locator('dialog .step-val').dispatchEvent('change');
-  await e.locator('dialog .chip[data-otro="Cocina"]').click(); await e.locator('dialog .hj-anotar').click();
-  await e.waitForSelector('dialog.sheet', { state: 'detached' });
-  await fila(e, P.cerveza).locator('.hj-mini:not(.is-in)').click(); await e.waitForSelector('dialog.sheet');
-  ok(await e.locator('dialog .seg-b[data-tipo="devolvi"].is-on').count() === 1, '⋯ abre en Devolví');
-  await e.locator('dialog .step-val').fill('6'); await e.locator('dialog .step-val').dispatchEvent('change');
-  await e.locator('dialog .chip[data-otro="Cocina"]').click(); await e.locator('dialog .hj-anotar').click();
-  await e.waitForSelector('dialog.sheet', { state: 'detached' });
-  await fila(e, P.limon).locator('.hj-mini:not(.is-in)').click(); await e.waitForSelector('dialog.sheet');
-  await e.locator('dialog .seg-b[data-tipo="merma"]').click();
-  ok(await e.locator('dialog .chip').count() === 0, 'la merma no pide de dónde');
-  await e.locator('dialog .step-val').fill('0,5'); await e.locator('dialog .step-val').dispatchEvent('change');
-  await e.locator('dialog .hj-anotar').click();
-  await e.waitForSelector('dialog.sheet', { state: 'detached' });
-  const tx = await fila(e, P.cerveza).innerText();
-  ok(/\+24 de Cocina/.test(tx) && /↩ 6 a Cocina/.test(tx), 'la cerveza muestra +24 de Cocina y ↩ 6 a Cocina');
-  ok(/✕ 0,5 merma/.test(await fila(e, P.limon).innerText()), 'los limones muestran la merma');
-  await shot(e, '03-durante-el-dia-m');
-
-  // Cierre a ciegas
-  await e.locator('.hj-pill').click();
-  await e.waitForSelector('.seg-b[data-paso="cierre"].is-on');
-  ok(await fila(e, P.coca).locator('.hj-in').inputValue() === '' && !/24/.test(await fila(e, P.coca).innerText()), 'el cierre no muestra la apertura (a ciegas)');
-  await fila(e, P.coca).locator('.hj-in').fill('9');
-  await fila(e, P.agua).locator('.hj-in').fill('18');
-  await fila(e, P.cerveza).locator('.hj-in').fill('20');
-  await fila(e, P.limon).locator('.hj-in').fill('0,8');
-  await fila(e, P.tortas).locator('.hj-in').nth(0).fill('1');
-  await shot(e, '05-cierre-m');
-  await e.locator('.hj-pill').click();
-  await e.waitForSelector('.hj-sector');
-  ok(/Cerrada/.test(await e.locator('.hj-sector[data-sector="Barra"]').innerText()), 'al cerrar vuelve a los sectores y la Barra figura cerrada');
+  ok(await e.locator('.seg-b[data-paso="durante"]').count() === 0 && await e.locator('.seg-b[data-modo]').count() === 2, 'Umo: Apertura | Cierre (sin "Durante el día")');
+  // La Cocina ya cerró hoy: abre en el resultado y "Corregir el cierre" trae lo guardado; la Barra está sin contar.
+  ok(await e.locator('.cd-ok').count() === 1, 'con un cierre de hoy abre en el resultado');
+  await e.locator('.cd-corregir').click();
+  await e.waitForSelector('.cd-avance');
+  const grupos = await e.locator('.cd-grupo').evaluateAll(xs => xs.map(x => x.getAttribute('data-sector')));
+  ok(JSON.stringify(grupos) === JSON.stringify(['Barra', 'Cocina']), 'una lista por lugar · ' + grupos.join(','));
+  const cf = (x) => e.locator(`.cd-fila[data-id="${x.id}"] .cd-in`);
+  ok(await cf(P.coca).inputValue() === '' && await cf(P.nalga).inputValue() === '9', 'la Barra sin contar (a ciegas) y la Cocina con lo que ya cerró');
+  await cf(P.coca).fill('9'); await cf(P.agua).fill('18'); await cf(P.cerveza).fill('20'); await cf(P.limon).fill('0,8');
+  ok(/4 de 5/.test(await e.locator('.cd-grupo[data-sector="Barra"] .cd-gh').innerText()), 'la Barra cuenta 4 de 5');
+  ok(/1 sin contar van en 0/.test(await e.locator('.cd-btn').innerText()), 'el botón avisa lo que va en 0 · ' + await e.locator('.cd-btn').innerText());
+  await e.locator('.cd-btn').click();
+  await e.waitForSelector('.cd-confirma:not([hidden])');
+  const antes = db.rpc.filter(r => r.fn === 'hoja_guardar').length;
+  await e.locator('.cd-confirma .btn-primary').click();
+  await e.waitForSelector('.cd-ok');
+  const gs = db.rpc.filter(r => r.fn === 'hoja_guardar');
+  ok(gs.length === antes + 1 && gs[gs.length - 1].p_tipo === 'cierre', 'el cierre se guarda con una sola llamada a hoja_guardar');
+  const ci = Object.fromEntries(gs[gs.length - 1].p_items.map(x => [x.producto_id, [x.sector, x.cantidad]]));
+  ok(ci[P.coca.id][0] === 'Barra' && ci[P.coca.id][1] === 9 && ci[P.limon.id][1] === 0.8 && ci[P.nalga.id][0] === 'Cocina' && ci[P.nalga.id][1] === 9 && ci[P.tortas.id][1] === 0, 'cada producto con su lugar; lo no contado va en 0 · ' + JSON.stringify(ci));
+  await shot(e, '01-cierre-resultado-m');
   ok(!/precio|\$/.test(await e.locator('#view').innerText()), 'el encargado no ve precios');
   await cE.close();
 
@@ -238,7 +208,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await s.goto(BASE + '#/retiros');
   await s.waitForSelector('.rt-nuevo');
   const tabsS = (await s.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',');
-  ok(tabsS === 'Hoy,Pedir,Retiros,Más', 'barra del Shopping: Hoy · Pedir · Retiros · Más (la hoja del depósito se abre desde Hoy y Más) · ' + tabsS);
+  ok(tabsS === 'Retiros,Pedir,Mis pedidos,Más', 'barra del Shopping: Retiros · Pedir · Mis pedidos · Más (Hoy y la hoja del depósito, en Más) · ' + tabsS);
   await s.locator('.rt-nuevo').click(); await s.waitForSelector('dialog.sheet');
   await s.locator('dialog input[type="search"]').fill('bolsas');
   await s.locator(`dialog .rt-op[data-id="${P.bolsas.id}"]`).click();
@@ -260,6 +230,8 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   ok(db.destinos.some(d => d.nombre === 'Patio de comidas'), 'el destino nuevo queda guardado');
   ok(await s.locator('.rt-item').count() === 4, 'lista hoy y ayer');
   await shot(s, '06-shopping-retiros-m');
+  await s.goto(BASE + '#/hoja'); await s.waitForSelector('.hj-sector');
+  ok(await s.locator('.hj-sector').count() === 1 && await s.locator('.cd-seg').count() === 0, 'el Shopping sigue con la hoja por sector de antes (sin cambios)');
   await cS.close();
 
   // ===== 3) Gerencia =====

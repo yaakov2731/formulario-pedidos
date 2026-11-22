@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Prueba de punta a punta (manual, no corre en CI) de la fase 4 · Pedido sugerido: Pedir abre con lo sugerido cargado,
-// agrupado por proveedor con su corte; sin historial deja el campo vacío; lo pedido sin recibir se descuenta; Mis pedidos
-// queda abajo de Pedir (y #/mis-pedidos lleva ahí); gerencia ve el sugerido al cargar un pedido para un local.
+// Prueba de punta a punta (manual, no corre en CI) del pedido sugerido: Pedir abre con lo sugerido cargado (reposicion.js:
+// uso por día abierto × días que abre la semana − lo que quedó − lo pedido sin recibir, al bulto), agrupado por proveedor
+// con su corte; sin historial deja el campo vacío; lo pedido sin recibir se descuenta; Mis pedidos tiene su pestaña;
+// gerencia ve el sugerido al cargar un pedido para un local. Locales sin días cargados: vie · sáb · dom y feriados.
 // API de Supabase mockeada y reloj fijo (lunes 10 h). Capturas a 390 y 1366 px (viewport, escala 2).
 // Uso: node scripts/e2e-sugerido.js [carpeta-de-capturas]
 const http = require('node:http');
@@ -62,21 +63,22 @@ const haceDia = (n) => new Date(Date.UTC(2026, 10, 9 - n)).toISOString().slice(0
 function base() {
   const movs = [];
   for (let n = 1; n <= 28; n++) {
-    movs.push({ local_id: L1, producto_id: 'chorizo', tipo: 'venta', cantidad: -2, creado_en: haceTs(n) });   // 2 kg/día → 2 × 11 − 3 = 19
-    movs.push({ local_id: L1, producto_id: 'cerveza', tipo: 'venta', cantidad: -3, creado_en: haceTs(n) });   // 3 latas/día → 33 − 12 − 2 cajas = 9 → 2 cajas
-    movs.push({ local_id: L1, producto_id: 'papas', tipo: 'produccion_consumo', cantidad: -1, creado_en: haceTs(n) }); // 11 − 20 → 0
-    movs.push({ local_id: L1, producto_id: 'agua', tipo: 'venta', cantidad: -2, creado_en: haceTs(n) });      // 22 − 30 → 0
+    // 28 días con salidas; abrió 13 (vie, sáb, dom y el feriado del 12/10). La semana del viernes 13/11 abre 3 días.
+    movs.push({ local_id: L1, producto_id: 'chorizo', tipo: 'venta', cantidad: -2, creado_en: haceTs(n) });   // 56/13 = 4,31 por día abierto → 12,9 − 3 → 10
+    movs.push({ local_id: L1, producto_id: 'cerveza', tipo: 'venta', cantidad: -3, creado_en: haceTs(n) });   // 84/13 × 3 = 19,4 − 12 − 1 caja (6) = 1,4 → 1 caja
+    movs.push({ local_id: L1, producto_id: 'papas', tipo: 'produccion_consumo', cantidad: -1, creado_en: haceTs(n) }); // 6,5 − 20 → 0
+    movs.push({ local_id: L1, producto_id: 'agua', tipo: 'venta', cantidad: -2, creado_en: haceTs(n) });      // 12,9 − 30 → 0
     movs.push({ local_id: L2, producto_id: 'cafe', tipo: 'venta', cantidad: -1, creado_en: haceTs(n) });
   }
   for (let n = 1; n <= 4; n++) movs.push({ local_id: L1, producto_id: 'nuevo', tipo: 'venta', cantidad: -5, creado_en: haceTs(n) }); // 4 días: sin historial
   const hoja = [];
-  for (let n = 1; n <= 20; n++) { // nalga contada en Cocina: 4 kg por día → 44 − 2 = 42
+  for (let n = 1; n <= 20; n++) { // nalga contada en Cocina: 4 kg por día abierto × 3 − 6 que quedaron en el último cierre = 6
     hoja.push({ id: 'ha' + n, local_id: L1, fecha: haceDia(n), sector: 'Cocina', producto_id: 'nalga', tipo: 'apertura', cantidad: 10, otro: null, quien: 'Lucas', creado_en: haceTs(n, 9) });
     hoja.push({ id: 'hc' + n, local_id: L1, fecha: haceDia(n), sector: 'Cocina', producto_id: 'nalga', tipo: 'cierre', cantidad: 6, otro: null, quien: 'Lucas', creado_en: haceTs(n, 23) });
   }
   const ordenes = [
     { id: 'o-flo', local_id: L1, proveedor_id: PV.florida, estado: 'enviada', creado_en: haceTs(3, 11), cargado_por_nombre: 'Lucas', nota: null,
-      orden_items: [{ id: 'i1', producto_id: 'cerveza', cantidad_pedida: 2, cantidad_recibida: null, excluido: false, agregado: false, no_vino: false }] },
+      orden_items: [{ id: 'i1', producto_id: 'cerveza', cantidad_pedida: 1, cantidad_recibida: null, excluido: false, agregado: false, no_vino: false }] },
     { id: 'o-bar', local_id: L1, proveedor_id: PV.barcena, estado: 'recibida', creado_en: haceTs(6, 11), cargado_por_nombre: 'Lucas', nota: 'Antes de las 10',
       orden_items: [{ id: 'i2', producto_id: 'chorizo', cantidad_pedida: 12, cantidad_recibida: 12, excluido: false, agregado: false, no_vino: false },
         { id: 'i3', producto_id: 'papas', cantidad_pedida: 15, cantidad_recibida: 15, excluido: false, agregado: false, no_vino: false }] },
@@ -181,16 +183,17 @@ const valor = (p, id) => p.locator(`.prod[data-id="${id}"] .step-val`).inputValu
     if (malos.length) console.log('   desborde: ' + malos.join(' | '));
     return !malos.length;
   };
-  const conSugerido = (p) => p.waitForSelector('.prod[data-id="chorizo"][data-sug="19"]');
+  const conSugerido = (p) => p.waitForSelector('.prod[data-id="chorizo"][data-sug="10"]');
 
   for (const ancho of [390, 1366]) {
     const db = base();
     const { c, p } = await abrir(ancho, U_ENC, db, '#/pedir');
     await conSugerido(p);
     if (ancho === 390) {
-      ok(await valor(p, 'chorizo') === '19', 'con historial: chorizo viene cargado con Pedir 19 (2 kg/día × 11 − 3)');
-      ok(await valor(p, 'cerveza') === '2', 'con pedido sin recibir: cerveza Pedir 2 cajas (33 − 12 − 2 cajas × 6 = 9 latas, al bulto)');
-      ok(await valor(p, 'nalga') === '42', 'hoja por sector: nalga Pedir 42 (4 kg/día × 11 − 2)');
+      ok(await valor(p, 'chorizo') === '10', 'con historial: chorizo viene cargado con Pedir 10 (4,31 kg por día abierto × 3 − 3)');
+      ok(await valor(p, 'cerveza') === '1', 'con pedido sin recibir: cerveza Pedir 1 caja (19,4 − 12 − 1 caja × 6 = 1,4 latas, al bulto)');
+      ok(await valor(p, 'nalga') === '6', 'hoja: nalga Pedir 6 (4 kg por día abierto × 3 − 6 del último cierre)');
+      ok(/urgente/.test(await p.locator('.prod[data-id="chorizo"]').innerText()) && /semana/.test(await p.locator('.prod[data-id="nalga"]').innerText()), 'pastillas: chorizo urgente (no alcanza para abrir), nalga semana');
       ok(await valor(p, 'papas') === '0' && await valor(p, 'agua') === '0', 'lo que alcanza queda en 0');
       ok(await valor(p, 'nuevo') === '' && /Sin historial todavía/.test(await p.locator('.prod[data-id="nuevo"]').innerText()), 'sin historial: campo vacío y "Sin historial todavía"');
       ok(await p.locator('.prod[data-id="chorizo"] .sin-hist').count() === 0, 'con historial no dice "Sin historial"');
@@ -199,7 +202,7 @@ const valor = (p, id) => p.locator(`.prod[data-id="${id}"] .step-val`).inputValu
       ok(/Confirmar pedido · 3 ítems/.test(await p.locator('.pill').innerText()), 'botón grande: Confirmar pedido · 3 ítems (lo sugerido)');
       const txt = await p.locator('#view').innerText();
       ok(!/\$|precio|costo|m[ií]nimo|\bpar\b|consumo|promedio/i.test(txt), 'encargado: sin precios, mínimo, par ni cálculos a la vista');
-      ok(await p.locator('#mis-pedidos .ped').count() === 3, 'Mis pedidos abajo de Pedir con 3 pedidos');
+      ok(await p.locator('#mis-pedidos').count() === 0, 'Mis pedidos ya no va abajo de Pedir (tiene su pestaña)');
       ok(await sinDesborde(p), '390: sin desbordes ni texto cortado');
       await shot(p, 'pedir-sugerido-390');
       await p.locator('.prod[data-id="nuevo"]').scrollIntoViewIfNeeded();
@@ -209,12 +212,12 @@ const valor = (p, id) => p.locator(`.prod[data-id="${id}"] .step-val`).inputValu
       await p.locator('.prod[data-id="chorizo"] .step-val').fill('15'); await p.locator('.prod[data-id="chorizo"] .step-val').press('Tab');
       await p.locator('.prod[data-id="nalga"] .step-val').fill('0'); await p.locator('.prod[data-id="nalga"] .step-val').press('Tab');
       await p.reload(); await conSugerido(p);
-      ok(await valor(p, 'chorizo') === '15' && await valor(p, 'nalga') === '0' && await valor(p, 'cerveza') === '2', 'lo corregido queda guardado (15 y 0) y lo demás sigue sugerido');
+      ok(await valor(p, 'chorizo') === '15' && await valor(p, 'nalga') === '0' && await valor(p, 'cerveza') === '1', 'lo corregido queda guardado (15 y 0) y lo demás sigue sugerido');
       ok(/Confirmar pedido · 2 ítems/.test(await p.locator('.pill').innerText()), 'el botón cuenta lo corregido · ' + await p.locator('.pill').innerText());
-      // #/mis-pedidos lleva a Pedir con Mis pedidos a la vista.
+      // Mis pedidos: pestaña propia.
       await p.goto(BASE + '#/mis-pedidos'); await p.waitForSelector('#mis-pedidos .ped');
       await p.waitForTimeout(300);
-      ok(await p.locator('.tab.is-active').innerText() === 'Pedir', '#/mis-pedidos marca la pestaña Pedir');
+      ok(await p.locator('.tab.is-active').innerText() === 'Mis pedidos' && await p.locator('#mis-pedidos .ped').count() === 3, '#/mis-pedidos es su pestaña, con 3 pedidos');
       const enVista = await p.locator('#mis-pedidos').evaluate(el => { const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; });
       ok(enVista, '#/mis-pedidos muestra la sección Mis pedidos');
       await p.locator('#mis-pedidos .ped-b').first().click();
@@ -226,11 +229,12 @@ const valor = (p, id) => p.locator(`.prod[data-id="${id}"] .step-val`).inputValu
       await p.waitForSelector('#mis-pedidos .ped');
       const items = db.posts.filter(x => x.t === 'orden_items').flatMap(x => x.b);
       const de = (id) => (items.find(i => i.producto_id === id) || {}).cantidad_pedida;
-      ok(items.length === 2 && de('chorizo') === 15 && de('cerveza') === 2, 'se envía chorizo 15 (corregido) y cerveza 2 (sugerido) · ' + JSON.stringify(items.map(i => [i.producto_id, i.cantidad_pedida])));
+      ok(items.length === 2 && de('chorizo') === 15 && de('cerveza') === 1, 'se envía chorizo 15 (corregido) y cerveza 1 (sugerido) · ' + JSON.stringify(items.map(i => [i.producto_id, i.cantidad_pedida])));
       ok(db.posts.filter(x => x.t === 'ordenes_compra').every(x => x.b.estado === 'borrador'), 'órdenes en borrador');
       await p.waitForTimeout(400);
-      ok(await valor(p, 'chorizo') === '0' && await valor(p, 'cerveza') === '0', 'lo recién enviado pasa a "sin recibir" y el sugerido queda en 0');
       ok(await p.locator('#mis-pedidos .ped').count() === 5, 'Mis pedidos suma los 2 enviados');
+      await p.goto(BASE + '#/pedir'); await p.waitForSelector('.prod[data-id="chorizo"]');
+      ok(await valor(p, 'chorizo') === '0' && await valor(p, 'cerveza') === '0', 'lo recién enviado pasa a "sin recibir" y el sugerido queda en 0');
       ok(db.log.filter(l => l.rol === 'encargado').every(l => !/precio|ventas|receta|factura/.test(l.t)), 'el encargado no consulta precios, ventas, recetas ni facturas');
     } else {
       ok(await sinDesborde(p), '1366: sin desbordes ni texto cortado');
@@ -252,7 +256,7 @@ const valor = (p, id) => p.locator(`.prod[data-id="${id}"] .step-val`).inputValu
     const chip = p.locator('.cargar-local button', { hasText: 'Umo Grill' });
     if (await chip.count()) await chip.first().click();
     await conSugerido(p);
-    ok(await valor(p, 'chorizo') === '19' && await valor(p, 'nuevo') === '', 'gerencia: Cargar pedido para Umo trae el sugerido (y vacío sin historial)');
+    ok(await valor(p, 'chorizo') === '10' && await valor(p, 'nuevo') === '', 'gerencia: Cargar pedido para Umo trae el sugerido (y vacío sin historial)');
     ok(await p.locator('#mis-pedidos').count() === 0, 'gerencia: sin sección Mis pedidos (tiene Compras)');
     await shot(p, 'cargar-gerencia-1366');
     await c.close();
