@@ -1,6 +1,7 @@
 // Gerencia · Comprar: qué hay que comprar con los cierres de anoche de cada local (reposicion.js).
-// Arriba 4 números: compra de la semana ($), urgentes (no alcanzan para la próxima apertura), mercadería en los locales
-// ($, a precio de la última compra) y cierres de anoche (N de M). Un local sin cierre queda fuera del cálculo, con aviso.
+// Arriba, el panel "Cierres de anoche": cuántos locales cerraron (N/M, barra y un renglón por local). Un local sin cierre
+// queda fuera del cálculo. Si cerraron todos, el panel queda en un solo renglón. Después 3 números: compra de la semana ($),
+// urgentes (no alcanzan para la próxima apertura) y mercadería en los locales ($, a precio de la última compra).
 // Abajo, una tabla por proveedor (quedan, alcanza, estado, pedir, subtotal) y "Armar orden": abre Cargar pedido del local
 // con esas cantidades (el mismo Pedir del encargado). Martín De Ridder: aviso si no llega al mínimo de $ 100.000.
 import { mount, h, fmtNum, porTexto, esMartin, lsGet, lsSet, fechaLarga, plural } from './util.js';
@@ -29,7 +30,6 @@ export async function render(root, ctx) {
     if (localSel && !R.locs.some(l => l.id === localSel)) localSel = null;
     const locs = R.locs.filter(l => !localSel || l.id === localSel);
     const conCierre = locs.filter(l => (R.cierre.get(l.id) || {}).hecho);
-    const sinCierre = locs.filter(l => !(R.cierre.get(l.id) || {}).hecho);
     const filas = [];
     for (const l of conCierre) {
       const plan = R.planes.get(l.id);
@@ -53,6 +53,30 @@ export async function render(root, ctx) {
     const provs = [...porProv.keys()].sort((a, b) => porProv.get(b).reduce((s, x) => s + x.plata, 0) - porProv.get(a).reduce((s, x) => s + x.plata, 0) || porTexto(nombreProv(a), nombreProv(b)));
 
     const sel = selectorLocal({ locales: R.locs.map(l => ({ id: l.id, nombre: l.nombre })), valor: localSel, todos: 'Todos los locales', clave: 'g:comprar-local', onChange: (id) => { localSel = id; pintar(); } });
+    // Panel "Cierres de anoche": con el local elegido muestra solo ese local.
+    const panelCierres = () => {
+      if (!locs.length) return null;
+      const N = locs.length, hechos = conCierre.length, faltan = N - hechos;
+      const hecho = (l) => !!(R.cierre.get(l.id) || {}).hecho;
+      const barra = h('div', { class: 'cc-barra', role: 'img', 'aria-label': `${hechos} de ${N} ${N === 1 ? 'cierre hecho' : 'cierres hechos'}` },
+        locs.map(l => h('i', { class: hecho(l) ? 'is-hecho' : null })));
+      const cont = h('p', { class: 'cc-cont', 'aria-hidden': 'true' }, h('b', { text: String(hechos) }), h('span', { text: '/' + N }));
+      const etiqueta = h('p', { class: 'cc-k', text: 'Cierres de anoche' });
+      if (!faltan) {
+        return h('section', { class: 'cc is-compacto', 'aria-label': 'Cierres de anoche' },
+          h('div', { class: 'cc-tx' }, etiqueta, h('p', { class: 'cc-t', text: N === 1 ? `${locs[0].nombre} hizo el cierre` : 'Todos los locales hicieron el cierre' })),
+          h('div', { class: 'cc-ct' }, cont, barra));
+      }
+      const titulo = !hechos ? 'Ningún local hizo el cierre' : faltan === 1 ? 'Falta 1 cierre' : `Faltan ${faltan} cierres`;
+      const ayuda = !hechos ? 'Sin cierre no hay cálculo para ese local. Cuando los locales hagan el cierre, acá aparece qué comprar.'
+        : 'Sin cierre no hay cálculo para ese local: no entra en lo de abajo.';
+      return h('section', { class: 'cc', 'aria-label': 'Cierres de anoche' },
+        h('div', { class: 'cc-tx' }, etiqueta, h('h2', { class: 'cc-t', text: titulo }), h('p', { class: 'cc-ayuda', text: ayuda })),
+        h('div', { class: 'cc-ct' }, cont, barra),
+        h('ul', { class: 'cc-locs' }, locs.map(l => h('li', { class: 'cc-loc', 'data-local': l.id },
+          h('span', { class: 'cc-loc-n', text: l.nombre }),
+          hecho(l) ? h('span', { class: 'cc-tag is-hecho', text: 'cierre hecho' }) : h('span', { class: 'cc-tag is-falta', text: 'sin cierre' })))));
+    };
     const kpi = (t, v, n, cls = '', title) => h('div', { class: 'kpi cq-kpi' + (cls ? ' ' + cls : ''), title: title || null }, h('span', { class: 'kpi-t', text: t }), h('b', { class: 'kpi-v num', text: v }), h('span', { class: 'kpi-n', text: n }));
     const seccion = (k) => {
       const de = porProv.get(k).sort((a, b) => (a.e.c === 'rojo' ? 0 : 1) - (b.e.c === 'rojo' ? 0 : 1) || b.plata - a.plata || porTexto(a.p.nombre, b.p.nombre));
@@ -79,16 +103,14 @@ export async function render(root, ctx) {
     mount(root,
       tituloGrande('Qué comprar', `${fechaLarga(R.jornada)} · con los cierres de anoche`, { accion: sel.el }),
       R.errores ? banner(`No se pudieron cargar los datos de ${R.errores} ${R.errores === 1 ? 'local' : 'locales'}.`, 'warn') : null,
+      panelCierres(),
       h('div', { class: 'kpis cq-kpis' },
-        kpi('Compra de la semana', plataCorta(total), `${filas.length} ${filas.length === 1 ? 'renglón' : 'renglones'} · ${provs.length} ${provs.length === 1 ? 'proveedor' : 'proveedores'}`, '', plata(total)),
-        kpi(tRojo, String(rojos.length), unaProx ? `no alcanzan para el ${fechaLarga(unaProx.fecha)}` : 'no alcanzan para la próxima apertura', rojos.length ? 'is-rojo' : ''),
-        kpi('Mercadería en los locales', plataCorta(valor), 'a precio de la última compra', '', plata(valor)),
-        kpi('Cierres de anoche', `${conCierre.length}/${locs.length}`, sinCierre.length ? 'Falta: ' + sinCierre.map(l => l.nombre).join(', ') : 'Todos cerraron', sinCierre.length ? 'is-amar' : 'is-verde')),
-      sinCierre.length ? h('div', { class: 'cd-prox cq-sincierre' }, h('div', {}, h('b', { text: sinCierre.map(l => l.nombre).join(', ') + (sinCierre.length === 1 ? ' no hizo el cierre' : ' no hicieron el cierre') }),
-        h('p', { class: 'cd-nota', text: 'Sin cierre no hay cálculo para ese local: no entra en lo de abajo.' })), h('span', { class: 'cd-pill p-amar', text: 'sin cierre' })) : null,
+        kpi('Compra de la semana', plataCorta(total), `${filas.length} ${filas.length === 1 ? 'renglón' : 'renglones'} · ${provs.length} ${provs.length === 1 ? 'proveedor' : 'proveedores'}`, conCierre.length ? '' : 'is-sin', plata(total)),
+        kpi(tRojo, String(rojos.length), unaProx ? `no alcanzan para el ${fechaLarga(unaProx.fecha)}` : 'no alcanzan para la próxima apertura', rojos.length ? 'is-rojo' : conCierre.length ? '' : 'is-sin'),
+        kpi('Mercadería en los locales', plataCorta(valor), 'a precio de la última compra', '', plata(valor))),
       R.cargando ? esqueleto(3) : null,
       ...provs.map(seccion),
-      !R.cargando && !filas.length ? vacio(conCierre.length ? 'No hace falta comprar nada' : 'Sin cierres para calcular', conCierre.length ? 'Con lo que quedó anoche alcanza hasta la próxima compra.' : 'Cuando los locales hagan el cierre, acá aparece qué comprar.') : null);
+      !R.cargando && !filas.length && conCierre.length ? vacio('No hace falta comprar nada', 'Con lo que quedó anoche alcanza hasta la próxima compra.') : null);
   }
 
   // Armar orden: deja el pedido del local cargado con lo de este proveedor (lo de otros proveedores en 0) y abre Cargar.

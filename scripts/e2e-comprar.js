@@ -19,7 +19,7 @@ let fallas = 0;
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FAIL ') + msg); if (!cond) fallas++; };
 const limpiar = (p) => p.evaluate(() => { const s = document.getElementById('splash'); if (s) s.remove(); document.querySelectorAll('.toast').forEach(t => t.remove()); });
 const shot = async (p, n) => { await limpiar(p); await p.waitForTimeout(250); return p.screenshot({ path: path.join(OUT, n + '.png') }); };
-const ANCHOS = { 390: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, 1300: { viewport: { width: 1300, height: 900 }, deviceScaleFactor: 1 } };
+const ANCHOS = { 390: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, 1300: { viewport: { width: 1300, height: 900 }, deviceScaleFactor: 1 }, 1440: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 } };
 const DOMINGO = new Date('2026-11-22T10:00:00-03:00');
 const num = (s) => Number(String(s).replace(/\./g, '').replace(',', '.'));
 
@@ -63,9 +63,13 @@ const num = (s) => Number(String(s).replace(/\./g, '').replace(',', '.'));
       ok(tabs === 'Comprar,Lo que hay,Pedidos,Más', 'barra de gerencia: Comprar · Lo que hay · Pedidos · Más · ' + tabs);
       ok(/Compra de la semana \$/.test(k[0]), 'KPI compra de la semana en pesos · ' + k[0]);
       ok(/^Para hoy \d+ no alcanzan para el domingo/.test(k[1]), 'KPI urgentes: Umo cerró el sábado y abre hoy → "Para hoy" · ' + k[1]);
-      ok(/Cierres de anoche 1\/2 Falta: Trento Café/.test(k[3]), 'KPI cierres de anoche 1/2, falta Trento · ' + k[3]);
+      ok(k.length === 3 && !k.some(x => /Cierres de anoche/.test(x)), 'quedan 3 KPI, sin la de cierres · ' + k.length);
+      ok(/^cierres de anoche falta 1 cierre/i.test((await p.locator('.cc').innerText()).replace(/\s+/g, ' ')), 'panel de cierres: "Falta 1 cierre"');
+      ok(await p.evaluate(() => { const v = document.querySelector('#view'); const c = v.querySelector('.cc'), k = v.querySelector('.cq-kpis'); return !!(c.compareDocumentPosition(k) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'el panel va antes de las KPI');
+      ok(await p.locator('.cc-barra[role="img"][aria-label="1 de 2 cierres hechos"] i').count() === 2, 'barra: 2 segmentos, "1 de 2 cierres hechos"');
+      ok(/Trento Café sin cierre/.test((await p.locator('.cc-locs li', { hasText: 'Trento' }).innerText()).replace(/\s+/g, ' ')), 'panel: Trento Café sin cierre');
+      ok(await p.locator('.cc-locs li .cc-tag.is-hecho').count() === 1, 'panel: Umo con cierre hecho');
       ok(!/Shopping/.test(await p.locator('#view').innerText()), 'el Shopping (no elabora) no aparece en Comprar');
-      ok(/Trento Café no hizo el cierre/.test(await p.locator('.cq-sincierre').innerText()), 'aviso: Trento Café no hizo el cierre');
       ok(await p.locator('.cq-tabla td.cq-loc', { hasText: 'Trento' }).count() === 0, 'Trento sin cierre queda fuera de la tabla');
       const provs = await p.locator('.cq-prov').evaluateAll(xs => xs.map(x => x.getAttribute('data-prov')));
       ok(provs.includes('Martín De Ridder') && provs.includes('Barcena') && provs.includes('Distribuidora Florida') && provs.includes('Sin proveedor'), 'una tabla por proveedor · ' + provs.join(', '));
@@ -155,6 +159,41 @@ const num = (s) => Number(String(s).replace(/\./g, '').replace(',', '.'));
     }
     await shot(p, `09-ajustes-${n}`);
     await c.close();
+  }
+
+  // ---- Panel "Cierres de anoche": parciales, ninguno y un local elegido (compacto), a 390 y 1440 ----
+  for (const ancho of [390, 1440]) {
+    const n = ancho === 390 ? 'celular' : 'pc';
+    {
+      const { c, p } = await abrir(ancho, base({ ahora: DOMINGO }), '#/comprar');
+      await p.waitForSelector('.cq-prov'); await p.waitForTimeout(400);
+      if (ancho === 390) {
+        const r = await p.evaluate(() => { const t = document.querySelector('.cc-t').getBoundingClientRect(), k = document.querySelector('.cc-cont').getBoundingClientRect(); return k.top >= t.bottom; });
+        ok(r, '390: el contador queda debajo del título');
+        ok(await p.evaluate(() => getComputedStyle(document.querySelector('.cc-locs')).gridTemplateColumns.split(' ').length === 1), '390: locales en 1 columna');
+        ok(await sinDesborde(p), '390: sin scroll horizontal con el panel');
+      }
+      await shot(p, `10-cierres-parciales-${n}`);
+      // Un local elegido: el panel muestra solo ese local (Umo cerró → renglón compacto).
+      await p.locator('.sel-local').click();
+      await p.locator(`dialog.sheet [data-local="${L.umo}"]`).first().click();
+      await p.waitForTimeout(400);
+      ok(await p.locator('.cc.is-compacto').count() === 1 && await p.locator('.cc-barra i').count() === 1, n + ': con Umo elegido el panel queda compacto, 1/1');
+      await shot(p, `12-cierres-un-local-${n}`);
+      await c.close();
+    }
+    {
+      const db = base({ ahora: DOMINGO });
+      db.hoja = db.hoja.filter(m => !(m.fecha === '2026-11-21' && m.tipo === 'cierre'));
+      const { c, p } = await abrir(ancho, db, '#/comprar');
+      await p.waitForSelector('.cc'); await p.waitForTimeout(600);
+      ok(/Ningún local hizo el cierre/.test(await p.locator('.cc-t').innerText()), n + ': 0 cierres → "Ningún local hizo el cierre"');
+      ok(!/Sin cierres para calcular/.test(await p.locator('#view').innerText()), n + ': sin el vacío viejo');
+      ok(await p.locator('.cq-kpi.is-sin').count() === 2, n + ': 0 cierres → compra y urgentes en gris');
+      ok(await p.locator('.cc-barra[aria-label="0 de 2 cierres hechos"]').count() === 1, n + ': barra "0 de 2 cierres hechos"');
+      await shot(p, `11-cierres-ninguno-${n}`);
+      await c.close();
+    }
   }
 
   // ---- Sin 0032: Ajustes avisa y no deja guardar; Comprar calcula con vie · sáb · dom ----
