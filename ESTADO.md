@@ -2,6 +2,28 @@
 
 Actualizado: 22 de octubre de 2026 (tarde, pase de diseño). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
 
+## Rediseño "lo que sobró" (22/11/2026, rama `claude/project-thread-nt7yrx`, sin push ni PR)
+
+Plan: `/mnt/project-files/rediseno-sobrante/PLAN.md` (pasos 1–11). Capturas 390/1300 px en
+`/mnt/project-files/rediseno-sobrante/app/` (01 apertura … 09 ajustes).
+
+- SQL `supabase/migrations/0032_dias_abre_cierre_stock.sql`: `locales.dias_abre` (def. `{5,6,0}`), `abre_feriados`
+  (def. true), rpc `hoja_guardar` (una llamada por apertura/cierre; el cierre ajusta stock con `ajuste_conteo`).
+  Validado solo con pglite (`verify-hoja.js`). **NO aplicado en Supabase**: lo decide el dueño. Sin 0032 la app cae
+  al camino viejo (`hoja_contar` por lugar; locales sin días → vie · sáb · dom y feriados; Ajustes avisa y no guarda).
+- Lógica: `stock/js/reposicion.js` (uso por día abierto, próxima apertura con feriados, pedir al bulto descontando lo
+  pedido sin recibir; si el cierre es de ayer y hoy abre, "para hoy"), `stock/js/feriados.js` (2026–2027; revisar cada
+  año contra el calendario oficial).
+- Encargado (locales que elaboran): Hoja nueva Apertura (precargada con el cierre + lo que llegó) | Cierre (a ciegas,
+  lo no contado va en 0) → resultado (para mañana / pedido de la semana / sin historial) → "Armar el pedido" abre Pedir
+  con las mismas cantidades. Shopping sigue con la hoja por sector y Retiros. Pestañas: Hoja · Pedir · Mis pedidos · Más.
+- Gerencia: Comprar · Lo que hay (matriz + ficha) · Pedidos (columnas ≥980 px) · Más (Tablero en `#/tablero`, Ajustes).
+- Pruebas: verify-stock, verify-reposicion (nuevo), verify-sugerido, verify-v2, verify-hoja OK; e2e-hoja, e2e-hoy,
+  e2e-sugerido, e2e-cierre (nuevo), e2e-comprar (nuevo) OK. e2e-shopping: 5 fallas que ya fallaban en main (466fd2a).
+  CI suma verify-sugerido y verify-reposicion.
+- Pendiente: aplicar 0032 (dueño), revisar en el teléfono real, decidir si el "Durante el día" (entró/devolví/merma)
+  vuelve a la Hoja de Umo, arreglar las 5 fallas viejas de e2e-shopping, plural "packes" de `util.plural`.
+
 ## Objetivo y aceptación
 
 El usuario pidió una app totalmente nueva, de nivel App Store, rápida y fluida en iPhone, tablet y PC, para usar con
