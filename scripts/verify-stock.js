@@ -237,7 +237,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('cierre: sin 0032 cae a hoja_contar por sector y los locales se leen sin dias_abre', /hayHojaGuardar = false/.test(ap) && /hojaContar\(localId, sector, fecha, tipo, its, quien\)/.test(ap) && /hayDiasAbre = false/.test(ap) && /hoja_guardar/.test(ap));
   check('cierre: resultado con "Sin historial" y "para mañana" solo si mañana abre', /sin historial/i.test(hj) && /prox\.dias === 1/.test(hj) && /Terminar cierre/.test(hj) && /Todo igual, confirmar apertura/.test(hj));
   check('cierre: reposicion.js y feriados.js en el SW; Comprar, Lo que hay y Ajustes también', ['reposicion', 'feriados', 'g-comprar', 'g-hay', 'g-ajustes'].every(x => sw.includes('./js/' + x + '.js')));
-  check('cierre: Comprar avisa el mínimo de De Ridder y deja fuera a los locales sin cierre', /MINIMO_DE_RIDDER = 100000/.test(gc) && /no hizo el cierre/.test(gc) && /precargarPedido/.test(gc));
+  check('cierre: Comprar avisa el mínimo de De Ridder y deja fuera a los locales sin cierre', /MINIMO_DE_RIDDER = 100000/.test(gc) && /Sin cierre no hay cálculo para ese local/.test(gc) && /cierres hechos/.test(gc) && /precargarPedido/.test(gc));
   check('cierre: Lo que hay con tendencia solo con 2 o más cierres reales y ficha con los últimos 8', /serie\.length >= 2/.test(gy) && /export function abrirFicha/.test(gy) && /ultimosCierres|slice\(-8\)/.test(ap + gy));
   check('cierre: Ajustes guarda dias_abre y abre_feriados', /dias_abre: d, abre_feriados: fer/.test(ga));
   check('cierre: el Shopping no entra en Comprar ni Lo que hay', /elabora\(l\.codigo\)/.test(gy));
