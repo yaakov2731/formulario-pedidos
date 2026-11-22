@@ -20,8 +20,9 @@ export function abreEl(iso, local, feriados) {
 }
 
 // La próxima vez que abre, contando desde mañana: { fecha, dias } (dias = 1 es mañana) o null si no abre en dos semanas.
-export function proximaApertura(hoyISO, local, feriados) {
-  for (let d = 1; d <= 14; d++) { const f = sumarDias(hoyISO, d); if (abreEl(f, local, feriados)) return { fecha: f, dias: d }; }
+// conHoy: cuenta también hoy (dias = 0), para cuando el último cierre es de un día anterior y hoy todavía no abrió.
+export function proximaApertura(hoyISO, local, feriados, conHoy = false) {
+  for (let d = conHoy ? 0 : 1; d <= 14; d++) { const f = sumarDias(hoyISO, d); if (abreEl(f, local, feriados)) return { fecha: f, dias: d }; }
   return null;
 }
 
@@ -78,8 +79,10 @@ export function pedir({ uso, diasSemana, quedan = 0, pendiente = 0, factor = 1 }
 
 // Plan de un local: para cada producto que se compra, estado y cuánto pedir. quedan: Map id → lo que hay (unidad de uso);
 // cons: Map id → consumo (sugerido.js); pend: Map id → pedido sin recibir (bultos). Los elaborados y la carta no se compran.
-export function planLocal({ prods, quedan, cons, pend, local, hoy, feriados }) {
-  const prox = proximaApertura(hoy, local, feriados);
+// cierre: fecha del cierre del que sale lo que queda. Si es de antes de hoy, la próxima apertura puede ser hoy mismo
+// (el lunes feriado a la mañana, con el cierre del domingo, lo que falta es "para hoy").
+export function planLocal({ prods, quedan, cons, pend, local, hoy, feriados, cierre = null }) {
+  const prox = proximaApertura(hoy, local, feriados, !!cierre && cierre < hoy);
   const diasSemana = diasAbiertos(prox ? prox.fecha : sumarDias(hoy, 1), 7, local, feriados);
   const items = new Map();
   for (const p of prods || []) {
@@ -146,4 +149,6 @@ export function cierresDeAnoche(hojaPorLocal, locales, jornada, feriados) {
 export const clavePorNombre = (p) => norm(p.nombre) + '|' + norm(p.unidad_uso || p.unidad_compra || '');
 
 // "< 1 día", "1 día", "4 días" o '—'.
+// "hoy", "mañana" o "en N días" para la próxima apertura.
+export const textoCuando = (prox) => (!prox ? '' : prox.dias === 0 ? 'hoy' : prox.dias === 1 ? 'mañana' : `en ${prox.dias} días`);
 export const textoAlcanza = (dias) => (dias === null || dias === undefined || !isFinite(dias) ? '—' : dias < 1 ? '< 1 día' : Math.floor(dias) + (Math.floor(dias) === 1 ? ' día' : ' días'));

@@ -46,7 +46,7 @@ export async function render(root, ctx) {
     for (const l of locs) { const q = R.quedan.get(l.id) || new Map(); for (const p of prodsDe(l.id)) valor += valorDe(p, q.get(p.id) || 0); }
     const proxs = [...new Set(conCierre.map(l => (R.planes.get(l.id) || {}).prox).filter(Boolean).map(x => x.fecha))];
     const unaProx = proxs.length === 1 ? conCierre.map(l => R.planes.get(l.id).prox).find(Boolean) : null;
-    const tRojo = unaProx ? (unaProx.dias === 1 ? 'Para mañana' : 'Antes de abrir') : 'Urgentes';
+    const tRojo = unaProx ? (unaProx.dias === 0 ? 'Para hoy' : unaProx.dias === 1 ? 'Para mañana' : 'Antes de abrir') : 'Urgentes';
     const nombreProv = (k) => (k && G.provs.get(k) ? G.provs.get(k).nombre : 'Sin proveedor');
     const porProv = new Map();
     for (const x of filas) { if (!porProv.has(x.prov)) porProv.set(x.prov, []); porProv.get(x.prov).push(x); }

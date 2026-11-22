@@ -11,7 +11,7 @@ import { mount, h, tokens, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCa
 import { swr, cargarCatalogo, cargarLocales, hojaDelDia, hojaContar, hojaAnotar, hojaBorrar, hojaGuardar, sinHojaSQL, mensajeError, datosReposicion, misOrdenes, cargarProveedoresBasico } from './api.js';
 import { buscar as buscarProds, frecuencia, anotarUso } from './busqueda.js';
 import { esqueleto, vacio, banner, toast, icon, hoja as hojaModal, stepper, tituloGrande, botonFijo } from './ui.js';
-import { planLocal, aperturaSugerida, textoAlcanza } from './reposicion.js';
+import { planLocal, aperturaSugerida, textoAlcanza, textoCuando } from './reposicion.js';
 
 export const TODO_EL_LOCAL = 'Todo el local';
 const PASOS = [['apertura', 'Apertura'], ['durante', 'Durante el día'], ['cierre', 'Cierre']];
@@ -454,7 +454,7 @@ async function renderDia(root, ctx) {
     const nota = esAp
       ? h('p', { class: 'cd-nota', text: precarga ? `Viene cargada con el cierre del ${fechaLarga(precarga.fecha)}${precarga.recep ? ' y lo que llegó después' : ''}. Si algo no coincide, corregilo; si está todo igual, confirmá de una.` : 'Contá lo que hay al abrir. Vacío = no lo contaste.' })
       : h('div', { class: 'cd-prox' }, h('div', {}, h('span', { class: 'cd-k', text: '¿Qué sobró hoy? · Próxima apertura' }), h('b', { text: prox ? fechaLarga(prox.fecha) : 'Sin días cargados' })),
-        prox ? h('span', { class: 'cd-pill p-gris', text: prox.dias === 1 ? 'mañana' : `en ${prox.dias} días` }) : null);
+        prox ? h('span', { class: 'cd-pill p-gris', text: textoCuando(prox) }) : null);
     mount(root, ...cabeza(), nota,
       esAp ? null : h('div', { class: 'cd-avance' }, h('div', { class: 'cd-avance-t' }, cont, pct), h('div', { class: 'cd-barra' }, barra)),
       grupos, panel, boton);

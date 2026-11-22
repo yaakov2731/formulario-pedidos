@@ -63,7 +63,7 @@ function calcular(R, soloLid) {
     const rep = R.reps.get(l.id);
     const q = quedanLocal(R, l.id);
     R.quedan.set(l.id, q);
-    R.planes.set(l.id, planLocal({ prods: prodsDe(l.id), quedan: q, cons: new Map(rep ? rep.cons : []), pend: new Map(rep ? rep.pend : []), local: l, hoy: R.jornada }));
+    R.planes.set(l.id, planLocal({ prods: prodsDe(l.id), quedan: q, cons: new Map(rep ? rep.cons : []), pend: new Map(rep ? rep.pend : []), local: l, hoy: R.jornada, cierre: rep && rep.ultimo && rep.ultimo >= sumarDias(R.jornada, -7) ? rep.ultimo : null }));
   }
 }
 const cierresDe = (R, lid, pid) => { const rep = R.reps.get(lid); const x = rep && (rep.cierres || []).find(([id]) => id === pid); return x ? x[1] : []; };

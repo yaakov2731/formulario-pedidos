@@ -56,7 +56,7 @@ function quedanDe() {
 }
 const recalcular = () => {
   S.quedan = quedanDe();
-  S.plan = planLocal({ prods: S.prods, quedan: S.quedan, cons: S.cons, pend: S.pend, local: S.local, hoy: jornadaISO() });
+  S.plan = planLocal({ prods: S.prods, quedan: S.quedan, cons: S.cons, pend: S.pend, local: S.local, hoy: jornadaISO(), cierre: S.cierreFecha || null });
   S.sug = new Map([...S.plan.items].map(([id, e]) => [id, e.pedir]));
 };
 const quedan = (p) => S.quedan.get(p.id) || 0;
