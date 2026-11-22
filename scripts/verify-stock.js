@@ -17,7 +17,8 @@ const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'c
   'vendor/xlsx.full.min.js', 'vendor/README.md', 'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs',
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/sugerido.js', 'js/busqueda.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-resumen.js', 'js/ventas-global.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
-  'js/g-hoy.js', 'js/hoy.js', 'js/compras-estado.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js'];
+  'js/g-hoy.js', 'js/hoy.js', 'js/compras-estado.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js',
+  'js/feriados.js', 'js/reposicion.js', 'js/g-comprar.js', 'js/g-hay.js', 'js/g-ajustes.js', 'js/hoja.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -34,14 +35,14 @@ check('todo el SHELL del SW existe', shell.every(f => fs.existsSync(S(f))), shel
 
 // Vistas del encargado: sin costos ni umbrales internos visibles.
 const permitido = (t) => t.replace(/pedido m[ií]nimo/gi, '').replace(/tiene_minimo/g, '');
-for (const f of ['js/pedir.js', 'js/sugerido.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js', 'js/hoy.js']) {
+for (const f of ['js/pedir.js', 'js/sugerido.js', 'js/entrar.js', 'js/contar.js', 'js/inventario.js', 'js/stock-local.js', 'js/hoy.js', 'js/hoja.js', 'js/reposicion.js']) {
   const t = permitido(read(f));
   check(`${f}: sin "precio"/"costo"`, !/precio|costo|importe/i.test(t));
   check(`${f}: sin "mínimo" ni "par" visibles`, !/m[ií]nimo/i.test(t) && !/\bpar\b/i.test(t));
 }
 check('encargado no importa vistas de gerencia', !/from '\.\/(g-[a-z-]+|nucleo|analisis|datos|aviso|pagos-util|comprobante|pdf-texto)\.js'/.test(read('js/pedir.js') + read('js/entrar.js')));
 check('encargado: ni ventas, recetas, producción ni lector de Excel en pedir.js/entrar.js', !/ventas|receta|producci[oó]n|xlsx|merma|importar_/i.test(read('js/pedir.js') + read('js/entrar.js')));
-check('fase 4: Pedir trae el sugerido cargado (sugerido.js), sin historial lo deja vacío y Mis pedidos queda abajo de Pedir',
+check('fase 4: Pedir trae el sugerido cargado (reposicion.js + entregaDe de sugerido.js), sin historial lo deja vacío y Mis pedidos tiene su pestaña',
   /from '\.\/sugerido\.js'/.test(read('js/pedir.js')) && /Sin historial todavía/.test(read('js/pedir.js')) && /seccionMis\(/.test(read('js/pedir.js'))
   && !/renderMis/.test(read('js/pedir.js')) && /'mis-pedidos': \(\) => import\('\.\/pedir\.js'\)/.test(read('js/main.js')) && read('sw.js').includes('./js/sugerido.js'));
 check('fase 4: el sugerido no usa la cantidad ideal ni precios (solo consumo, lo que queda y lo pedido)', !/\.par\b|precio|costo|importe/i.test(read('js/sugerido.js')) && !/cargarSugerido/.test(read('js/pedir.js')));
@@ -155,11 +156,11 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   const navGer = (m4.match(/gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0];
   const navCon = (m4.match(/contadora: \[[\s\S]*?\]\s*\};/) || [''])[0];
   const masGer = (m4.match(/const MAS = \{[\s\S]*?gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0].split('gerencia:')[1] || '';
-  check('gerencia: Hoy es el inicio (primera sección) y Pagos está en Más', /\[\s*\{ id: 'hoy'/.test(navGer) && /id: 'pagos'/.test(masGer));
+  check('gerencia: Comprar es el inicio (primera sección) y Pagos, Tablero y Ajustes están en Más', /\[\s*\{ id: 'comprar'/.test(navGer) && /id: 'pagos'/.test(masGer) && /id: 'tablero'/.test(masGer) && /id: 'ajustes'/.test(masGer));
   check('contadora: solo la sección Pagos', navCon.length > 0 && /id: 'pagos'/.test(navCon) && !/pedidos|stock|ventas|tablero|catalogo|recetas|recibir/.test(navCon), navCon);
   check('el menú del encargado no tiene Pagos ni Tablero', navEnc.length > 0 && !/pagos|tablero|facturas|proveedores/.test(navEnc));
   check('las rutas de pagos, facturas y comprobantes están en gerencia y contadora; tablero y proveedores solo en gerencia',
-    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'hoy': \(\) => import\('\.\/g-hoy\.js'\), 'proveedores'/.test(m4) && /ALIAS = \{ 'gerencia\/tablero': 'hoy' \}/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
+    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'tablero': \(\) => import\('\.\/g-hoy\.js'\), 'comprar': \(\) => import\('\.\/g-comprar\.js'\), 'hay': \(\) => import\('\.\/g-hay\.js'\), 'ajustes': \(\) => import\('\.\/g-ajustes\.js'\), 'proveedores'/.test(m4) && /ALIAS = \{ 'gerencia\/hoy': 'comprar' \}/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
   check('el perfil contadora puede entrar a la app', /\['encargado', 'gerencia', 'contadora'\]\.includes\(perfil\.rol\)/.test(m4));
   check('vendor pdf.js 4.x anotado en vendor/README.md', /pdf\.min\.mjs.*4\.\d+\.\d+/.test(read('vendor/README.md')) && /pdf\.worker\.min\.mjs/.test(read('vendor/README.md')));
   check('pdf.js se carga solo en Cargar pago (import dinámico), no en index.html ni en el arranque', !/pdf\.|pdfjs/i.test(html) && /import\('\.\.\/vendor\/pdf\.min\.mjs'\)/.test(read('js/pdf-texto.js')) && !/pdf-texto|pdf\.min/.test(m4));
@@ -199,8 +200,8 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   // ---- Rediseño estilo Apple · fases 2 y 3 ----
   const ui = read('js/ui.js');
   const pestanas = (bloque) => (bloque.match(/\{ id: '/g) || []).length;
-  check('fase 2: ningún rol con más de 4 pestañas (Hoy primero, Más al final)', pestanas(navEnc) <= 5 && pestanas(navGer) === 4 && pestanas(navCon) <= 4
-    && /\[\s*\{ id: 'hoy'/.test(navEnc) && /id: 'mas'/.test(navGer) && /id: 'mas'/.test(navEnc) && /navDe = \(c\) => NAV\[c\.rol\]\.filter\(it => !\(c\.rol === 'encargado' && it\.id === \(shopping\(c\) \? 'hoja' : 'retiros'\)\)\)/.test(m4),
+  check('cierre y compras: 4 pestañas por rol (encargado Hoja/Retiros · Pedir · Mis pedidos · Más; gerencia Comprar · Lo que hay · Pedidos · Más)', pestanas(navEnc) === 5 && pestanas(navGer) === 4 && pestanas(navCon) <= 4
+    && /\[\s*\{ id: 'hoja'/.test(navEnc) && /id: 'mis-pedidos'/.test(navEnc) && /id: 'mas'/.test(navGer) && /id: 'hay'/.test(navGer) && /id: 'mas'/.test(navEnc) && /NAV\[c\.rol\]\.filter\(it => !\(c\.rol === 'encargado' && it\.id === \(shopping\(c\) \? 'hoja' : 'retiros'\)\)\)/.test(m4),
     'encargado tiene Hoja o Retiros, nunca los dos');
   check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana · Pérdida; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\], \['perdida', 'Pérdida'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
   check('fase 2: Compras junta Pedidos · Enviar · Recibir · Gasto', /SUBNAV_COMPRAS = \[\['pedidos', 'Pedidos'\], \['compras', 'Enviar'\], \['recibir', 'Recibir'\], \['gasto', 'Gasto'\]\]/.test(ui));
@@ -226,9 +227,21 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
     && /from '\.\/perdida\.js'/.test(read('js/g-sector.js')) && /from '\.\/perdida\.js'/.test(gh) && /costoUnidad/.test(read('js/g-control.js')));
   check('pérdida: perdida.js es pura (sin DOM ni Supabase)', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(pe));
   check('pérdida: Hoy de gerencia con "Pérdida de la semana" (Sin explicar · Merma) que abre Stock → Control → Pérdida', /'Pérdida de la semana'/.test(gh) && /'data-grupo': 'perdida'/.test(gh) && /Sin explicar/.test(gh) && /desdeHoy\('perdida'\)/.test(gh));
-  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /incluye: \['sector', 'control', 'perdida'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
+  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /incluye: \[[^\]]*'sector', 'control', 'perdida'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
   check('pérdida: detalle con lo que más pesa, semana anterior y productos clave; sin datos no estima', /'Lo que más pesa'/.test(gpe) && /'Semana anterior'/.test(gpe) && /'Productos clave'/.test(gpe) && /Sin historial todavía/.test(gpe) && /Falta cargar costos/.test(gpe));
   check('pérdida: nada de esto en pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js', 'js/inventario.js', 'js/stock-local.js', 'js/retiros.js'].some(f => /perdida/.test(read(f))) && !/encargado: \{[^}]*perdida/.test(m4));
+
+  // ---- Cierre y compras (0032) ----
+  const hj = read('js/hoja.js'), gc = read('js/g-comprar.js'), gy = read('js/g-hay.js'), ga = read('js/g-ajustes.js'), rp = read('js/reposicion.js'), ap = read('js/api.js');
+  check('cierre: la Hoja guarda con una sola llamada (hojaGuardar) y el Shopping sigue con la hoja por sector', /hojaGuardar\(lid, fecha, modo, items/.test(hj) && /if \(!elabora\(ctx\.codigoLocal\)\) return renderSector/.test(hj) && /export function sectoresDe/.test(hj) && /TODO_EL_LOCAL/.test(hj) && /PROVEEDOR/.test(hj) && /ELABORE/.test(hj));
+  check('cierre: sin 0032 cae a hoja_contar por sector y los locales se leen sin dias_abre', /hayHojaGuardar = false/.test(ap) && /hojaContar\(localId, sector, fecha, tipo, its, quien\)/.test(ap) && /hayDiasAbre = false/.test(ap) && /hoja_guardar/.test(ap));
+  check('cierre: resultado con "Sin historial" y "para mañana" solo si mañana abre', /sin historial/i.test(hj) && /prox\.dias === 1/.test(hj) && /Terminar cierre/.test(hj) && /Todo igual, confirmar apertura/.test(hj));
+  check('cierre: reposicion.js y feriados.js en el SW; Comprar, Lo que hay y Ajustes también', ['reposicion', 'feriados', 'g-comprar', 'g-hay', 'g-ajustes'].every(x => sw.includes('./js/' + x + '.js')));
+  check('cierre: Comprar avisa el mínimo de De Ridder y deja fuera a los locales sin cierre', /MINIMO_DE_RIDDER = 100000/.test(gc) && /no hizo el cierre/.test(gc) && /precargarPedido/.test(gc));
+  check('cierre: Lo que hay con tendencia solo con 2 o más cierres reales y ficha con los últimos 8', /serie\.length >= 2/.test(gy) && /export function abrirFicha/.test(gy) && /ultimosCierres|slice\(-8\)/.test(ap + gy));
+  check('cierre: Ajustes guarda dias_abre y abre_feriados', /dias_abre: d, abre_feriados: fer/.test(ga));
+  check('cierre: el Shopping no entra en Comprar ni Lo que hay', /elabora\(l\.codigo\)/.test(gy));
+  check('cierre: reposicion.js sin DOM ni Supabase', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(rp));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

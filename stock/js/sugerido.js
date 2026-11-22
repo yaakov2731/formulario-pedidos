@@ -33,7 +33,7 @@ export function consumoPorProducto({ movs = [], hoja = [], hoy }) {
     total.set(m.producto_id, (total.get(m.producto_id) || 0) - Number(m.cantidad));
     if (!primera.has(m.producto_id) || d < primera.get(m.producto_id)) primera.set(m.producto_id, d);
   }
-  for (const [id, t] of total) de(id).mov = { total: t, dias: diasEntre(primera.get(id), hoy) };
+  for (const [id, t] of total) de(id).mov = { total: t, dias: diasEntre(primera.get(id), hoy), desde: primera.get(id) }; // desde: para contar los días abiertos (reposicion.js)
   // 2) Hoja por sector: solo los días con apertura y cierre del producto en ese sector.
   const celdas = new Map();
   for (const r of hoja) {

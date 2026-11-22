@@ -13,6 +13,7 @@ import { estadoCompra, estadoDeVarias, textoEstado, claseEstado } from './compra
 import { abrirReclamo } from './g-recibir.js';
 import { puedeCompartirArchivos } from './aviso.js';
 import { urlMail } from './pagos-util.js';
+import { vistaAncha } from './g-hay.js';
 
 const SIN = '__sin__';
 const VIVAS = ['borrador', 'aprobada'];
@@ -323,7 +324,40 @@ export async function render(root, ctx, id) {
         } } }) : null));
   }
 
+  // En la PC (≥ 980 px): tres columnas por estado (Por aprobar · Enviado · Recibido) con el monto de cada una. Al tocar un
+  // pedido se abre su detalle (el mismo de la tabla: aprobar, corregir, reclamar). En el celular, la tabla de siempre.
+  const ANCHO = typeof matchMedia === 'function' ? matchMedia('(min-width: 980px)') : null;
+  let hojaDet = null;
+  const montoDe = (e) => e.items.reduce((s, { it }) => s + Number(it.cantidad_pedida || 0) * (G.precios.get(it.producto_id) || 0), 0);
+  const COLUMNAS = [['aprobar', 'Por aprobar', ['aprobar', 'enviar']], ['enviado', 'Enviado', ['enviado']], ['recibido', 'Recibido', ['incompleto', 'recibido']]];
+  function vistaColumnas() {
+    const todos = envios(ordenes).filter(e => !filtroLocal || e.local_id === filtroLocal);
+    const locales = G.locales.filter(l => l.activo !== false);
+    const selLocal = h('select', { class: 'input input-sm', 'aria-label': 'Local', on: { change: (ev) => { filtroLocal = ev.target.value; pintar(); } } },
+      h('option', { value: '', text: 'Todos los locales' }), locales.map(l => h('option', { value: l.id, text: l.nombre, selected: l.id === filtroLocal })));
+    const tarjetaEnvio = (e) => {
+      const est = estadoDeVarias(e.ordenes);
+      const provs = [...new Set(e.ordenes.map(o => nombreProv(o.proveedor_id)))].join(', ');
+      return h('button', { class: 'kb-card', type: 'button', 'data-envio': e.key, 'data-estado': est, on: { click: () => {
+        hojaDet = hoja(`${nombreLocal(e.local_id)} → ${provs}`, detalleEnvio(e), { onClose: () => { hojaDet = null; } });
+      } } },
+      h('span', { class: 'kb-t' }, h('b', { text: `${nombreLocal(e.local_id)} → ${provs}` }), h('span', { class: 'kb-m num', text: fmtMoney(montoDe(e)) })),
+      h('span', { class: 'kb-s', text: `${e.items.length} ${e.items.length === 1 ? 'producto' : 'productos'}${e.quien ? ' · ' + e.quien : ''} · ${fechaCorta(e.creado_en)}` }),
+      est === 'enviar' || est === 'incompleto' ? h('span', { class: claseEstado(est), text: textoEstado(est) }) : null);
+    };
+    return [
+      h('div', { class: 'pt-filtros' }, h('span'), selLocal),
+      h('div', { class: 'kb' }, COLUMNAS.map(([k, t, ests]) => {
+        const de = todos.filter(e => ests.includes(estadoDeVarias(e.ordenes)));
+        return h('section', { class: 'kb-col', 'data-col': k },
+          h('div', { class: 'kb-h' }, h('span', { class: 'cd-pill p-' + (k === 'aprobar' ? 'amar' : k === 'enviado' ? 'azul' : 'verde'), text: `${t} · ${de.length}` }), h('span', { class: 'kb-m num', text: fmtMoney(de.reduce((s, e) => s + montoDe(e), 0)) })),
+          de.length ? de.map(tarjetaEnvio) : h('p', { class: 'kb-vacio', text: 'Nada por acá' }));
+      }))
+    ];
+  }
+
   function vistaLocales() {
+    if (ANCHO && ANCHO.matches) return vistaColumnas();
     const todos = envios(ordenes);
     const cuenta = { revisar: 0, aprobados: 0, enviados: 0, todos: 0 };
     for (const e of todos) {
@@ -716,6 +750,7 @@ export async function render(root, ctx, id) {
 
   function pintar() {
     if (!ctx.alive()) return;
+    if (hojaDet) { const x = hojaDet; hojaDet = null; x.cerrar(); }
     if (vista === 'proveedor') {
       return mount(root,
         h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }),
@@ -736,6 +771,9 @@ export async function render(root, ctx, id) {
   }
 
   mount(root, h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo })), nav, esqueleto(3));
+  const finAncho = vista === 'locales' ? vistaAncha() : () => {};
+  const alCambiarAncho = () => pintar();
+  if (ANCHO && vista === 'locales') ANCHO.addEventListener('change', alCambiarAncho);
   await cargarG(['prods', 'provs', 'locales', 'precios'], () => {});
   const desde = sumarDias(hoyISO(), -30);
   await swr('g:ord:tabla', async () => {
@@ -748,5 +786,5 @@ export async function render(root, ctx, id) {
     else await leerFuera();
     pintar();
   });
-  return () => { flush().catch(() => {}); };
+  return () => { flush().catch(() => {}); finAncho(); if (ANCHO) ANCHO.removeEventListener('change', alCambiarAncho); if (hojaDet) hojaDet.cerrar(); };
 }

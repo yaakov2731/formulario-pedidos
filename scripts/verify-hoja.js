@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Verifica 0031 (hoja por sector y retiros del Shopping) en un Postgres en memoria (pglite).
-// Aplica todas las migraciones en orden y prueba hoja_contar, hoja_anotar, hoja_borrar, permisos y que 0031 se pueda pegar dos veces.
+// Verifica 0031 (hoja por sector y retiros del Shopping) y 0032 (días que abre, cierre que actualiza el stock) en un
+// Postgres en memoria (pglite). Aplica todas las migraciones en orden y prueba hoja_contar, hoja_anotar, hoja_borrar,
+// hoja_guardar, permisos y que 0031 y 0032 se puedan pegar dos veces.
 // pglite: npm install --prefix /tmp/claude-0/pglite @electric-sql/pglite
 const fs = require('fs');
 const path = require('path');
@@ -35,6 +36,8 @@ const ok = (c, m, x) => { console.log((c ? 'OK   ' : 'FAIL ') + m + (!c && x ? '
   }
   try { await db.exec(fs.readFileSync(path.join(dir, '0031_hoja_sector.sql'), 'utf8')); ok(true, '0031 se puede pegar dos veces'); }
   catch (e) { ok(false, '0031 se puede pegar dos veces', e.message); }
+  try { await db.exec(fs.readFileSync(path.join(dir, '0032_dias_abre_cierre_stock.sql'), 'utf8')); ok(true, '0032 se puede pegar dos veces'); }
+  catch (e) { ok(false, '0032 se puede pegar dos veces', e.message); }
 
   const G = '00000000-0000-0000-0000-00000000000a', E = '00000000-0000-0000-0000-00000000000b', E2 = '00000000-0000-0000-0000-00000000000c';
   const [{ id: L }] = (await db.query("insert into locales(codigo,nombre) values ('ZZZ','Prueba') returning id")).rows;
@@ -74,6 +77,38 @@ const ok = (c, m, x) => { console.log((c ? 'OK   ' : 'FAIL ') + m + (!c && x ? '
   await como(E, () => db.query("select hoja_contar($1, 'Barra', $2::date, 'cierre', $3::jsonb, 'Lucas')", [L, hoy, JSON.stringify([{ producto_id: P, cantidad: 9 }])]));
   await como(E, () => db.query("select hoja_contar($1, 'Barra', $2::date, 'cierre', $3::jsonb, 'Lucas')", [L, hoy, JSON.stringify([{ producto_id: P, cantidad: '' }])]));
   ok((await db.query("select count(*)::int as n from hoja_movs where tipo='cierre'")).rows[0].n === 0, 'dejar vacío al corregir saca lo contado');
+
+  // ---- 0032: días que abre y hoja_guardar ----
+  const dias = (await db.query('select dias_abre::text as d, abre_feriados as f from locales where id = $1', [L])).rows[0];
+  ok(dias.d === '{5,6,0}' && dias.f === true, 'los locales quedan con vie, sáb y dom y feriados · ' + dias.d);
+  err = null; try { await db.query("update locales set dias_abre = '{1,9}' where id = $1", [L]); } catch (e) { err = e.message; }
+  ok(/locales_dias_abre_chk/.test(err || ''), 'un día fuera de 0–6 se rechaza');
+  await como(G, () => db.query("update locales set dias_abre = '{4,5,6,0}' where id = $1", [L]));
+  ok((await db.query('select dias_abre::text as d from locales where id = $1', [L])).rows[0].d === '{4,5,6,0}', 'gerencia cambia los días que abre');
+  const [{ id: Q }] = (await db.query("insert into productos(codigo,nombre,local_id,unidad_compra,unidad_uso) values ('ZZZ-2','Entraña',$1,'kg','kg') returning id", [L])).rows;
+  const [{ id: K }] = (await db.query("insert into productos(codigo,nombre,local_id,unidad_compra,unidad_uso,categoria) values ('ZZZ-3','Bife',$1,'unidad','unidad','Carta') returning id", [L])).rows;
+  const stockDe = async (pid) => Number((await db.query('select coalesce(sum(cantidad),0)::numeric as s from movimientos where producto_id = $1', [pid])).rows[0].s);
+  await db.query("insert into movimientos(local_id, producto_id, tipo, cantidad) values ($1, $2, 'inicial', 20)", [L, Q]);
+  const ayer = (await db.query("select (current_date - 1)::text as d")).rows[0].d;
+  const guardarH = (sub, fecha, tipo, items) => como(sub, () => db.query('select hoja_guardar($1, $2::date, $3, $4::jsonb, $5) as n', [L, fecha, tipo, JSON.stringify(items), 'Martín']));
+  const nA = (await guardarH(E, hoy, 'apertura', [{ producto_id: Q, sector: 'Cámara', cantidad: 18 }])).rows[0].n;
+  ok(nA === 1 && await stockDe(Q) === 20, 'la apertura se guarda y no toca el stock');
+  const nC = (await guardarH(E, hoy, 'cierre', [{ producto_id: Q, sector: 'Cámara', cantidad: 7.5 }, { producto_id: K, sector: 'Cocina', cantidad: 3 }])).rows[0].n;
+  ok(nC === 2 && await stockDe(Q) === 7.5, 'el cierre deja el stock igual a lo contado (20 → 7,5)');
+  ok(await stockDe(K) === 0, 'los platos de la carta no se ajustan');
+  const aj1 = (await db.query("select count(*)::int as n from movimientos where producto_id = $1 and ref_tipo = 'hoja_cierre'", [Q])).rows[0].n;
+  await guardarH(E, hoy, 'cierre', [{ producto_id: Q, sector: 'Cámara', cantidad: 7.5 }]);
+  const aj2 = (await db.query("select count(*)::int as n from movimientos where producto_id = $1 and ref_tipo = 'hoja_cierre'", [Q])).rows[0].n;
+  ok(aj1 === 1 && aj2 === 1 && await stockDe(Q) === 7.5, 'guardar el mismo cierre otra vez no duplica');
+  await guardarH(E, hoy, 'cierre', [{ producto_id: Q, sector: 'Cámara', cantidad: 6 }]);
+  ok(await stockDe(Q) === 6 && (await db.query("select count(*)::int as n from hoja_movs where producto_id = $1 and tipo = 'cierre'", [Q])).rows[0].n === 1, 'corregir el cierre ajusta solo la diferencia y no duplica la hoja');
+  await guardarH(E, ayer, 'cierre', [{ producto_id: Q, sector: 'Cámara', cantidad: 2 }]);
+  ok(await stockDe(Q) === 6, 'un cierre viejo con uno posterior no toca el stock');
+  err = null; let code = null;
+  try { await como(E2, () => db.query('select hoja_guardar($1, $2::date, $3, $4::jsonb)', [L, hoy, 'cierre', JSON.stringify([{ producto_id: Q, sector: 'Cámara', cantidad: 1 }])])); } catch (e) { err = e.message; code = e.code; }
+  ok(code === '42501' && await stockDe(Q) === 6, 'el encargado de otro local no puede guardar (42501) · ' + code);
+  err = null; try { await guardarH(E, hoy, 'cierre', [{ producto_id: Q, cantidad: 1 }]); } catch (e) { err = e.message; }
+  ok(/Falta el sector/.test(err || ''), 'sin sector se rechaza');
   console.log(fallas ? `\n${fallas} fallas` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

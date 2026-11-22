@@ -134,11 +134,11 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.waitForSelector('.tab');
   const tabs = await e.locator('.tab').allInnerTexts();
   ok(!tabs.some(x => /Elaborados/.test(x)), 'el Shopping no tiene la pestaña Elaborados · ' + tabs.join(' / '));
-  ok(tabs.map(x => x.trim()).join(',') === 'Hoy,Pedir,Retiros,Más', 'Hoy · Pedir · Retiros · Más (Facturas está en Más) · ' + tabs.join(','));
+  ok(tabs.map(x => x.trim()).join(',') === 'Retiros,Pedir,Mis pedidos,Más', 'Retiros · Pedir · Mis pedidos · Más (Facturas está en Más) · ' + tabs.join(','));
   await shot(e, '01-shopping-sin-elaborados-m');
   await e.goto(BASE + '#/elaborados');
-  await e.waitForFunction(() => location.hash === '#/hoy');
-  ok(true, 'entrar a #/elaborados lo devuelve a Hoy');
+  await e.waitForFunction(() => location.hash === '#/retiros');
+  ok(true, 'entrar a #/elaborados lo devuelve a Retiros');
 
   // Contar: a ciegas (sin "Quedan"), vacío = no contado, 0 vale.
   await e.goto(e.url().split('#')[0] + '#/contar');
