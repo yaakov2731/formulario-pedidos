@@ -1,5 +1,5 @@
 // Acceso a Supabase: cliente, sesión, caché stale-while-revalidate y errores en español.
-import { lsGet, lsSet, lsDel, sumarDias } from './util.js';
+import { lsGet, lsSet, lsDel, sumarDias, jornadaISO } from './util.js';
 import { consumoPorProducto, pendientePorProducto, VENTANA, DIAS_PENDIENTE } from './sugerido.js';
 
 const CFG = window.STOCK_CONFIG;
@@ -184,10 +184,16 @@ export async function cargarProveedores() {
   if (faltaCol(r)) r = await sb.from('proveedores').select(COLS_PROV).order('nombre');
   return ok(r);
 }
-// Sin 0013_locales_razon_social.sql trae los locales sin razón social ni CUIT.
+// Con 0032 trae también los días que abre (dias_abre, abre_feriados). Sin 0032 o sin 0013_locales_razon_social.sql trae
+// las columnas que haya (sin días: la app usa vie · sáb · dom y feriados, lo mismo que el default de 0032).
+const faltaColLoc = (r) => r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''));
+let hayDiasAbre = true;
+export const hayColumnaDiasAbre = () => hayDiasAbre;
 export async function cargarLocales() {
-  const r = await sb.from('locales').select('id,codigo,nombre,encargados,activo,razon_social,cuit').order('nombre');
-  if (r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''))) return ok(await sb.from('locales').select('id,codigo,nombre,encargados,activo').order('nombre'));
+  const base = 'id,codigo,nombre,encargados,activo';
+  let r = hayDiasAbre ? await sb.from('locales').select(base + ',razon_social,cuit,dias_abre,abre_feriados').order('nombre') : null;
+  if (!r || faltaColLoc(r)) { if (r) hayDiasAbre = false; r = await sb.from('locales').select(base + ',razon_social,cuit').order('nombre'); }
+  if (faltaColLoc(r)) return ok(await sb.from('locales').select(base).order('nombre'));
   return ok(r);
 }
 // Código del local del encargado (SHP, UMO...). Se guarda para arrancar sin conexión.
@@ -537,7 +543,7 @@ export const responderNota = async (r) => (await ok(await sb.from('nota_respuest
 
 // ---- Hoja por sector (0031_hoja_sector.sql) ----
 // El encargado anota por sector y por día: apertura, entró, devolví, merma, cierre. En el Shopping, retiros con destino.
-const COLS_HOJA = 'id,fecha,sector,producto_id,tipo,cantidad,otro,quien,creado_en';
+const COLS_HOJA = 'id,local_id,fecha,sector,producto_id,tipo,cantidad,otro,quien,creado_en';
 export const hojaRango = (localId, desde, hasta) => todo(() => sb.from('hoja_movs').select(COLS_HOJA)
   .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('creado_en').order('id'));
 export const hojaDelDia = (localId, fecha) => hojaRango(localId, fecha, fecha);
@@ -546,8 +552,31 @@ export const hojaContar = async (localId, sector, fecha, tipo, items, quien) =>
 export const hojaAnotar = async (localId, sector, fecha, productoId, tipo, cantidad, otro, quien) =>
   ok(await sb.rpc('hoja_anotar', { p_local: localId, p_sector: sector, p_fecha: fecha, p_producto: productoId, p_tipo: tipo, p_cantidad: cantidad, p_otro: otro || null, p_quien: quien || null }));
 export const hojaBorrar = async (id) => ok(await sb.rpc('hoja_borrar', { p_id: id }));
+// Apertura o cierre de todo el local en una sola llamada (0032: el cierre deja el stock igual a lo contado).
+// items: [{producto_id, sector, cantidad}]. Sin 0032 guarda igual con hoja_contar, una llamada por sector (el stock no cambia).
+let hayHojaGuardar = true;
+export const guardaStockAlCerrar = () => hayHojaGuardar;
+export async function hojaGuardar(localId, fecha, tipo, items, quien) {
+  if (hayHojaGuardar) {
+    const r = await sb.rpc('hoja_guardar', { p_local: localId, p_fecha: fecha, p_tipo: tipo, p_items: items, p_quien: quien || null });
+    if (!r.error) return r.data;
+    if (!(r.error.code === 'PGRST202' || /could not find the function|hoja_guardar/i.test(r.error.message || '')) || r.error.code === '42501') return ok(r);
+    hayHojaGuardar = false;
+  }
+  const porSector = new Map();
+  for (const it of items) { const s = it.sector; if (!porSector.has(s)) porSector.set(s, []); porSector.get(s).push({ producto_id: it.producto_id, cantidad: it.cantidad }); }
+  let n = 0;
+  for (const [sector, its] of porSector) n += Number(await hojaContar(localId, sector, fecha, tipo, its, quien)) || 0;
+  return n;
+}
+// Hoja de todos los locales (gerencia): cierres para Comprar y Lo que hay.
+export const hojaTodos = (desde, hasta, tipos = ['cierre']) => todo(() => sb.from('hoja_movs').select(COLS_HOJA)
+  .gte('fecha', desde).lte('fecha', hasta).in('tipo', tipos).order('fecha').order('id'));
+// Recepciones del local desde una fecha (apertura precargada: último cierre + lo que llegó después).
+export const recepcionesDesde = (localId, desde) => todo(() => sb.from('movimientos').select('producto_id,cantidad,creado_en')
+  .eq('local_id', localId).eq('tipo', 'recepcion').gte('creado_en', desde).order('creado_en').order('id'));
 export const cargarDestinos = (localId) => todo(() => sb.from('destinos').select('id,nombre').eq('local_id', localId).order('nombre').order('id'));
-export const sinHojaSQL = (e) => !!(e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /hoja_movs|hoja_contar|hoja_anotar|destinos/.test(e.message || '')));
+export const sinHojaSQL = (e) => !!(e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /hoja_movs|hoja_contar|hoja_anotar|hoja_guardar|destinos/.test(e.message || '')));
 
 // ---- Pedido sugerido (fase 4, sugerido.js) ----
 // Salidas de stock y hoja por sector de las últimas 4 semanas, y lo pedido sin recibir, ya resumidos por producto (la caché
@@ -564,4 +593,40 @@ export async function datosSugerido(localId, hoy) {
   if (movs === nada && hoja === nada) throw new Error('Sin datos para el sugerido');
   const cons = consumoPorProducto({ movs: movs === nada ? [] : movs, hoja: hoja === nada ? [] : hoja, hoy });
   return { hoy, cons: [...cons], pend: [...pendientePorProducto(ords, hoy)] };
+}
+
+// ---- Reposición por días que abre (reposicion.js) ----
+// Lo mismo que el sugerido más los cierres de la hoja (últimos 8 por producto y el último del local) y lo recibido después
+// del último cierre. Todo ya resumido por producto para que la caché guarde poco. Sin consumo: "Sin historial".
+export async function datosReposicion(localId, hoy) {
+  const desde = sumarDias(hoy, -(VENTANA + 1));
+  const nada = Symbol('nada');
+  const [movs, hoja, ords] = await Promise.all([
+    movimientosLocal(localId, desde).catch(() => nada),
+    hojaRango(localId, desde, sumarDias(hoy, 1)).catch(() => nada),
+    ordenesLocalDesde(localId, sumarDias(hoy, -(DIAS_PENDIENTE + 1)))
+  ]);
+  const filas = hoja === nada ? [] : hoja;
+  const cons = consumoPorProducto({ movs: movs === nada ? [] : movs, hoja: filas, hoy });
+  // Cierres reales por producto y día (sumando sectores), los últimos 8.
+  const porProd = new Map();
+  let ultimo = null;
+  for (const r of filas) {
+    if (r.tipo !== 'cierre') continue;
+    const f = String(r.fecha).slice(0, 10);
+    if (!ultimo || f > ultimo) ultimo = f;
+    if (!porProd.has(r.producto_id)) porProd.set(r.producto_id, {});
+    const x = porProd.get(r.producto_id); x[f] = (x[f] || 0) + Number(r.cantidad || 0);
+  }
+  const cierres = [...porProd].map(([id, x]) => [id, Object.entries(x).sort((a, b) => (a[0] < b[0] ? -1 : 1)).slice(-8)]);
+  let recep = [];
+  if (ultimo) {
+    try {
+      const rs = await recepcionesDesde(localId, ultimo);
+      const m = new Map();
+      for (const r of rs) if (jornadaISO(new Date(r.creado_en)) > ultimo) m.set(r.producto_id, (m.get(r.producto_id) || 0) + Number(r.cantidad || 0));
+      recep = [...m];
+    } catch (_e) { /* sin recepciones: la apertura sale solo del cierre */ }
+  }
+  return { hoy, cons: [...cons], pend: [...pendientePorProducto(ords, hoy)], cierres, ultimo, recep, conHoja: hoja !== nada, conMovs: movs !== nada };
 }
