@@ -1899,7 +1899,15 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .cd-fila.is-cambio .cd-n small { color: var(--warn-ink); }
 .cd-fila.is-mal .cd-in { border-color: var(--bad-ink); color: var(--bad-ink); }
 .cd-u { flex: none; width: 52px; font-size: 12.5px; color: var(--text-2); overflow-wrap: anywhere; }
-@media (max-width: 380px) { .cd-pm { width: 32px; } .cd-in { width: 54px; } .cd-u { width: 40px; } }
+.cd-u { white-space: nowrap; overflow-wrap: normal; }
+/* Celular: la unidad va debajo del número (sin cortar "unidades") y el nombre gana ancho. */
+@media (max-width: 600px) {
+  .cd-fila:not(.cd-fila-res) { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n num" "n u"; column-gap: 10px; row-gap: 2px; }
+  .cd-fila > .cd-n { grid-area: n; align-self: center; }
+  .cd-fila > .cd-num { grid-area: num; }
+  .cd-fila > .cd-u { grid-area: u; width: auto; text-align: center; font-size: 12px; line-height: 1.2; }
+}
+@media (max-width: 380px) { .cd-pm { width: 32px; } .cd-in { width: 54px; } }
 .cd-confirma { padding: 14px 16px; margin: 0 0 14px; border-radius: var(--r-card); background: var(--warn-soft); border: 1px solid var(--warn-line); }
 .cd-confirma p { margin: 0 0 12px; }
 .cd-confirma-b { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1939,6 +1947,7 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .cq-total b { font-size: 20px; }
 .cq-filtros { display: flex; flex-direction: column; gap: 10px; margin: 0 0 12px; }
 .cq-filtros .busca { margin: 0; }
+.cq-filtros .busca .input-search { padding-right: 16px; }
 .cq-matriz { min-width: 720px; }
 .cq-matriz th:first-child, .cq-matriz td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); min-width: 190px; }
 .cq-matriz tr.is-toca:hover td:first-child { background: var(--surface-2); }

@@ -7,7 +7,7 @@
 import { mount, h, fmtNum, fmtMoney, esCarta, porTexto, esBulto, factorDe, plural, jornadaISO, sumarDias, elabora, tokens, coincide, debounce } from './util.js';
 import { swr, datosReposicion } from './api.js';
 import { G, cargarG } from './datos.js';
-import { esqueleto, vacio, banner, tituloGrande, hoja } from './ui.js';
+import { esqueleto, vacio, banner, tituloGrande, hoja, icon } from './ui.js';
 import { planLocal, cierresDeAnoche, clavePorNombre, textoAlcanza } from './reposicion.js';
 
 const n2 = (x) => (x === null || x === undefined ? '—' : fmtNum(Math.round(x * 10) / 10, 1) || '0');
@@ -211,7 +211,7 @@ export async function render(root, ctx) {
   mount(cab, h('div', { class: 'kpi cq-total' }, h('span', { class: 'kpi-t', text: 'Valor total' }), total));
   mount(root, tituloGrande('Lo que hay', ultimo ? `Último cierre · ${fechaCortaISO(ultimo)}` : 'Todavía no hay cierres: se muestra el stock del sistema'), cab,
     R.errores ? banner(`No se pudieron cargar los cierres de ${R.errores} ${R.errores === 1 ? 'local' : 'locales'}: se muestra el stock del sistema.`, 'warn') : null,
-    h('div', { class: 'cq-filtros' }, h('div', { class: 'busca' }, buscador), chips), zona, pie,
+    h('div', { class: 'cq-filtros' }, h('div', { class: 'busca' }, icon('buscar', 20), buscador), chips), zona, pie,
     h('div', { class: 'ley' }, h('span', {}, h('i', { class: 'ley-rojo' }), 'no alcanza para abrir'), h('span', {}, h('i', { class: 'ley-amar' }), 'pedir esta semana'), h('span', {}, h('i', { class: 'ley-verde' }), 'alcanza'), h('span', {}, h('i', { class: 'ley-gris' }), 'sin historial')));
   armado = true;
   pintarTabla();

@@ -37,8 +37,8 @@ export async function render(root, ctx) {
     }
     function pintar() {
       const loc = { dias_abre: [...dias], abre_feriados: fer };
-      const px = proximaApertura(hoy, loc);
-      mount(sec, h('div', { class: 'aj-h' }, h('h2', { text: l.nombre }), h('span', { class: 'cq-k', text: px ? `Próxima apertura: ${fechaLarga(px.fecha)}` : 'No abre ningún día' })),
+      const px = proximaApertura(hoy, loc, undefined, true);
+      mount(sec, h('div', { class: 'aj-h' }, h('h2', { text: l.nombre }), h('span', { class: 'cq-k', text: px ? (px.dias === 0 ? 'Abre hoy' : `Próxima apertura: ${fechaLarga(px.fecha)}`) : 'No abre ningún día' })),
         h('div', { class: 'chips aj-dias', role: 'group', 'aria-label': 'Días que abre ' + l.nombre }, DIAS.map(([n, t]) => h('button', { class: 'chip' + (dias.has(n) ? ' is-on' : ''), type: 'button', 'aria-pressed': dias.has(n) ? 'true' : 'false', 'data-dia': String(n), text: t, disabled: !puede || guardando,
           on: { click: () => { const d = new Set(dias); if (d.has(n)) d.delete(n); else d.add(n); guardar(d, fer); } } }))),
         h('label', { class: 'aj-fer' }, h('span', {}, h('b', { text: 'Abre los feriados' }), h('small', { text: 'Si el lunes es feriado, el domingo lo que falta pasa a ser "para mañana".' })),

@@ -338,7 +338,7 @@ async function renderDia(root, ctx) {
   const valor = (p) => (lleno(p) ? parseNum(vals.get(p.id)) : null);
   const valido = (p) => !lleno(p) || (valor(p) !== null && valor(p) >= 0);
   const base = (p) => (precarga ? (precarga.q.has(p.id) ? precarga.q.get(p.id) : 0) : null);
-  const corregido = (p) => precarga && lleno(p) && valido(p) && Math.abs(valor(p) - base(p)) > 1e-9;
+  const corregido = (p) => modo === 'apertura' && precarga && lleno(p) && valido(p) && Math.abs(valor(p) - base(p)) > 1e-9;
 
   // Avisos del encargado (antes en Hoy): una línea arriba de la hoja. No frena la pantalla.
   const avisos = h('div', { class: 'cd-avisos' });
