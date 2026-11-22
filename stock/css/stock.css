@@ -29,6 +29,7 @@
   --done: #30D158;                        /* verde: solo "Listo" / hecho */
   --alert: #FF453A;                       /* rojo: solo alertas */
   --warn-ink: #FFC56B; --warn-soft: rgba(255, 159, 10, 0.14); --warn-line: rgba(255, 159, 10, 0.40);
+  --cierre-ink: #FFB340;                  /* ámbar del panel "Cierres de anoche" (Comprar) */
   --ok-ink: #4CD97B; --ok-soft: rgba(48, 209, 88, 0.14); --ok-line: rgba(48, 209, 88, 0.40);
   --bad-ink: #FF7A70; --bad-soft: rgba(255, 69, 58, 0.15); --bad-line: rgba(255, 69, 58, 0.45);
   --info-ink: #D1D1D6; --info-soft: rgba(118, 118, 128, 0.18); --info-line: rgba(118, 118, 128, 0.40);
@@ -1927,9 +1928,51 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 
 /* Comprar y Lo que hay */
 .cq-k { font-size: 13px; color: var(--text-2); }
-.cq-kpis .kpi.is-rojo .kpi-v { color: var(--bad-ink); } .cq-kpis .kpi.is-amar .kpi-v { color: var(--warn-ink); } .cq-kpis .kpi.is-verde .kpi-v { color: var(--ok-ink); }
-@media (min-width: 820px) { .cq-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } .cq-kpis .kpi-v { font-size: 26px; white-space: nowrap; } }
-.cq-sincierre { border: 1px solid var(--warn-line); }
+.cq-kpis { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.cq-kpis .kpi.is-rojo .kpi-v { color: var(--bad-ink); }
+.cq-kpis .kpi.is-sin .kpi-v { color: var(--text-2); }
+@media (max-width: 819px) {
+  .cq-kpis { background: none; border-radius: 0; overflow: visible; }
+  .cq-kpis .kpi { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: none; }
+  .cq-kpis .kpi-t { font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .cq-kpis .kpi-v { font-size: 22px; text-align: left; }
+}
+@media (min-width: 820px) { .cq-kpis .kpi-v { font-size: 26px; white-space: nowrap; } }
+/* Panel "Cierres de anoche" (Comprar): un solo aviso para los locales sin cierre. */
+.cc { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "tx ct" "ls ls"; gap: 22px 32px; margin: 0 0 16px; padding: 28px;
+  background: var(--glass); border: 1px solid var(--warn-line); border-radius: var(--r-group); text-align: left; }
+.cc-tx { grid-area: tx; min-width: 0; }
+.cc-k { margin: 0; font: 500 12px/1.3 var(--font-mono, var(--font)); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cierre-ink); }
+.cc-t { margin: 10px 0 0; font: 600 26px/1.15 var(--font-display); letter-spacing: -0.02em; color: var(--text); }
+.cc-ayuda { margin: 8px 0 0; max-width: 60ch; font-size: 16px; line-height: 1.45; color: var(--text-2); }
+.cc-ct { grid-area: ct; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; min-width: 170px; }
+.cc-cont { margin: 0; font: 700 64px/0.95 var(--font-display); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cc-cont b { font-weight: 700; color: var(--cierre-ink); }
+.cc-cont span { color: var(--text-2); }
+.cc-barra { display: flex; gap: 6px; width: 100%; }
+.cc-barra i { flex: 1; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); }
+.cc-barra i.is-hecho { background: var(--done); }
+.cc-locs { grid-area: ls; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.cc-loc { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: var(--r-field); }
+.cc-loc-n { min-width: 0; font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.cc-tag { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.cc-tag.is-falta { color: var(--cierre-ink); background: var(--warn-soft); }
+.cc-tag.is-hecho { color: var(--ok-ink); background: var(--ok-soft); }
+/* Todos cerraron: un solo renglón. */
+.cc.is-compacto { grid-template-areas: "tx ct"; align-items: center; min-height: 56px; padding: 12px 20px; border-color: var(--line); }
+.cc.is-compacto .cc-tx { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.cc.is-compacto .cc-t { margin: 0; font: 500 16px/1.3 var(--font); letter-spacing: 0; }
+.cc.is-compacto .cc-ct { flex-direction: row; align-items: center; gap: 12px; min-width: 0; }
+.cc.is-compacto .cc-cont { font-size: 20px; letter-spacing: -0.02em; }
+.cc.is-compacto .cc-cont b { color: var(--ok-ink); }
+.cc.is-compacto .cc-barra { width: 96px; }
+@media (max-width: 600px) {
+  .cc { grid-template-columns: minmax(0, 1fr); grid-template-areas: "tx" "ct" "ls"; gap: 18px; }
+  .cc-ct { align-items: flex-start; min-width: 0; }
+  .cc-locs { grid-template-columns: minmax(0, 1fr); }
+  .cc.is-compacto { grid-template-areas: "tx" "ct"; gap: 10px; }
+}
 .cq-prov { margin: 22px 0 0; }
 .cq-prov-h { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 0 0 8px; }
 .cq-prov-h h2 { font-size: 19px; }
