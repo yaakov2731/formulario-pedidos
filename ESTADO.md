@@ -7,6 +7,7 @@ Actualizado: 22 de octubre de 2026 (tarde, pase de diseño). Coordinador: Claude
 - Ara (agente en Railway) hace POST a `/rest/v1/rpc/cierres_pendientes` con `apikey` (clave pública) y `{"p_token": ...}`; recibe `faltan` (locales que abrieron y no cerraron, con WhatsApp y link), `cerraron`, `no_abria`. Ara manda el WhatsApp; la app no envía mensajes.
 - UI: Más → Ajustes, campo WhatsApp por local (no Shopping) y sección "Avisos por WhatsApp (Ara)" con dirección, token y ejemplo curl.
 - Pruebas: `node scripts/verify-avisos.js` (pglite, 17 OK), `node scripts/e2e-comprar.js` (con y sin 0033), verify-stock, verify-v2.
+
 ## Rediseño de cero (25/11/2026, rama `claude/project-thread-t8l4r7`, sin push ni PR)
 
 - Decisiones: opciones A (encargado) y C (gerencia) del mockup `/mnt/project-files/rediseno-cero/opciones.html`; criterios por defecto en `/mnt/project-files/rediseno-cero/DECISIONES.md` (semáforo % = $ sin explicar / ventas, rojo ≥3 %, ámbar ≥1 % o falta cierre; Aprobar abre Compras en el proveedor; Aceptar suba en localStorage; Avisar = enlace de WhatsApp sin número; cierre a ciegas).
