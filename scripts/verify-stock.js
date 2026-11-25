@@ -247,7 +247,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   // ---- Rediseño de cero (Guiado para el encargado, Semáforo para gerencia) ----
   const css = read('css/stock.css'), pd = read('js/pedir.js'), gd = read('js/g-decidir.js'), gs = read('js/g-semaforo.js'), gl = read('js/g-local.js');
   check('rediseño: sin naranja, degradés ni Geist (CSS e index.html)', !/FF7A1A|FF8A1F|gradient|Geist/i.test(css + html) && !/Geist/.test(ui));
-  check('rediseño: claro y oscuro por rol (data-rol y prefers-color-scheme), fuentes Public Sans, Inter y Bricolage sin bloquear', /:root\[data-rol="gerencia"\]/.test(css) && (css.match(/prefers-color-scheme: dark/g) || []).length >= 2
+  check('rediseño: paleta Joya clara y oscura (data-rol para la letra de gerencia y prefers-color-scheme), fuentes Public Sans, Inter y Bricolage sin bloquear', /:root\[data-rol="gerencia"\]/.test(css) && (css.match(/prefers-color-scheme: dark/g) || []).length >= 1 && /#131B3B/.test(css) && /#BD9956/.test(css)
     && /color-scheme" content="light dark"/.test(html) && /Public\+Sans/.test(html) && /family=Inter/.test(html) && /Bricolage\+Grotesque/.test(html) && /media="print" onload/.test(html) && /dataset\.rol = c\.rol/.test(m4));
   check('rediseño: contar guiado en hoja.js (teclado propio, sin input) y una sola llamada a hojaGuardar para lista y guiada', /function pintarGuiada/.test(hj) && /teclado\(/.test(hj) && (hj.match(/hojaGuardar\(/g) || []).length === 1
     && /hoja-dia:\$\{lid\}:\$\{fecha\}:\$\{tipo\}/.test(hj) && /Ayer/.test(hj) && /Van en 0/.test(hj) && !/h\('input'[^\n]*gd-/.test(hj));

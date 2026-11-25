@@ -1,42 +1,41 @@
-/* App de stock y pedidos · rediseño "de cero" (2026-11-25). Claro por defecto y oscuro según el teléfono, con un tema por rol:
-   Encargado (y Entrar): "Guiado" (opción A) — tinta azul pizarra #1E3644 sobre #FAFBFB, Public Sans, una pregunta por pantalla.
-   Gerencia y Administración: "Semáforo" (opción C) — verde musgo #24332B sobre #EEF0EC, Inter y Bricolage Grotesque en títulos.
-   Un solo color fuerte por tema (la tinta), sin degradés ni brillos. main.js pone <html data-rol="…"> al entrar.
+/* App de stock y pedidos · paleta "Joya" (2026-11-25, elegida por el dueño): azul marino Neon Navy #131B3B,
+   verde Pine Grove #223631, dorado Antique Gold #BD9956, bordó Red Inferno #4E0000 y plateado Ice Palace.
+   Claro por defecto y oscuro según el teléfono. Misma paleta para todos los roles; gerencia cambia solo la letra.
    Todo color va en estos tokens: las pantallas no usan colores fijos. La impresión sale en blanco (@media print). */
 :root {
   color-scheme: light;
-  --bg: #FAFBFB;
-  --bg-2: #F2F5F6;
+  --bg: #F1F2F4;
+  --bg-2: #E7E9EC;
   --surface: #FFFFFF;
-  --surface-2: #F1F4F5;
-  --fill: rgba(30, 54, 68, 0.06);
-  --fill-2: rgba(30, 54, 68, 0.11);
-  --sep: #E1E6E9;
-  --line: #E1E6E9;
-  --text: #1E3644;
-  --text-2: #56666F;                      /* secundario: 5,6:1 sobre #FAFBFB */
-  --text-3: #6B7B84;                      /* solo apoyo (íconos, chevrons) */
-  --accent: #1E3644;                      /* la tinta: botón principal y lo elegido */
-  --accent-deco: #1E3644;
-  --accent-text: #1E3644;
-  --accent-ink: #FFFFFF;                  /* texto sobre la tinta */
-  --accent-soft: #E7EEF1;
+  --surface-2: #F5F6F7;
+  --fill: rgba(19, 27, 59, 0.06);
+  --fill-2: rgba(19, 27, 59, 0.11);
+  --sep: #DADDE3;
+  --line: #DADDE3;
+  --text: #131B3B;                        /* azul marino */
+  --text-2: #4A5170;
+  --text-3: #6A7088;
+  --accent: #223631;                      /* verde pino: botón principal y lo elegido */
+  --accent-deco: #BD9956;                 /* dorado: detalles */
+  --accent-text: #223631;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E3EAE7;
   --amber: var(--text);
-  --ink: #1E3644;
+  --ink: #131B3B;
   --ink-text: #FFFFFF;
   --seg-on: #FFFFFF;
-  --done: #3F6A51;
-  --alert: #A3402F;
-  --warn-ink: #7E5A1F; --warn-soft: #F6EEDF; --warn-line: #E4CFA6;
-  --cierre-ink: #7E5A1F;
-  --ok-ink: #3F6A51; --ok-soft: #E5EFE8; --ok-line: #BFD4C6;
-  --bad-ink: #9A3B2B; --bad-soft: #F7E6E2; --bad-line: #E5BDB4;
-  --info-ink: #3D525E; --info-soft: #EBF0F2; --info-line: #D3DCE1;
-  --luz-verde: #4E7D62; --luz-ambar: #A7782E; --luz-rojo: #A3402F;
-  --barra: #C9D3D8;
-  --backdrop: rgba(17, 27, 33, 0.45);
-  --shadow-1: 0 1px 2px rgba(17, 27, 33, 0.08);
-  --shadow-pill: 0 10px 24px -14px rgba(17, 27, 33, 0.45);
+  --done: #2F5A4C;
+  --alert: #4E0000;
+  --warn-ink: #7A5A1E; --warn-soft: #F5EEDF; --warn-line: #E3CFA3;
+  --cierre-ink: #7A5A1E;
+  --ok-ink: #2F5A4C; --ok-soft: #E2ECE8; --ok-line: #B9CFC6;
+  --bad-ink: #4E0000; --bad-soft: #F3E3E3; --bad-line: #D9B3B3;
+  --info-ink: #3A4366; --info-soft: #E9EBF2; --info-line: #D0D4E2;
+  --luz-verde: #2F5A4C; --luz-ambar: #BD9956; --luz-rojo: #4E0000;
+  --barra: #C9CCD3;
+  --backdrop: rgba(10, 15, 38, 0.5);
+  --shadow-1: 0 1px 2px rgba(10, 15, 38, 0.08);
+  --shadow-pill: 0 10px 24px -14px rgba(10, 15, 38, 0.45);
   --glass-hi: 0 0 #0000;
   --glass-shadow: 0 0 #0000;
   --r-card: 14px; --r-field: 12px; --r-group: 14px;
@@ -54,62 +53,30 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #10171B; --bg-2: #0C1215; --surface: #182228; --surface-2: #202C33;
-    --fill: rgba(207, 224, 232, 0.07); --fill-2: rgba(207, 224, 232, 0.13);
-    --sep: #2A363D; --line: #2A363D;
-    --text: #E6EDF0; --text-2: #A2B1B9; --text-3: #7F8F98;
-    --accent: #D6E4EA; --accent-deco: #D6E4EA; --accent-text: #D6E4EA; --accent-ink: #10171B; --accent-soft: #24343D;
-    --ink: #D6E4EA; --ink-text: #10171B; --seg-on: #2C3A42;
-    --done: #8CC4A2; --alert: #F0937F;
-    --warn-ink: #E6C27E; --warn-soft: #2C2516; --warn-line: #5A4823;
-    --cierre-ink: #E6C27E;
-    --ok-ink: #8CC4A2; --ok-soft: #18291F; --ok-line: #2F4E3B;
-    --bad-ink: #F0A291; --bad-soft: #321C17; --bad-line: #61342A;
-    --info-ink: #C3D0D7; --info-soft: #1E2A30; --info-line: #34444D;
-    --luz-verde: #6FAE88; --luz-ambar: #D2A453; --luz-rojo: #E07C66;
-    --barra: #3A4850;
+    --bg: #0E1430; --bg-2: #0A0F26; --surface: #151D3F; --surface-2: #1C2650;
+    --fill: rgba(220, 224, 235, 0.07); --fill-2: rgba(220, 224, 235, 0.13);
+    --sep: #283160; --line: #283160;
+    --text: #E6E8EE; --text-2: #A9AEC2; --text-3: #8389A3;
+    --accent: #BD9956; --accent-deco: #BD9956; --accent-text: #D4B47A; --accent-ink: #131B3B; --accent-soft: #232D5A;
+    --ink: #E6E8EE; --ink-text: #131B3B; --seg-on: #232D5A;
+    --done: #7FB3A0; --alert: #E08A8A;
+    --warn-ink: #D9BD85; --warn-soft: #2A2518; --warn-line: #574A2A;
+    --cierre-ink: #D9BD85;
+    --ok-ink: #7FB3A0; --ok-soft: #16282A; --ok-line: #2C4A47;
+    --bad-ink: #E59A9A; --bad-soft: #2E1418; --bad-line: #5A2A30;
+    --info-ink: #C3C8DA; --info-soft: #1B2348; --info-line: #333D6B;
+    --luz-verde: #6FA893; --luz-ambar: #BD9956; --luz-rojo: #D9706E;
+    --barra: #333D6B;
     --backdrop: rgba(0, 0, 0, 0.6);
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-pill: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
   }
 }
-/* Gerencia y Administración: tema "Semáforo" (opción C). */
+/* Gerencia y Administración: misma paleta, letra Inter y títulos Bricolage Grotesque. */
 :root[data-rol="gerencia"], :root[data-rol="contadora"] {
-  --bg: #EEF0EC; --bg-2: #E6E9E4; --surface: #FFFFFF; --surface-2: #F3F5F2;
-  --fill: rgba(36, 51, 43, 0.06); --fill-2: rgba(36, 51, 43, 0.11);
-  --sep: #DCE0DA; --line: #DCE0DA;
-  --text: #24332B; --text-2: #56635B; --text-3: #66736B;
-  --accent: #24332B; --accent-deco: #24332B; --accent-text: #24332B; --accent-ink: #FFFFFF; --accent-soft: #E1E7E0;
-  --ink: #24332B; --ink-text: #FFFFFF; --seg-on: #FFFFFF;
-  --done: #3E6449; --alert: #9A4A37;
-  --warn-ink: #7A5717; --warn-soft: #F4ECDA; --warn-line: #E0CB9E;
-  --cierre-ink: #7A5717;
-  --ok-ink: #3E6449; --ok-soft: #E2ECE3; --ok-line: #BBD0BF;
-  --bad-ink: #93432F; --bad-soft: #F5E5DF; --bad-line: #E2BBAF;
-  --info-ink: #3F4C44; --info-soft: #E8ECE7; --info-line: #D2D8D0;
-  --luz-verde: #4F7A5C; --luz-ambar: #B8862F; --luz-rojo: #A9543F;
-  --barra: #C9D2CA;
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
   --font-display: "Bricolage Grotesque", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-num: var(--font);
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-rol="gerencia"], :root[data-rol="contadora"] {
-    --bg: #121714; --bg-2: #0E120F; --surface: #1B221D; --surface-2: #232C26;
-    --fill: rgba(214, 228, 218, 0.07); --fill-2: rgba(214, 228, 218, 0.13);
-    --sep: #2B352E; --line: #2B352E;
-    --text: #E4EBE5; --text-2: #A7B4AB; --text-3: #85938A;
-    --accent: #D9E6DC; --accent-deco: #D9E6DC; --accent-text: #D9E6DC; --accent-ink: #121714; --accent-soft: #26332A;
-    --ink: #D9E6DC; --ink-text: #121714; --seg-on: #2E3A31;
-    --done: #92C7A0; --alert: #EE967F;
-    --warn-ink: #E5C27A; --warn-soft: #2B2515; --warn-line: #574723;
-    --cierre-ink: #E5C27A;
-    --ok-ink: #92C7A0; --ok-soft: #192A1E; --ok-line: #305039;
-    --bad-ink: #EFA391; --bad-soft: #321D17; --bad-line: #5F352B;
-    --info-ink: #C4CFC7; --info-soft: #1F2822; --info-line: #36423A;
-    --luz-verde: #74B486; --luz-ambar: #D6A64F; --luz-rojo: #E2836D;
-    --barra: #3A463E;
-  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
