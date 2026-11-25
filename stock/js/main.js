@@ -16,7 +16,7 @@ const NAV = {
   gerencia: [
     { id: 'decidir', label: 'Decidir', icono: 'decidir' },
     { id: 'semaforo', label: 'Locales', icono: 'semaforo', incluye: ['local', 'producto', 'perdida', 'sector', 'control', 'g-retiros'] },
-    { id: 'pedidos', label: 'Compras', icono: 'pedir', incluye: ['compras', 'comprar', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
+    { id: 'pedidos', label: 'Compras', icono: 'pedir', incluye: ['compras', 'por-producto', 'comprar', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
     { id: 'mas', label: 'Más', icono: 'menu', incluye: ['tablero', 'hay', 'ajustes', 'stock', 'conteos', 'lugares',
       'resumen', 'ventas', 'analisis', 'merma', 'recetas', 'produccion', 'elaborados', 'pagos', 'facturas', 'historial', 'cargar-pago',
       'catalogo', 'categorias', 'proveedores', 'locales', 'notas'] }
@@ -63,7 +63,7 @@ const VISTAS = {
     ...RUTAS_PAGOS,
     'decidir': () => import('./g-decidir.js'), 'semaforo': () => import('./g-semaforo.js'), 'local': () => import('./g-local.js'), 'producto': () => import('./g-local.js'),
     'tablero': () => import('./g-hoy.js'), 'comprar': () => import('./g-comprar.js'), 'hay': () => import('./g-hay.js'), 'ajustes': () => import('./g-ajustes.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
-    'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
+    'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'por-producto': () => import('./g-por-producto.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
     'stock': () => import('./g-stock.js'), 'sector': () => import('./g-sector.js'), 'g-retiros': () => import('./g-retiros.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'perdida': () => import('./g-perdida.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
     'resumen': () => import('./g-resumen.js'), 'ventas': () => import('./g-ventas.js'), 'analisis': () => import('./g-analisis.js'), 'merma': () => import('./g-merma.js'),
     'recetas': () => import('./g-recetas.js'), 'produccion': () => import('./g-produccion.js'),

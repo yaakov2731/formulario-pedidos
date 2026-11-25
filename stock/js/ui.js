@@ -254,7 +254,9 @@ export function barraFila(etiqueta, valorTexto, fraccion, detalle) {
 export const SUBNAV_VENTAS = [['resumen', 'Resumen'], ['ventas', 'Importar'], ['analisis', 'Análisis'], ['merma', 'Merma']];
 export const SUBNAV_PAGOS = [['gasto', 'Gasto'], ['pagos', 'Cuentas'], ['facturas', 'Facturas'], ['historial', 'Pagos'], ['cargar-pago', 'Cargar']];
 // Gerencia · Compras: lo que pidió cada local, lo que se manda a proveedores, lo que llega y cuánto se lleva gastado.
-export const SUBNAV_COMPRAS = [['pedidos', 'Pedidos'], ['compras', 'Enviar'], ['recibir', 'Recibir'], ['gasto', 'Gasto']];
+// Armar: los pedidos de los locales por proveedor (aprobar y mandar) o por producto (hoja de armado del depósito).
+export const SUBNAV_ARMAR = [['compras', 'Por proveedor'], ['por-producto', 'Por producto']];
+export const SUBNAV_COMPRAS = [['pedidos', 'Pedidos'], ['compras', 'Armar', SUBNAV_ARMAR], ['recibir', 'Recibir'], ['gasto', 'Gasto']];
 // En gerencia Gasto está en Compras; la contadora (sin Compras) lo sigue viendo en Pagos.
 export const navPagos = (ctx) => (ctx.rol === 'gerencia' ? SUBNAV_PAGOS.filter(([id]) => id !== 'gasto') : SUBNAV_PAGOS);
 export const SUBNAV_CATALOGO = [['catalogo', 'Productos'], ['categorias', 'Categorías'], ['proveedores', 'Proveedores'], ['locales', 'Locales']];
