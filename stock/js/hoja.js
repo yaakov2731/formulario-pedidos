@@ -10,7 +10,7 @@
 import { mount, h, tokens, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaLarga, porLugar, SIN_LUGAR, jornadaISO, elabora, textoBulto, norm, enBultos, sumarDias, hoyISO, esFlorida, entregaHoy } from './util.js';
 import { swr, cargarCatalogo, cargarLocales, hojaDelDia, hojaContar, hojaAnotar, hojaBorrar, hojaGuardar, sinHojaSQL, mensajeError, datosReposicion, misOrdenes, cargarProveedoresBasico } from './api.js';
 import { buscar as buscarProds, frecuencia, anotarUso } from './busqueda.js';
-import { esqueleto, vacio, banner, toast, icon, hoja as hojaModal, stepper, tituloGrande, botonFijo } from './ui.js';
+import { esqueleto, vacio, banner, toast, icon, hoja as hojaModal, stepper, tituloGrande, botonFijo, teclado, aplicarTecla, barraProgreso } from './ui.js';
 import { planLocal, aperturaSugerida, textoAlcanza, textoCuando } from './reposicion.js';
 
 export const TODO_EL_LOCAL = 'Todo el local';
@@ -264,9 +264,10 @@ async function renderSector(root, ctx) {
 }
 
 // ===================== Hoja de los locales que elaboran: Apertura | Cierre =====================
-export async function render(root, ctx) {
+// #/apertura y #/cierre abren el contar guiado (uno por pantalla); #/hoja, la lista. Las dos vistas comparten el mismo estado.
+export async function render(root, ctx, id) {
   if (!elabora(ctx.codigoLocal)) return renderSector(root, ctx);
-  return renderDia(root, ctx);
+  return renderDia(root, ctx, id);
 }
 
 // Clave del último cierre guardado en este equipo: Pedir arma el pedido con las mismas cantidades del resultado.
@@ -278,7 +279,7 @@ const uPedido = (p, n) => plural(esBulto(p) ? p.unidad_compra : (p.unidad_compra
 export const textoPedir = (p, n) => `${fmtNum(n, 3)} ${uPedido(p, n)}`;
 const numTx = (n) => (n === null || n === undefined || n === '' ? '' : fmtNum(n, 3));
 
-async function renderDia(root, ctx) {
+async function renderDia(root, ctx, ruta = 'hoja') {
   const lid = ctx.perfil.local_id;
   const fecha = jornadaISO();
   const quien = () => lsGet('nombre') || ctx.nombreGuardado || '';
@@ -321,6 +322,13 @@ async function renderDia(root, ctx) {
   const ahora = new Date();
   const hayAp = movs.some(x => x.tipo === 'apertura'), hayCi = movs.some(x => x.tipo === 'cierre');
   let modo = hayCi ? 'listo' : (!hayAp && ahora.getHours() >= 6 && ahora.getHours() < 18 ? 'apertura' : 'cierre');
+  if (ruta === 'apertura') modo = 'apertura';
+  if (ruta === 'cierre') modo = hayCi ? 'listo' : 'cierre';
+  // Vista: 'guiada' (un producto por pantalla, con teclado propio) o 'lista' (todos los productos por lugar).
+  let vista = ruta === 'apertura' || ruta === 'cierre' ? 'guiada' : 'lista';
+  // Orden del recorrido: por lugar (orden del estante) y, dentro de cada lugar, como están cargados.
+  const orden = [...sectores.values()].flat();
+  let idx = 0, posGuardada = null;
   let guardando = false, confirmar = false;
   const claveBorr = (tipo) => `hoja-dia:${lid}:${fecha}:${tipo}`;
   let vals = new Map();
@@ -328,12 +336,14 @@ async function renderDia(root, ctx) {
   function cargarValores(tipo) {
     const b = lsGet(claveBorr(tipo));
     vals = new Map();
+    posGuardada = b && Number.isInteger(b.i) ? b.i : null;
     if (b && b.v) { for (const [k, v] of Object.entries(b.v)) vals.set(k, v); return; }
     const g = guardado(tipo);
     if (g.size) { for (const [k, v] of g) vals.set(k, numTx(v)); return; }
     if (tipo === 'apertura' && precarga) for (const p of activos) vals.set(p.id, numTx(precarga.q.has(p.id) ? precarga.q.get(p.id) : 0));
   }
-  const guardarBorr = (tipo) => lsSet(claveBorr(tipo), { t: Date.now(), v: Object.fromEntries(vals) });
+  // Borrador en este equipo (hoja-dia:<local>:<fecha>:<tipo>): valores y, en la guiada, por qué producto iba.
+  const guardarBorr = (tipo) => lsSet(claveBorr(tipo), { t: Date.now(), v: Object.fromEntries(vals), i: idx });
   const lleno = (p) => vals.has(p.id) && vals.get(p.id) !== '';
   const valor = (p) => (lleno(p) ? parseNum(vals.get(p.id)) : null);
   const valido = (p) => !lleno(p) || (valor(p) !== null && valor(p) >= 0);
@@ -361,6 +371,114 @@ async function renderDia(root, ctx) {
     avisos.replaceChildren(...items.map(([ic, t, href]) => h('a', { class: 'cd-aviso', href }, icon(ic, 16), h('span', { text: t }), icon('flecha', 14))));
   }
 
+  // ---------- guardar (una sola llamada a hoja_guardar, desde la lista o desde la guiada) ----------
+  async function guardarHoja(forzar, { alPedirConfirmar, alCambiar }) {
+    if (guardando) return;
+    const esAp = modo === 'apertura';
+    const malos = activos.filter(p => !valido(p));
+    if (malos.length) { toast(`Revisá ${malos[0].nombre}: el número no se entiende.`, 'error'); return; }
+    const faltan = activos.filter(p => !lleno(p)).length;
+    if (!esAp && faltan && !forzar) { alPedirConfirmar(faltan); return; }
+    const items = activos.map(p => ({ producto_id: p.id, sector: sectorDe.get(p.id), cantidad: lleno(p) ? valor(p) : (esAp ? '' : 0) }));
+    guardando = true; alCambiar();
+    try {
+      await hojaGuardar(lid, fecha, modo, items, quien());
+      lsDel(claveBorr(modo));
+      movs = await hojaDelDia(lid, fecha).catch(() => movs);
+      if (!ctx.alive()) return;
+      guardando = false; confirmar = false;
+      if (esAp) {
+        toast('Apertura guardada', 'ok');
+        if (vista === 'guiada') { ctx.ir('hoy'); return; }
+        modo = 'cierre'; pintar();
+      } else {
+        lsSet(claveCierre(lid), { fecha, t: Date.now(), q: Object.fromEntries(items.map(i => [i.producto_id, Number(i.cantidad) || 0])) });
+        modo = 'listo'; pintar();
+      }
+      window.scrollTo(0, 0);
+    } catch (err) {
+      guardando = false; alCambiar();
+      toast(sinHojaSQL(err) ? 'Falta activar la hoja en el servidor.' : 'No se pudo guardar: ' + mensajeError(err), 'error');
+    }
+  }
+
+  // ---------- contar guiado: un producto por pantalla ----------
+  const diaSemana = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('es-AR', { weekday: 'long' }); };
+  // Apertura: lo que quedó en el último cierre (el cierre sigue a ciegas: no muestra nada). Sin dato, nada.
+  const textoAnterior = (p) => {
+    if (modo !== 'apertura' || !precarga || !precarga.anoche.has(p.id)) return '';
+    const q = precarga.anoche.get(p.id);
+    const cuando = precarga.fecha === sumarDias(fecha, -1) ? 'Ayer' : 'El ' + diaSemana(precarga.fecha);
+    const llego = Math.round(((precarga.q.get(p.id) || 0) - q) * 1000) / 1000;
+    return `${cuando} quedaron ${numTx(q) || '0'} ${uDe(p, q)}${llego > 0 ? ` · llegaron ${numTx(llego)} ${uDe(p, llego)}` : ''}`;
+  };
+  function pintarGuiada() {
+    cargarValores(modo);
+    const esAp = modo === 'apertura';
+    const N = orden.length;
+    if (posGuardada !== null) { idx = Math.min(Math.max(0, posGuardada), N - 1); posGuardada = null; }
+    else if (!esAp) { const f = orden.findIndex(p => !lleno(p)); idx = f < 0 ? N - 1 : f; }
+    idx = Math.min(Math.max(0, idx), N - 1);
+    let fresco = true;
+    const prog = barraProgreso(0, 'Producto que estás contando');
+    const arriba = h('small', {});
+    const q = h('span', { class: 'gd-q', 'data-guiada': 'n' });
+    const nombre = h('h1', { class: 'gd-prod', 'data-guiada': 'producto' });
+    const donde = h('span', { class: 'gd-where' });
+    const val = h('div', { class: 'gd-val', 'data-guiada': 'valor', 'aria-live': 'polite' });
+    const ant = h('p', { class: 'gd-last', 'data-guiada': 'anterior' });
+    const cta = h('button', { class: 'btn btn-primary btn-block gd-cta', type: 'button', 'data-guiada': 'siguiente' });
+    const atras = h('button', { class: 'btn btn-text', type: 'button', 'data-guiada': 'anterior-btn' }, icon('atras', 18), 'Anterior');
+    const aLista = h('button', { class: 'btn btn-text', type: 'button', 'data-guiada': 'lista', text: 'Ver lista' });
+    const conf = h('div', { class: 'gd-confirma', hidden: true });
+    const atajo = esAp && precarga ? h('button', { class: 'btn btn-ghost btn-block gd-atajo', type: 'button', 'data-guiada': 'atajo' }) : null;
+    const pintarValor = () => {
+      const p = orden[idx];
+      const v = vals.get(p.id) ?? '';
+      val.replaceChildren(v === '' ? '–' : v, h('small', { text: uDe(p, v === '' ? 2 : valor(p)) }));
+      val.classList.toggle('is-vacio', v === '');
+      if (atajo) { const c = activos.filter(corregido).length; atajo.textContent = c ? `Confirmar apertura (${c} ${c === 1 ? 'corregido' : 'corregidos'})` : 'Todo igual, confirmar apertura'; atajo.disabled = guardando; }
+    };
+    const pintarProd = () => {
+      const p = orden[idx];
+      fresco = true; conf.hidden = true;
+      const s = sectorDe.get(p.id);
+      arriba.textContent = `${esAp ? 'Apertura' : 'Cierre'}${s && s !== TODO_EL_LOCAL ? ' · ' + s : ''}`;
+      q.textContent = `${idx + 1} de ${N}`;
+      prog.set((idx + 1) / N);
+      nombre.textContent = p.nombre;
+      donde.textContent = [s && s !== TODO_EL_LOCAL && s !== SIN_LUGAR ? s : null, esBulto(p) ? textoBulto(p) : null].filter(Boolean).join(' · ');
+      ant.textContent = textoAnterior(p);
+      cta.textContent = guardando ? 'Guardando…' : idx < N - 1 ? `Siguiente: ${orden[idx + 1].nombre}` : (esAp ? 'Terminar apertura' : 'Terminar cierre');
+      cta.disabled = guardando;
+      atras.disabled = idx === 0;
+      pintarValor();
+    };
+    const alCambiar = () => pintarProd();
+    const terminar = (forzar = false) => guardarHoja(forzar, { alCambiar, alPedirConfirmar: (faltan) => {
+      mount(conf, h('p', {}, h('b', { text: `${faltan} ${faltan === 1 ? 'producto sin contar' : 'productos sin contar'}.` }), ' Van en 0: quiere decir que no quedó nada.'),
+        h('button', { class: 'btn btn-primary btn-block', type: 'button', 'data-guiada': 'van-en-0', text: 'Sí, van en 0', on: { click: () => terminar(true) } }),
+        h('button', { class: 'btn btn-ghost btn-block', type: 'button', text: 'Seguir contando', on: { click: () => { const f = orden.findIndex(x => !lleno(x)); if (f >= 0) idx = f; pintarProd(); } } }));
+      conf.hidden = false;
+    } });
+    const siguiente = () => { if (guardando) return; guardarBorr(modo); if (idx < N - 1) { idx++; guardarBorr(modo); pintarProd(); } else terminar(false); };
+    cta.addEventListener('click', siguiente);
+    atras.addEventListener('click', () => { if (idx > 0) { idx--; guardarBorr(modo); pintarProd(); } });
+    aLista.addEventListener('click', () => { guardarBorr(modo); vista = 'lista'; pintar(); window.scrollTo(0, 0); });
+    if (atajo) atajo.addEventListener('click', () => terminar(false));
+    const tecl = teclado({ onEnter: siguiente, onTecla: (k) => {
+      if (guardando) return;
+      const p = orden[idx];
+      vals.set(p.id, aplicarTecla(vals.get(p.id) ?? '', k, fresco));
+      fresco = false; guardarBorr(modo); pintarValor();
+    } });
+    mount(root, h('section', { class: 'gd', 'data-modo': modo, 'aria-label': esAp ? 'Apertura' : 'Cierre' },
+      h('div', { class: 'gd-top' }, arriba, prog.el),
+      h('div', { class: 'gd-nav' }, atras, q, aLista),
+      h('div', {}, nombre, donde), val, ant, tecl, conf, cta, atajo));
+    pintarProd();
+  }
+
   // ---------- pantalla ----------
   function seg() {
     const hA = horaDe('apertura'), hC = horaDe('cierre');
@@ -375,6 +493,7 @@ async function renderDia(root, ctx) {
 
   function pintar() {
     if (modo === 'listo') return pintarResultado();
+    if (vista === 'guiada') return pintarGuiada();
     cargarValores(modo);
     const esAp = modo === 'apertura';
     const filasPorId = new Map();
@@ -419,31 +538,7 @@ async function renderDia(root, ctx) {
       const c = h('span', { class: 'cd-gc' }); cuentas.set(s, c);
       return h('section', { class: 'cd-grupo', 'data-sector': s }, h('div', { class: 'cd-gh' }, h('span', { text: s }), c), h('div', { class: 'cd-lista' }, ps.map(fila)));
     });
-    async function guardar(forzar = false) {
-      if (guardando) return;
-      const malos = activos.filter(p => !valido(p));
-      if (malos.length) { toast(`Revisá ${malos[0].nombre}: el número no se entiende.`, 'error'); return; }
-      const faltan = activos.filter(p => !lleno(p)).length;
-      if (!esAp && faltan && !forzar) { confirmar = true; panel.hidden = false; panel.scrollIntoView({ block: 'center' }); return; }
-      const items = activos.map(p => ({ producto_id: p.id, sector: sectorDe.get(p.id), cantidad: lleno(p) ? valor(p) : (esAp ? '' : 0) }));
-      guardando = true; actualizar();
-      try {
-        await hojaGuardar(lid, fecha, modo, items, quien());
-        lsDel(claveBorr(modo));
-        movs = await hojaDelDia(lid, fecha).catch(() => movs);
-        if (!ctx.alive()) return;
-        guardando = false; confirmar = false;
-        if (esAp) { toast('Apertura guardada', 'ok'); modo = 'cierre'; pintar(); }
-        else {
-          lsSet(claveCierre(lid), { fecha, t: Date.now(), q: Object.fromEntries(items.map(i => [i.producto_id, Number(i.cantidad) || 0])) });
-          modo = 'listo'; pintar();
-        }
-        window.scrollTo(0, 0);
-      } catch (err) {
-        guardando = false; actualizar();
-        toast(sinHojaSQL(err) ? 'Falta activar la hoja en el servidor.' : 'No se pudo guardar: ' + mensajeError(err), 'error');
-      }
-    }
+    const guardar = (forzar = false) => guardarHoja(forzar, { alPedirConfirmar: () => { confirmar = true; panel.hidden = false; panel.scrollIntoView({ block: 'center' }); }, alCambiar: actualizar });
     boton.addEventListener('click', () => guardar(false));
     mount(panel, h('p', {}, h('b', { text: 'Hay productos sin contar.' }), ' Van en 0: quiere decir que no quedó nada.'),
       h('div', { class: 'cd-confirma-b' },
@@ -455,7 +550,9 @@ async function renderDia(root, ctx) {
       ? h('p', { class: 'cd-nota', text: precarga ? `Viene cargada con el cierre del ${fechaLarga(precarga.fecha)}${precarga.recep ? ' y lo que llegó después' : ''}. Si algo no coincide, corregilo; si está todo igual, confirmá de una.` : 'Contá lo que hay al abrir. Vacío = no lo contaste.' })
       : h('div', { class: 'cd-prox' }, h('div', {}, h('span', { class: 'cd-k', text: '¿Qué sobró hoy? · Próxima apertura' }), h('b', { text: prox ? fechaLarga(prox.fecha) : 'Sin días cargados' })),
         prox ? h('span', { class: 'cd-pill p-gris', text: textoCuando(prox) }) : null);
-    mount(root, ...cabeza(), nota,
+    const aGuiada = h('button', { class: 'btn btn-ghost btn-block gd-volver-guiada', type: 'button', 'data-accion': 'guiada', text: 'Contar uno por uno',
+      on: { click: () => { guardarBorr(modo); vista = 'guiada'; idx = Math.max(0, orden.findIndex(p => !lleno(p))); posGuardada = idx; pintar(); window.scrollTo(0, 0); } } });
+    mount(root, ...cabeza(), nota, aGuiada,
       esAp ? null : h('div', { class: 'cd-avance' }, h('div', { class: 'cd-avance-t' }, cont, pct), h('div', { class: 'cd-barra' }, barra)),
       grupos, panel, boton);
     for (const f of filasPorId.values()) f();
