@@ -84,13 +84,24 @@ let ctx = null;
 let ticket = 0;
 let limpiar = null;
 
+// Color de la barra del sistema: negro del turno para el encargado y Entrar; claro/oscuro de gerencia según el teléfono.
+function colorBarra(rol) {
+  const g = rol === 'gerencia' || rol === 'contadora';
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    const oscuro = /dark/.test(m.getAttribute('media') || '');
+    m.setAttribute('content', g ? (oscuro ? '#12141A' : '#F6F7F9') : '#0D0C0A');
+  });
+}
+
 function registrarSW() {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 async function mostrarEntrar() {
   ctx = null; ticket++;
-  delete document.documentElement.dataset.rol; // Entrar usa el tema base (el del encargado)
+  delete document.documentElement.dataset.rol; // Entrar usa el tema base (el del encargado: negro y dorado)
+  delete document.documentElement.dataset.modulo;
+  colorBarra('');
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
   $app.classList.add('no-nav'); $side.replaceChildren(); $tab.replaceChildren(); $tab.hidden = true;
   const { montarEntrar } = await import('./entrar.js');
@@ -121,8 +132,9 @@ function pestanaDe(id) {
 }
 
 function construirShell(c) {
-  // Tema por rol (stock.css): encargado "Guiado", gerencia y administración "Semáforo".
+  // Tema por rol (stock.css): encargado "El turno" (negro y dorado), gerencia y administración "Módulos de color".
   document.documentElement.dataset.rol = c.rol;
+  colorBarra(c.rol);
   const items = navDe(c);
   const mas = masDe(c);
   $app.classList.remove('no-nav');

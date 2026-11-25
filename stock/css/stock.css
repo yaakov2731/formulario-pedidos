@@ -1,83 +1,127 @@
-/* App de stock y pedidos · paleta "Joya" (2026-11-25, elegida por el dueño): azul marino Neon Navy #131B3B,
-   verde Pine Grove #223631, dorado Antique Gold #BD9956, bordó Red Inferno #4E0000 y plateado Ice Palace.
-   Claro por defecto y oscuro según el teléfono. Misma paleta para todos los roles; gerencia cambia solo la letra.
+/* App de stock y pedidos · rediseño v2 (2026-11-25, opciones A y C de /mnt/project-files/rediseno-v2/opciones.html).
+   Encargado y Entrar: "El turno", negro y dorado fijo (no cambia con el teléfono), títulos Barlow Condensed en mayúscula.
+   Gerencia y Administración: "Módulos de color", claro #F6F7F9 con oscuro según el teléfono, Sora + Manrope; cada módulo
+   (Stock, Pedidos, Costos, Recetas, Problemas) tiene su color y redefine --accent con :root[data-modulo].
    Todo color va en estos tokens: las pantallas no usan colores fijos. La impresión sale en blanco (@media print). */
 :root {
-  color-scheme: light;
-  --bg: #F1F2F4;
-  --bg-2: #E7E9EC;
-  --surface: #FFFFFF;
-  --surface-2: #F5F6F7;
-  --fill: rgba(19, 27, 59, 0.06);
-  --fill-2: rgba(19, 27, 59, 0.11);
-  --sep: #DADDE3;
-  --line: #DADDE3;
-  --text: #131B3B;                        /* azul marino */
-  --text-2: #4A5170;
-  --text-3: #6A7088;
-  --accent: #223631;                      /* verde pino: botón principal y lo elegido */
-  --accent-deco: #BD9956;                 /* dorado: detalles */
-  --accent-text: #223631;
-  --accent-ink: #FFFFFF;
-  --accent-soft: #E3EAE7;
-  --amber: var(--text);
-  --ink: #131B3B;
-  --ink-text: #FFFFFF;
-  --seg-on: #FFFFFF;
-  --done: #2F5A4C;
-  --alert: #4E0000;
-  --warn-ink: #7A5A1E; --warn-soft: #F5EEDF; --warn-line: #E3CFA3;
-  --cierre-ink: #7A5A1E;
-  --ok-ink: #2F5A4C; --ok-soft: #E2ECE8; --ok-line: #B9CFC6;
-  --bad-ink: #4E0000; --bad-soft: #F3E3E3; --bad-line: #D9B3B3;
-  --info-ink: #3A4366; --info-soft: #E9EBF2; --info-line: #D0D4E2;
-  --luz-verde: #2F5A4C; --luz-ambar: #BD9956; --luz-rojo: #4E0000;
-  --barra: #C9CCD3;
-  --backdrop: rgba(10, 15, 38, 0.5);
-  --shadow-1: 0 1px 2px rgba(10, 15, 38, 0.08);
-  --shadow-pill: 0 10px 24px -14px rgba(10, 15, 38, 0.45);
+  color-scheme: dark;
+  --bg: #0D0C0A;
+  --bg-2: #090807;
+  --surface: #17140F;
+  --surface-2: #1E1A13;
+  --fill: rgba(212, 168, 82, 0.08);
+  --fill-2: rgba(212, 168, 82, 0.16);
+  --sep: #2A251C;
+  --line: #4A3E28;
+  --text: #EDE6D6;
+  --text-2: #B9AF9B;
+  --text-3: #9C9180;
+  --accent: #D4A852;                      /* dorado: botón principal y lo elegido */
+  --accent-deco: #D4A852;
+  --accent-text: #D4A852;
+  --accent-ink: #120F0A;
+  --accent-soft: #2A2419;
+  --amber: #D4A852;
+  --ink: #D4A852;
+  --ink-text: #120F0A;
+  --seg-on: #2A2419;
+  --done: #A7C08A;
+  --alert: #F2A99A;
+  --warn-ink: #E3C27A; --warn-soft: #2A2214; --warn-line: #5A4A28;
+  --cierre-ink: #D4A852;
+  --ok-ink: #A7C08A; --ok-soft: #1C2516; --ok-line: #3D4F2B;
+  --bad-ink: #F2A99A; --bad-soft: #2E1512; --bad-line: #5A1A14;
+  --info-ink: #CFC6B3; --info-soft: #1E1A13; --info-line: #3A3226;
+  --luz-verde: #6E8B4E; --luz-ambar: #D4A852; --luz-rojo: #C2584A;
+  --barra: #3A342A;
+  --backdrop: rgba(0, 0, 0, 0.66);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-pill: 0 10px 24px -14px rgba(0, 0, 0, 0.9);
   --glass-hi: 0 0 #0000;
   --glass-shadow: 0 0 #0000;
+  /* Caja con encabezado dorado (checklist del turno) */
+  --caja-head: linear-gradient(90deg, #C69A45, #8E6A2B);
+  --caja-head-ink: #120F0A;
+  --caja-line: #4A3E28;
+  /* Colores de módulo (gerencia): fondo de la tarjeta, letra sobre ese fondo y versión para texto sobre --bg */
+  --mod-stock: #2F6FE4; --mod-stock-ink: #FFFFFF; --mod-stock-text: #2459BF;
+  --mod-pedidos: #1F9D63; --mod-pedidos-ink: #FFFFFF; --mod-pedidos-text: #167A4C;
+  --mod-costos: #E9A913; --mod-costos-ink: #2A1F00; --mod-costos-text: #8A6200;
+  --mod-recetas: #EE7A1E; --mod-recetas-ink: #FFFFFF; --mod-recetas-text: #B0530A;
+  --mod-problemas: #D8434B; --mod-problemas-ink: #FFFFFF; --mod-problemas-text: #B3262F;
+  --mod-inicio: #1B1E27; --mod-inicio-ink: #FFFFFF; --mod-inicio-text: #1B1E27;
   --r-card: 14px; --r-field: 12px; --r-group: 14px;
   --row-h: 52px;
   --tap: 44px;
   --btn-h: 52px;
-  --title-lg: 30px;
+  --title-lg: 34px;
+  --title-case: uppercase;
+  --title-track: 0.02em;
   --gutter: 16px;
   --tabbar-h: 60px;
   --sab: env(safe-area-inset-bottom, 0px);
-  --font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
-  --font-display: var(--font);
+  --font: "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-num: var(--font);
+}
+/* Gerencia y Administración: claro por defecto. */
+:root[data-rol="gerencia"], :root[data-rol="contadora"] {
+  color-scheme: light;
+  --bg: #F6F7F9; --bg-2: #EDEFF3; --surface: #FFFFFF; --surface-2: #F9FAFB;
+  --fill: rgba(27, 30, 39, 0.05); --fill-2: rgba(27, 30, 39, 0.10);
+  --sep: #E3E6EC; --line: #E3E6EC;
+  --text: #1B1E27; --text-2: #4E5463; --text-3: #646A78;
+  --accent: #1B1E27; --accent-deco: #E9A913; --accent-text: #1B1E27; --accent-ink: #FFFFFF; --accent-soft: #EEF0F4;
+  --amber: var(--text);
+  --ink: #1B1E27; --ink-text: #FFFFFF; --seg-on: #FFFFFF;
+  --done: #167A4C; --alert: #B3262F;
+  --warn-ink: #7A5600; --warn-soft: #FFF6DA; --warn-line: #F0D88A;
+  --cierre-ink: #7A5600;
+  --ok-ink: #167A4C; --ok-soft: #E3F5EC; --ok-line: #B5E0C9;
+  --bad-ink: #B3262F; --bad-soft: #FCE8E9; --bad-line: #F2B8BC;
+  --info-ink: #2459BF; --info-soft: #EEF3FD; --info-line: #C9D8F7;
+  --luz-verde: #1F9D63; --luz-ambar: #E9A913; --luz-rojo: #D8434B;
+  --barra: #D3D7DF;
+  --backdrop: rgba(17, 20, 28, 0.5);
+  --shadow-1: 0 1px 2px rgba(17, 20, 28, 0.06);
+  --shadow-pill: 0 10px 24px -14px rgba(17, 20, 28, 0.45);
+  --caja-head: var(--accent-soft); --caja-head-ink: var(--text); --caja-line: var(--line);
+  --title-case: none;
+  --title-lg: 30px;
+  --title-track: -0.02em;
+  --font: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
+  --font-display: "Sora", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-num: var(--font);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-rol="gerencia"], :root[data-rol="contadora"] {
     color-scheme: dark;
-    --bg: #0E1430; --bg-2: #0A0F26; --surface: #151D3F; --surface-2: #1C2650;
-    --fill: rgba(220, 224, 235, 0.07); --fill-2: rgba(220, 224, 235, 0.13);
-    --sep: #283160; --line: #283160;
-    --text: #E6E8EE; --text-2: #A9AEC2; --text-3: #8389A3;
-    --accent: #BD9956; --accent-deco: #BD9956; --accent-text: #D4B47A; --accent-ink: #131B3B; --accent-soft: #232D5A;
-    --ink: #E6E8EE; --ink-text: #131B3B; --seg-on: #232D5A;
-    --done: #7FB3A0; --alert: #E08A8A;
-    --warn-ink: #D9BD85; --warn-soft: #2A2518; --warn-line: #574A2A;
-    --cierre-ink: #D9BD85;
-    --ok-ink: #7FB3A0; --ok-soft: #16282A; --ok-line: #2C4A47;
-    --bad-ink: #E59A9A; --bad-soft: #2E1418; --bad-line: #5A2A30;
-    --info-ink: #C3C8DA; --info-soft: #1B2348; --info-line: #333D6B;
-    --luz-verde: #6FA893; --luz-ambar: #BD9956; --luz-rojo: #D9706E;
-    --barra: #333D6B;
+    --bg: #12141A; --bg-2: #0D0F14; --surface: #1B1E27; --surface-2: #232733;
+    --fill: rgba(236, 238, 243, 0.06); --fill-2: rgba(236, 238, 243, 0.12);
+    --sep: #2E3340; --line: #2E3340;
+    --text: #ECEEF3; --text-2: #A9AFBD; --text-3: #8A90A0;
+    --accent: #ECEEF3; --accent-text: #ECEEF3; --accent-ink: #12141A; --accent-soft: #262B37;
+    --ink: #ECEEF3; --ink-text: #12141A; --seg-on: #2E3340;
+    --done: #5BC694; --alert: #EE7F86;
+    --warn-ink: #F0C24D; --warn-soft: #2B2412; --warn-line: #5A4A1E;
+    --cierre-ink: #F0C24D;
+    --ok-ink: #5BC694; --ok-soft: #14271F; --ok-line: #24503B;
+    --bad-ink: #EE7F86; --bad-soft: #2E1619; --bad-line: #5E2A30;
+    --info-ink: #7FA8F2; --info-soft: #172236; --info-line: #2C4170;
+    --barra: #343A48;
     --backdrop: rgba(0, 0, 0, 0.6);
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-pill: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
+    --mod-stock-text: #7FA8F2; --mod-pedidos-text: #5BC694; --mod-costos-text: #F0C24D; --mod-recetas-text: #F4A160;
+    --mod-problemas-text: #EE7F86; --mod-inicio: #ECEEF3; --mod-inicio-ink: #12141A; --mod-inicio-text: #ECEEF3;
   }
 }
-/* Gerencia y Administración: misma paleta, letra Inter y títulos Bricolage Grotesque. */
-:root[data-rol="gerencia"], :root[data-rol="contadora"] {
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
-  --font-display: "Bricolage Grotesque", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-num: var(--font);
-}
+/* Módulo actual (main.js pone data-modulo en <html>): el color del módulo pasa a ser el acento de la pantalla. */
+:root[data-modulo="stock"] { --accent: var(--mod-stock); --accent-ink: var(--mod-stock-ink); --accent-text: var(--mod-stock-text); --mod: var(--mod-stock); --mod-ink: var(--mod-stock-ink); --mod-text: var(--mod-stock-text); }
+:root[data-modulo="pedidos"] { --accent: var(--mod-pedidos); --accent-ink: var(--mod-pedidos-ink); --accent-text: var(--mod-pedidos-text); --mod: var(--mod-pedidos); --mod-ink: var(--mod-pedidos-ink); --mod-text: var(--mod-pedidos-text); }
+:root[data-modulo="costos"] { --accent: var(--mod-costos); --accent-ink: var(--mod-costos-ink); --accent-text: var(--mod-costos-text); --mod: var(--mod-costos); --mod-ink: var(--mod-costos-ink); --mod-text: var(--mod-costos-text); }
+:root[data-modulo="recetas"] { --accent: var(--mod-recetas); --accent-ink: #2B1404; --accent-text: var(--mod-recetas-text); --mod: var(--mod-recetas); --mod-ink: var(--mod-recetas-ink); --mod-text: var(--mod-recetas-text); }
+:root[data-modulo="problemas"] { --accent: var(--mod-problemas); --accent-ink: var(--mod-problemas-ink); --accent-text: var(--mod-problemas-text); --mod: var(--mod-problemas); --mod-ink: var(--mod-problemas-ink); --mod-text: var(--mod-problemas-text); }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1923,8 +1967,8 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
    semáforo de locales y barras de 6 semanas. Solo tokens: claro y oscuro salen de :root.
    ===================================================================================================================== */
 body { letter-spacing: -0.003em; }
-.titulo { font: 800 var(--title-lg)/1.1 var(--font-display); letter-spacing: -0.02em; }
-:root[data-rol="gerencia"] .titulo, :root[data-rol="contadora"] .titulo { font-weight: 700; }
+.titulo { font: 800 var(--title-lg)/1.05 var(--font-display); letter-spacing: var(--title-track); text-transform: var(--title-case); }
+:root[data-rol="gerencia"] .titulo, :root[data-rol="contadora"] .titulo { font-weight: 700; line-height: 1.1; }
 .lg-t, .cat-t, .grupo-t { font: 600 12px/1.3 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
 .lg-t { margin: 0 4px 8px; }
 .lg-list, .prod, .gh-sem, .card, .grupo-prov, .ped, .center-card.is-card { background: var(--surface); border: 1px solid var(--line); box-shadow: none; }
