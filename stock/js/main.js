@@ -88,6 +88,7 @@ function registrarSW() {
 
 async function mostrarEntrar() {
   ctx = null; ticket++;
+  delete document.documentElement.dataset.rol; // Entrar usa el tema base (el del encargado)
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
   $app.classList.add('no-nav'); $side.replaceChildren(); $tab.replaceChildren(); $tab.hidden = true;
   const { montarEntrar } = await import('./entrar.js');
@@ -124,6 +125,8 @@ function pestanaDe(id) {
 }
 
 function construirShell(c) {
+  // Tema por rol (stock.css): encargado "Guiado", gerencia y administración "Semáforo".
+  document.documentElement.dataset.rol = c.rol;
   const items = navDe(c);
   const mas = masDe(c);
   $app.classList.remove('no-nav');
