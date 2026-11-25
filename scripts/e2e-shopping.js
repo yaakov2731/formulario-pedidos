@@ -134,7 +134,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.waitForSelector('.tab');
   const tabs = await e.locator('.tab').allInnerTexts();
   ok(!tabs.some(x => /Elaborados/.test(x)), 'el Shopping no tiene la pestaña Elaborados · ' + tabs.join(' / '));
-  ok(tabs.map(x => x.trim()).join(',') === 'Hoy,Mis pedidos,Más', 'Hoy · Mis pedidos · Más (Retiros, Pedir y Facturas desde Hoy y Más) · ' + tabs.join(','));
+  ok(tabs.map(x => x.trim()).join(',').toLowerCase() === 'hoy,pedidos,más', 'Hoy · Pedidos · Más (Retiros, Pedir y Facturas desde Hoy y Más) · ' + tabs.join(','));
   await shot(e, '01-shopping-sin-elaborados-m');
   await e.goto(BASE + '#/elaborados');
   await e.waitForFunction(() => location.hash === '#/hoy');

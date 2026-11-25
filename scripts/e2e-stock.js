@@ -445,16 +445,16 @@ const irSec = async (pg, id) => {
   await e.locator('#in-pin').fill('1234');
   await e.locator('form button[type=submit]').click();
   // Rediseño fase 3: el encargado abre en Hoy (lo que toca ahora) y desde ahí va a Pedir.
-  await e.waitForSelector('.hoy-lista, .empty');
-  ok(/^Hola, \S+$/.test(await e.locator('h1').first().innerText()), 'encargado cae en Hoy ("Hola, <nombre>") · ' + await e.locator('h1').first().innerText());
-  ok((await e.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',') === 'Hoy,Mis pedidos,Más', 'encargado: Hoy · Mis pedidos · Más');
+  await e.waitForSelector('.hoy-turno, .empty');
+  ok(/^Hola, \S+$/.test(await e.locator('h1').first().textContent()), 'encargado cae en Hoy ("Hola, <nombre>") · ' + await e.locator('h1').first().textContent());
+  ok((await e.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',').toLowerCase() === 'hoy,pedidos,más', 'encargado: Hoy · Pedidos · Más');
   ok(await e.locator('[data-tarea="pedir"]').count() === 1 && /Pedir para la semana[\s\S]*cierra el miércoles/i.test(await e.locator('[data-tarea="pedir"]').innerText()), 'Hoy (lunes): "Pedir para la semana · Por proveedor · cierra el miércoles"');
   ok(!/\$|precio|costo|m[ií]nimo|\bpar\b/i.test(await e.locator('#view').innerText()), 'Hoy del encargado sin plata, mínimo ni par');
   await shot(e, '02b-hoy-encargado-m');
   await e.locator('[data-tarea="pedir"]').click();
   await e.waitForSelector('[data-accion="buscar-otro"]');
   ok(await e.evaluate(() => location.hash) === '#/pedir-prov' && await e.locator('.volver-hoy').count() === 1, 'desde Hoy, la tarea lleva a Pedir por proveedor con "‹ Hoy" para volver');
-  ok(await e.locator('h1').first().innerText() === 'Pedir', 'la tarea lleva a "Pedir"');
+  ok(await e.locator('h1').first().textContent() === 'Pedir', 'la tarea lleva a "Pedir"');
   // La lista completa de siempre sigue a un toque ("Buscar otro producto").
   await e.locator('[data-accion="buscar-otro"]').click();
   await e.waitForSelector('.prod');
@@ -528,7 +528,7 @@ const irSec = async (pg, id) => {
   await e.locator('.chip', { hasText: 'Todas' }).click();
   await e.locator('.pill').click();
   await e.waitForSelector('.grupo-prov');
-  ok(await e.locator('h1').first().innerText() === 'Revisar pedido', 'Revisar pedido');
+  ok(await e.locator('h1').first().textContent() === 'Revisar pedido', 'Revisar pedido');
   ok(await e.locator('.grupo-prov').count() === 4, 'agrupa por proveedor (3 + Sin proveedor)');
   ok(await e.locator('.grupo-prov[data-prov="Sin proveedor"]').count() === 1, 'grupo "Sin proveedor"');
   const martin = await e.locator('.grupo-prov[data-prov="Martín De Ridder"]').innerText();
@@ -563,8 +563,8 @@ const irSec = async (pg, id) => {
   ok((await e.locator('.mas-link .lg-n').allInnerTexts()).map(x => x.trim()).join('|') === 'Hoja del día|Pedir de la lista completa|Facturas|Notas' && await e.locator('.mas-salir').count() === 1, 'Más del encargado: la hoja, pedir de la lista, Facturas, Notas y Cerrar sesión');
   ok(await e.locator('.tab-mas.is-active').count() === 1, 'Más queda marcado');
   await e.goto(BASE + '#/catalogo');
-  await e.waitForSelector('.hoy-lista, .empty');
-  ok(/^Hola, \S+$/.test(await e.locator('h1').first().innerText()) && await e.evaluate(() => location.hash) === '#/hoy', 'ruta de gerencia redirige al encargado a Hoy');
+  await e.waitForSelector('.hoy-turno, .empty');
+  ok(/^Hola, \S+$/.test(await e.locator('h1').first().textContent()) && await e.evaluate(() => location.hash) === '#/hoy', 'ruta de gerencia redirige al encargado a Hoy');
   await cEnc.close();
 
   // ===== Encargado · celular, oscuro, jueves =====
@@ -578,7 +578,7 @@ const irSec = async (pg, id) => {
   await d.locator('#in-nombre').fill('Lucía');
   await d.locator('#in-pin').fill('1234');
   await d.locator('form button[type=submit]').click();
-  await d.waitForSelector('.hoy-lista, .empty');
+  await d.waitForSelector('.hoy-turno, .empty');
   await d.evaluate(() => { location.hash = '#/pedir'; }); // la lista completa (Más → Pedir de la lista completa)
   await d.waitForSelector('.prod');
   ok((await d.locator('.banner-warn').first().innerText()).includes('Distribuidora Florida'), 'jueves: aviso de cierre (solo Distribuidora Florida)');
@@ -599,7 +599,7 @@ const irSec = async (pg, id) => {
   await w.getByRole('radio', { name: 'Maru' }).click();
   await w.locator('#in-pin').fill('1234');
   await w.locator('form button[type=submit]').click();
-  await w.waitForSelector('.hoy-lista, .empty');
+  await w.waitForSelector('.hoy-turno, .empty');
   await w.evaluate(() => { location.hash = '#/pedir'; });
   await w.waitForSelector('.prod');
   await shot(w, '09-pedir-pc');
@@ -630,10 +630,10 @@ const irSec = async (pg, id) => {
   await g.locator('#in-email').fill('jacobo@ejemplo.com');
   await g.locator('#in-pass').fill('clave-segura');
   await g.locator('form button[type=submit]').click();
-  // Rediseño de cero: gerencia abre en Decidir; el tablero de siempre queda en Más → Tablero (#/tablero).
-  await g.waitForFunction(() => location.hash === '#/decidir' && /decidir/i.test((document.querySelector('h1') || {}).innerText || ''), null, { timeout: 10000 });
-  ok(true, 'gerencia cae en Decidir (inicio) · ' + await g.locator('h1').first().innerText());
-  ok((await g.locator('.sidebar .side-link').allInnerTexts()).map(x => x.trim()).join('|') === 'Decidir|Locales|Compras|Más|Salir', 'gerencia: barra lateral Decidir · Locales · Compras · Más + Salir');
+  // Rediseño v2: gerencia abre en el Inicio (módulos de color); el tablero de siempre queda en Más → Tablero (#/tablero).
+  await g.waitForFunction(() => location.hash === '#/inicio' && /qué hacemos/i.test((document.querySelector('h1') || {}).innerText || ''), null, { timeout: 10000 });
+  ok(true, 'gerencia cae en el Inicio · ' + await g.locator('h1').first().innerText());
+  ok((await g.locator('.sidebar .side-link').allInnerTexts()).map(x => x.trim()).join('|') === 'Inicio|Stock|Pedidos|Costos|Más|Salir', 'gerencia: barra lateral Inicio · Stock · Pedidos · Costos · Más + Salir');
   await g.evaluate(() => { location.hash = '#/tablero'; });
   await g.waitForSelector('.gh-diferencias', { timeout: 10000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 600)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Tablero de gerencia no cargó'); });
   ok(await g.locator('h1').first().innerText() === 'Tablero', 'Más → Tablero: el tablero de siempre sigue en #/tablero');
@@ -663,19 +663,19 @@ const irSec = async (pg, id) => {
   await g.waitForFunction(() => /\$ 2,85 M/.test((document.querySelector('.gh-sem') || {}).innerText));
   await g.locator('[data-grupo="aprobar"][data-prov="' + PV.barcena + '"]').click();
   await g.waitForSelector('.grupo-prov', { timeout: 8000 });
-  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.volver-hoy').count() === 1, 'Para aprobar lleva a Compras (por proveedor) con "‹ Tablero" para volver');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos' && await g.locator('.volver-hoy').count() === 1, 'Para aprobar lleva a Compras (por proveedor) con "‹ Tablero" para volver');
   ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Armar|Recibir|Gasto', 'Compras: Pedidos · Armar · Recibir · Gasto');
   await g.locator('.volver-hoy').click();
   await g.waitForSelector('.gh-sem');
   ok(await g.locator('h1').first().innerText() === 'Tablero', '"‹ Tablero" vuelve al Tablero');
   await g.goto(BASE + '#/hoy');
-  await g.waitForFunction(() => location.hash === '#/decidir');
-  ok(true, 'la ruta vieja #/hoy de gerencia lleva a Decidir');
+  await g.waitForFunction(() => location.hash === '#/inicio');
+  ok(true, 'la ruta vieja #/hoy de gerencia lleva al Inicio');
   await g.goto(BASE + '#/tablero');
   await g.waitForSelector('.gh-sem');
   await g.goto(BASE + '#/pedidos');
   await g.waitForSelector('.ped-tabla', { timeout: 8000 });
-  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Pedidos' && await g.locator('.grupo-prov').count() === 0, 'Pedidos (dentro de Compras) abre en "De los locales" (tabla), sin lo de proveedores');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos' && await g.locator('.subnav-b.is-on').innerText() === 'Pedidos' && await g.locator('.grupo-prov').count() === 0, 'Pedidos (dentro de Compras) abre en "De los locales" (tabla), sin lo de proveedores');
   ok(await g.locator('[data-accion="ir-compras"]').count() === 1, 'Pedidos tiene el acceso a Compras cuando hay algo para mandar');
   ok(await g.locator('.pt-envio').count() === 2, `tabla: un renglón por pedido de cada local (Umo de Ruth y Trento de Angelica), no por proveedor (${await g.locator('.pt-envio').count()})`);
   ok(await g.locator('.pt-h').isVisible(), 'en PC la tabla tiene encabezados');
@@ -757,7 +757,7 @@ const irSec = async (pg, id) => {
   // ---- Compras (por proveedor) ----
   await irSec(g, 'compras');
   await g.waitForSelector('.grupo-prov');
-  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Armar', 'Compras: pestaña propia, abre en Armar (por proveedor)');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos' && await g.locator('.subnav-b.is-on').innerText() === 'Armar', 'Compras: pestaña propia, abre en Armar (por proveedor)');
   ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Armar|Recibir|Gasto', 'Compras: Pedidos · Armar · Recibir · Gasto');
   ok(await g.locator('.zona-pruebas').count() === 0 && await g.locator('[data-accion="cargar"]').count() === 0, 'Compras no repite Cargar ni Borrar todo');
   ok(await g.locator('.grupo-prov').count() === 4, `Por proveedor: Barcena, Florida, Martín + Sin proveedor (${await g.locator('.grupo-prov').count()})`);
@@ -903,7 +903,7 @@ const irSec = async (pg, id) => {
   await shot(g, '10d-g-cargar-pc');
   await g.locator('.pill').click();
   await g.waitForSelector('#rev-nombre');
-  ok(await g.locator('.side-link.is-active').innerText() === 'Compras', 'Cargar queda marcado dentro de Compras');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos', 'Cargar queda marcado dentro de Compras');
   const nOrd = db.ordenes.length;
   await g.getByRole('button', { name: 'Enviar pedido' }).click();
   await g.waitForSelector('.ped-tabla');
@@ -915,7 +915,7 @@ const irSec = async (pg, id) => {
   await g.waitForSelector('.subnav');
   await g.locator('.subnav-b', { hasText: 'Recibir' }).click();
   await g.waitForSelector('.rec-factura');
-  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Recibir', 'Recibir queda dentro de Compras');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Pedidos' && await g.locator('.subnav-b.is-on').innerText() === 'Recibir', 'Recibir queda dentro de Compras');
   await g.waitForSelector('.grupo-prov[data-orden]');
   ok(await g.locator('.grupo-prov').count() === 1, 'Recibir: solo órdenes enviadas');
   const precioPre = await g.getByLabel('Costo unitario de Cerveza rubia lata 473 ml').inputValue();

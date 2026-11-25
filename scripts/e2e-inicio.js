@@ -167,7 +167,7 @@ function datos() {
     ok(await fondo(p) === 'rgb(13, 12, 10)', `encargado (${esquema}): fondo negro #0D0C0A aunque el teléfono esté en ${esquema === 'light' ? 'claro' : 'oscuro'}`);
     ok(!(await p.evaluate(() => document.documentElement.dataset.modulo)), `encargado (${esquema}): sin módulos de color`);
     const tabs = await p.locator('.tabbar .tab span').allInnerTexts();
-    ok(tabs.join(' · ') === 'Hoy · Pedidos · Más', `encargado: barra "Hoy · Pedidos · Más" · ${tabs.join(' · ')}`);
+    ok(tabs.join(' · ').toLowerCase() === 'hoy · pedidos · más', `encargado: barra "Hoy · Pedidos · Más" · ${tabs.join(' · ')}`);
     for (const r of ['hoy', 'mis-pedidos', 'apertura', 'cierre', 'pedir-prov', 'mas']) {
       await p.evaluate((x) => { location.hash = '#/' + x; }, r);
       await p.waitForFunction((x) => location.hash.startsWith('#/' + x) && !document.querySelector('#view .skel, #view .esq'), r, { timeout: 15000 }).catch(() => {});

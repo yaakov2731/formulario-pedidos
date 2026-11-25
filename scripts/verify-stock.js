@@ -270,6 +270,23 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('impresión: @page A4 horizontal con "Página N de M" (counter(page) y counter(pages))', /@page \{ size: A4 landscape;/.test(css) && /@bottom-center \{ content: "Página " counter\(page\) " de " counter\(pages\)/.test(css));
   check('impresión: encabezado dentro del thead (se repite), thead repetido, filas enteras, grupo pegado a su fila y un documento por hoja', /h\('thead', \{\},\s*h\('tr', \{ class: 'pr-run' \}/.test(ci) && /\.pr-tabla thead \{ display: table-header-group; \}/.test(css) && /\.pr-tabla tr \{ break-inside: avoid; \}/.test(css) && /tr\.pr-grupo \{ break-inside: avoid; break-after: avoid;/.test(css) && /\.pr-prov \+ \.pr-prov \{ break-before: page; \}/.test(css));
 
+  // ---- Rediseño v2: Inicio de módulos, Costos, el turno del encargado y FIFO ----
+  const gi = read('js/g-inicio.js'), gco = read('js/g-costos.js'), co = read('js/costos.js'), ff = read('js/fifo.js');
+  const sinCodigoComentado = (t) => t.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  check('v2: hoy.js, fifo.js y hoja.js no importan ni muestran precios (ni costos, ni datos de gerencia)', ['js/hoy.js', 'js/fifo.js', 'js/hoja.js'].every(f => {
+    const t = sinCodigoComentado(read(f));
+    return !/precio|cargarPrecios|precio_actual|fmtMoney|costo|from '\.\/(datos|costos|g-costos|g-hay)\.js'/i.test(t);
+  }));
+  check('v2: Inicio con 5 tarjetas (Problemas a lo ancho), cada número con Promise.allSettled y "Falta dato" sin inventar', /export function tarjetaModulo/.test(ui) && (gi.match(/tarjetaModulo\(/g) || []).length === 5 && /modulo: 'problemas'[^\n]*ancho: true/.test(gi)
+    && /Promise\.allSettled/.test(gi) && /Falta dato/.test(ui) && /ordenesPorEstado\(\['borrador'\]\)/.test(gi) && /cierresDeAnoche/.test(gi) && /claveVisto/.test(gi) && /textoAlcanza/.test(gi) && /cargarReposicion/.test(gi) && /Todo en orden/.test(gi));
+  check('v2: costos.js puro (sin DOM ni Supabase) con meta 30 % y precio sugerido a $100', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(co) && /export const META = 0\.30/.test(co) && /export function costoReceta/.test(co) && /export function resumenCostos/.test(co) && /\/ 100\) \* 100/.test(co));
+  check('v2: Costos con lista (cobertura "n de m platos") y ficha numerada; nota del precio de venta de Núcleo', /de \$\{res\.total\} platos con todos los datos/.test(gco) && /pasoFicha\(1, 'Ingredientes'/.test(gco) && /pasoFicha\(4,/.test(gco) && /Precio de venta = promedio de Núcleo \(puede incluir IVA\)/.test(gco) && /ventasItemsTodos/.test(gco) && /producto_id'\)/.test(ap));
+  check('v2: Hoy del encargado con la línea del turno, cajas con encabezado dorado y botón grande; sin merma', /lineaTurno\(/.test(hy) && /cajaTurno\(/.test(hy) && /'data-principal'/.test(hy) && /export function cajaTurno/.test(ui) && /Nada pendiente/.test(ui) && !/merma/i.test(sinCodigoComentado(hy)));
+  check('v2: FIFO en el contar guiado (fifo.js puro, solo fechas de recepciones y producciones, ventana de 45 días)', !/document\.|window\.|from '\.\//.test(ff) && /DIAS_FIFO = 45/.test(ff) && /Sin fecha de entrada/.test(ff) && /Primero · entró/.test(ff)
+    && /entradasRecientes\(lid/.test(hj) && /etiquetasFifo\(/.test(hj) && /select\('producto_id,creado_en'\)\.eq\('local_id', localId\)\.eq\('tipo', 'recepcion'\)/.test(ap) && /from\('producciones'\)\.select\('producto_id,creado_en'\)/.test(ap));
+  check('v2: el SW precachea Inicio, Costos y FIFO; VERSION sigue en stock-v1 (la versiona el deploy)', ['g-inicio', 'g-costos', 'costos', 'fifo'].every(x => sw.includes('./js/' + x + '.js')) && /const VERSION = 'stock-v1'/.test(sw));
+  check('v2: Costos e Inicio solo en gerencia', !/encargado: \{[^}]*(costos|inicio)/.test(m4) && !/contadora: \{[^}]*(costos|inicio)/.test(m4));
+
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);
 })().catch((e) => { console.error('ERROR inesperado:', e); process.exit(1); });

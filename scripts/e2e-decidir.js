@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Prueba de punta a punta (manual, no corre en CI) de gerencia rediseñada: Decidir · Locales · Compras · Más.
+// Prueba de punta a punta (manual, no corre en CI) de gerencia: Problemas (#/decidir, desde el Inicio), Locales y Más.
 // Domingo 22/11/2026 (datos de e2e-reposicion-datos.js + ventas, subas y retiros de esta prueba; API mockeada).
 // 1) Decidir: "n cosas para decidir" con Pedidos ("Barcena: 2 locales listos" con monto porque todo tiene precio),
 //    Precio ("Molleja subió 12 %") y Falta cierre ("Trento Café no cerró anoche"). Aprobar abre Compras en ese proveedor
@@ -8,7 +8,7 @@
 //    cierre), Shopping "—" por retiros (2 sin destino). Sin ventas: "Falta dato", nunca verde.
 // 3) Local → productos que explican el número → ficha: debió usarse, se usó, diferencia en $ y barras de 6 semanas
 //    (semanas sin cierres = hueco).
-// 4) Todo lo de Más carga; las rutas viejas siguen (#/hoy → Decidir, #/comprar, #/hay, #/tablero, #/compras).
+// 4) Todo lo de Más carga; las rutas viejas siguen (#/hoy → Inicio, #/comprar, #/hay, #/tablero, #/compras).
 // Uso: node scripts/e2e-decidir.js [carpeta-de-capturas]
 const fs = require('node:fs');
 const path = require('node:path');
@@ -73,14 +73,17 @@ function datos() {
     const n = ancho === 390 ? 'celular' : 'pc';
     const db = datos();
     const { c, p } = await abrir(ancho, db, '#/hoy');
-    // ===== 1) Decidir =====
+    // ===== 1) Problemas (#/decidir, desde la tarjeta roja del Inicio) =====
+    await p.waitForSelector('.tm[data-mod="problemas"]');
+    ok(await p.evaluate(() => location.hash) === '#/inicio', `${n}: #/hoy de gerencia aterriza en el Inicio`);
+    await p.locator('.tm[data-mod="problemas"]').click();
     await p.waitForSelector('.dec');
-    ok(await p.evaluate(() => location.hash) === '#/decidir', `${n}: #/hoy de gerencia lleva a Decidir`);
+    ok(await p.evaluate(() => location.hash) === '#/decidir', `${n}: la tarjeta Problemas abre #/decidir`);
     const tabs = ancho === 390 ? await p.locator('.tabbar .tab span').allInnerTexts() : await p.locator('.side-nav .side-link:not(.side-out) span').allInnerTexts();
-    ok(tabs.join(' · ') === 'Decidir · Locales · Compras · Más', `${n}: barra "Decidir · Locales · Compras · Más" · ${tabs.join(' · ')}`);
+    ok(tabs.join(' · ') === 'Inicio · Stock · Pedidos · Costos · Más', `${n}: barra "Inicio · Stock · Pedidos · Costos · Más" · ${tabs.join(' · ')}`);
     ok(await p.evaluate(() => document.documentElement.dataset.rol) === 'gerencia', `${n}: tema de gerencia (data-rol)`);
     const nDec = await p.locator('.dec').count();
-    ok(await txt(p, '.vista-head .titulo') === `${nDec} cosas para decidir`, `${n}: título "${nDec} cosas para decidir"`);
+    ok(await txt(p, '.vista-head .titulo') === 'Problemas' && (await txt(p, '.vista-head .sub')).startsWith(`${nDec} cosas para decidir`), `${n}: título "Problemas" y "${nDec} cosas para decidir"`);
     const ped = await txt(p, `[data-decidir="pedidos"][data-prov="${PV.barcena}"]`);
     ok(/Barcena: 2 locales listos/.test(ped) && /Trento Café, Umo Grill · \$ 130\.000/.test(ped), `${n}: Pedidos "Barcena: 2 locales listos" con monto · ${ped}`);
     const pre = await txt(p, '[data-decidir="precio"]');
@@ -92,14 +95,14 @@ function datos() {
     if (ancho === 390) ok(await sinDesborde(p), `${n}: Decidir sin desborde`);
     // Aceptar la suba: se va y baja el contador.
     await p.locator('[data-decidir="precio"] [data-accion="Aceptar"]').click();
-    ok(await p.locator('[data-decidir="precio"]').count() === 0 && await txt(p, '.vista-head .titulo') === `${nDec - 1} cosas para decidir`, `${n}: Aceptar saca la suba y descuenta`);
+    ok(await p.locator('[data-decidir="precio"]').count() === 0 && (await txt(p, '.vista-head .sub')).startsWith(`${nDec - 1} cosas para decidir`), `${n}: Aceptar saca la suba y descuenta`);
     // Aprobar: abre Compras en el proveedor, sin aprobar nada.
     const patches = db.patches.length;
     await p.locator(`[data-decidir="pedidos"][data-prov="${PV.barcena}"] [data-accion="Aprobar"]`).click();
     await p.waitForSelector('.grupo-prov');
     ok(await p.evaluate(() => location.hash) === '#/compras' && await p.locator('.grupo-prov.is-ver[data-prov="Barcena"]').count() === 1, `${n}: Aprobar abre Compras en Barcena`);
     ok(db.patches.length === patches && db.ordenes.filter(o => o.estado === 'aprobada').length === 0, `${n}: no aprueba con un toque`);
-    ok(await p.locator('.tab.is-active, .side-link.is-active').first().getAttribute('data-nav') === 'pedidos', `${n}: queda marcada la pestaña Compras`);
+    ok(await p.locator('.tab.is-active, .side-link.is-active').first().getAttribute('data-nav') === 'pedidos', `${n}: queda marcada la pestaña Pedidos`);
 
     // ===== 2) Locales (semáforo) =====
     await p.evaluate(() => { location.hash = '#/semaforo'; });
@@ -127,14 +130,14 @@ function datos() {
     await p.keyboard.press('Escape');
 
     // ===== 4) Más y rutas viejas =====
-    for (const r of ['tablero', 'hay', 'comprar', 'stock', 'resumen', 'recetas', 'pagos', 'catalogo', 'ajustes', 'notas', 'compras', 'pedidos', 'perdida', 'control', 'mas']) {
+    for (const r of ['inicio', 'costos', 'decidir', 'semaforo', 'tablero', 'hay', 'comprar', 'stock', 'resumen', 'recetas', 'pagos', 'catalogo', 'ajustes', 'notas', 'compras', 'pedidos', 'perdida', 'control', 'mas']) {
       await p.evaluate((x) => { location.hash = '#/' + x; }, r);
       await p.waitForTimeout(500);
       const v = await p.locator('#view').innerText().catch(() => '');
       ok(await p.evaluate((x) => location.hash === '#/' + x, r) && !/No se pudo cargar/.test(v), `${n}: #/${r} carga`);
     }
     const mas = await p.locator('#view .lg-fila .lg-n').allInnerTexts();
-    ok(['Tablero', 'Lo que hay', 'Comprar por cierres', 'Stock y control', 'Números', 'Cocina', 'Pagos', 'Catálogo', 'Ajustes', 'Notas'].every(x => mas.includes(x)) && !mas.includes('Compras'), `${n}: Más con todo · ${mas.join(' / ')}`);
+    ok(['Problemas', 'Locales', 'Tablero', 'Comprar por cierres', 'Stock y control', 'Números', 'Recetas', 'Pagos', 'Catálogo', 'Ajustes', 'Notas'].every(x => mas.includes(x)) && !mas.includes('Compras'), `${n}: Más con todo · ${mas.join(' / ')}`);
     await c.close();
   }
   await browser.close(); srv.close();
