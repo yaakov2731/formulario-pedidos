@@ -1934,6 +1934,20 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
 .aj-switch:checked::after { transform: translateX(20px); }
 .aj-switch:disabled { opacity: .5; cursor: default; }
 .aj-como { padding: 12px 16px; font-size: 14px; color: var(--text-2); line-height: 1.5; }
+.aj-wa { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--sep); padding-top: 12px; }
+.aj-wa > span { display: flex; flex-direction: column; gap: 2px; }
+.aj-wa small { font-size: 13px; color: var(--text-2); }
+.aj-wa-fila { display: flex; gap: 8px; }
+.aj-wa-in { text-align: left; font-family: var(--font-num); flex: 1; min-width: 0; }
+.aj-wa-btn { flex: none; padding: 0 16px; }
+.aj-ara { display: flex; flex-direction: column; gap: 10px; margin: 0 0 22px; }
+.aj-ara:empty { display: none; }
+.aj-ara .aj-como { padding: 0 16px; }
+.aj-ara-dato { margin: 0 16px; padding: 12px 14px; background: var(--surface); border-radius: var(--r-group); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.aj-ara-dato small { font-size: 13px; color: var(--text-2); }
+.aj-ara-dato code { font-family: var(--font-num); font-size: 13px; overflow-wrap: anywhere; color: var(--text); }
+.aj-ara-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px; }
+.aj-ara-ej { margin: 0 16px; padding: 12px 14px; background: var(--fill); border-radius: var(--r-field); font-size: 12px; line-height: 1.5; overflow-x: auto; white-space: pre; color: var(--text-2); }
 @media (prefers-reduced-motion: reduce) { .cd-barra i, .aj-switch, .aj-switch::after { transition: none; } }
 
 /* =====================================================================================================================

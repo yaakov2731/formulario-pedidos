@@ -88,6 +88,7 @@ function base(opc = {}) {
     { id: L.tre, codigo: 'TRE', nombre: 'Trento Café', encargados: ['Angelica'], activo: true, razon_social: 'SUMA ACTIVA S.A.', cuit: null, dias_abre: [0, 5, 6], abre_feriados: true },
     { id: L.shp, codigo: 'SHP', nombre: 'Shopping', encargados: ['Marcos'], activo: true, razon_social: 'SPMAR S.A.', cuit: null, dias_abre: [0, 5, 6], abre_feriados: true }
   ];
+  if (opc.con0033) for (const l of locales) l.avisos_whatsapp = l.codigo === 'UMO' ? ['5491122223333'] : [];
   return { opc, hoja, movs, ordenes, locales, log, rpc, patches, posts, hid: () => ++hid };
 }
 
@@ -139,6 +140,7 @@ function montarApi(ctx, db, errores) {
     }
     if (t === 'locales') {
       if (sin && /dias_abre|abre_feriados/.test(q.get('select') || '')) return json({ code: '42703', message: 'column locales.dias_abre does not exist' }, 400);
+      if (!db.opc.con0033 && /avisos_whatsapp/.test(q.get('select') || '')) return json({ code: '42703', message: 'column locales.avisos_whatsapp does not exist' }, 400);
       return json(filtro(db.locales.map(l => { const x = { ...l }; if (sin) { delete x.dias_abre; delete x.abre_feriados; } return x; }), q));
     }
     if (t === 'proveedores_basico' || t === 'proveedores') return json(PROVS);
@@ -176,6 +178,11 @@ function montarApi(ctx, db, errores) {
     }
     if (t === 'rpc/hoja_contar') { const b = JSON.parse(req.postData() || '{}'); return json(guardar(b, () => b.p_sector)); }
     if (t === 'rpc/buscar_productos') return json([]);
+    if (t === 'rpc/aviso_token' || t === 'rpc/aviso_token_nuevo') {
+      if (!db.opc.con0033) return json({ code: 'PGRST202', message: 'Could not find the function public.' + t.slice(4) }, 404);
+      if (t === 'rpc/aviso_token_nuevo') db.token = 'f'.repeat(64);
+      return json(db.token || 'a'.repeat(64));
+    }
     // Ventas de la semana por local (Locales de gerencia): db.ventas = { local_id: pesos }.
     if (t === 'rpc/tablero') { const b = JSON.parse(req.postData() || '{}'); const v = (db.ventas || {})[b.p_local] || 0; return json({ actual: { ventas: v, compras: 0, margen_pct: null }, pendientes: {} }); }
     errores.push('mock: ruta no prevista ' + req.method() + ' ' + u.pathname + ' (' + rol + ')');

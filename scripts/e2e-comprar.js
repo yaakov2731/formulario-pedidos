@@ -209,6 +209,40 @@ const num = (s) => Number(String(s).replace(/\./g, '').replace(',', '.'));
     await c.close();
   }
 
+  // ---- Con 0033: WhatsApp por local y la sección de Ara (dirección, token, ejemplo) ----
+  for (const ancho of [390, 1300]) {
+    const db = base({ con0033: true, ahora: DOMINGO });
+    const { c, p } = await abrir(ancho, db, '#/ajustes');
+    await p.waitForSelector('.aj-ara .aj-token');
+    const n = ancho === 390 ? 'celular' : 'pc';
+    if (ancho === 390) {
+      ok(await p.locator(`.aj-local[data-local="${L.umo}"] .aj-wa-in`).inputValue() === '5491122223333', '0033: Umo muestra su WhatsApp');
+      ok(await p.locator(`.aj-local[data-local="${L.shp}"] .aj-wa-in`).count() === 0, '0033: el Shopping no tiene aviso de cierre');
+      await p.locator(`.aj-local[data-local="${L.tre}"] .aj-wa-in`).fill('11 4444-5555, +54 9 11 6666 7777');
+      await p.locator(`.aj-local[data-local="${L.tre}"] .aj-wa-btn`).click();
+      await p.waitForTimeout(400);
+      const pa = db.patches.find(x => x.id === L.tre && x.b.avisos_whatsapp);
+      ok(pa && JSON.stringify(pa.b.avisos_whatsapp) === '["5491144445555","5491166667777"]', '0033: guarda los números normalizados · ' + JSON.stringify(pa && pa.b));
+      ok(/rest\/v1\/rpc\/cierres_pendientes/.test(await p.locator('.aj-ara').innerText()), '0033: muestra la dirección para Ara');
+      ok(/a{64}/.test(await p.locator('.aj-token').innerText()), '0033: muestra el token');
+      ok(!/0033_avisos_whatsapp/.test(await p.locator('#view').innerText()), '0033: sin aviso de SQL');
+      ok(await sinDesborde(p), '390: sin scroll horizontal con la sección de Ara');
+    }
+    await p.locator('.aj-ara').scrollIntoViewIfNeeded();
+    await shot(p, `13-ajustes-ara-${n}`);
+    await c.close();
+  }
+  // ---- Sin 0033 (con 0032): aviso de SQL, sin sección de Ara, campos de WhatsApp bloqueados ----
+  {
+    const db = base({ ahora: DOMINGO });
+    const { c, p } = await abrir(390, db, '#/ajustes');
+    await p.waitForSelector('.aj-local'); await p.waitForTimeout(500);
+    ok(/0033_avisos_whatsapp\.sql/.test(await p.locator('#view').innerText()), 'sin 0033: aviso de que falta el SQL');
+    ok(await p.locator('.aj-ara .aj-token').count() === 0, 'sin 0033: no muestra la sección de Ara');
+    ok(await p.locator('.aj-wa-in[disabled]').count() === 2, 'sin 0033: WhatsApp no se puede tocar');
+    await c.close();
+  }
+
   await browser.close(); srv.close();
   if (errores.length) { console.log('\nErrores de consola/página:'); for (const e of [...new Set(errores)]) console.log(' - ' + e); }
   const total = fallas + (errores.length ? 1 : 0);
