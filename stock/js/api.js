@@ -448,9 +448,9 @@ export const ventasPedidosRango = (localId, desde, hasta) => todo(() => sb.from(
 export const ventasItemsRango = (localId, desde, hasta) => todo(() => sb.from('ventas_items')
   .select('id,pedido_numero,fecha,fecha_hora,codigo_origen,nombre_origen,cantidad,importe,rubro,subrubro,tipo_pedido,sector,producto_id')
   .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('id'));
-// Todos los locales juntos (Ventas · Resumen): renglones y pedidos de un rango, sin filtrar por local.
+// Todos los locales juntos (Ventas · Resumen y Costos): renglones y pedidos de un rango, sin filtrar por local.
 export const ventasItemsTodos = (desde, hasta) => todo(() => sb.from('ventas_items')
-  .select('id,local_id,fecha,codigo_origen,nombre_origen,cantidad,importe')
+  .select('id,local_id,fecha,codigo_origen,nombre_origen,cantidad,importe,producto_id')
   .gte('fecha', desde).lte('fecha', hasta).order('id'));
 export const ventasPedidosTodos = (desde, hasta) => todo(() => sb.from('ventas_pedidos')
   .select('local_id,numero,fecha').gte('fecha', desde).lte('fecha', hasta).order('local_id').order('numero'));

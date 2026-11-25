@@ -144,12 +144,16 @@ function montarApi(ctx, db, errores) {
       return json(filtro(db.locales.map(l => { const x = { ...l }; if (sin) { delete x.dias_abre; delete x.abre_feriados; } return x; }), q));
     }
     if (t === 'proveedores_basico' || t === 'proveedores') return json(PROVS);
-    if (t === 'productos') return json(filtro(Object.values(P).filter(mio), q));
+    if (t === 'productos') return json(filtro([...Object.values(P), ...(db.prodsExtra || [])].filter(mio), q));
     if (t === 'stock_actual') return json(filtro(Object.values(P).filter(mio).map(p => ({ local_id: p.local_id, producto_id: p.id, stock: STOCK[p.id] })), q));
-    if (t === 'precio_actual') { if (rol !== 'gerencia') errores.push('el encargado pidió precios'); return json(Object.entries(PRECIO).map(([producto_id, precio]) => ({ producto_id, precio }))); }
+    if (t === 'precio_actual') { if (rol !== 'gerencia') errores.push('el encargado pidió precios'); return json(Object.entries({ ...PRECIO, ...(db.preciosExtra || {}) }).map(([producto_id, precio]) => ({ producto_id, precio }))); }
     if (t === 'precios') return json(filtro(db.precios || [], q));
     if (t === 'hoja_movs') return json(filtro(db.hoja.filter(mio), q));
     if (t === 'movimientos') return json(filtro(db.movs.filter(mio), q));
+    // Costos (e2e-inicio.js): recetas, renglones de ventas de Núcleo y producciones (fecha de lo elaborado para FIFO).
+    if (t === 'recetas') return json(db.recetas || []);
+    if (t === 'ventas_items') return json(filtro(db.ventasItems || [], q));
+    if (t === 'producciones') return json(filtro((db.producciones || []).filter(mio), q));
     if (t === 'ordenes_compra' && req.method() === 'POST') {
       const b = JSON.parse(req.postData() || '{}'); const o = { ...b, id: 'o-n' + db.hid(), creado_en: ahora(db), orden_items: [] };
       db.ordenes.unshift(o); db.posts.push({ t, b }); return json([{ id: o.id }], 201);
