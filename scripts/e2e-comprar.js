@@ -60,7 +60,7 @@ const num = (s) => Number(String(s).replace(/\./g, '').replace(',', '.'));
     const k = kpis.map(x => x.replace(/\s+/g, ' ').trim());
     if (A) {
       const tabs = (await p.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',');
-      ok(tabs === 'Comprar,Lo que hay,Pedidos,Más', 'barra de gerencia: Comprar · Lo que hay · Pedidos · Más · ' + tabs);
+      ok(tabs === 'Decidir,Locales,Compras,Más' && await p.locator('.tab.is-active').getAttribute('data-nav') === 'pedidos', 'barra de gerencia: Decidir · Locales · Compras · Más (Comprar queda marcada en Compras) · ' + tabs);
       ok(/Compra de la semana \$/.test(k[0]), 'KPI compra de la semana en pesos · ' + k[0]);
       ok(/^Para hoy \d+ no alcanzan para el domingo/.test(k[1]), 'KPI urgentes: Umo cerró el sábado y abre hoy → "Para hoy" · ' + k[1]);
       ok(k.length === 3 && !k.some(x => /Cierres de anoche/.test(x)), 'quedan 3 KPI, sin la de cierres · ' + k.length);
