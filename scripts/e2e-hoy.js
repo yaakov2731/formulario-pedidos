@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Prueba de punta a punta (manual, no corre en CI) del rediseño estilo Apple, fases 2 y 3: barra de 4 pestañas, Más y las
-// pantallas Hoy del encargado, del Shopping y de gerencia (con datos y vacía). API de Supabase mockeada y reloj fijo.
+// Prueba de punta a punta (manual, no corre en CI): barra, Más y las pantallas Hoy del encargado (el turno: Apertura →
+// Servicio → Cierre con cajas y checklist), del Shopping y el tablero de gerencia (con datos y vacío). API de Supabase mockeada y reloj fijo.
 // Capturas a 390 y 1366 px (viewport, escala 2). Uso: node scripts/e2e-hoy.js [carpeta-de-capturas]
 const http = require('node:http');
 const fs = require('node:fs');
@@ -154,40 +154,46 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
   ] };
   for (const ancho of [390, 1366]) {
     const { c, p } = await abrir(ancho, U_ENC, dbEnc, LUNES, '#/hoy');
-    await p.waitForSelector('.hoy-lista');
+    await p.waitForSelector('.hoy-turno');
     if (ancho === 390) {
-      ok(/^Hola, Lucas$/.test(await p.locator('.hoy-top .titulo').innerText()), 'encargado: abre en Hoy ("Hola, Lucas")');
+      ok(/^Hola, Lucas$/i.test(await p.locator('.hoy-top .titulo').textContent()), 'encargado: abre en Hoy ("Hola, Lucas")');
+      const linea = await p.locator('.lt-m').evaluateAll(xs => xs.map(x => x.textContent.trim() + ':' + x.className.replace('lt-m is-', '')));
+      ok(linea.join(' ') === 'Apertura:hecho Servicio:pendiente Cierre:ahora', 'encargado (lunes 19 h, ya abrió): línea del turno Apertura ✓ → Servicio → Cierre ahora · ' + linea.join(' '));
+      const cajas = await p.locator('.ct').evaluateAll(xs => xs.map(x => x.querySelector('.ct-h span').textContent + ' ' + x.querySelector('.ct-h em').textContent));
+      ok(cajas.join(' | ') === 'Apertura 1 / 1 | Servicio 0 / 2 | Cierre 0 / 1', 'encargado: una caja por momento con contador n / n · ' + cajas.join(' | '));
       const tareas = await p.locator('[data-tarea]').evaluateAll(xs => xs.map(x => x.getAttribute('data-tarea')));
-      ok(tareas.join(',') === 'cerrar,pedir,llego', 'encargado (lunes 19 h, ya abrió): cerrar primero → pedido → recibir mercadería · ' + tareas.join(','));
+      ok(tareas.join(',') === 'pedir,llego,cerrar', 'encargado: checklist en orden del turno (pedido → recibir mercadería → cerrar) · ' + tareas.join(','));
       const txt = await texto(p, '[data-tarea]');
-      ok(/^Cerrar el día/.test(txt[0]) && /^Pedir para la semana Por proveedor · cierra el miércoles/.test(txt[1]) && /^Recibir mercadería Barcena llega hoy/.test(txt[2]), 'encargado: textos de las tareas · ' + txt.join(' / '));
-      ok(/is-main/.test(await p.locator('[data-tarea]').first().getAttribute('class')) && await p.locator('[data-tarea="cerrar"]').getAttribute('href') === '#/cierre' && await p.locator('[data-tarea="pedir"]').getAttribute('href') === '#/pedir-prov', 'encargado: el primero en la tinta; Cerrar → #/cierre, Pedir → #/pedir-prov');
-      ok(/✓ Hecho Apertura 10:05 · 1 de \d+/i.test((await texto(p, '.hoy-hechas .bg')).join(' ')), 'encargado: lo hecho queda abajo, con la hora y n de n · ' + (await texto(p, '.hoy-hechas .bg')).join(' '));
-      ok(!/\$|precio|costo|m[ií]nimo|\bpar\b/i.test(await p.locator('#view').innerText()), 'encargado: sin plata, mínimo ni par');
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoy|Mis pedidos|Más', 'encargado: barra Hoy · Mis pedidos · Más');
+      ok(/^Pedir para la semana Por proveedor · cierra el miércoles/.test(txt[0]) && /^Recibir mercadería Barcena llega hoy/.test(txt[1]) && /^Cerrar el día/.test(txt[2]), 'encargado: textos de las tareas · ' + txt.join(' / '));
+      ok(await p.locator('[data-principal]').getAttribute('data-principal') === 'cerrar' && /is-main/.test(await p.locator('[data-principal]').getAttribute('class')) && await p.locator('[data-principal]').getAttribute('href') === '#/cierre', 'encargado: botón grande con la primera tarea del momento actual (Cerrar el día → #/cierre)');
+      ok(await p.locator('[data-tarea="cerrar"]').getAttribute('href') === '#/cierre' && await p.locator('[data-tarea="pedir"]').getAttribute('href') === '#/pedir-prov', 'encargado: Cerrar → #/cierre, Pedir → #/pedir-prov');
+      ok(/^Abrir el local 10:05 · 1 de \d+/i.test((await texto(p, '[data-hecho]')).join(' ')) && await p.locator('.ct-i.is-hecho .ct-tilde svg').count() === 1, 'encargado: lo hecho queda tildado en su caja, con la hora y n de n · ' + (await texto(p, '[data-hecho]')).join(' '));
+      ok((await texto(p, '[data-acceso]')).map(t => t.split(' ')[0]).join('|').toLowerCase() === 'elaborados|notas', 'encargado: Servicio con accesos a Elaborados y Notas');
+      ok(!/\$|precio|costo|m[ií]nimo|\bpar\b|merma/i.test(await p.locator('#view').innerText()), 'encargado: sin plata, mínimo, par ni merma');
+      ok((await texto(p, '.tabbar .tab')).join('|').toLowerCase() === 'hoy|pedidos|más', 'encargado: barra Hoy · Pedidos · Más');
       ok(await sinDesborde(p), 'encargado 390: sin desbordes ni texto cortado');
       await shot(p, 'hoy-encargado-390');
       await p.locator('.tabbar').screenshot({ path: path.join(OUT, 'barra-encargado-390.png') });
       // La tarea lleva a la hoja del sector y "‹ Hoy" vuelve.
-      await p.locator('[data-tarea="cerrar"]').click();
+      await p.locator('[data-principal="cerrar"]').click();
       await p.waitForSelector('.volver-hoy');
       await p.waitForSelector('.gd[data-modo="cierre"]');
-      ok(await p.evaluate(() => location.hash) === '#/cierre' && await p.locator('.tab.is-active').innerText() === 'Hoy', 'Cerrar el día lleva al cierre guiado (pestaña Hoy)');
+      ok(await p.evaluate(() => location.hash) === '#/cierre' && await p.locator('.tab.is-active').textContent() === 'Hoy', 'Cerrar el día lleva al cierre guiado (pestaña Hoy)');
       await shot(p, 'hoy-encargado-tarea-390');
       await p.locator('.volver-hoy').click();
-      await p.waitForSelector('.hoy-lista');
-      ok(await p.locator('.hoy-top').count() === 1 && await p.locator('.tab.is-active').innerText() === 'Hoy', '"‹ Hoy" vuelve a Hoy');
+      await p.waitForSelector('.hoy-turno');
+      ok(await p.locator('.hoy-top').count() === 1 && await p.locator('.tab.is-active').textContent() === 'Hoy', '"‹ Hoy" vuelve a Hoy');
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
       ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Hoja del día|Pedir de la lista completa|Facturas|Notas', 'encargado: Más con la hoja, pedir de la lista, Facturas y Notas · ' + (await texto(p, '.mas-link .lg-n')).join('|'));
       await shot(p, 'mas-encargado-390');
       await p.goto(BASE + '#/mis-pedidos'); await p.waitForSelector('.ped, .empty');
-      ok(await p.locator('.tab.is-active').innerText() === 'Mis pedidos', '#/mis-pedidos es su pestaña');
+      ok(await p.locator('.tab.is-active').textContent() === 'Pedidos', '#/mis-pedidos es su pestaña (Pedidos)');
       await p.goto(BASE + '#/contar'); await p.waitForSelector('#view .vista');
-      ok(await p.locator('.tab.is-active').innerText() === 'Hoy', 'ruta vieja #/contar sigue andando (dentro de Hoy)');
+      ok(await p.locator('.tab.is-active').textContent() === 'Hoy', 'ruta vieja #/contar sigue andando (dentro de Hoy)');
       ok(dbEnc.log.filter(l => l.rol === 'encargado').every(l => !/factura|tablero|precio/.test(l.t)), 'encargado: Hoy no consulta facturas, tablero ni precios');
     } else {
       ok(await sinDesborde(p), 'encargado 1366: sin desbordes ni texto cortado');
-      ok((await texto(p, '.sidebar .side-link')).join('|') === 'Hoy|Mis pedidos|Más|Salir', 'encargado PC: barra lateral Hoy · Mis pedidos · Más + Salir');
+      ok((await texto(p, '.sidebar .side-link')).join('|').toLowerCase() === 'hoy|pedidos|más|salir', 'encargado PC: barra lateral Hoy · Pedidos · Más + Salir');
       await shot(p, 'hoy-encargado-1366');
       await p.locator('.sidebar').screenshot({ path: path.join(OUT, 'barra-encargado-1366.png') });
     }
@@ -199,12 +205,13 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
   const dbShp = { log: [], hoja: [], movs: [], facturas: [], tablero: null, ordenes: [] };
   for (const ancho of [390, 1366]) {
     const { c, p } = await abrir(ancho, U_SHP, dbShp, LUNES9, '#/hoy');
-    await p.waitForSelector('.hoy-lista');
+    await p.waitForSelector('.hoy-turno');
     if (ancho === 390) {
       const txt = await texto(p, '[data-tarea]');
       ok(/^Abrir depósito/.test(txt[0]) && /^Pedir para la semana/.test(txt[1]) && /^Anotar un retiro/.test(txt[2]) && txt.length === 3, 'Shopping: "Abrir depósito", el pedido y Retiros · ' + txt.join(' / '));
       ok(await p.locator('[data-tarea="abrir"]').getAttribute('href') === '#/hoja', 'Shopping: Abrir depósito sigue con la hoja por sector');
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoy|Mis pedidos|Más', 'Shopping: barra Hoy · Mis pedidos · Más');
+      ok(await p.locator('[data-principal]').getAttribute('data-principal') === 'abrir', 'Shopping: botón grande para abrir el depósito');
+      ok((await texto(p, '.tabbar .tab')).join('|').toLowerCase() === 'hoy|pedidos|más', 'Shopping: barra Hoy · Pedidos · Más');
       ok(await sinDesborde(p), 'Shopping 390: sin desbordes');
       await shot(p, 'hoy-shopping-390');
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
@@ -254,7 +261,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
       ok((await texto(p, '[data-grupo="diferencias"]')).join(' / ') === 'Umo Grill Ayer · 1 producto −$ 24.000', 'gerencia: diferencias del día en $ · ' + (await texto(p, '[data-grupo="diferencias"]')).join(' / '));
       ok((await texto(p, '[data-grupo="locales"]')).join(' / ') === 'Shopping Sin cierre ayer / Trento Café Sin cierre ayer · Sin pedido esta semana', 'gerencia: locales sin cierre o sin pedido · ' + (await texto(p, '[data-grupo="locales"]')).join(' / '));
       ok(await p.locator('.tb-card, .kpi').count() === 0 && !/estimad/i.test(await p.locator('#view').innerText()), 'gerencia: sin tarjetas grandes ni "margen estimado"');
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Decidir|Locales|Compras|Más', 'gerencia: barra Decidir · Locales · Compras · Más');
+      ok((await texto(p, '.tabbar .tab')).join('|') === 'Inicio|Stock|Pedidos|Costos|Más', 'gerencia: barra Inicio · Stock · Pedidos · Costos · Más');
       ok(await sinDesborde(p), 'gerencia 390: sin desbordes ni texto cortado');
       await shot(p, 'hoy-gerencia-datos-390');
       await p.locator('#scroller').evaluate(el => el.scrollTo(0, el.scrollHeight));
@@ -262,11 +269,11 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
       await p.locator('#scroller').evaluate(el => el.scrollTo(0, 0));
       // Más
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
-      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Tablero|Lo que hay|Comprar por cierres|Stock y control|Números|Cocina|Pagos|Catálogo|Ajustes|Notas', 'gerencia: Más con Tablero, Lo que hay, Comprar por cierres, Stock y control, Números, Cocina, Pagos, Catálogo, Ajustes y Notas');
+      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Problemas|Locales|Tablero|Comprar por cierres|Stock y control|Números|Recetas|Pagos|Catálogo|Ajustes|Notas', 'gerencia: Más con Problemas, Locales, Tablero, Comprar por cierres, Stock y control, Números, Recetas, Pagos, Catálogo, Ajustes y Notas · ' + (await texto(p, '.mas-link .lg-n')).join('|'));
       ok(await sinDesborde(p), 'Más 390: sin desbordes');
       await shot(p, 'mas-gerencia-390');
-      await p.goto(BASE + '#/hoy'); await p.waitForFunction(() => location.hash === '#/decidir');
-      ok(true, 'gerencia: la ruta vieja #/hoy lleva a Decidir');
+      await p.goto(BASE + '#/hoy'); await p.waitForFunction(() => location.hash === '#/inicio');
+      ok(true, 'gerencia: la ruta vieja #/hoy lleva al Inicio');
     } else {
       ok(await sinDesborde(p), 'gerencia 1366: sin desbordes');
       await shot(p, 'hoy-gerencia-datos-1366');

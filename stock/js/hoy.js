@@ -1,13 +1,16 @@
-// Encargado · Hoy (inicio): "Hola, <nombre>" y lo que toca ahora en botones grandes, lo pendiente arriba (el primero en la tinta)
-// y lo hecho abajo con "✓ Hecho", la hora y cuántos productos se contaron. Armado con lo que ya hay cargado:
-//   Abrir (apertura) → Pedir (lunes a miércoles; el viernes solo Florida) → Recibir mercadería (solo si hay un pedido en camino
-//   que llega hoy) → Subir factura → Cerrar el día (después de las 18 h). Cada botón lleva a su pantalla, con "‹ Hoy" para volver.
+// Encargado · Hoy (inicio): el turno del local, Apertura → Servicio → Cierre, como la guía SOP. Arriba la línea del turno
+// (hecho / ahora / pendiente), después una caja por momento con encabezado dorado, contador n / n y checklist con tilde,
+// y abajo un botón grande con la primera tarea pendiente del momento actual. Armado con lo que ya hay cargado:
+//   Apertura: abrir (contar lo que hay). Servicio: pedir (lunes a miércoles; el viernes solo Florida), recibir mercadería
+//   y subir la factura (solo si hay un pedido en camino que llega hoy); si nada toca, "Nada pendiente" y cuenta como hecha.
+//   Elaborados y Notas van como accesos dentro de Servicio (no se tildan). Cierre: cerrar el día (después de las 18 h).
+// Cada tarea lleva a su pantalla, con "‹ Hoy" para volver.
 // Locales que elaboran: Abrir → #/apertura y Cerrar → #/cierre (contar guiado, hoja.js); Pedir → #/pedir-prov.
 // Shopping (no elabora): Abrir / Cerrar depósito por sector (#/hoja, la hoja por sector de siempre) y Retiros.
 // Sin montos ni cantidades internas.
 import { mount, h, lsGet, lsSet, jornadaISO, hoyISO, sumarDias, fechaLarga, esFlorida, esCarta, elabora, entregaHoy } from './util.js';
 import { swr, cargarCatalogo, cargarLocales, cargarProveedoresBasico, misOrdenes, hojaDelDia, sinHojaSQL, mensajeError } from './api.js';
-import { esqueleto, banner, botonGrande, desdeHoy } from './ui.js';
+import { esqueleto, banner, botonGrande, desdeHoy, lineaTurno, cajaTurno } from './ui.js';
 import { sectoresDe, TODO_EL_LOCAL, PROVEEDOR } from './hoja.js';
 
 const hora = (iso) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -43,9 +46,11 @@ export async function render(root, ctx) {
   const aHoja = (s) => () => { if (s) lsSet(claveSector, s); desdeHoy('hoja'); };
   const ir = (id) => () => desdeHoy(id);
 
+  // Cada cosa del día va a un momento del turno: apertura, servicio o cierre.
   const pendientes = [], hechas = [];
-  const hecho = (texto, sub) => hechas.push({ texto, sub });
-  const tarea = (clave, texto, sub, href, onClick) => pendientes.push({ clave, texto, sub, href, onClick });
+  let momento = 'apertura';
+  const hecho = (texto, sub) => hechas.push({ momento, texto, sub });
+  const tarea = (clave, texto, sub, href, onClick) => pendientes.push({ momento, clave, texto, sub, href, onClick });
   const contados = (tipo) => new Set(movs.filter(m => m.tipo === tipo).map(m => m.producto_id)).size;
   const nDeN = (tipo) => `${contados(tipo)} de ${activos.length}`;
 
@@ -53,7 +58,7 @@ export async function render(root, ctx) {
   const hayAp = movs.some(m => m.tipo === 'apertura'), hayCi = movs.some(m => m.tipo === 'cierre');
   const ultima = (tipo) => { const xs = movs.filter(m => m.tipo === tipo); return xs.length ? hora(xs[xs.length - 1].creado_en) : ''; };
   if (!sinSQL && !shopping && activos.length) {
-    if (hayAp) hecho('Apertura', `${ultima('apertura')} · ${nDeN('apertura')}`);
+    if (hayAp) hecho('Abrir el local', `${ultima('apertura')} · ${nDeN('apertura')}`);
     else tarea('abrir', 'Abrir el local', `${activos.length} ${activos.length === 1 ? 'producto' : 'productos'} · contá lo que hay`, '#/apertura', ir('apertura'));
   }
   if (!sinSQL && shopping) for (const s of sectores) {
@@ -63,6 +68,7 @@ export async function render(root, ctx) {
   }
 
   // 2 · Pedido de la semana: de lunes a miércoles a todos; el viernes solo a Florida.
+  momento = 'servicio';
   const deLaSemana = ordenes.filter(o => o.estado !== 'cancelada' && String(o.creado_en).slice(0, 10) >= lunes);
   if (dow >= 1 && dow <= 3) {
     if (deLaSemana.length) hecho('Pedido de la semana', `${deLaSemana.length} ${deLaSemana.length === 1 ? 'pedido enviado' : 'pedidos enviados'}`);
@@ -94,8 +100,9 @@ export async function render(root, ctx) {
   }
 
   // 5 · Cerrar, después de las 18 h (el cierre sigue a ciegas: no muestra la apertura).
+  momento = 'cierre';
   if (!sinSQL && !shopping && activos.length) {
-    if (hayCi) hecho('Cierre', `${ultima('cierre')} · ${nDeN('cierre')}`);
+    if (hayCi) hecho('Cerrar el día', `${ultima('cierre')} · ${nDeN('cierre')}`);
     else if (tarde && hayAp) tarea('cerrar', 'Cerrar el día', `${activos.length} ${activos.length === 1 ? 'producto' : 'productos'} · contá lo que queda`, '#/cierre', ir('cierre'));
   }
   if (!sinSQL && shopping) for (const s of sectores) {
@@ -105,17 +112,46 @@ export async function render(root, ctx) {
   }
 
   const arriba = `${local ? local.nombre + ' · ' : ''}${fechaLarga(fecha)}`;
-  // A la noche lo que más urge es cerrar: va primero.
-  pendientes.sort((a, b) => (b.clave === 'cerrar') - (a.clave === 'cerrar'));
-  const botones = pendientes.map((t, n) => botonGrande({ titulo: t.texto, sub: t.sub, principal: n === 0, href: t.href, onClick: t.onClick, attrs: { 'data-tarea': t.clave } }));
+  // Antes de las 18 h el cierre todavía no se ofrece: queda anotado en su caja, sin enlace.
+  const cierrePendiente = !sinSQL && activos.length && !pendientes.some(t => t.momento === 'cierre') && !hechas.some(x => x.momento === 'cierre')
+    ? { momento: 'cierre', texto: shopping ? 'Cerrar depósito' : 'Cerrar el día', sub: hayAp || (shopping && movs.some(m => m.tipo === 'apertura')) ? 'Desde las 18 h' : 'Después de abrir', espera: true } : null;
+  const MOMENTOS = [['apertura', 'Apertura'], ['servicio', 'Servicio'], ['cierre', 'Cierre']];
+  const de3 = MOMENTOS.map(([id, titulo]) => {
+    const pend = pendientes.filter(t => t.momento === id);
+    const hech = hechas.filter(x => x.momento === id);
+    const espera = id === 'cierre' && cierrePendiente ? [cierrePendiente] : [];
+    return { id, titulo, pend, hech, espera, hecho: !pend.length && !espera.length };
+  });
+  // Ahora: a la noche, si ya se abrió, el cierre; si no, el primer momento con algo pendiente.
+  const ap = de3[0], ci = de3[2];
+  const ahoraId = !ci.hecho && ci.pend.length && ap.hecho ? 'cierre' : (de3.find(m => m.pend.length) || de3.find(m => !m.hecho) || {}).id;
+  for (const m of de3) m.estado = m.hecho ? 'hecho' : m.id === ahoraId ? 'ahora' : 'pendiente';
+  const actual = de3.find(m => m.id === ahoraId);
+  const principal = actual && actual.pend[0];
+  const accesos = [];
+  if (!shopping) accesos.push(['elaborados', 'Elaborados', 'Lo que se hizo en la cocina']);
+  accesos.push(['notas', 'Notas', 'Avisos para gerencia']);
+  const cajas = de3.map(m => {
+    const items = [
+      ...m.hech.map(x => ({ titulo: x.texto, sub: x.sub, hecho: true, attrs: { 'data-hecho': x.texto } })),
+      ...m.pend.map(t => ({ titulo: t.texto, sub: t.sub, href: t.href, onClick: t.onClick, attrs: { 'data-tarea': t.clave } })),
+      ...m.espera.map(t => ({ titulo: t.texto, sub: t.sub, attrs: { 'data-espera': 'cerrar' } }))
+    ];
+    const caja = cajaTurno({ id: m.id, titulo: m.titulo, items, estado: m.estado });
+    if (m.id === 'servicio') caja.append(h('nav', { class: 'ct-accesos', 'aria-label': 'Durante el servicio' }, accesos.map(([id, t, sub]) =>
+      h('a', { class: 'ct-acc', href: '#/' + id, 'data-acceso': id, on: { click: ir(id) } }, h('span', { text: t }), h('small', { text: sub })))));
+    return caja;
+  });
   // Shopping: Retiros a mano siempre (qué sale del depósito y a dónde va).
-  if (shopping) botones.push(botonGrande({ titulo: 'Anotar un retiro', sub: 'Qué sale del depósito y a dónde va', href: '#/retiros', onClick: ir('retiros'), attrs: { 'data-tarea': 'retiros' } }));
+  const retiro = shopping ? botonGrande({ titulo: 'Anotar un retiro', sub: 'Qué sale del depósito y a dónde va', href: '#/retiros', onClick: ir('retiros'), attrs: { 'data-tarea': 'retiros' } }) : null;
+  const todoListo = de3.every(m => m.hecho);
   mount(root,
     cabeza(arriba, nombre),
     error ? banner(error, 'warn') : null,
     sinSQL ? banner('Falta activar la hoja por sector en el servidor.', 'warn') : null,
-    pendientes.length ? null : h('div', { class: 'hoy-vacio empty' }, h('b', { class: 'empty-t', text: 'Todo listo por hoy' }), h('span', { text: 'Cuando haya algo para hacer, aparece acá.' })),
-    botones.length ? h('div', { class: 'bg-lista hoy-lista' }, botones) : null,
-    hechas.length ? h('h2', { class: 'lg-t hoy-hechos-t', text: 'Hecho' }) : null,
-    hechas.length ? h('div', { class: 'bg-lista hoy-hechas' }, hechas.map(x => botonGrande({ titulo: x.texto, sub: x.sub, hecho: true, attrs: { 'data-hecho': x.texto } }))) : null);
+    lineaTurno(de3.map(m => ({ id: m.id, titulo: m.titulo, estado: m.estado }))),
+    todoListo ? h('div', { class: 'hoy-vacio empty' }, h('b', { class: 'empty-t', text: 'Todo listo por hoy' }), h('span', { text: 'Cuando haya algo para hacer, aparece acá.' })) : null,
+    h('div', { class: 'hoy-turno' }, cajas),
+    retiro ? h('div', { class: 'bg-lista hoy-lista' }, retiro) : null,
+    principal ? h('div', { class: 'hoy-principal' }, botonGrande({ titulo: principal.texto, sub: principal.sub, principal: true, href: principal.href, onClick: principal.onClick, attrs: { 'data-principal': principal.clave } })) : null);
 }
