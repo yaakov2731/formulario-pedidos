@@ -156,11 +156,11 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   const navGer = (m4.match(/gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0];
   const navCon = (m4.match(/contadora: \[[\s\S]*?\]\s*\};/) || [''])[0];
   const masGer = (m4.match(/const MAS = \{[\s\S]*?gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0].split('gerencia:')[1] || '';
-  check('gerencia: Decidir es el inicio (primera sección) y Pagos, Tablero, Lo que hay, Comprar y Ajustes están en Más', /\[\s*\{ id: 'decidir'/.test(navGer) && ['pagos', 'tablero', 'ajustes', 'hay', 'comprar', 'stock', 'resumen', 'recetas', 'catalogo', 'notas'].every(x => masGer.includes(`id: '${x}'`)) && !/id: 'compras'/.test(masGer));
+  check('gerencia: Inicio es la primera sección y Pagos, Tablero, Problemas, Locales, Comprar y Ajustes están en Más', /\[\s*\{ id: 'inicio'/.test(navGer) && ['pagos', 'tablero', 'ajustes', 'decidir', 'semaforo', 'comprar', 'stock', 'resumen', 'recetas', 'catalogo', 'notas'].every(x => masGer.includes(`id: '${x}'`)) && !/id: 'compras'/.test(masGer));
   check('contadora: solo la sección Pagos', navCon.length > 0 && /id: 'pagos'/.test(navCon) && !/pedidos|stock|ventas|tablero|catalogo|recetas|recibir/.test(navCon), navCon);
   check('el menú del encargado no tiene Pagos ni Tablero', navEnc.length > 0 && !/pagos|tablero|facturas|proveedores/.test(navEnc));
   check('las rutas de pagos, facturas y comprobantes están en gerencia y contadora; tablero y proveedores solo en gerencia',
-    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'decidir': \(\) => import\('\.\/g-decidir\.js'\), 'semaforo': \(\) => import\('\.\/g-semaforo\.js'\), 'local': \(\) => import\('\.\/g-local\.js'\), 'producto': \(\) => import\('\.\/g-local\.js'\),\s*'tablero': \(\) => import\('\.\/g-hoy\.js'\), 'comprar': \(\) => import\('\.\/g-comprar\.js'\), 'hay': \(\) => import\('\.\/g-hay\.js'\), 'ajustes': \(\) => import\('\.\/g-ajustes\.js'\), 'proveedores'/.test(m4) && /ALIAS = \{ 'gerencia\/hoy': 'decidir' \}/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
+    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'inicio': \(\) => import\('\.\/g-inicio\.js'\), 'costos': \(\) => import\('\.\/g-costos\.js'\), 'decidir': \(\) => import\('\.\/g-decidir\.js'\), 'semaforo': \(\) => import\('\.\/g-semaforo\.js'\), 'local': \(\) => import\('\.\/g-local\.js'\), 'producto': \(\) => import\('\.\/g-local\.js'\),\s*'tablero': \(\) => import\('\.\/g-hoy\.js'\), 'comprar': \(\) => import\('\.\/g-comprar\.js'\), 'hay': \(\) => import\('\.\/g-hay\.js'\), 'ajustes': \(\) => import\('\.\/g-ajustes\.js'\), 'proveedores'/.test(m4) && /ALIAS = \{ 'gerencia\/hoy': 'inicio' \}/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
   check('el perfil contadora puede entrar a la app', /\['encargado', 'gerencia', 'contadora'\]\.includes\(perfil\.rol\)/.test(m4));
   check('vendor pdf.js 4.x anotado en vendor/README.md', /pdf\.min\.mjs.*4\.\d+\.\d+/.test(read('vendor/README.md')) && /pdf\.worker\.min\.mjs/.test(read('vendor/README.md')));
   check('pdf.js se carga solo en Cargar pago (import dinámico), no en index.html ni en el arranque', !/pdf\.|pdfjs/i.test(html) && /import\('\.\.\/vendor\/pdf\.min\.mjs'\)/.test(read('js/pdf-texto.js')) && !/pdf-texto|pdf\.min/.test(m4));
@@ -201,7 +201,8 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   const ui = read('js/ui.js');
   const pestanas = (bloque) => (bloque.match(/\{ id: '/g) || []).length;
   const labels = (bloque) => [...bloque.matchAll(/label: '([^']+)'/g)].map(m => m[1]).join(' · ');
-  check('rediseño: encargado Hoy · Mis pedidos · Más (también el Shopping); gerencia Decidir · Locales · Compras · Más', labels(navEnc) === 'Hoy · Mis pedidos · Más' && labels(navGer) === 'Decidir · Locales · Compras · Más'
+  check('rediseño v2: encargado Hoy · Pedidos · Más (también el Shopping); gerencia Inicio · Stock · Pedidos · Costos · Más con chip de módulo', labels(navEnc) === 'Hoy · Pedidos · Más' && labels(navGer) === 'Inicio · Stock · Pedidos · Costos · Más'
+    && /id: 'mis-pedidos', label: 'Pedidos'/.test(navEnc) && /chip-mod/.test(m4) && /dataset\.modulo = modulo/.test(m4) && /miga-mod/.test(m4)
     && pestanas(navCon) <= 4 && /const navDe = \(c\) => NAV\[c\.rol\];/.test(m4) && /'pedir-prov': \(\) => import\('\.\/pedir\.js'\), 'apertura': \(\) => import\('\.\/hoja\.js'\), 'cierre': \(\) => import\('\.\/hoja\.js'\)/.test(m4),
     labels(navEnc) + ' / ' + labels(navGer));
   check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana · Pérdida; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\], \['perdida', 'Pérdida'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
@@ -228,7 +229,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
     && /from '\.\/perdida\.js'/.test(read('js/g-sector.js')) && /from '\.\/perdida\.js'/.test(gh) && /costoUnidad/.test(read('js/g-control.js')));
   check('pérdida: perdida.js es pura (sin DOM ni Supabase)', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(pe));
   check('pérdida: Hoy de gerencia con "Pérdida de la semana" (Sin explicar · Merma) que abre Stock → Control → Pérdida', /'Pérdida de la semana'/.test(gh) && /'data-grupo': 'perdida'/.test(gh) && /Sin explicar/.test(gh) && /desdeHoy\('perdida'\)/.test(gh));
-  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /id: 'semaforo'[^\n]*incluye: \[[^\]]*'perdida', 'sector', 'control'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
+  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /id: 'hay'[^\n]*incluye: \[[^\]]*'sector', 'control', 'perdida', 'semaforo'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
   check('pérdida: detalle con lo que más pesa, semana anterior y productos clave; sin datos no estima', /'Lo que más pesa'/.test(gpe) && /'Semana anterior'/.test(gpe) && /'Productos clave'/.test(gpe) && /Sin historial todavía/.test(gpe) && /Falta cargar costos/.test(gpe));
   check('pérdida: nada de esto en pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js', 'js/inventario.js', 'js/stock-local.js', 'js/retiros.js'].some(f => /perdida/.test(read(f))) && !/encargado: \{[^}]*perdida/.test(m4));
 
@@ -246,9 +247,13 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
 
   // ---- Rediseño de cero (Guiado para el encargado, Semáforo para gerencia) ----
   const css = read('css/stock.css'), pd = read('js/pedir.js'), gd = read('js/g-decidir.js'), gs = read('js/g-semaforo.js'), gl = read('js/g-local.js');
-  check('rediseño: sin naranja, degradés ni Geist (CSS e index.html)', !/FF7A1A|FF8A1F|gradient|Geist/i.test(css + html) && !/Geist/.test(ui));
-  check('rediseño: paleta Joya clara y oscura (data-rol para la letra de gerencia y prefers-color-scheme), fuentes Public Sans, Inter y Bricolage sin bloquear', /:root\[data-rol="gerencia"\]/.test(css) && (css.match(/prefers-color-scheme: dark/g) || []).length >= 1 && /#131B3B/.test(css) && /#BD9956/.test(css)
-    && /color-scheme" content="light dark"/.test(html) && /Public\+Sans/.test(html) && /family=Inter/.test(html) && /Bricolage\+Grotesque/.test(html) && /media="print" onload/.test(html) && /dataset\.rol = c\.rol/.test(m4));
+  check('rediseño v2: sin Geist; el único degradé es el encabezado dorado de las cajas del turno (--caja-head)', !/Geist/i.test(css + html + ui) && (css.match(/gradient\(/g) || []).length === 1 && /--caja-head: linear-gradient\(90deg, #C69A45, #8E6A2B\)/.test(css));
+  check('rediseño v2: encargado negro y dorado fijo (#0D0C0A, #D4A852, #EDE6D6, Barlow Condensed en mayúscula) y gerencia clara #F6F7F9/#1B1E27 con Sora + Manrope y oscuro por prefers-color-scheme', /:root \{\s*color-scheme: dark;\s*--bg: #0D0C0A;/.test(css) && /--accent: #D4A852;/.test(css) && /--text: #EDE6D6;/.test(css) && /--font-display: "Barlow Condensed"/.test(css) && /--title-case: uppercase;/.test(css)
+    && /:root\[data-rol="gerencia"\], :root\[data-rol="contadora"\] \{\s*color-scheme: light;\s*--bg: #F6F7F9;/.test(css) && /--text: #1B1E27;/.test(css) && /--font-display: "Sora"/.test(css) && /"Manrope"/.test(css)
+    && /@media \(prefers-color-scheme: dark\) \{\s*:root\[data-rol="gerencia"\], :root\[data-rol="contadora"\] \{/.test(css) && !/@media \(prefers-color-scheme: dark\) \{\s*:root \{/.test(css)
+    && /color-scheme" content="light dark"/.test(html) && /family=Barlow:/.test(html) && /Barlow\+Condensed/.test(html) && /family=Sora/.test(html) && /family=Manrope/.test(html) && /media="print" onload/.test(html) && /dataset\.rol = c\.rol/.test(m4) && /colorBarra\(c\.rol\)/.test(m4));
+  check('rediseño v2: colores de módulo (stock #2F6FE4, pedidos #1F9D63, costos #E9A913 con tinta #2A1F00, recetas #EE7A1E, problemas #D8434B) y [data-modulo] redefine --accent', /--mod-stock: #2F6FE4/.test(css) && /--mod-pedidos: #1F9D63/.test(css) && /--mod-costos: #E9A913; --mod-costos-ink: #2A1F00/.test(css) && /--mod-recetas: #EE7A1E/.test(css) && /--mod-problemas: #D8434B/.test(css)
+    && ['stock', 'pedidos', 'costos', 'recetas', 'problemas'].every(m => new RegExp(`:root\\[data-modulo="${m}"\\] \\{ --accent: var\\(--mod-${m}\\)`).test(css)));
   check('rediseño: contar guiado en hoja.js (teclado propio, sin input) y una sola llamada a hojaGuardar para lista y guiada', /function pintarGuiada/.test(hj) && /teclado\(/.test(hj) && (hj.match(/hojaGuardar\(/g) || []).length === 1
     && /hoja-dia:\$\{lid\}:\$\{fecha\}:\$\{tipo\}/.test(hj) && /Ayer/.test(hj) && /Van en 0/.test(hj) && !/h\('input'[^\n]*gd-/.test(hj));
   check('rediseño: Hoy con botones grandes (Abrir → #/apertura, Cerrar → #/cierre, Pedir → #/pedir-prov) y sin anillo', /botonGrande\(/.test(hy) && /'#\/apertura'/.test(hy) && /'#\/cierre'/.test(hy) && /'#\/pedir-prov'/.test(hy) && !/avanceDelDia|av-anillo/.test(hy + css));
@@ -264,6 +269,23 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('armar: Por proveedor imprime con la orden de compra nueva (encabezado, responsable para firmar, entrega y facturación)', /ordenProveedor\(prov, os\)/.test(gPed) && !/function hojaImpresion/.test(gPed) && /\['Aprobó', ''\]/.test(ci) && /\['Responsable del armado', ''\]/.test(ci) && /cargado_por_nombre/.test(ci) && /Entrega y facturación/.test(ci));
   check('impresión: @page A4 horizontal con "Página N de M" (counter(page) y counter(pages))', /@page \{ size: A4 landscape;/.test(css) && /@bottom-center \{ content: "Página " counter\(page\) " de " counter\(pages\)/.test(css));
   check('impresión: encabezado dentro del thead (se repite), thead repetido, filas enteras, grupo pegado a su fila y un documento por hoja', /h\('thead', \{\},\s*h\('tr', \{ class: 'pr-run' \}/.test(ci) && /\.pr-tabla thead \{ display: table-header-group; \}/.test(css) && /\.pr-tabla tr \{ break-inside: avoid; \}/.test(css) && /tr\.pr-grupo \{ break-inside: avoid; break-after: avoid;/.test(css) && /\.pr-prov \+ \.pr-prov \{ break-before: page; \}/.test(css));
+
+  // ---- Rediseño v2: Inicio de módulos, Costos, el turno del encargado y FIFO ----
+  const gi = read('js/g-inicio.js'), gco = read('js/g-costos.js'), co = read('js/costos.js'), ff = read('js/fifo.js');
+  const sinCodigoComentado = (t) => t.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  check('v2: hoy.js, fifo.js y hoja.js no importan ni muestran precios (ni costos, ni datos de gerencia)', ['js/hoy.js', 'js/fifo.js', 'js/hoja.js'].every(f => {
+    const t = sinCodigoComentado(read(f));
+    return !/precio|cargarPrecios|precio_actual|fmtMoney|costo|from '\.\/(datos|costos|g-costos|g-hay)\.js'/i.test(t);
+  }));
+  check('v2: Inicio con 5 tarjetas (Problemas a lo ancho), cada número con Promise.allSettled y "Falta dato" sin inventar', /export function tarjetaModulo/.test(ui) && (gi.match(/tarjetaModulo\(/g) || []).length === 5 && /modulo: 'problemas'[^\n]*ancho: true/.test(gi)
+    && /Promise\.allSettled/.test(gi) && /Falta dato/.test(ui) && /ordenesPorEstado\(\['borrador'\]\)/.test(gi) && /cierresDeAnoche/.test(gi) && /claveVisto/.test(gi) && /textoAlcanza/.test(gi) && /cargarReposicion/.test(gi) && /Todo en orden/.test(gi));
+  check('v2: costos.js puro (sin DOM ni Supabase) con meta 30 % y precio sugerido a $100', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(co) && /export const META = 0\.30/.test(co) && /export function costoReceta/.test(co) && /export function resumenCostos/.test(co) && /\/ 100\) \* 100/.test(co));
+  check('v2: Costos con lista (cobertura "n de m platos") y ficha numerada; nota del precio de venta de Núcleo', /de \$\{res\.total\} platos con todos los datos/.test(gco) && /pasoFicha\(1, 'Ingredientes'/.test(gco) && /pasoFicha\(4,/.test(gco) && /Precio de venta = promedio de Núcleo \(puede incluir IVA\)/.test(gco) && /ventasItemsTodos/.test(gco) && /producto_id'\)/.test(ap));
+  check('v2: Hoy del encargado con la línea del turno, cajas con encabezado dorado y botón grande; sin merma', /lineaTurno\(/.test(hy) && /cajaTurno\(/.test(hy) && /'data-principal'/.test(hy) && /export function cajaTurno/.test(ui) && /Nada pendiente/.test(ui) && !/merma/i.test(sinCodigoComentado(hy)));
+  check('v2: FIFO en el contar guiado (fifo.js puro, solo fechas de recepciones y producciones, ventana de 45 días)', !/document\.|window\.|from '\.\//.test(ff) && /DIAS_FIFO = 45/.test(ff) && /Sin fecha de entrada/.test(ff) && /Primero · entró/.test(ff)
+    && /entradasRecientes\(lid/.test(hj) && /etiquetasFifo\(/.test(hj) && /select\('producto_id,creado_en'\)\.eq\('local_id', localId\)\.eq\('tipo', 'recepcion'\)/.test(ap) && /from\('producciones'\)\.select\('producto_id,creado_en'\)/.test(ap));
+  check('v2: el SW precachea Inicio, Costos y FIFO; VERSION sigue en stock-v1 (la versiona el deploy)', ['g-inicio', 'g-costos', 'costos', 'fifo'].every(x => sw.includes('./js/' + x + '.js')) && /const VERSION = 'stock-v1'/.test(sw));
+  check('v2: Costos e Inicio solo en gerencia', !/encargado: \{[^}]*(costos|inicio)/.test(m4) && !/contadora: \{[^}]*(costos|inicio)/.test(m4));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

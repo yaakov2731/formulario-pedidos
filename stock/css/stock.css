@@ -1,83 +1,127 @@
-/* App de stock y pedidos · paleta "Joya" (2026-11-25, elegida por el dueño): azul marino Neon Navy #131B3B,
-   verde Pine Grove #223631, dorado Antique Gold #BD9956, bordó Red Inferno #4E0000 y plateado Ice Palace.
-   Claro por defecto y oscuro según el teléfono. Misma paleta para todos los roles; gerencia cambia solo la letra.
+/* App de stock y pedidos · rediseño v2 (2026-11-25, opciones A y C de /mnt/project-files/rediseno-v2/opciones.html).
+   Encargado y Entrar: "El turno", negro y dorado fijo (no cambia con el teléfono), títulos Barlow Condensed en mayúscula.
+   Gerencia y Administración: "Módulos de color", claro #F6F7F9 con oscuro según el teléfono, Sora + Manrope; cada módulo
+   (Stock, Pedidos, Costos, Recetas, Problemas) tiene su color y redefine --accent con :root[data-modulo].
    Todo color va en estos tokens: las pantallas no usan colores fijos. La impresión sale en blanco (@media print). */
 :root {
-  color-scheme: light;
-  --bg: #F1F2F4;
-  --bg-2: #E7E9EC;
-  --surface: #FFFFFF;
-  --surface-2: #F5F6F7;
-  --fill: rgba(19, 27, 59, 0.06);
-  --fill-2: rgba(19, 27, 59, 0.11);
-  --sep: #DADDE3;
-  --line: #DADDE3;
-  --text: #131B3B;                        /* azul marino */
-  --text-2: #4A5170;
-  --text-3: #6A7088;
-  --accent: #223631;                      /* verde pino: botón principal y lo elegido */
-  --accent-deco: #BD9956;                 /* dorado: detalles */
-  --accent-text: #223631;
-  --accent-ink: #FFFFFF;
-  --accent-soft: #E3EAE7;
-  --amber: var(--text);
-  --ink: #131B3B;
-  --ink-text: #FFFFFF;
-  --seg-on: #FFFFFF;
-  --done: #2F5A4C;
-  --alert: #4E0000;
-  --warn-ink: #7A5A1E; --warn-soft: #F5EEDF; --warn-line: #E3CFA3;
-  --cierre-ink: #7A5A1E;
-  --ok-ink: #2F5A4C; --ok-soft: #E2ECE8; --ok-line: #B9CFC6;
-  --bad-ink: #4E0000; --bad-soft: #F3E3E3; --bad-line: #D9B3B3;
-  --info-ink: #3A4366; --info-soft: #E9EBF2; --info-line: #D0D4E2;
-  --luz-verde: #2F5A4C; --luz-ambar: #BD9956; --luz-rojo: #4E0000;
-  --barra: #C9CCD3;
-  --backdrop: rgba(10, 15, 38, 0.5);
-  --shadow-1: 0 1px 2px rgba(10, 15, 38, 0.08);
-  --shadow-pill: 0 10px 24px -14px rgba(10, 15, 38, 0.45);
+  color-scheme: dark;
+  --bg: #0D0C0A;
+  --bg-2: #090807;
+  --surface: #17140F;
+  --surface-2: #1E1A13;
+  --fill: rgba(212, 168, 82, 0.08);
+  --fill-2: rgba(212, 168, 82, 0.16);
+  --sep: #2A251C;
+  --line: #4A3E28;
+  --text: #EDE6D6;
+  --text-2: #B9AF9B;
+  --text-3: #9C9180;
+  --accent: #D4A852;                      /* dorado: botón principal y lo elegido */
+  --accent-deco: #D4A852;
+  --accent-text: #D4A852;
+  --accent-ink: #120F0A;
+  --accent-soft: #2A2419;
+  --amber: #D4A852;
+  --ink: #D4A852;
+  --ink-text: #120F0A;
+  --seg-on: #2A2419;
+  --done: #A7C08A;
+  --alert: #F2A99A;
+  --warn-ink: #E3C27A; --warn-soft: #2A2214; --warn-line: #5A4A28;
+  --cierre-ink: #D4A852;
+  --ok-ink: #A7C08A; --ok-soft: #1C2516; --ok-line: #3D4F2B;
+  --bad-ink: #F2A99A; --bad-soft: #2E1512; --bad-line: #5A1A14;
+  --info-ink: #CFC6B3; --info-soft: #1E1A13; --info-line: #3A3226;
+  --luz-verde: #6E8B4E; --luz-ambar: #D4A852; --luz-rojo: #C2584A;
+  --barra: #3A342A;
+  --backdrop: rgba(0, 0, 0, 0.66);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-pill: 0 10px 24px -14px rgba(0, 0, 0, 0.9);
   --glass-hi: 0 0 #0000;
   --glass-shadow: 0 0 #0000;
+  /* Caja con encabezado dorado (checklist del turno) */
+  --caja-head: linear-gradient(90deg, #C69A45, #8E6A2B);
+  --caja-head-ink: #120F0A;
+  --caja-line: #4A3E28;
+  /* Colores de módulo (gerencia): fondo de la tarjeta, letra sobre ese fondo y versión para texto sobre --bg */
+  --mod-stock: #2F6FE4; --mod-stock-ink: #FFFFFF; --mod-stock-text: #2459BF;
+  --mod-pedidos: #1F9D63; --mod-pedidos-ink: #FFFFFF; --mod-pedidos-text: #167A4C;
+  --mod-costos: #E9A913; --mod-costos-ink: #2A1F00; --mod-costos-text: #8A6200;
+  --mod-recetas: #EE7A1E; --mod-recetas-ink: #FFFFFF; --mod-recetas-text: #B0530A;
+  --mod-problemas: #D8434B; --mod-problemas-ink: #FFFFFF; --mod-problemas-text: #B3262F;
+  --mod-inicio: #1B1E27; --mod-inicio-ink: #FFFFFF; --mod-inicio-text: #1B1E27;
   --r-card: 14px; --r-field: 12px; --r-group: 14px;
   --row-h: 52px;
   --tap: 44px;
   --btn-h: 52px;
-  --title-lg: 30px;
+  --title-lg: 34px;
+  --title-case: uppercase;
+  --title-track: 0.02em;
   --gutter: 16px;
   --tabbar-h: 60px;
   --sab: env(safe-area-inset-bottom, 0px);
-  --font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
-  --font-display: var(--font);
+  --font: "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-num: var(--font);
+}
+/* Gerencia y Administración: claro por defecto. */
+:root[data-rol="gerencia"], :root[data-rol="contadora"] {
+  color-scheme: light;
+  --bg: #F6F7F9; --bg-2: #EDEFF3; --surface: #FFFFFF; --surface-2: #F9FAFB;
+  --fill: rgba(27, 30, 39, 0.05); --fill-2: rgba(27, 30, 39, 0.10);
+  --sep: #E3E6EC; --line: #E3E6EC;
+  --text: #1B1E27; --text-2: #4E5463; --text-3: #646A78;
+  --accent: #1B1E27; --accent-deco: #E9A913; --accent-text: #1B1E27; --accent-ink: #FFFFFF; --accent-soft: #EEF0F4;
+  --amber: var(--text);
+  --ink: #1B1E27; --ink-text: #FFFFFF; --seg-on: #FFFFFF;
+  --done: #167A4C; --alert: #B3262F;
+  --warn-ink: #7A5600; --warn-soft: #FFF6DA; --warn-line: #F0D88A;
+  --cierre-ink: #7A5600;
+  --ok-ink: #167A4C; --ok-soft: #E3F5EC; --ok-line: #B5E0C9;
+  --bad-ink: #B3262F; --bad-soft: #FCE8E9; --bad-line: #F2B8BC;
+  --info-ink: #2459BF; --info-soft: #EEF3FD; --info-line: #C9D8F7;
+  --luz-verde: #1F9D63; --luz-ambar: #E9A913; --luz-rojo: #D8434B;
+  --barra: #D3D7DF;
+  --backdrop: rgba(17, 20, 28, 0.5);
+  --shadow-1: 0 1px 2px rgba(17, 20, 28, 0.06);
+  --shadow-pill: 0 10px 24px -14px rgba(17, 20, 28, 0.45);
+  --caja-head: var(--accent-soft); --caja-head-ink: var(--text); --caja-line: var(--line);
+  --title-case: none;
+  --title-lg: 30px;
+  --title-track: -0.02em;
+  --font: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
+  --font-display: "Sora", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-num: var(--font);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-rol="gerencia"], :root[data-rol="contadora"] {
     color-scheme: dark;
-    --bg: #0E1430; --bg-2: #0A0F26; --surface: #151D3F; --surface-2: #1C2650;
-    --fill: rgba(220, 224, 235, 0.07); --fill-2: rgba(220, 224, 235, 0.13);
-    --sep: #283160; --line: #283160;
-    --text: #E6E8EE; --text-2: #A9AEC2; --text-3: #8389A3;
-    --accent: #BD9956; --accent-deco: #BD9956; --accent-text: #D4B47A; --accent-ink: #131B3B; --accent-soft: #232D5A;
-    --ink: #E6E8EE; --ink-text: #131B3B; --seg-on: #232D5A;
-    --done: #7FB3A0; --alert: #E08A8A;
-    --warn-ink: #D9BD85; --warn-soft: #2A2518; --warn-line: #574A2A;
-    --cierre-ink: #D9BD85;
-    --ok-ink: #7FB3A0; --ok-soft: #16282A; --ok-line: #2C4A47;
-    --bad-ink: #E59A9A; --bad-soft: #2E1418; --bad-line: #5A2A30;
-    --info-ink: #C3C8DA; --info-soft: #1B2348; --info-line: #333D6B;
-    --luz-verde: #6FA893; --luz-ambar: #BD9956; --luz-rojo: #D9706E;
-    --barra: #333D6B;
+    --bg: #12141A; --bg-2: #0D0F14; --surface: #1B1E27; --surface-2: #232733;
+    --fill: rgba(236, 238, 243, 0.06); --fill-2: rgba(236, 238, 243, 0.12);
+    --sep: #2E3340; --line: #2E3340;
+    --text: #ECEEF3; --text-2: #A9AFBD; --text-3: #8A90A0;
+    --accent: #ECEEF3; --accent-text: #ECEEF3; --accent-ink: #12141A; --accent-soft: #262B37;
+    --ink: #ECEEF3; --ink-text: #12141A; --seg-on: #2E3340;
+    --done: #5BC694; --alert: #EE7F86;
+    --warn-ink: #F0C24D; --warn-soft: #2B2412; --warn-line: #5A4A1E;
+    --cierre-ink: #F0C24D;
+    --ok-ink: #5BC694; --ok-soft: #14271F; --ok-line: #24503B;
+    --bad-ink: #EE7F86; --bad-soft: #2E1619; --bad-line: #5E2A30;
+    --info-ink: #7FA8F2; --info-soft: #172236; --info-line: #2C4170;
+    --barra: #343A48;
     --backdrop: rgba(0, 0, 0, 0.6);
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-pill: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
+    --mod-stock-text: #7FA8F2; --mod-pedidos-text: #5BC694; --mod-costos-text: #F0C24D; --mod-recetas-text: #F4A160;
+    --mod-problemas-text: #EE7F86; --mod-inicio: #ECEEF3; --mod-inicio-ink: #12141A; --mod-inicio-text: #ECEEF3;
   }
 }
-/* Gerencia y Administración: misma paleta, letra Inter y títulos Bricolage Grotesque. */
-:root[data-rol="gerencia"], :root[data-rol="contadora"] {
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, Helvetica, Arial, sans-serif;
-  --font-display: "Bricolage Grotesque", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-num: var(--font);
-}
+/* Módulo actual (main.js pone data-modulo en <html>): el color del módulo pasa a ser el acento de la pantalla. */
+:root[data-modulo="stock"] { --accent: var(--mod-stock); --accent-ink: var(--mod-stock-ink); --accent-text: var(--mod-stock-text); --mod: var(--mod-stock); --mod-ink: var(--mod-stock-ink); --mod-text: var(--mod-stock-text); }
+:root[data-modulo="pedidos"] { --accent: var(--mod-pedidos); --accent-ink: var(--mod-pedidos-ink); --accent-text: var(--mod-pedidos-text); --mod: var(--mod-pedidos); --mod-ink: var(--mod-pedidos-ink); --mod-text: var(--mod-pedidos-text); }
+:root[data-modulo="costos"] { --accent: var(--mod-costos); --accent-ink: var(--mod-costos-ink); --accent-text: var(--mod-costos-text); --mod: var(--mod-costos); --mod-ink: var(--mod-costos-ink); --mod-text: var(--mod-costos-text); }
+:root[data-modulo="recetas"] { --accent: var(--mod-recetas); --accent-ink: #2B1404; --accent-text: var(--mod-recetas-text); --mod: var(--mod-recetas); --mod-ink: var(--mod-recetas-ink); --mod-text: var(--mod-recetas-text); }
+:root[data-modulo="problemas"] { --accent: var(--mod-problemas); --accent-ink: var(--mod-problemas-ink); --accent-text: var(--mod-problemas-text); --mod: var(--mod-problemas); --mod-ink: var(--mod-problemas-ink); --mod-text: var(--mod-problemas-text); }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1923,8 +1967,8 @@ select.el-sel:invalid, select.el-sel option[value=""] { color: var(--text-2); }
    semáforo de locales y barras de 6 semanas. Solo tokens: claro y oscuro salen de :root.
    ===================================================================================================================== */
 body { letter-spacing: -0.003em; }
-.titulo { font: 800 var(--title-lg)/1.1 var(--font-display); letter-spacing: -0.02em; }
-:root[data-rol="gerencia"] .titulo, :root[data-rol="contadora"] .titulo { font-weight: 700; }
+.titulo { font: 800 var(--title-lg)/1.05 var(--font-display); letter-spacing: var(--title-track); text-transform: var(--title-case); }
+:root[data-rol="gerencia"] .titulo, :root[data-rol="contadora"] .titulo { font-weight: 700; line-height: 1.1; }
 .lg-t, .cat-t, .grupo-t { font: 600 12px/1.3 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
 .lg-t { margin: 0 4px 8px; }
 .lg-list, .prod, .gh-sem, .card, .grupo-prov, .ped, .center-card.is-card { background: var(--surface); border: 1px solid var(--line); box-shadow: none; }
@@ -2206,3 +2250,143 @@ body { letter-spacing: -0.003em; }
 .pp .acciones:empty { display: none; }
 .ppr-seg .seg-b { white-space: nowrap; }
 @media (max-width: 419px) { .ppr-seg .seg-n { display: none; } }
+
+/* =====================================================================================================================
+   Rediseño v2 (2026-11-25): barra con chips de módulo (gerencia), miga de color, tarjetas de módulo del Inicio,
+   cajas del turno con encabezado dorado y checklist con tilde (encargado), ficha de plato numerada (Costos).
+   ===================================================================================================================== */
+.chip-mod { display: block; width: 20px; height: 20px; border-radius: 6px; background: var(--mod-inicio); flex: 0 0 auto; }
+.chip-mod[data-mod="stock"] { background: var(--mod-stock); }
+.chip-mod[data-mod="pedidos"] { background: var(--mod-pedidos); }
+.chip-mod[data-mod="costos"] { background: var(--mod-costos); }
+.chip-mod[data-mod="recetas"] { background: var(--mod-recetas); }
+.chip-mod[data-mod="problemas"] { background: var(--mod-problemas); }
+.tab .chip-mod { margin: 1px 0 2px; }
+.tab:not(.is-active) .chip-mod { opacity: 0.78; }
+.tab.is-active .chip-mod { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text-3); }
+.side-link .chip-mod { width: 18px; height: 18px; }
+/* Encargado: barra del turno (Barlow Condensed en mayúscula, dorado lo activo) */
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .tabbar { background: var(--bg); border-top-color: var(--sep); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .tab { font: 700 13px/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .tab.is-active { color: var(--accent); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .side-link { font-family: var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; font-size: 17px; }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .side-link.is-active { color: var(--accent); background: var(--accent-soft); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .side-link.is-active svg { color: var(--accent); }
+.miga-mod { display: flex; align-items: center; gap: 7px; margin: 2px 2px 8px; font: 800 12px/1.3 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--mod-text, var(--text-2)); }
+.miga-mod i { width: 11px; height: 11px; border-radius: 3px; background: var(--mod, var(--text-3)); flex: 0 0 auto; }
+
+/* ---------- Gerencia · Inicio: tarjetas de módulo ---------- */
+.ini-head { margin-bottom: 14px; }
+.ini-hola { margin: 0 0 2px; }
+.tm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tm { position: relative; display: flex; flex-direction: column; gap: 10px; min-height: 132px; padding: 14px 14px 13px; border-radius: 18px; text-decoration: none;
+  background: var(--mod-inicio); color: var(--mod-inicio-ink); transition: transform 0.12s ease; }
+.tm[data-mod="stock"] { background: var(--mod-stock); color: var(--mod-stock-ink); }
+.tm[data-mod="pedidos"] { background: var(--mod-pedidos); color: var(--mod-pedidos-ink); }
+.tm[data-mod="costos"] { background: var(--mod-costos); color: var(--mod-costos-ink); }
+.tm[data-mod="recetas"] { background: var(--mod-recetas); color: var(--mod-recetas-ink); }
+.tm[data-mod="problemas"] { background: var(--mod-problemas); color: var(--mod-problemas-ink); }
+.tm:active { transform: scale(0.985); }
+.tm:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+.tm-k { font: 600 13px/1.2 var(--font); opacity: 0.92; }
+.tm-cuerpo { display: flex; flex-direction: column; gap: 8px; }
+.tm-n { font: 800 30px/1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tm-t { font: 700 17px/1.2 var(--font-display); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.tm-s { margin-top: auto; font: 500 12.5px/1.3 var(--font); opacity: 0.9; overflow-wrap: anywhere; }
+.tm[aria-busy="true"] .tm-n { opacity: 0.6; }
+.tm.is-falta .tm-t { font: 600 15px/1.2 var(--font); opacity: 0.92; }
+.tm.is-ancho { grid-column: 1 / -1; min-height: 0; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "k n" "c n" "s n"; align-items: center; column-gap: 12px; row-gap: 4px; }
+.tm.is-ancho .tm-k { grid-area: k; }
+.tm.is-ancho .tm-cuerpo { display: contents; }
+.tm.is-ancho .tm-n { grid-area: n; font-size: 30px; }
+.tm.is-ancho .tm-t { grid-area: c; }
+.tm.is-ancho .tm-s { grid-area: s; margin-top: 0; }
+@media (min-width: 820px) {
+  .tm-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .tm { min-height: 170px; padding: 18px; }
+  .tm-n { font-size: 38px; }
+  .tm.is-ancho { min-height: 0; }
+}
+
+/* ---------- Gerencia · Costos: lista y ficha numerada ---------- */
+.cs-kpi { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; padding: 16px; margin-bottom: 18px; border-radius: 16px;
+  background: var(--mod-costos); color: var(--mod-costos-ink); }
+.cs-kpi-v small { display: block; font: 600 13px/1.2 var(--font); }
+.cs-kpi-v b { display: block; font: 800 40px/1 var(--font-display); letter-spacing: -0.02em; }
+.cs-kpi-v .cs-falta { font-size: 24px; }
+.cs-kpi-s { display: grid; gap: 2px; font: 600 13px/1.3 var(--font); text-align: right; }
+.cs-grupo { margin-bottom: 18px; }
+.cs-lista { display: grid; gap: 8px; }
+.cs-fila { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.cs-fila > svg { color: var(--text-3); flex: 0 0 auto; }
+.cs-fila-tx { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.cs-fila-tx b { font: 700 16px/1.25 var(--font); overflow-wrap: anywhere; }
+.cs-fila-tx small { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
+.cs-pct { flex: 0 0 auto; font: 800 18px/1 var(--font-display); color: var(--text); }
+.cs-pct.is-alto { color: var(--bad-ink); }
+.cs-pct.is-falta { font: 700 12px/1.2 var(--font); padding: 4px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn-ink); }
+.cs-nota { margin: 14px 4px 0; font-size: 12px; color: var(--text-3); }
+@media (min-width: 820px) { .cs-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pf-lista { display: grid; gap: 10px; max-width: 640px; }
+.pf { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.pf-k { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--mod-costos); color: var(--mod-costos-ink); font: 800 15px/1 var(--font-display); }
+.pf-c { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.pf-t { font: 700 16px/1.25 var(--font-display); }
+.pf-s { font-size: 13.5px; color: var(--text-2); }
+.pf-v { font: 800 26px/1.1 var(--font-display); letter-spacing: -0.02em; }
+.pf-res { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pf-res .pf { flex-direction: column; gap: 8px; }
+.pf-res .pf:first-child { background: var(--warn-soft); border-color: var(--warn-line); }
+.pf-res .pf:last-child { background: var(--ok-soft); border-color: var(--ok-line); }
+.pf-tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+.pf-tabla td { padding: 7px 0; border-bottom: 1px dashed var(--line); vertical-align: top; }
+.pf-tabla tr:last-child td { border-bottom: 0; }
+.pf-tabla td small { display: block; font-size: 12px; color: var(--text-3); }
+.pf-tabla td:last-child { text-align: right; font-weight: 700; white-space: nowrap; padding-left: 10px; }
+.pf-tabla td.is-falta { color: var(--warn-ink); font-weight: 600; font-size: 13px; }
+
+/* ---------- Encargado · Hoy: el turno (línea Apertura → Servicio → Cierre, cajas con encabezado dorado) ---------- */
+.lt { list-style: none; display: flex; gap: 6px; margin: 0 0 14px; padding: 0; }
+.lt-m { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 0 6px; border-bottom: 3px solid var(--barra);
+  font: 700 15px/1 var(--font-display); letter-spacing: 0.05em; text-transform: var(--title-case); color: var(--text-3); }
+.lt-m.is-hecho { border-color: var(--luz-verde); color: var(--done); }
+.lt-m.is-ahora { border-color: var(--accent); color: var(--accent-text); }
+.lt-m svg { flex: 0 0 auto; }
+.hoy-turno { display: grid; gap: 12px; }
+.ct { border: 1px solid var(--caja-line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.ct-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0; padding: 9px 12px 8px 14px; background: var(--caja-head); color: var(--caja-head-ink);
+  font: 800 20px/1.1 var(--font-display); letter-spacing: 0.04em; text-transform: var(--title-case); }
+.ct-h em { font: 700 13px/1.2 var(--font); font-style: normal; letter-spacing: 0.04em; padding: 2px 9px; border-radius: 20px; background: var(--bg); color: var(--accent-text); white-space: nowrap; }
+.ct.is-pendiente .ct-h { opacity: 0.86; }
+.ct-l { list-style: none; margin: 0; padding: 4px 6px 6px; display: grid; }
+.ct-i + .ct-i { border-top: 1px solid var(--sep); }
+.ct-a { width: 100%; display: flex; align-items: center; gap: 11px; min-height: 48px; padding: 7px 8px; border: 0; background: none; color: var(--text); text-align: left; text-decoration: none; font: inherit; border-radius: 10px; }
+a.ct-a:hover, button.ct-a:hover { background: var(--fill); }
+.ct-tilde { flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--accent); display: grid; place-items: center; color: var(--accent-ink); }
+.ct-i.is-hecho .ct-tilde { background: var(--accent); }
+.ct-tx { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.ct-n { font: 600 16px/1.25 var(--font); overflow-wrap: anywhere; }
+.ct-tx small { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
+.ct-i.is-hecho .ct-n { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
+.ct-a[data-espera] { opacity: 0.75; }
+.ct-vacio { margin: 0; padding: 12px 14px; color: var(--text-2); font-size: 15px; }
+.ct-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ct-accesos { display: flex; gap: 8px; padding: 0 12px 12px; }
+.ct-acc { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--sep); background: var(--fill); color: var(--text); text-decoration: none; }
+.ct-acc span { font: 700 15px/1.2 var(--font-display); letter-spacing: 0.04em; text-transform: var(--title-case); color: var(--accent-text); }
+.ct-acc small { font-size: 12px; color: var(--text-2); }
+.hoy-lista { margin-top: 12px; }
+.hoy-principal { position: sticky; bottom: 0; margin-top: 16px; padding: 10px 0 12px; background: var(--bg); box-shadow: 0 -14px 14px -6px var(--bg); }
+.hoy-principal .bg { text-align: center; justify-items: center; padding: 14px 18px; border-radius: 14px; }
+.hoy-principal .bg b { font: 800 21px/1.1 var(--font-display); letter-spacing: 0.04em; text-transform: var(--title-case); }
+@media (min-width: 820px) { .hoy-turno { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } .hoy-principal { position: static; background: none; max-width: 520px; } }
+
+/* ---------- Contar guiado: encabezado de lugar y FIFO ---------- */
+.gd-lugar { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0; }
+.gd-lugar-n { font: 800 28px/1 var(--font-display); letter-spacing: var(--title-track); text-transform: var(--title-case); color: var(--accent-text); overflow-wrap: anywhere; }
+.gd-lugar-a { flex: 0 0 auto; font-size: 13px; color: var(--text-2); }
+.gd-prod { text-transform: none; }
+.gd-fifo { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.gd-fifo-t { font: 700 12px/1.4 var(--font); letter-spacing: 0.03em; text-transform: uppercase; padding: 2px 8px; border-radius: 5px; background: var(--fill); color: var(--text-2); }
+.gd-fifo-t.is-primero { background: var(--bad-soft); color: var(--bad-ink); border: 1px solid var(--bad-line); }
+.gd-fifo-t.is-despues { background: var(--ok-soft); color: var(--ok-ink); border: 1px solid var(--ok-line); }

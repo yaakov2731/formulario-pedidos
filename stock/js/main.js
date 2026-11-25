@@ -5,19 +5,21 @@ import { icon, toast, esqueleto, activarTituloGrande, CLAVE_DESDE_HOY } from './
 
 // Pestañas por rol. incluye: pantallas que viven dentro de esa pestaña (quedan marcadas en ella). Lo demás está en Más,
 // una lista tipo Ajustes (mas.js, MAS de abajo).
-// Encargado (también el Shopping): Hoy · Mis pedidos · Más. Hoy lleva a todo lo del día (abrir, pedir, recibir, cerrar).
-// Gerencia: Decidir · Locales · Compras · Más (el Tablero de antes sigue en Más → Tablero). Administración: Pagos · Más.
+// Encargado (también el Shopping): Hoy · Pedidos · Más. Hoy es el turno: Apertura → Servicio → Cierre.
+// Gerencia: Inicio · Stock · Pedidos · Costos · Más, cada módulo con su color (chip en la barra, MODULOS de abajo).
+// Administración: Pagos · Más.
 const NAV = {
   encargado: [
     { id: 'hoy', label: 'Hoy', icono: 'hoy', incluye: ['hoja', 'apertura', 'cierre', 'pedir', 'pedir-prov', 'revisar', 'retiros', 'lugares', 'contar', 'stock', 'elaborados', 'subir-factura'] },
-    { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
+    { id: 'mis-pedidos', label: 'Pedidos', icono: 'lista' },
     { id: 'mas', label: 'Más', icono: 'menu', incluye: ['notas'] }
   ],
   gerencia: [
-    { id: 'decidir', label: 'Decidir', icono: 'decidir' },
-    { id: 'semaforo', label: 'Locales', icono: 'semaforo', incluye: ['local', 'producto', 'perdida', 'sector', 'control', 'g-retiros'] },
-    { id: 'pedidos', label: 'Compras', icono: 'pedir', incluye: ['compras', 'por-producto', 'comprar', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
-    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['tablero', 'hay', 'ajustes', 'stock', 'conteos', 'lugares',
+    { id: 'inicio', label: 'Inicio', icono: 'hoy', modulo: 'inicio', incluye: ['decidir'] },
+    { id: 'hay', label: 'Stock', icono: 'stock', modulo: 'stock', incluye: ['stock', 'sector', 'control', 'perdida', 'semaforo', 'local', 'producto', 'conteos', 'lugares', 'g-retiros'] },
+    { id: 'pedidos', label: 'Pedidos', icono: 'pedir', modulo: 'pedidos', incluye: ['compras', 'por-producto', 'comprar', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
+    { id: 'costos', label: 'Costos', icono: 'ventas', modulo: 'costos' },
+    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['tablero', 'ajustes',
       'resumen', 'ventas', 'analisis', 'merma', 'recetas', 'produccion', 'elaborados', 'pagos', 'facturas', 'historial', 'cargar-pago',
       'catalogo', 'categorias', 'proveedores', 'locales', 'notas'] }
   ],
@@ -26,9 +28,25 @@ const NAV = {
     { id: 'mas', label: 'Más', icono: 'menu' }
   ]
 };
+// Módulos de color de gerencia: qué pantallas pintan con qué color (stock.css, :root[data-modulo]) y el nombre que va
+// en la miga de arriba. Lo que no está acá (Más, Pagos, Ajustes, Inicio) queda con el color base.
+const MODULOS = {
+  stock: { nombre: 'Stock', rutas: ['hay', 'stock', 'sector', 'control', 'perdida', 'semaforo', 'local', 'producto', 'conteos', 'lugares', 'g-retiros'] },
+  pedidos: { nombre: 'Pedidos', rutas: ['pedidos', 'compras', 'por-producto', 'comprar', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
+  costos: { nombre: 'Costos', rutas: ['costos'] },
+  recetas: { nombre: 'Recetas', rutas: ['recetas', 'produccion', 'elaborados'] },
+  problemas: { nombre: 'Problemas', rutas: ['decidir'] }
+};
+const ROTULOS = {
+  hay: 'Lo que hay', stock: 'Stock por local', sector: 'Control de hoy', control: 'Control de la semana', perdida: 'Pérdida', semaforo: 'Locales',
+  local: 'Local', producto: 'Producto', conteos: 'Conteos', lugares: 'Lugares', 'g-retiros': 'Retiros',
+  pedidos: 'Para aprobar', compras: 'Armar', 'por-producto': 'Por producto', comprar: 'Comprar por cierres', cargar: 'Cargar', 'cargar-revisar': 'Revisar',
+  recibir: 'Recibir', 'recibir-factura': 'Factura', gasto: 'Gasto', costos: 'Por plato', recetas: 'Platos', produccion: 'Producción', elaborados: 'Elaborados', decidir: 'Para decidir'
+};
+const moduloDe = (id) => Object.keys(MODULOS).find(k => MODULOS[k].rutas.includes(id)) || null;
 // Más: filas tipo Ajustes. Encargado: la hoja completa, pedir de la lista, retiros (Shopping), facturas y notas. Gerencia:
-// Tablero, Lo que hay, Comprar por cierres, Stock y control, Números, Cocina, Pagos, Catálogo, Ajustes y Notas.
-// Abajo de todo, con quién se entró y Cerrar sesión.
+// Problemas, Locales (semáforo), Tablero, Comprar por cierres, Stock y control, Números, Recetas, Pagos, Catálogo,
+// Ajustes y Notas. Abajo de todo, con quién se entró y Cerrar sesión.
 const MAS = {
   encargado: [
     { id: 'hoja', label: 'Hoja del día', icono: 'hoja', sub: 'Apertura y cierre en una lista', soloElabora: true },
@@ -39,12 +57,13 @@ const MAS = {
     { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
   gerencia: [
+    { id: 'decidir', label: 'Problemas', icono: 'decidir', sub: 'Pedidos, subas de precio y cierres que faltan' },
+    { id: 'semaforo', label: 'Locales', icono: 'semaforo', sub: 'Semáforo: lo que no se explica en cada local' },
     { id: 'tablero', label: 'Tablero', icono: 'tablero', sub: 'Semana, aprobar, entregas, facturas' },
-    { id: 'hay', label: 'Lo que hay', icono: 'stock', sub: 'Lo que queda en cada local' },
     { id: 'comprar', label: 'Comprar por cierres', icono: 'pedir', sub: 'Qué comprar según lo que sobró' },
     { id: 'stock', label: 'Stock y control', icono: 'stock', sub: 'Qué hay, control del día, lugares' },
     { id: 'resumen', label: 'Números', icono: 'ventas', sub: 'Ventas, análisis, merma' },
-    { id: 'recetas', label: 'Cocina', icono: 'cocina', sub: 'Recetas, producción, elaborados' },
+    { id: 'recetas', label: 'Recetas', icono: 'cocina', sub: 'Platos, producción, elaborados' },
     { id: 'pagos', label: 'Pagos', icono: 'pagos', sub: 'Cuentas, facturas, pagos' },
     { id: 'catalogo', label: 'Catálogo', icono: 'catalogo', sub: 'Productos, proveedores, locales' },
     { id: 'ajustes', label: 'Ajustes', icono: 'ajuste', sub: 'Días que abre cada local, feriados' },
@@ -52,16 +71,16 @@ const MAS = {
   ],
   contadora: []
 };
-// Rutas viejas que cambiaron de nombre: siguen andando y llevan a la nueva. El Hoy de gerencia pasó a Decidir (el tablero
-// sigue en Más → Tablero, #/tablero).
-const ALIAS = { 'gerencia/hoy': 'decidir' };
+// Rutas viejas que cambiaron de nombre: siguen andando y llevan a la nueva. El Hoy de gerencia pasó a Inicio (el tablero
+// sigue en Más → Tablero, #/tablero; #/decidir sigue abriendo Problemas).
+const ALIAS = { 'gerencia/hoy': 'inicio' };
 const RUTAS_PAGOS = { 'gasto': () => import('./g-gasto.js'), 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
   encargado: { 'hoy': () => import('./hoy.js'), 'pedir': () => import('./pedir.js'), 'pedir-prov': () => import('./pedir.js'), 'apertura': () => import('./hoja.js'), 'cierre': () => import('./hoja.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'hoja': () => import('./hoja.js'), 'retiros': () => import('./retiros.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
-    'decidir': () => import('./g-decidir.js'), 'semaforo': () => import('./g-semaforo.js'), 'local': () => import('./g-local.js'), 'producto': () => import('./g-local.js'),
+    'inicio': () => import('./g-inicio.js'), 'costos': () => import('./g-costos.js'), 'decidir': () => import('./g-decidir.js'), 'semaforo': () => import('./g-semaforo.js'), 'local': () => import('./g-local.js'), 'producto': () => import('./g-local.js'),
     'tablero': () => import('./g-hoy.js'), 'comprar': () => import('./g-comprar.js'), 'hay': () => import('./g-hay.js'), 'ajustes': () => import('./g-ajustes.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'por-producto': () => import('./g-por-producto.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
     'stock': () => import('./g-stock.js'), 'sector': () => import('./g-sector.js'), 'g-retiros': () => import('./g-retiros.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'perdida': () => import('./g-perdida.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
@@ -84,13 +103,24 @@ let ctx = null;
 let ticket = 0;
 let limpiar = null;
 
+// Color de la barra del sistema: negro del turno para el encargado y Entrar; claro/oscuro de gerencia según el teléfono.
+function colorBarra(rol) {
+  const g = rol === 'gerencia' || rol === 'contadora';
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    const oscuro = /dark/.test(m.getAttribute('media') || '');
+    m.setAttribute('content', g ? (oscuro ? '#12141A' : '#F6F7F9') : '#0D0C0A');
+  });
+}
+
 function registrarSW() {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 async function mostrarEntrar() {
   ctx = null; ticket++;
-  delete document.documentElement.dataset.rol; // Entrar usa el tema base (el del encargado)
+  delete document.documentElement.dataset.rol; // Entrar usa el tema base (el del encargado: negro y dorado)
+  delete document.documentElement.dataset.modulo;
+  colorBarra('');
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
   $app.classList.add('no-nav'); $side.replaceChildren(); $tab.replaceChildren(); $tab.hidden = true;
   const { montarEntrar } = await import('./entrar.js');
@@ -121,12 +151,15 @@ function pestanaDe(id) {
 }
 
 function construirShell(c) {
-  // Tema por rol (stock.css): encargado "Guiado", gerencia y administración "Semáforo".
+  // Tema por rol (stock.css): encargado "El turno" (negro y dorado), gerencia y administración "Módulos de color".
   document.documentElement.dataset.rol = c.rol;
+  colorBarra(c.rol);
   const items = navDe(c);
   const mas = masDe(c);
   $app.classList.remove('no-nav');
-  const enlace = (it, clase) => h('a', { class: clase + (it.id === 'mas' && clase === 'tab' ? ' tab-mas' : ''), href: '#/' + it.id, 'data-nav': it.id, 'data-mas': it.id === 'mas' ? mas.map(x => x.id).join(' ') : null }, icon(it.icono, clase === 'tab' ? 22 : 20), h('span', { text: it.label }));
+  // Gerencia: cada módulo lleva un chip de su color en lugar del ícono (Más sigue con el ícono).
+  const marca = (it, clase) => (it.modulo ? h('i', { class: 'chip-mod', 'data-mod': it.modulo, 'aria-hidden': 'true' }) : icon(it.icono, clase === 'tab' ? 22 : 20));
+  const enlace = (it, clase) => h('a', { class: clase + (it.id === 'mas' && clase === 'tab' ? ' tab-mas' : ''), href: '#/' + it.id, 'data-nav': it.id, 'data-mas': it.id === 'mas' ? mas.map(x => x.id).join(' ') : null }, marca(it, clase), h('span', { text: it.label }));
   const salirBtn = (clase) => h('button', { class: clase, type: 'button', on: { click: cerrarSesion } }, icon('salir', clase === 'tab' ? 22 : 20), h('span', { text: 'Salir' }));
   // En escritorio la barra lateral muestra las mismas pestañas (Más solo si tiene secciones) y Salir.
   const lateral = items.filter(it => it.id !== 'mas' || mas.length);
@@ -172,6 +205,8 @@ async function ruta() {
   const mi = ++ticket;
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
   marcarActivo(id);
+  const modulo = ctx.rol === 'gerencia' ? moduloDe(id) : null;
+  if (modulo) document.documentElement.dataset.modulo = modulo; else delete document.documentElement.dataset.modulo;
   $view.replaceChildren(esqueleto(5));
   try {
     const mod = await vistas[id]();
@@ -179,7 +214,9 @@ async function ruta() {
     const root = h('div', { class: 'vista' });
     root.classList.add('entra'); setTimeout(() => root.classList.remove('entra'), 600); // aparece suave solo al entrar
     const volver = volverAHoy(id);
-    $view.replaceChildren(...(volver ? [volver, root] : [root]));
+    // Miga de color arriba de la vista: "■ STOCK · LO QUE HAY". Así se sabe en qué módulo se está.
+    const miga = modulo ? h('p', { class: 'miga-mod', 'data-mod': modulo }, h('i', { 'aria-hidden': 'true' }), h('span', { text: MODULOS[modulo].nombre + (ROTULOS[id] ? ' · ' + ROTULOS[id] : '') })) : null;
+    $view.replaceChildren(...[volver, miga, root].filter(Boolean));
     const vctx = { ...ctx, alive: () => mi === ticket, ir: (r) => { location.hash = '#/' + r; }, mas: masDe(ctx), quien: quienEs(ctx), salir: cerrarSesion };
     const res = await mod.render(root, vctx, id);
     if (mi === ticket && typeof res === 'function') limpiar = res;

@@ -37,6 +37,7 @@ jobs:
           node scripts/verify-stock.js
           node scripts/verify-sugerido.js
           node scripts/verify-reposicion.js
+          node scripts/verify-costos.js
 
   deploy-gas:
     needs: verify

@@ -8,10 +8,11 @@
 // Shopping (no elabora): la hoja por sector de antes (Apertura → Durante el día → Cierre), sin cambios.
 // Los sectores son los lugares del local (0025_lugares.sql); si no hay, la hoja es una sola para todo el local.
 import { mount, h, tokens, fmtNum, parseNum, porTexto, lsGet, lsSet, lsDel, esCarta, esBulto, factorDe, plural, fechaLarga, porLugar, SIN_LUGAR, jornadaISO, elabora, textoBulto, norm, enBultos, sumarDias, hoyISO, esFlorida, entregaHoy } from './util.js';
-import { swr, cargarCatalogo, cargarLocales, hojaDelDia, hojaContar, hojaAnotar, hojaBorrar, hojaGuardar, sinHojaSQL, mensajeError, datosReposicion, misOrdenes, cargarProveedoresBasico } from './api.js';
+import { swr, cargarCatalogo, cargarLocales, hojaDelDia, hojaContar, hojaAnotar, hojaBorrar, hojaGuardar, sinHojaSQL, mensajeError, datosReposicion, misOrdenes, cargarProveedoresBasico, entradasRecientes } from './api.js';
 import { buscar as buscarProds, frecuencia, anotarUso } from './busqueda.js';
 import { esqueleto, vacio, banner, toast, icon, hoja as hojaModal, stepper, tituloGrande, botonFijo, teclado, aplicarTecla, barraProgreso } from './ui.js';
 import { planLocal, aperturaSugerida, textoAlcanza, textoCuando } from './reposicion.js';
+import { lotesFifo, etiquetasFifo, DIAS_FIFO } from './fifo.js';
 
 export const TODO_EL_LOCAL = 'Todo el local';
 const PASOS = [['apertura', 'Apertura'], ['durante', 'Durante el día'], ['cierre', 'Cierre']];
@@ -283,13 +284,15 @@ async function renderDia(root, ctx, ruta = 'hoja') {
   const lid = ctx.perfil.local_id;
   const fecha = jornadaISO();
   const quien = () => lsGet('nombre') || ctx.nombreGuardado || '';
-  let prods = [], local = null, movs = [], rep = null, sinSQL = false, provs = new Map(), ordenes = null;
+  let prods = [], local = null, movs = [], rep = null, sinSQL = false, provs = new Map(), ordenes = null, fifo = new Map();
   mount(root, tituloGrande('Hoja del día'), esqueleto(5));
   await Promise.allSettled([
     swr('cat:' + lid, () => cargarCatalogo(lid), (d) => { prods = d || []; }),
     swr('locales', cargarLocales, (d) => { local = (d || []).find(x => x.id === lid) || null; }),
     hojaDelDia(lid, fecha).then(r => { movs = r || []; }).catch(e => { if (sinHojaSQL(e)) sinSQL = true; else toast('No pude cargar la hoja: ' + mensajeError(e), 'error'); }),
-    swr('rep:' + lid, () => datosReposicion(lid, fecha), (d) => { if (d && d.hoy === fecha) rep = d; })
+    swr('rep:' + lid, () => datosReposicion(lid, fecha), (d) => { if (d && d.hoy === fecha) rep = d; }),
+    // FIFO: solo la fecha en que entró cada producto (si falla, cada producto dice "Sin fecha de entrada").
+    entradasRecientes(lid, sumarDias(fecha, -DIAS_FIFO)).then(r => { fifo = lotesFifo(r, { desde: sumarDias(fecha, -DIAS_FIFO) }); }).catch(() => {})
   ]);
   if (!ctx.alive()) return;
   const activos = prods.filter(p => p.activo !== false && !esCarta(p) && !p.oculto).sort((a, b) => porTexto(a.nombre, b.nombre));
@@ -422,6 +425,9 @@ async function renderDia(root, ctx, ruta = 'hoja') {
     let fresco = true;
     const prog = barraProgreso(0, 'Producto que estás contando');
     const arriba = h('small', {});
+    const lugar = h('p', { class: 'gd-lugar', 'data-guiada': 'lugar' });
+    const fifoEl = h('div', { class: 'gd-fifo', 'data-guiada': 'fifo' });
+    const lugares = [...sectores.keys()];
     const q = h('span', { class: 'gd-q', 'data-guiada': 'n' });
     const nombre = h('h1', { class: 'gd-prod', 'data-guiada': 'producto' });
     const donde = h('span', { class: 'gd-where' });
@@ -443,11 +449,15 @@ async function renderDia(root, ctx, ruta = 'hoja') {
       const p = orden[idx];
       fresco = true; conf.hidden = true;
       const s = sectorDe.get(p.id);
-      arriba.textContent = `${esAp ? 'Apertura' : 'Cierre'}${s && s !== TODO_EL_LOCAL ? ' · ' + s : ''}`;
+      // Encabezado de lugar: dónde está parado y cuánto le falta ahí (sin cantidades esperadas).
+      const delLugar = sectores.get(s) || [p];
+      arriba.textContent = `${esAp ? 'Apertura' : 'Cierre'}${lugares.length > 1 ? ` · lugar ${lugares.indexOf(s) + 1} de ${lugares.length}` : ''}`;
+      lugar.replaceChildren(h('span', { class: 'gd-lugar-n', text: s && s !== SIN_LUGAR ? s : 'Sin lugar' }), h('span', { class: 'gd-lugar-a num', text: `${delLugar.indexOf(p) + 1} de ${delLugar.length} acá` }));
+      fifoEl.replaceChildren(...etiquetasFifo(fifo.get(p.id)).map(e => h('span', { class: 'gd-fifo-t is-' + e.tipo, 'data-fifo': e.tipo, text: e.texto })));
       q.textContent = `${idx + 1} de ${N}`;
       prog.set((idx + 1) / N);
       nombre.textContent = p.nombre;
-      donde.textContent = [s && s !== TODO_EL_LOCAL && s !== SIN_LUGAR ? s : null, esBulto(p) ? textoBulto(p) : null].filter(Boolean).join(' · ');
+      donde.textContent = esBulto(p) ? textoBulto(p) : ''; // el lugar ya está en el encabezado
       ant.textContent = textoAnterior(p);
       cta.textContent = guardando ? 'Guardando…' : idx < N - 1 ? `Siguiente: ${orden[idx + 1].nombre}` : (esAp ? 'Terminar apertura' : 'Terminar cierre');
       cta.disabled = guardando;
@@ -473,9 +483,9 @@ async function renderDia(root, ctx, ruta = 'hoja') {
       fresco = false; guardarBorr(modo); pintarValor();
     } });
     mount(root, h('section', { class: 'gd', 'data-modo': modo, 'aria-label': esAp ? 'Apertura' : 'Cierre' },
-      h('div', { class: 'gd-top' }, arriba, prog.el),
+      h('div', { class: 'gd-top' }, arriba, lugar, prog.el),
       h('div', { class: 'gd-nav' }, atras, q, aLista),
-      h('div', {}, nombre, donde), val, ant, tecl, conf, cta, atajo));
+      h('div', {}, nombre, donde, fifoEl), val, ant, tecl, conf, cta, atajo));
     pintarProd();
   }
 
