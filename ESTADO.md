@@ -2,6 +2,12 @@
 
 Actualizado: 22 de octubre de 2026 (tarde, pase de diseño). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
 
+## Avisos de cierre por WhatsApp para Ara (25/11/2026, rama `claude/project-thread-nt7yrx`)
+- SQL `supabase/migrations/0033_avisos_whatsapp.sql` (idempotente, lo pega Jacobo): `locales.avisos_whatsapp text[]`, tabla `avisos_token` (sin políticas), rpc `cierres_pendientes(p_token, p_fecha)` para anon con token, `aviso_token()` / `aviso_token_nuevo()` solo gerencia.
+- Ara (agente en Railway) hace POST a `/rest/v1/rpc/cierres_pendientes` con `apikey` (clave pública) y `{"p_token": ...}`; recibe `faltan` (locales que abrieron y no cerraron, con WhatsApp y link), `cerraron`, `no_abria`. Ara manda el WhatsApp; la app no envía mensajes.
+- UI: Más → Ajustes, campo WhatsApp por local (no Shopping) y sección "Avisos por WhatsApp (Ara)" con dirección, token y ejemplo curl.
+- Pruebas: `node scripts/verify-avisos.js` (pglite, 17 OK), `node scripts/e2e-comprar.js` (con y sin 0033), verify-stock, verify-v2.
+
 ## Rediseño "lo que sobró" (22/11/2026, rama `claude/project-thread-nt7yrx`, sin push ni PR)
 
 Plan: `/mnt/project-files/rediseno-sobrante/PLAN.md` (pasos 1–11). Capturas 390/1300 px en

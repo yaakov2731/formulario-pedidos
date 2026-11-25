@@ -189,9 +189,21 @@ export async function cargarProveedores() {
 const faltaColLoc = (r) => r.error && (r.error.code === '42703' || /column .* does not exist/i.test(r.error.message || ''));
 let hayDiasAbre = true;
 export const hayColumnaDiasAbre = () => hayDiasAbre;
+// 0033: WhatsApp por local para los avisos (Ara) y el token secreto que gerencia le pasa a Ara.
+let hayAvisos = true;
+export const hayColumnaAvisos = () => hayAvisos;
+export const AVISOS_URL = CFG.SUPABASE_URL + '/rest/v1/rpc/cierres_pendientes';
+export const AVISOS_APIKEY = CFG.SUPABASE_KEY;
+export async function avisoToken(nuevo) {
+  const r = await sb.rpc(nuevo ? 'aviso_token_nuevo' : 'aviso_token');
+  if (sinFuncion(r.error)) return null;
+  return ok(r);
+}
 export async function cargarLocales() {
   const base = 'id,codigo,nombre,encargados,activo';
-  let r = hayDiasAbre ? await sb.from('locales').select(base + ',razon_social,cuit,dias_abre,abre_feriados').order('nombre') : null;
+  let r = hayDiasAbre && hayAvisos ? await sb.from('locales').select(base + ',razon_social,cuit,dias_abre,abre_feriados,avisos_whatsapp').order('nombre') : null;
+  if (r && faltaColLoc(r)) { hayAvisos = false; r = null; }
+  if (!r && hayDiasAbre) r = await sb.from('locales').select(base + ',razon_social,cuit,dias_abre,abre_feriados').order('nombre');
   if (!r || faltaColLoc(r)) { if (r) hayDiasAbre = false; r = await sb.from('locales').select(base + ',razon_social,cuit').order('nombre'); }
   if (faltaColLoc(r)) return ok(await sb.from('locales').select(base).order('nombre'));
   return ok(r);
