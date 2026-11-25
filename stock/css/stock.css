@@ -2070,3 +2070,139 @@ body { letter-spacing: -0.003em; }
 .bsem-c small { font-size: 11px; color: var(--text-2); white-space: nowrap; }
 .fp-sec { margin: 16px 0 6px; }
 .grupo-prov.is-ver { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* ---------- Compras → Armar · Por proveedor (2026-11-25): una sección por proveedor, columnas por local en la PC y una
+   tarjeta por producto en el celular (total grande, locales en una línea; "Otro proveedor" a un toque) ---------- */
+.pp { gap: 14px; padding: 18px 16px; }
+.pp-head { gap: 8px; }
+.pp-tit .gp-t { font-size: 21px; }
+.pp-sub { font-size: 14px; color: var(--text-2); margin: 2px 0 0; }
+.pp-meta { gap: 12px; }
+.pp-meta .estado { font-size: 14px; }
+.pp-datos { display: flex; flex-direction: column; gap: 2px; }
+.pp-quien, .pp .pp-facturar { font-size: 13px; color: var(--text-2); margin: 0; }
+.pp-avisos { display: flex; flex-direction: column; gap: 6px; }
+.pp-avisos .gp-nota { margin: 0; padding: 8px 12px; font-size: 14px; }
+.pp .pp-tabla { display: flex; flex-direction: column; border-top: 1px solid var(--sep); }
+.pp .pp-fila { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "prod cant" "locs locs" "prov prov"; gap: 8px 14px; align-items: start; padding: 14px 0; min-height: 48px; border-top: 0; border-bottom: 1px solid var(--sep); }
+.pp .pp-fila:last-child { border-bottom: 0; }
+.pp .pp-fila.con-chk { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "sel prod cant" ". locs locs" ". prov prov"; }
+.pp .pp-sel { grid-area: sel; width: 40px; height: 40px; }
+.pp .pp-prod { grid-area: prod; gap: 2px; }
+.pp .pp-prod b { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.pp-cod { font-size: 12px; color: var(--text-3); }
+.pp-otro { align-self: flex-start; min-height: 32px; padding: 4px 0; border: 0; background: none; color: var(--accent-text); font: 600 13px var(--font); cursor: pointer; }
+.pp .pp-cant { grid-area: cant; display: flex; flex-direction: column; align-items: flex-end; gap: 0; text-align: right; }
+.pp-tot { font-size: 24px; font-weight: 700; line-height: 1.1; color: var(--text); }
+.pp-u { font-size: 13px; color: var(--text-2); font-family: var(--font); }
+.pp-locs { grid-area: locs; display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--text-2); }
+.pp-c { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.pp-c.is-vacia { display: none; }
+.pp-c .pp-loc { gap: 4px; }
+.pp-c .pp-loc b { font-size: 15px; }
+.pp-quien-l { font-size: 12px; color: var(--text-3); }
+.pp .pp-loc-inp { width: 72px; min-height: 44px; font-size: 16px; }
+.pp .pp-prov { grid-area: prov; display: none; }
+.pp .pp-fila.ver-prov .pp-prov, .pp .pp-prov.is-sin, .pp .pp-prov:has(.sug) { display: flex; }
+.pp .pp-fila.ver-prov .pp-otro { color: var(--text-2); }
+.pp .pp-h { display: none; }
+@media (min-width: 820px) {
+  .pp { padding: 20px 22px; }
+  .pp .pp-tabla { overflow-x: auto; }
+  .pp .pp-fila { grid-template-columns: minmax(200px, 1fr) repeat(var(--nloc, 1), minmax(78px, 104px)) 120px minmax(170px, 230px); grid-template-areas: none; align-items: center; gap: 14px; padding: 8px 0; min-height: 60px; }
+  .pp .pp-fila.con-chk { grid-template-columns: 40px minmax(200px, 1fr) repeat(var(--nloc, 1), minmax(78px, 104px)) 120px minmax(170px, 230px); grid-template-areas: none; }
+  .pp .pp-fila > * { grid-area: auto; }
+  .pp-locs { display: contents; }
+  .pp-c, .pp-c.is-vacia { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px; text-align: right; }
+  .pp-c-n { display: none; }
+  .pp-c.is-vacia .pp-c-v { color: var(--text-3); }
+  .pp-otro { display: none; }
+  .pp .pp-prov { display: flex; }
+  .pp .pp-cant { flex-direction: row; align-items: baseline; justify-content: flex-end; gap: 6px; }
+  .pp-tot { font-size: 19px; }
+  .pp .pp-h { display: grid; min-height: 36px; padding: 6px 0; font-size: 13px; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--line); }
+  .pp .pp-h .pp-c { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pp .pp-h-tot { text-align: right; }
+}
+
+/* ---------- Compras → Armar · Por producto: hoja de armado (una fila por producto, columnas por local, por proveedor) ---------- */
+.ppr-barra { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin: 0 0 10px; }
+.ppr-seg { margin: 0; }
+.ppr-seg .seg-b { gap: 8px; }
+.ppr-resumen { margin: 4px 0 18px; font-size: 14px; color: var(--text-2); text-align: left; }
+.ppr-resumen b { color: var(--text); }
+.ppr-grupo { margin: 0 0 26px; text-align: left; }
+.ppr-g-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 0 2px 10px; }
+.ppr-g-t { font: 700 20px/1.2 var(--font-display); }
+.ppr-g-n { font-size: 13px; color: var(--text-2); margin: 2px 0 0; }
+.ppr-lista { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+.ppr-lista .ppr-f { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 12px 16px; border-top: 1px solid var(--sep); }
+.ppr-lista .ppr-f:first-child { border-top: 0; }
+.ppr-f-t { min-width: 0; }
+.ppr-f-t b { display: block; font-size: 16px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.ppr-desglose { display: block; margin-top: 4px; font-size: 14px; color: var(--text-2); }
+.ppr-f-tot { flex: 0 0 auto; text-align: right; }
+.ppr-f-tot b { display: block; font-size: 26px; font-weight: 700; line-height: 1.05; }
+.ppr-f-tot span { font-size: 13px; color: var(--text-2); }
+.ppr-ir { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap); color: var(--accent-text); font-size: 14px; font-weight: 600; text-decoration: none; }
+.ppr-scroll { overflow: auto; max-height: calc(100dvh - 250px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+.ppr-tabla { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; text-align: left; }
+.ppr-tabla thead th { position: sticky; top: 0; z-index: 2; padding: 12px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--text-2); white-space: nowrap; text-align: left; }
+.ppr-tabla th.num, .ppr-tabla td.num { text-align: right; }
+.ppr-tabla td { height: 56px; padding: 10px 16px; border-bottom: 1px solid var(--sep); vertical-align: middle; font-size: 15px; }
+.ppr-tabla .ppr-c-prod { min-width: 240px; }
+.ppr-tabla td.ppr-c-prod b { font-weight: 600; }
+.ppr-cod { display: block; font-size: 12px; color: var(--text-3); }
+.ppr-u { color: var(--text-2); }
+.ppr-tabla td.ppr-c-tot { font-size: 17px; font-weight: 700; }
+.ppr-cero { color: var(--text-3); }
+.ppr-g th { padding: 22px 16px 10px; background: var(--surface); border-bottom: 2px solid var(--accent-deco); text-align: left; font-weight: 400; }
+.ppr-tabla tbody:first-of-type .ppr-g th { padding-top: 14px; }
+.ppr-g-in { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.ppr-g .ppr-g-t { font-size: 18px; }
+.ppr-g .ppr-ir { margin-left: auto; min-height: 32px; }
+@media (min-width: 820px) {
+  .ppr-barra { flex-direction: row; align-items: center; justify-content: space-between; }
+  .ppr-seg { flex: 0 1 480px; }
+}
+
+/* ---------- Impresión de Compras (hoja de armado y orden de compra): A4 horizontal, encabezado en el thead para que se
+   repita en cada hoja, "Página N de M" en @page, filas enteras, títulos de grupo pegados a su primera fila ---------- */
+@media print {
+  .pr-prov[data-doc] .pr-tabla { margin: 0; font-size: 10.5pt; }
+  .pr-prov[data-doc] .pr-run th { padding: 0 0 6pt; background: none; border-bottom: 0; text-transform: none; letter-spacing: 0; color: #000; font-size: 10pt; font-weight: 400; }
+  .pr-prov[data-doc] .pr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18pt; margin: 0; padding: 0 0 6pt; border-bottom: 1.5pt solid #000; }
+  .pr-prov[data-doc] .pr-head-t { min-width: 0; }
+  .pr-prov[data-doc] .pr-marca { font-size: 8.5pt; color: #444; }
+  .pr-prov[data-doc] .pr-t { font-size: 19pt; margin: 1pt 0 0; }
+  .pr-prov[data-doc] .pr-sub { margin: 2pt 0 0; font-size: 9.5pt; color: #333; }
+  .pr-prov[data-doc] .pr-datos { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.5pt 8pt; margin: 0; max-width: 58%; font-size: 9pt; text-align: left; color: #000; }
+  .pr-prov[data-doc] .pr-dato { display: contents; }
+  .pr-prov[data-doc] .pr-datos dt { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.05em; color: #555; align-self: baseline; white-space: nowrap; }
+  .pr-prov[data-doc] .pr-datos dd { margin: 0; font-weight: 600; }
+  .pr-prov[data-doc] .pr-datos dd.pr-firma { min-width: 150pt; height: 11pt; border-bottom: 0.75pt solid #000; }
+  .pr-prov[data-doc] .pr-cols th { padding: 5pt 6pt 3pt; font-size: 8pt; border-bottom: 1pt solid #000; vertical-align: bottom; }
+  .pr-prov[data-doc] .pr-tabla td { padding: 3pt 6pt; border-bottom: 0.5pt solid #aaa; vertical-align: middle; }
+  .pr-prov[data-doc] td.pr-ok::after { width: 11pt; height: 11pt; vertical-align: middle; }
+  .pr-prov[data-doc] .pr-tabla td:nth-child(3), .pr-prov[data-doc] .pr-tabla th:nth-child(3) { width: auto; }
+  .pr-prov[data-doc] .pr-num { width: 8%; font-weight: 400; }
+  .pr-prov[data-doc] .pr-tot { width: 8%; font-weight: 700; font-size: 11.5pt; }
+  .pr-prov[data-doc] .pr-c-u, .pr-prov[data-doc] .pr-u { width: 10%; }
+  .pr-prov[data-doc] .pr-cero { color: #888; }
+  .pr-prov[data-doc] .pr-ok { width: 7%; text-align: center; }
+  .pr-prov[data-doc] .pr-cod { font-size: 9pt; }
+  .pr-prov[data-doc] tr.pr-grupo { break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+  .pr-prov[data-doc] tr.pr-grupo th { padding: 9pt 6pt 3pt; background: none; border-bottom: 1pt solid #000; text-transform: none; letter-spacing: 0; color: #000; font-size: 11pt; }
+  .pr-prov[data-doc] tr.pr-grupo th span { font-weight: 400; color: #333; }
+  .pr-prov[data-doc] .pr-locales { margin-top: 12pt; break-inside: avoid; font-size: 10pt; }
+  .pr-prov[data-doc] .pr-h2 { margin: 0 0 3pt; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.06em; color: #444; break-after: avoid; }
+  .pr-prov[data-doc] .pr-local { margin: 0 0 3pt; }
+  .pr-prov[data-doc] .pr-local .pr-factura { display: inline; margin: 0; }
+  .pr-prov[data-doc] .pr-local .pr-factura::before { content: " · "; font-weight: 400; }
+  .pr-prov[data-doc] .pr-firmas { display: flex; gap: 28pt; margin-top: 26pt; break-inside: avoid; }
+  .pr-prov[data-doc] .pr-firma-l { flex: 1; padding-top: 3pt; border-top: 0.75pt solid #000; font-size: 8.5pt; color: #333; }
+}
+.ppr-g-in .estado, .pp-meta .estado { align-self: center; }
+.pp .acciones:empty { display: none; }
+.ppr-seg .seg-b { white-space: nowrap; }
+@media (max-width: 419px) { .ppr-seg .seg-n { display: none; } }
