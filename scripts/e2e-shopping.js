@@ -134,11 +134,11 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.waitForSelector('.tab');
   const tabs = await e.locator('.tab').allInnerTexts();
   ok(!tabs.some(x => /Elaborados/.test(x)), 'el Shopping no tiene la pestaña Elaborados · ' + tabs.join(' / '));
-  ok(tabs.map(x => x.trim()).join(',') === 'Retiros,Pedir,Mis pedidos,Más', 'Retiros · Pedir · Mis pedidos · Más (Facturas está en Más) · ' + tabs.join(','));
+  ok(tabs.map(x => x.trim()).join(',') === 'Hoy,Mis pedidos,Más', 'Hoy · Mis pedidos · Más (Retiros, Pedir y Facturas desde Hoy y Más) · ' + tabs.join(','));
   await shot(e, '01-shopping-sin-elaborados-m');
   await e.goto(BASE + '#/elaborados');
-  await e.waitForFunction(() => location.hash === '#/retiros');
-  ok(true, 'entrar a #/elaborados lo devuelve a Retiros');
+  await e.waitForFunction(() => location.hash === '#/hoy');
+  ok(true, 'entrar a #/elaborados lo devuelve a Hoy');
 
   // Contar: a ciegas (sin "Quedan"), vacío = no contado, 0 vale.
   await e.goto(e.url().split('#')[0] + '#/contar');
@@ -166,7 +166,9 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   const { c: cB, p: b } = await nuevo(M, U_BRK, { nombre: 'Maru' });
   await b.goto(BASE + '#/pedir');
   await b.waitForSelector('.tab');
-  ok(await b.locator('.tab', { hasText: 'Elaborados' }).count() === 1 && await b.locator('.tab', { hasText: 'Stock' }).count() === 1, 'Brooklyn sigue con Elaborados y también tiene Stock');
+  await b.goto(BASE + '#/elaborados');
+  await b.waitForTimeout(600);
+  ok(await b.evaluate(() => location.hash) === '#/elaborados' && await b.locator('.tabbar .tab.is-active').getAttribute('data-nav') === 'hoy', 'Brooklyn sigue entrando a Elaborados (dentro de Hoy)');
   await cB.close();
 
   // ===== Gerencia · PC =====

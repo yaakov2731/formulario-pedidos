@@ -1997,7 +1997,7 @@ body { letter-spacing: -0.003em; }
 .bg .bg-ok { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ok-ink); }
 .bg:active { transform: scale(0.99); }
 .hoy-hechos-t { margin: 22px 4px 8px; }
-.hoy-vacio { padding: 28px 18px; border-radius: 16px; border: 1px dashed var(--line); text-align: center; }
+.hoy-vacio { padding: 28px 18px; border-radius: 16px; border: 1px dashed var(--line); text-align: center; margin-bottom: 16px; }
 .hoy-vacio b { display: block; font-size: 18px; }
 .hoy-vacio span { color: var(--text-2); font-size: 14px; }
 @media (min-width: 820px) { .bg-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bg-lista > .is-main { grid-column: 1 / -1; } }

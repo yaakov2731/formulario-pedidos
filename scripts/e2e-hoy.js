@@ -245,7 +245,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     const { c, p } = await abrir(ancho, U_GER, dbGer, MIER, '#/tablero');
     await p.waitForSelector('.gh-sem'); await p.waitForSelector('.gh-cargando', { state: 'detached' });
     if (ancho === 390) {
-      ok(await p.locator('h1').first().innerText() === 'Hoy', 'gerencia: el tablero (Hoy) sigue en #/tablero');
+      ok(await p.locator('h1').first().innerText() === 'Tablero', 'gerencia: el tablero sigue en #/tablero (Más → Tablero)');
       ok((await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' ').toLowerCase() === 'Ventas $ 4,12 M Compras $ 1,89 M Margen 68 %'.toLowerCase(), 'gerencia: una línea con ventas, compras y margen de la semana');
       ok((await texto(p, '[data-grupo="aprobar"]')).join(' / ') === 'Barcena Shopping · Umo Grill 3 ítems / Distribuidora Florida Umo Grill 1 ítem', 'gerencia: para aprobar por proveedor · ' + (await texto(p, '[data-grupo="aprobar"]')).join(' / '));
       ok((await texto(p, '[data-grupo="entregas"]')).join(' / ') === 'Barcena Umo Grill 2 ítems', 'gerencia: entregas de hoy (Barcena entrega los miércoles)');

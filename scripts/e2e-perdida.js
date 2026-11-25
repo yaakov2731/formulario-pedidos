@@ -160,8 +160,8 @@ const valor = async (p, k) => (await p.locator(`[data-perdida="${k}"] .lg-v`).in
   const db = () => ({ log: [], hoja: HOJA, movs: MOVS, precios: PRECIOS });
 
   for (const ancho of [390, 1366]) {
-    // ===== 1) Hoy de gerencia: Pérdida de la semana por local =====
-    const { c, p } = await abrir(ancho, db());
+    // ===== 1) Tablero de gerencia (Más → Tablero; el inicio ahora es Decidir): Pérdida de la semana por local =====
+    const { c, p } = await abrir(ancho, db(), '#/tablero');
     await p.waitForSelector('[data-grupo="perdida"]');
     const filas = await texto(p, '[data-grupo="perdida"]');
     ok(filas.join(' / ') === 'Umo Grill Sin explicar $ 20.200 · Merma $ 13.000 · falta costo de 1 $ 33.200 / Shopping Sin cierres esta semana Falta cargar / Trento Café Sin cierres esta semana Falta cargar',
@@ -173,7 +173,7 @@ const valor = async (p, k) => (await p.locator(`[data-perdida="${k}"] .lg-v`).in
     // ===== 2) Toca Umo → detalle en Stock → Control → Pérdida =====
     await p.locator('[data-grupo="perdida"][data-local="' + L1 + '"]').click();
     await p.waitForSelector('[data-perdida="total"]');
-    ok(await p.evaluate(() => location.hash) === '#/perdida' && await p.locator('.volver-hoy').count() === 1, `${ancho}: toca → Pérdida, con ‹ Hoy para volver`);
+    ok(await p.evaluate(() => location.hash) === '#/perdida' && await p.locator('.volver-hoy').count() === 1, `${ancho}: toca → Pérdida, con ‹ Tablero para volver`);
     ok(await p.locator('.subnav-b.is-on').innerText() === 'Control' && await p.locator('.subnav-f.is-on').innerText() === 'Pérdida', `${ancho}: dentro de Stock → Control (filtro Pérdida, sin tercer nivel)`);
     ok((await p.locator('.sel-local').innerText()).trim() === 'Umo Grill', `${ancho}: abre en el local tocado`);
     ok(await valor(p, 'total') === '$ 33.200' && await valor(p, 'sin-explicar') === '$ 20.200' && await valor(p, 'merma') === '$ 13.000' && await valor(p, 'anterior') === '$ 12.000',
