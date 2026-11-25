@@ -429,7 +429,8 @@ select.input { text-align: left; text-align-last: left; }
 /* ---------- esqueletos y vacíos ---------- */
 .skel-list { display: flex; flex-direction: column; gap: 10px; }
 .skel-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
-.skel { border-radius: 8px; background: linear-gradient(90deg, var(--fill) 25%, var(--sep) 50%, var(--fill) 75%); background-size: 200% 100%; animation: brillo 1.4s linear infinite; height: 16px; width: 100%; }
+.skel { border-radius: 8px; background: var(--fill-2); animation: pulso-skel 1.4s ease-in-out infinite; height: 16px; width: 100%; }
+@keyframes pulso-skel { 50% { opacity: 0.45; } }
 .skel-l1 { width: 55%; height: 18px; } .skel-l2 { width: 35%; } .skel-l3 { width: 48%; height: 40px; border-radius: 20px; }
 @keyframes brillo { to { background-position: -200% 0; } }
 .empty { text-align: center; padding: 36px 16px; }
@@ -2087,3 +2088,4 @@ body { letter-spacing: -0.003em; }
 .bsem-c.is-hueco i { background: none; border: 1px dashed var(--text-3); border-bottom: 0; height: 30%; }
 .bsem-c small { font-size: 11px; color: var(--text-2); white-space: nowrap; }
 .fp-sec { margin: 16px 0 6px; }
+.grupo-prov.is-ver { outline: 2px solid var(--text); outline-offset: 2px; }
