@@ -40,15 +40,24 @@ const P = {
   flecha: 'M9 18l6-6-6-6',
   hoja: 'M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M9 13h6M9 17h6',
   retiro: 'M4 7h16v13H4zM9 3h6v4H9zM12 11v6M9 14l3 3 3-3',
-  hoy: 'M7 3v3M17 3v3M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 9h16M9 14.5l2 2 4-4'
+  hoy: 'M7 3v3M17 3v3M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 9h16M9 14.5l2 2 4-4',
+  // Dibujados a mano para el rediseño (mismo grosor y puntas redondeadas que el resto).
+  borrar: ['M9 5h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7z', 'M12 9.5l5 5M17 9.5l-5 5'],
+  decidir: ['M4 13h4.5l1.5 3h4l1.5-3H20', 'M5.5 5h13L20 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6z', 'M9.5 9l2 2 3.5-3.5'],
+  semaforo: ['M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z', 'M12 7.5h.01M12 12h.01M12 16.5h.01'],
+  local: ['M3 10l1.5-5h15L21 10', 'M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0', 'M5 12.5V20h14v-7.5', 'M10 20v-5h4v5'],
+  camion: ['M3 6h11v10H3z', 'M14 9h4l3 3v4h-7', 'M7 18.5a1.5 1.5 0 1 0 0-.01M17 18.5a1.5 1.5 0 1 0 0-.01']
 };
 export function icon(nombre, size = 20) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', size); s.setAttribute('height', size);
-  s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2');
+  s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.75');
   s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.setAttribute('aria-hidden', 'true');
-  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  p.setAttribute('d', P[nombre] || P.check); s.append(p);
+  // Íconos de línea uniformes: uno o varios trazos por ícono, todos con el mismo grosor.
+  for (const d of [].concat(P[nombre] || P.check)) {
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', d); s.append(p);
+  }
   return s;
 }
 
@@ -255,3 +264,79 @@ export const SUBNAV_CONTROL = [['sector', 'Hoy'], ['control', 'Semana'], ['perdi
 export const CONTROL_ABRE = [['g-retiros', 'Retiros'], ['conteos', 'Conteos']];
 export const SUBNAV_STOCK = [['stock', 'Qué hay'], ['sector', 'Control', SUBNAV_CONTROL, CONTROL_ABRE], ['lugares', 'Lugares']];
 export const SUBNAV_COCINA = [['recetas', 'Recetas'], ['produccion', 'Producción'], ['elaborados', 'Elaborados']];
+
+// ===================== Rediseño de cero: piezas nuevas =====================
+
+// Botón grande (Hoy del encargado): título, línea chica y, si ya está hecho, "✓ Hecho" arriba. El principal va en la tinta.
+export function botonGrande({ titulo, sub, principal = false, hecho = false, href, onClick, attrs = {} }) {
+  const tag = href ? 'a' : 'button';
+  return h(tag, { class: 'bg' + (principal ? ' is-main' : '') + (hecho ? ' is-hecho' : ''), href: href || null, type: tag === 'button' ? 'button' : null, ...attrs, on: onClick ? { click: onClick } : undefined },
+    hecho ? h('span', { class: 'bg-ok', text: '✓ Hecho' }) : null, h('b', { text: titulo }), sub ? h('span', { text: sub }) : null);
+}
+
+// Barra de progreso fina. set(fracción 0..1).
+export function barraProgreso(fraccion = 0, etiqueta = 'Avance') {
+  const i = h('i');
+  const el = h('div', { class: 'prog', role: 'progressbar', 'aria-label': etiqueta, 'aria-valuemin': '0', 'aria-valuemax': '100' }, i);
+  const set = (f) => { const v = Math.round(Math.max(0, Math.min(1, f || 0)) * 100); i.style.width = v + '%'; el.setAttribute('aria-valuenow', String(v)); };
+  set(fraccion);
+  return { el, set };
+}
+
+// Teclado propio de 12 teclas (1–9, coma, 0, borrar): no abre el teclado del teléfono ni enfoca un campo.
+// onTecla('0'…'9' | ',' | 'borrar'). En la PC también anda con el teclado físico (números, coma o punto, Backspace) y
+// Enter llama a onEnter. Se desengancha solo cuando el teclado sale de la pantalla.
+export function teclado({ onTecla, onEnter } = {}) {
+  const teclas = ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'borrar'];
+  const el = h('div', { class: 'tecl', role: 'group', 'aria-label': 'Teclado' }, teclas.map(k => h('button', { type: 'button', 'data-tecla': k, 'aria-label': k === 'borrar' ? 'Borrar' : k === ',' ? 'Coma' : k,
+    on: { click: () => onTecla && onTecla(k) } }, k === 'borrar' ? icon('borrar', 24) : k)));
+  const fisico = (e) => {
+    if (!el.isConnected) { document.removeEventListener('keydown', fisico); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
+    const t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+    let k = null;
+    if (/^[0-9]$/.test(e.key)) k = e.key; else if (e.key === ',' || e.key === '.') k = ','; else if (e.key === 'Backspace') k = 'borrar';
+    if (k) { e.preventDefault(); if (onTecla) onTecla(k); } else if (e.key === 'Enter' && onEnter && !(t && t.closest && t.closest('button, a'))) { e.preventDefault(); onEnter(); }
+  };
+  document.addEventListener('keydown', fisico);
+  return el;
+}
+// Aplica una tecla a un texto de número ("12,5"). fresco = el valor todavía no se tocó en esta pantalla: la primera
+// tecla lo reemplaza (como una calculadora).
+export function aplicarTecla(texto, k, fresco = false) {
+  let t = fresco ? '' : String(texto || '');
+  if (k === 'borrar') return fresco ? '' : t.slice(0, -1);
+  if (k === ',') { if (t.includes(',')) return t; return (t || '0') + ','; }
+  if (t === '0') t = '';
+  if (t.length >= 7) return t;
+  const dec = t.split(',')[1];
+  if (dec !== undefined && dec.length >= 3) return t;
+  return t + k;
+}
+
+// Tarjeta de Decidir (gerencia): rótulo arriba, título, línea chica y hasta dos acciones (la principal en la tinta).
+// acciones: [{ texto, href, onClick, principal, externo }].
+export function tarjetaDecidir({ rotulo, tono = 'ink', titulo, sub, acciones = [], attrs = {} }) {
+  return h('article', { class: 'dec', ...attrs },
+    h('span', { class: 'dec-k' + (tono === 'warn' ? ' is-warn' : ''), text: rotulo }), h('b', { class: 'dec-t', text: titulo }), sub ? h('span', { class: 'dec-s', text: sub }) : null,
+    acciones.length ? h('div', { class: 'dec-acts' }, acciones.map(a => h(a.href ? 'a' : 'button', { class: a.principal ? 'is-go' : null, href: a.href || null, type: a.href ? null : 'button',
+      target: a.externo ? '_blank' : null, rel: a.externo ? 'noopener' : null, 'data-accion': a.texto, text: a.texto, on: a.onClick ? { click: a.onClick } : undefined }))) : null);
+}
+
+// Fila del semáforo de locales: luz (verde, ambar, rojo; sin luz = falta dato), nombre, motivo, monto y una línea abajo.
+export function filaSemaforo({ nombre, luz = null, motivo, monto, pie, href, onClick, attrs = {} }) {
+  return h(href ? 'a' : 'div', { class: 'sem', href: href || null, ...attrs, on: onClick ? { click: onClick } : undefined },
+    h('i', { class: 'sem-luz' + (luz ? ' is-' + luz : ''), role: 'img', 'aria-label': luz ? 'Luz ' + (luz === 'ambar' ? 'ámbar' : luz) : 'Sin luz: falta dato' }),
+    h('span', { class: 'sem-tx' }, h('b', { text: nombre }), motivo ? h('small', { text: motivo }) : null),
+    h('span', { class: 'sem-m' }, monto != null ? monto : '', pie ? h('small', { text: pie }) : null));
+}
+
+// Barras de las últimas semanas: [{ etiqueta, valor }]. valor null = semana sin datos (hueco, nunca 0). La más alta va
+// resaltada si es la última. Texto para lectores en aria-label.
+export function barrasSemanas(semanas, { formato = (v) => String(v) } = {}) {
+  const max = Math.max(0, ...semanas.map(s => s.valor || 0));
+  const ult = semanas.length - 1;
+  const desc = semanas.map(s => `${s.etiqueta}: ${s.valor == null ? 'sin datos' : formato(s.valor)}`).join('; ');
+  return h('div', { class: 'bsem', role: 'img', 'aria-label': desc }, semanas.map((s, i) => h('div', { class: 'bsem-c' + (s.valor == null ? ' is-hueco' : '') + (i === ult && s.valor > 0 && s.valor >= max ? ' is-hi' : ''), title: `${s.etiqueta}: ${s.valor == null ? 'sin datos' : formato(s.valor)}` },
+    s.valor == null ? h('i') : h('i', { style: `height:${max > 0 ? Math.max(3, Math.round(s.valor / max * 100)) : 3}%` }), h('small', { text: s.etiqueta }))));
+}

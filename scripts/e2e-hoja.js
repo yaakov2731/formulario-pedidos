@@ -176,7 +176,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await e.goto(BASE + '#/hoja');
   await e.waitForSelector('.cd-seg');
   const tabs = await e.locator('.tabbar .tab').allInnerTexts();
-  ok(tabs.map(x => x.trim()).join(',') === 'Hoja,Pedir,Mis pedidos,Más', 'barra del encargado: Hoja · Pedir · Mis pedidos · Más · ' + tabs.join(','));
+  ok(tabs.map(x => x.trim()).join(',') === 'Hoy,Mis pedidos,Más' && await e.locator('.tab.is-active').getAttribute('data-nav') === 'hoy', 'barra del encargado: Hoy · Mis pedidos · Más (la Hoja vive en Hoy) · ' + tabs.join(','));
   ok(await e.locator('[data-nav="stock"], [data-nav="elaborados"], [data-nav="retiros"]').count() === 0, 'sin Stock, Elaborados ni Retiros en el menú de Umo');
   ok(await e.locator('.seg-b[data-paso="durante"]').count() === 0 && await e.locator('.seg-b[data-modo]').count() === 2, 'Umo: Apertura | Cierre (sin "Durante el día")');
   // La Cocina ya cerró hoy: abre en el resultado y "Corregir el cierre" trae lo guardado; la Barra está sin contar.
@@ -208,7 +208,7 @@ const shot = async (p, n, full = false) => { await p.evaluate(() => { const s = 
   await s.goto(BASE + '#/retiros');
   await s.waitForSelector('.rt-nuevo');
   const tabsS = (await s.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',');
-  ok(tabsS === 'Retiros,Pedir,Mis pedidos,Más', 'barra del Shopping: Retiros · Pedir · Mis pedidos · Más (Hoy y la hoja del depósito, en Más) · ' + tabsS);
+  ok(tabsS === 'Hoy,Mis pedidos,Más', 'barra del Shopping: Hoy · Mis pedidos · Más (Retiros y la hoja del depósito se abren desde Hoy) · ' + tabsS);
   await s.locator('.rt-nuevo').click(); await s.waitForSelector('dialog.sheet');
   await s.locator('dialog input[type="search"]').fill('bolsas');
   await s.locator(`dialog .rt-op[data-id="${P.bolsas.id}"]`).click();

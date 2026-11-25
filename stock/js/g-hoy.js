@@ -31,14 +31,14 @@ export function diferenciaDia(movsDia, ventasDia) {
 }
 
 export async function render(root, ctx) {
-  mount(root, tituloGrande('Hoy'), esqueleto(4));
-  try { await cargarG(['locales', 'provs'], () => {}); } catch (e) { return mount(root, tituloGrande('Hoy'), banner(mensajeError(e), 'error')); }
+  mount(root, tituloGrande('Tablero'), esqueleto(4));
+  try { await cargarG(['locales', 'provs'], () => {}); } catch (e) { return mount(root, tituloGrande('Tablero'), banner(mensajeError(e), 'error')); }
   if (!ctx.alive()) return;
 
   const locales = G.locales.filter(l => l.activo);
   const sel = selectorLocal({ locales: locales.map(l => ({ id: l.id, nombre: l.nombre })), todos: 'Todos los locales', clave: 'g:hoy-local', onChange: () => cargar() });
   const zona = h('div', { class: 'gh' });
-  mount(root, tituloGrande('Hoy', null, { accion: sel.el }), zona);
+  mount(root, tituloGrande('Tablero', null, { accion: sel.el }), zona);
   let vez = 0;
 
   async function cargar() {

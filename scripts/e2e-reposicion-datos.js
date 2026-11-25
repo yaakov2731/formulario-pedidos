@@ -145,7 +145,7 @@ function montarApi(ctx, db, errores) {
     if (t === 'productos') return json(filtro(Object.values(P).filter(mio), q));
     if (t === 'stock_actual') return json(filtro(Object.values(P).filter(mio).map(p => ({ local_id: p.local_id, producto_id: p.id, stock: STOCK[p.id] })), q));
     if (t === 'precio_actual') { if (rol !== 'gerencia') errores.push('el encargado pidió precios'); return json(Object.entries(PRECIO).map(([producto_id, precio]) => ({ producto_id, precio }))); }
-    if (t === 'precios') return json([]);
+    if (t === 'precios') return json(filtro(db.precios || [], q));
     if (t === 'hoja_movs') return json(filtro(db.hoja.filter(mio), q));
     if (t === 'movimientos') return json(filtro(db.movs.filter(mio), q));
     if (t === 'ordenes_compra' && req.method() === 'POST') {
@@ -176,6 +176,8 @@ function montarApi(ctx, db, errores) {
     }
     if (t === 'rpc/hoja_contar') { const b = JSON.parse(req.postData() || '{}'); return json(guardar(b, () => b.p_sector)); }
     if (t === 'rpc/buscar_productos') return json([]);
+    // Ventas de la semana por local (Locales de gerencia): db.ventas = { local_id: pesos }.
+    if (t === 'rpc/tablero') { const b = JSON.parse(req.postData() || '{}'); const v = (db.ventas || {})[b.p_local] || 0; return json({ actual: { ventas: v, compras: 0, margen_pct: null }, pendientes: {} }); }
     errores.push('mock: ruta no prevista ' + req.method() + ' ' + u.pathname + ' (' + rol + ')');
     return json([]);
   });

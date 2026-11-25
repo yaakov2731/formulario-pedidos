@@ -18,7 +18,7 @@ const archivos = ['index.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'c
   'js/main.js', 'js/util.js', 'js/api.js', 'js/ui.js', 'js/entrar.js', 'js/pedir.js', 'js/sugerido.js', 'js/busqueda.js', 'js/datos.js', 'js/g-pedidos.js', 'js/g-cargar.js', 'js/g-recibir.js', 'js/g-stock.js', 'js/g-lugares.js', 'js/contar.js', 'js/g-catalogo.js', 'js/g-categorias.js',
   'js/nucleo.js', 'js/analisis.js', 'js/g-ventas.js', 'js/g-analisis.js', 'js/g-resumen.js', 'js/ventas-global.js', 'js/g-merma.js', 'js/g-recetas.js', 'js/g-produccion.js',
   'js/g-hoy.js', 'js/hoy.js', 'js/compras-estado.js', 'js/mas.js', 'js/g-gasto.js', 'js/g-cuentas.js', 'js/g-facturas.js', 'js/g-historial.js', 'js/g-cargar-pago.js', 'js/g-proveedores.js', 'js/g-locales.js', 'js/aviso.js', 'js/notas.js', 'js/elaborados.js', 'js/pagos-util.js', 'js/comprobante.js', 'js/pdf-texto.js',
-  'js/feriados.js', 'js/reposicion.js', 'js/g-comprar.js', 'js/g-hay.js', 'js/g-ajustes.js', 'js/hoja.js'];
+  'js/feriados.js', 'js/reposicion.js', 'js/g-comprar.js', 'js/g-hay.js', 'js/g-ajustes.js', 'js/hoja.js', 'js/g-decidir.js', 'js/g-semaforo.js', 'js/g-local.js'];
 for (const a of archivos) check('existe stock/' + a, fs.existsSync(S(a)));
 
 check('config apunta al proyecto Supabase', /https:\/\/zunyzlpzofbyqplgiupl\.supabase\.co/.test(read('config.js')) && /sb_publishable_/.test(read('config.js')));
@@ -156,11 +156,11 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   const navGer = (m4.match(/gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0];
   const navCon = (m4.match(/contadora: \[[\s\S]*?\]\s*\};/) || [''])[0];
   const masGer = (m4.match(/const MAS = \{[\s\S]*?gerencia: \[[\s\S]*?\],\s*contadora:/) || [''])[0].split('gerencia:')[1] || '';
-  check('gerencia: Comprar es el inicio (primera sección) y Pagos, Tablero y Ajustes están en Más', /\[\s*\{ id: 'comprar'/.test(navGer) && /id: 'pagos'/.test(masGer) && /id: 'tablero'/.test(masGer) && /id: 'ajustes'/.test(masGer));
+  check('gerencia: Decidir es el inicio (primera sección) y Pagos, Tablero, Lo que hay, Comprar y Ajustes están en Más', /\[\s*\{ id: 'decidir'/.test(navGer) && ['pagos', 'tablero', 'ajustes', 'hay', 'comprar', 'stock', 'resumen', 'recetas', 'catalogo', 'notas'].every(x => masGer.includes(`id: '${x}'`)) && !/id: 'compras'/.test(masGer));
   check('contadora: solo la sección Pagos', navCon.length > 0 && /id: 'pagos'/.test(navCon) && !/pedidos|stock|ventas|tablero|catalogo|recetas|recibir/.test(navCon), navCon);
   check('el menú del encargado no tiene Pagos ni Tablero', navEnc.length > 0 && !/pagos|tablero|facturas|proveedores/.test(navEnc));
   check('las rutas de pagos, facturas y comprobantes están en gerencia y contadora; tablero y proveedores solo en gerencia',
-    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'tablero': \(\) => import\('\.\/g-hoy\.js'\), 'comprar': \(\) => import\('\.\/g-comprar\.js'\), 'hay': \(\) => import\('\.\/g-hay\.js'\), 'ajustes': \(\) => import\('\.\/g-ajustes\.js'\), 'proveedores'/.test(m4) && /ALIAS = \{ 'gerencia\/hoy': 'comprar' \}/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
+    /contadora: \{ \.\.\.RUTAS_PAGOS \}/.test(m4) && /gerencia: \{\s*\.\.\.RUTAS_PAGOS,\s*'decidir': \(\) => import\('\.\/g-decidir\.js'\), 'semaforo': \(\) => import\('\.\/g-semaforo\.js'\), 'local': \(\) => import\('\.\/g-local\.js'\), 'producto': \(\) => import\('\.\/g-local\.js'\),\s*'tablero': \(\) => import\('\.\/g-hoy\.js'\), 'comprar': \(\) => import\('\.\/g-comprar\.js'\), 'hay': \(\) => import\('\.\/g-hay\.js'\), 'ajustes': \(\) => import\('\.\/g-ajustes\.js'\), 'proveedores'/.test(m4) && /ALIAS = \{ 'gerencia\/hoy': 'decidir' \}/.test(m4) && !/encargado: \{[^}]*(pagos|tablero|proveedores)/.test(m4));
   check('el perfil contadora puede entrar a la app', /\['encargado', 'gerencia', 'contadora'\]\.includes\(perfil\.rol\)/.test(m4));
   check('vendor pdf.js 4.x anotado en vendor/README.md', /pdf\.min\.mjs.*4\.\d+\.\d+/.test(read('vendor/README.md')) && /pdf\.worker\.min\.mjs/.test(read('vendor/README.md')));
   check('pdf.js se carga solo en Cargar pago (import dinámico), no en index.html ni en el arranque', !/pdf\.|pdfjs/i.test(html) && /import\('\.\.\/vendor\/pdf\.min\.mjs'\)/.test(read('js/pdf-texto.js')) && !/pdf-texto|pdf\.min/.test(m4));
@@ -188,11 +188,11 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
     return NT.enCarpeta(a, 'gerencia') && !NT.enCarpeta(b, 'gerencia') && NT.enCarpeta(b, 'equipo') && NT.enCarpeta(c, 'de-gerencia') && !NT.enCarpeta(r, 'todas') && NT.enCarpeta(r, 'resueltas');
   })());
   const el = read('js/elaborados.js');
-  check('hoja por sector: el encargado tiene Hoja (y Retiros en el Shopping) en lugar de Stock y Elaborados', /id: 'hoja'/.test(navEnc) && /id: 'retiros'/.test(navEnc) && !/id: 'elaborados'/.test(navEnc) && !/id: 'stock'/.test(navEnc)
+  check('hoja por sector: Hoja, Apertura, Cierre y Retiros viven dentro de Hoy (sin pestaña propia) y Stock y Elaborados no tienen pestaña', /incluye: \['hoja', 'apertura', 'cierre', 'pedir', 'pedir-prov', 'revisar', 'retiros'/.test(navEnc) && !/id: '(hoja|retiros|elaborados|stock)'/.test(navEnc)
     && /'hoja': \(\) => import\('\.\/hoja\.js'\)/.test(m4) && /'sector': \(\) => import\('\.\/g-sector\.js'\)/.test(m4) && sw.includes('./js/hoja.js') && sw.includes('./js/g-retiros.js'));
   check('hoja por sector: el encargado no ve precios ni cálculos', !/precio|costo|fmtMoney|consumo/i.test(read('js/hoja.js').replace(/^\/\/.*$/gm, '')) && !/precio|costo|fmtMoney/i.test(read('js/retiros.js').replace(/^\/\/.*$/gm, '')));
   check('hoja por sector: migración 0031 con permiso por local y merma/retiro en movimientos', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0031_hoja_sector.sql'), 'utf8'); return /mi_local\(\) = p_local/.test(q) && /'merma', -c/.test(q) && /'uso_dia', -c/.test(q) && /hoja_borrar/.test(q); })());
-  check('elaborados: sigue la ruta del encargado y dentro de Stock en gerencia', /id: 'hoja'/.test(navEnc) && (m4.match(/'elaborados': \(\) => import\('\.\/elaborados\.js'\)/g) || []).length === 2 && /SUBNAV_STOCK/.test(read('js/g-stock.js')));
+  check('elaborados: sigue la ruta del encargado y dentro de Stock en gerencia', /'elaborados'/.test(navEnc) && (m4.match(/'elaborados': \(\) => import\('\.\/elaborados\.js'\)/g) || []).length === 2 && /SUBNAV_STOCK/.test(read('js/g-stock.js')));
   check('elaborados: el SW precachea elaborados.js y no muestra precios', sw.includes('./js/elaborados.js') && !/precio|costo|importe/i.test(el));
   check('elaborados: migración 0014 con permiso por local, uso del día y borrar', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0014_elaborados.sql'), 'utf8'); return /mi_local\(\) = p_local/.test(q) && /uso_dia/.test(q) && /borrar_elaboracion/.test(q) && /cerrar_servicio/.test(q); })());
   check('notas: migración 0010 con RLS por local y aviso Telegram opcional', (() => { const q = fs.readFileSync(path.join(root, 'supabase/migrations/0010_notas.sql'), 'utf8'); return /enable row level security/.test(q) && /local_id = public\.mi_local\(\)/.test(q) && /avisar_nota_telegram/.test(q); })());
@@ -200,9 +200,10 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   // ---- Rediseño estilo Apple · fases 2 y 3 ----
   const ui = read('js/ui.js');
   const pestanas = (bloque) => (bloque.match(/\{ id: '/g) || []).length;
-  check('cierre y compras: 4 pestañas por rol (encargado Hoja/Retiros · Pedir · Mis pedidos · Más; gerencia Comprar · Lo que hay · Pedidos · Más)', pestanas(navEnc) === 5 && pestanas(navGer) === 4 && pestanas(navCon) <= 4
-    && /\[\s*\{ id: 'hoja'/.test(navEnc) && /id: 'mis-pedidos'/.test(navEnc) && /id: 'mas'/.test(navGer) && /id: 'hay'/.test(navGer) && /id: 'mas'/.test(navEnc) && /NAV\[c\.rol\]\.filter\(it => !\(c\.rol === 'encargado' && it\.id === \(shopping\(c\) \? 'hoja' : 'retiros'\)\)\)/.test(m4),
-    'encargado tiene Hoja o Retiros, nunca los dos');
+  const labels = (bloque) => [...bloque.matchAll(/label: '([^']+)'/g)].map(m => m[1]).join(' · ');
+  check('rediseño: encargado Hoy · Mis pedidos · Más (también el Shopping); gerencia Decidir · Locales · Compras · Más', labels(navEnc) === 'Hoy · Mis pedidos · Más' && labels(navGer) === 'Decidir · Locales · Compras · Más'
+    && pestanas(navCon) <= 4 && /const navDe = \(c\) => NAV\[c\.rol\];/.test(m4) && /'pedir-prov': \(\) => import\('\.\/pedir\.js'\), 'apertura': \(\) => import\('\.\/hoja\.js'\), 'cierre': \(\) => import\('\.\/hoja\.js'\)/.test(m4),
+    labels(navEnc) + ' / ' + labels(navGer));
   check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana · Pérdida; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\], \['perdida', 'Pérdida'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
   check('fase 2: Compras junta Pedidos · Enviar · Recibir · Gasto', /SUBNAV_COMPRAS = \[\['pedidos', 'Pedidos'\], \['compras', 'Enviar'\], \['recibir', 'Recibir'\], \['gasto', 'Gasto'\]\]/.test(ui));
   check('fase 2: un solo selector de local (chipsLocal usa selectorLocal)', /selectorLocal\(\{ locales, clave: 'g:local'/.test(read('js/datos.js')) && !/class: 'chip' \+ \(l\.id === localId/.test(read('js/g-stock.js')));
@@ -227,7 +228,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
     && /from '\.\/perdida\.js'/.test(read('js/g-sector.js')) && /from '\.\/perdida\.js'/.test(gh) && /costoUnidad/.test(read('js/g-control.js')));
   check('pérdida: perdida.js es pura (sin DOM ni Supabase)', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(pe));
   check('pérdida: Hoy de gerencia con "Pérdida de la semana" (Sin explicar · Merma) que abre Stock → Control → Pérdida', /'Pérdida de la semana'/.test(gh) && /'data-grupo': 'perdida'/.test(gh) && /Sin explicar/.test(gh) && /desdeHoy\('perdida'\)/.test(gh));
-  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /incluye: \[[^\]]*'sector', 'control', 'perdida'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
+  check('pérdida: ruta de gerencia, dentro de Stock, en el SW', /'perdida': \(\) => import\('\.\/g-perdida\.js'\)/.test(m4) && /id: 'semaforo'[^\n]*incluye: \[[^\]]*'perdida', 'sector', 'control'/.test(m4) && sw.includes('./js/perdida.js') && sw.includes('./js/g-perdida.js'));
   check('pérdida: detalle con lo que más pesa, semana anterior y productos clave; sin datos no estima', /'Lo que más pesa'/.test(gpe) && /'Semana anterior'/.test(gpe) && /'Productos clave'/.test(gpe) && /Sin historial todavía/.test(gpe) && /Falta cargar costos/.test(gpe));
   check('pérdida: nada de esto en pantallas del encargado', !['js/pedir.js', 'js/hoy.js', 'js/entrar.js', 'js/contar.js', 'js/hoja.js', 'js/inventario.js', 'js/stock-local.js', 'js/retiros.js'].some(f => /perdida/.test(read(f))) && !/encargado: \{[^}]*perdida/.test(m4));
 
@@ -242,6 +243,19 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('cierre: Ajustes guarda dias_abre y abre_feriados', /dias_abre: d, abre_feriados: fer/.test(ga));
   check('cierre: el Shopping no entra en Comprar ni Lo que hay', /elabora\(l\.codigo\)/.test(gy));
   check('cierre: reposicion.js sin DOM ni Supabase', !/document\.|window\.|from '\.\/(api|ui|datos)\.js'/.test(rp));
+
+  // ---- Rediseño de cero (Guiado para el encargado, Semáforo para gerencia) ----
+  const css = read('css/stock.css'), pd = read('js/pedir.js'), gd = read('js/g-decidir.js'), gs = read('js/g-semaforo.js'), gl = read('js/g-local.js');
+  check('rediseño: sin naranja, degradés ni Geist (CSS e index.html)', !/FF7A1A|FF8A1F|gradient|Geist/i.test(css + html) && !/Geist/.test(ui));
+  check('rediseño: claro y oscuro por rol (data-rol y prefers-color-scheme), fuentes Public Sans, Inter y Bricolage sin bloquear', /:root\[data-rol="gerencia"\]/.test(css) && (css.match(/prefers-color-scheme: dark/g) || []).length >= 2
+    && /color-scheme" content="light dark"/.test(html) && /Public\+Sans/.test(html) && /family=Inter/.test(html) && /Bricolage\+Grotesque/.test(html) && /media="print" onload/.test(html) && /dataset\.rol = c\.rol/.test(m4));
+  check('rediseño: contar guiado en hoja.js (teclado propio, sin input) y una sola llamada a hojaGuardar para lista y guiada', /function pintarGuiada/.test(hj) && /teclado\(/.test(hj) && (hj.match(/hojaGuardar\(/g) || []).length === 1
+    && /hoja-dia:\$\{lid\}:\$\{fecha\}:\$\{tipo\}/.test(hj) && /Ayer/.test(hj) && /Van en 0/.test(hj) && !/h\('input'[^\n]*gd-/.test(hj));
+  check('rediseño: Hoy con botones grandes (Abrir → #/apertura, Cerrar → #/cierre, Pedir → #/pedir-prov) y sin anillo', /botonGrande\(/.test(hy) && /'#\/apertura'/.test(hy) && /'#\/cierre'/.test(hy) && /'#\/pedir-prov'/.test(hy) && !/avanceDelDia|av-anillo/.test(hy + css));
+  check('rediseño: pedir por proveedor reusa enviarGrupo (Revisar y Pedir por proveedor) y crea en borrador', (pd.match(/await enviarGrupo\(/g) || []).length === 2 && /async function enviarGrupo/.test(pd) && /Mandar pedido/.test(pd) && /Buscar otro producto/.test(pd));
+  check('rediseño: Decidir con pedidos, subas y cierres; Aprobar abre Compras (no aprueba) y Aceptar queda en este equipo', /tarjetaDecidir\(/.test(gd) && /Nada para decidir/.test(gd) && /cierresDeAnoche/.test(gd) && /subasRecientes/.test(gd) && !/actualizarOrden|estado: 'aprobada'/.test(gd) && /lsSet\(claveVisto/.test(gd) && /wa\.me\/\?text=/.test(gd));
+  check('rediseño: semáforo con umbrales 3 % y 1 %, "Falta dato" y Shopping por retiros; detalle con barras de 6 semanas', /ROJO = 3, AMBAR = 1/.test(gs) && /Falta dato/.test(gs) && /por retiros/.test(gs) && /retiros? sin destino/.test(gs) && /barrasSemanas\(/.test(gl) && /detalleSemana/.test(gl) && /export function detalleSemana/.test(pe));
+  check('rediseño: el SW precachea las pantallas nuevas', ['g-decidir', 'g-semaforo', 'g-local'].every(x => sw.includes('./js/' + x + '.js')));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

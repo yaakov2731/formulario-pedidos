@@ -2,6 +2,14 @@
 
 Actualizado: 22 de octubre de 2026 (tarde, pase de diseño). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
 
+## Rediseño de cero (25/11/2026, rama `claude/project-thread-t8l4r7`, sin push ni PR)
+
+- Decisiones: opciones A (encargado) y C (gerencia) del mockup `/mnt/project-files/rediseno-cero/opciones.html`; criterios por defecto en `/mnt/project-files/rediseno-cero/DECISIONES.md` (semáforo % = $ sin explicar / ventas, rojo ≥3 %, ámbar ≥1 % o falta cierre; Aprobar abre Compras en el proveedor; Aceptar suba en localStorage; Avisar = enlace de WhatsApp sin número; cierre a ciegas).
+- Hecho: tema claro/oscuro por rol (`:root[data-rol]`, sin naranja, sin degradados, sin Geist; contraste ≥5:1); encargado `Hoy · Mis pedidos · Más` con botones grandes ("Hola, <nombre>"); contar guiado uno por uno en `#/apertura` y `#/cierre` (hoja.js, mismo estado y una sola llamada a `hoja_guardar`, borrador con posición); pedir por proveedor `#/pedir-prov` (crea orden borrador con `enviarGrupo`); gerencia `Decidir · Locales · Compras · Más` (g-decidir.js, g-semaforo.js, g-local.js con ficha de producto y 6 semanas; `perdida.js` suma `detalleSemana`); el tablero viejo queda en Más → Tablero; `#/hoy` de gerencia → `#/decidir`.
+- Pruebas: verify-stock/perdida/reposicion/sugerido/v2 OK; e2e-hoy, cierre, hoja, sugerido, comprar, perdida, guiado (nuevo) y decidir (nuevo) OK. e2e-shopping: 4 fallas que ya estaban antes (conteo de lavandina/`contar`). e2e-stock: 72 OK y corta en la tabla de Pedidos de PC (`.ped-tabla`), que en main ya es tablero en columnas (antes del cambio cortaba antes, en la línea 448).
+- Capturas: `/mnt/project-files/rediseno-cero/app/` (7 pantallas × 390/1300 × claro/oscuro).
+- Pendiente: actualizar el resto de e2e-stock a Pedidos en columnas; revisar en el teléfono con las fuentes reales (en las capturas Google Fonts está bloqueado); push y PR los hace el dueño.
+
 ## Rediseño "lo que sobró" (22/11/2026, rama `claude/project-thread-nt7yrx`, sin push ni PR)
 
 Plan: `/mnt/project-files/rediseno-sobrante/PLAN.md` (pasos 1–11). Capturas 390/1300 px en

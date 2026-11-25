@@ -446,15 +446,18 @@ const irSec = async (pg, id) => {
   await e.locator('form button[type=submit]').click();
   // Rediseño fase 3: el encargado abre en Hoy (lo que toca ahora) y desde ahí va a Pedir.
   await e.waitForSelector('.hoy-lista, .empty');
-  ok(await e.locator('h1').first().innerText() === 'Hoy', 'encargado cae en "Hoy"');
-  ok((await e.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',') === 'Hoy,Pedir,Hoja,Más', 'encargado: Hoy · Pedir · Hoja · Más');
-  ok(await e.locator('[data-tarea="pedir"]').count() === 1 && /Cierra el miércoles/.test(await e.locator('[data-tarea="pedir"]').innerText()), 'Hoy (lunes): "Hacer el pedido · Cierra el miércoles"');
+  ok(/^Hola, \S+$/.test(await e.locator('h1').first().innerText()), 'encargado cae en Hoy ("Hola, <nombre>") · ' + await e.locator('h1').first().innerText());
+  ok((await e.locator('.tabbar .tab').allInnerTexts()).map(x => x.trim()).join(',') === 'Hoy,Mis pedidos,Más', 'encargado: Hoy · Mis pedidos · Más');
+  ok(await e.locator('[data-tarea="pedir"]').count() === 1 && /Pedir para la semana[\s\S]*cierra el miércoles/i.test(await e.locator('[data-tarea="pedir"]').innerText()), 'Hoy (lunes): "Pedir para la semana · Por proveedor · cierra el miércoles"');
   ok(!/\$|precio|costo|m[ií]nimo|\bpar\b/i.test(await e.locator('#view').innerText()), 'Hoy del encargado sin plata, mínimo ni par');
   await shot(e, '02b-hoy-encargado-m');
   await e.locator('[data-tarea="pedir"]').click();
-  await e.waitForSelector('.prod');
-  ok(await e.locator('.volver-hoy').count() === 1, 'desde Hoy, Pedir muestra "‹ Hoy" para volver');
+  await e.waitForSelector('[data-accion="buscar-otro"]');
+  ok(await e.evaluate(() => location.hash) === '#/pedir-prov' && await e.locator('.volver-hoy').count() === 1, 'desde Hoy, la tarea lleva a Pedir por proveedor con "‹ Hoy" para volver');
   ok(await e.locator('h1').first().innerText() === 'Pedir', 'la tarea lleva a "Pedir"');
+  // La lista completa de siempre sigue a un toque ("Buscar otro producto").
+  await e.locator('[data-accion="buscar-otro"]').click();
+  await e.waitForSelector('.prod');
   ok((await e.locator('.vista-head .sub').innerText()).includes('Umo Grill'), 'muestra el local');
   ok(await e.locator('.prod').count() === 8, 'catálogo solo del local (8 productos, sin los de Trento)');
   // Fase 4: el sugerido sale de 4 semanas de salidas y hoja; acá solo hay movimientos de hoy, así que no hay historial:
@@ -557,11 +560,11 @@ const irSec = async (pg, id) => {
   // Más: lista tipo Ajustes con Facturas y Notas, quién entró y Cerrar sesión.
   await e.locator('.tab[data-nav="mas"]').click();
   await e.waitForSelector('.mas-link');
-  ok((await e.locator('.mas-link').allInnerTexts()).map(x => x.trim()).join('|') === 'Facturas|Notas' && await e.locator('.mas-salir').count() === 1, 'Más del encargado: Facturas, Notas y Cerrar sesión');
+  ok((await e.locator('.mas-link .lg-n').allInnerTexts()).map(x => x.trim()).join('|') === 'Hoja del día|Pedir de la lista completa|Facturas|Notas' && await e.locator('.mas-salir').count() === 1, 'Más del encargado: la hoja, pedir de la lista, Facturas, Notas y Cerrar sesión');
   ok(await e.locator('.tab-mas.is-active').count() === 1, 'Más queda marcado');
   await e.goto(BASE + '#/catalogo');
   await e.waitForSelector('.hoy-lista, .empty');
-  ok(await e.locator('h1').first().innerText() === 'Hoy', 'ruta de gerencia redirige al encargado a Hoy');
+  ok(/^Hola, \S+$/.test(await e.locator('h1').first().innerText()) && await e.evaluate(() => location.hash) === '#/hoy', 'ruta de gerencia redirige al encargado a Hoy');
   await cEnc.close();
 
   // ===== Encargado · celular, oscuro, jueves =====
@@ -576,7 +579,7 @@ const irSec = async (pg, id) => {
   await d.locator('#in-pin').fill('1234');
   await d.locator('form button[type=submit]').click();
   await d.waitForSelector('.hoy-lista, .empty');
-  await d.locator('[data-nav="pedir"]:visible').first().click();
+  await d.evaluate(() => { location.hash = '#/pedir'; }); // la lista completa (Más → Pedir de la lista completa)
   await d.waitForSelector('.prod');
   ok((await d.locator('.banner-warn').first().innerText()).includes('Distribuidora Florida'), 'jueves: aviso de cierre (solo Distribuidora Florida)');
   await d.getByRole('button', { name: 'Más · Pedir Chorizo parrillero', exact: true }).click();
@@ -597,7 +600,7 @@ const irSec = async (pg, id) => {
   await w.locator('#in-pin').fill('1234');
   await w.locator('form button[type=submit]').click();
   await w.waitForSelector('.hoy-lista, .empty');
-  await w.locator('[data-nav="pedir"]:visible').first().click();
+  await w.evaluate(() => { location.hash = '#/pedir'; });
   await w.waitForSelector('.prod');
   await shot(w, '09-pedir-pc');
   // recarga: sesión persistente y arranque con caché
@@ -627,9 +630,13 @@ const irSec = async (pg, id) => {
   await g.locator('#in-email').fill('jacobo@ejemplo.com');
   await g.locator('#in-pass').fill('clave-segura');
   await g.locator('form button[type=submit]').click();
-  await g.waitForSelector('.gh-diferencias', { timeout: 10000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 600)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Hoy de gerencia no cargó'); });
-  ok(await g.locator('h1').first().innerText() === 'Hoy', 'gerencia cae en Hoy (inicio, reemplaza al Tablero)');
-  ok((await g.locator('.sidebar .side-link').allInnerTexts()).map(x => x.trim()).join('|') === 'Hoy|Compras|Stock|Más|Salir', 'gerencia: barra lateral Hoy · Compras · Stock · Más + Salir');
+  // Rediseño de cero: gerencia abre en Decidir; el tablero de siempre queda en Más → Tablero (#/tablero).
+  await g.waitForFunction(() => location.hash === '#/decidir' && /decidir/i.test((document.querySelector('h1') || {}).innerText || ''), null, { timeout: 10000 });
+  ok(true, 'gerencia cae en Decidir (inicio) · ' + await g.locator('h1').first().innerText());
+  ok((await g.locator('.sidebar .side-link').allInnerTexts()).map(x => x.trim()).join('|') === 'Decidir|Locales|Compras|Más|Salir', 'gerencia: barra lateral Decidir · Locales · Compras · Más + Salir');
+  await g.evaluate(() => { location.hash = '#/tablero'; });
+  await g.waitForSelector('.gh-diferencias', { timeout: 10000 }).catch(async () => { console.log('DEBUG', (await g.locator('body').innerText()).slice(0, 600)); console.log(JSON.stringify(db.log.slice(-8))); throw new Error('Tablero de gerencia no cargó'); });
+  ok(await g.locator('h1').first().innerText() === 'Tablero', 'Más → Tablero: el tablero de siempre sigue en #/tablero');
   // ---- Hoy ----
   const semTxt = async () => (await g.locator('.gh-sem').innerText()).replace(/\s+/g, ' ');
   ok(/Ventas \$ 2,85 M Compras \$ 1,24 M Margen Falta cargar costos/.test(await semTxt()), 'Hoy: una línea con ventas y compras de la semana; margen "Falta cargar costos" (hay productos sin costo) · ' + await semTxt());
@@ -656,14 +663,15 @@ const irSec = async (pg, id) => {
   await g.waitForFunction(() => /\$ 2,85 M/.test((document.querySelector('.gh-sem') || {}).innerText));
   await g.locator('[data-grupo="aprobar"][data-prov="' + PV.barcena + '"]').click();
   await g.waitForSelector('.grupo-prov', { timeout: 8000 });
-  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.volver-hoy').count() === 1, 'Para aprobar lleva a Compras (por proveedor) con "‹ Hoy" para volver');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.volver-hoy').count() === 1, 'Para aprobar lleva a Compras (por proveedor) con "‹ Tablero" para volver');
   ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Enviar|Recibir|Gasto', 'Compras: Pedidos · Enviar · Recibir · Gasto');
   await g.locator('.volver-hoy').click();
   await g.waitForSelector('.gh-sem');
-  ok(await g.locator('h1').first().innerText() === 'Hoy', '"‹ Hoy" vuelve a Hoy');
+  ok(await g.locator('h1').first().innerText() === 'Tablero', '"‹ Tablero" vuelve al Tablero');
+  await g.goto(BASE + '#/hoy');
+  await g.waitForFunction(() => location.hash === '#/decidir');
+  ok(true, 'la ruta vieja #/hoy de gerencia lleva a Decidir');
   await g.goto(BASE + '#/tablero');
-  await g.waitForFunction(() => location.hash === '#/hoy');
-  ok(true, 'la ruta vieja #/tablero lleva a Hoy');
   await g.waitForSelector('.gh-sem');
   await g.goto(BASE + '#/pedidos');
   await g.waitForSelector('.ped-tabla', { timeout: 8000 });

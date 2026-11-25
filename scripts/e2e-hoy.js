@@ -156,37 +156,38 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     const { c, p } = await abrir(ancho, U_ENC, dbEnc, LUNES, '#/hoy');
     await p.waitForSelector('.hoy-lista');
     if (ancho === 390) {
-      ok(await p.locator('h1').first().innerText() === 'Hoy', 'encargado: abre en Hoy');
+      ok(/^Hola, Lucas$/.test(await p.locator('.hoy-top .titulo').innerText()), 'encargado: abre en Hoy ("Hola, Lucas")');
       const tareas = await p.locator('[data-tarea]').evaluateAll(xs => xs.map(x => x.getAttribute('data-tarea')));
-      ok(tareas.join(',') === 'abrir,pedir,llego,cerrar', 'encargado (lunes 19 h): abrir Cocina → pedido → llegó mercadería → cerrar Barra · ' + tareas.join(','));
+      ok(tareas.join(',') === 'cerrar,pedir,llego', 'encargado (lunes 19 h, ya abrió): cerrar primero → pedido → recibir mercadería · ' + tareas.join(','));
       const txt = await texto(p, '[data-tarea]');
-      ok(/^Abrir Cocina/.test(txt[0]) && /^Hacer el pedido Cierra el miércoles/.test(txt[1]) && /^Llegó mercadería Barcena/.test(txt[2]) && /^Cerrar Barra/.test(txt[3]), 'encargado: textos de las tareas · ' + txt.join(' / '));
-      ok(/Abrir Barra 10:05/.test((await texto(p, '.hoy-hechas .lg-fila')).join(' ')), 'encargado: lo hecho queda abajo, con la hora');
+      ok(/^Cerrar el día/.test(txt[0]) && /^Pedir para la semana Por proveedor · cierra el miércoles/.test(txt[1]) && /^Recibir mercadería Barcena llega hoy/.test(txt[2]), 'encargado: textos de las tareas · ' + txt.join(' / '));
+      ok(/is-main/.test(await p.locator('[data-tarea]').first().getAttribute('class')) && await p.locator('[data-tarea="cerrar"]').getAttribute('href') === '#/cierre' && await p.locator('[data-tarea="pedir"]').getAttribute('href') === '#/pedir-prov', 'encargado: el primero en la tinta; Cerrar → #/cierre, Pedir → #/pedir-prov');
+      ok(/✓ Hecho Apertura 10:05 · 1 de \d+/i.test((await texto(p, '.hoy-hechas .bg')).join(' ')), 'encargado: lo hecho queda abajo, con la hora y n de n · ' + (await texto(p, '.hoy-hechas .bg')).join(' '));
       ok(!/\$|precio|costo|m[ií]nimo|\bpar\b/i.test(await p.locator('#view').innerText()), 'encargado: sin plata, mínimo ni par');
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoja|Pedir|Mis pedidos|Más', 'encargado: barra Hoja · Pedir · Mis pedidos · Más (Hoy sigue por su ruta)');
+      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoy|Mis pedidos|Más', 'encargado: barra Hoy · Mis pedidos · Más');
       ok(await sinDesborde(p), 'encargado 390: sin desbordes ni texto cortado');
       await shot(p, 'hoy-encargado-390');
       await p.locator('.tabbar').screenshot({ path: path.join(OUT, 'barra-encargado-390.png') });
       // La tarea lleva a la hoja del sector y "‹ Hoy" vuelve.
-      await p.locator('[data-tarea="abrir"]').click();
+      await p.locator('[data-tarea="cerrar"]').click();
       await p.waitForSelector('.volver-hoy');
-      await p.waitForSelector('.cd-grupo');
-      ok(/Cocina/.test(await p.locator('#view').innerText()) && await p.locator('.tab.is-active').innerText() === 'Hoja', 'Abrir Cocina lleva a la Hoja (pestaña Hoja)');
+      await p.waitForSelector('.gd[data-modo="cierre"]');
+      ok(await p.evaluate(() => location.hash) === '#/cierre' && await p.locator('.tab.is-active').innerText() === 'Hoy', 'Cerrar el día lleva al cierre guiado (pestaña Hoy)');
       await shot(p, 'hoy-encargado-tarea-390');
       await p.locator('.volver-hoy').click();
       await p.waitForSelector('.hoy-lista');
-      ok(await p.locator('h1').first().innerText() === 'Hoy' && await p.locator('.tab.is-active').innerText() === 'Hoja', '"‹ Hoy" vuelve a Hoy (queda marcada Hoja)');
+      ok(await p.locator('.hoy-top').count() === 1 && await p.locator('.tab.is-active').innerText() === 'Hoy', '"‹ Hoy" vuelve a Hoy');
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
-      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Facturas|Notas', 'encargado: Más con Facturas y Notas');
+      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Hoja del día|Pedir de la lista completa|Facturas|Notas', 'encargado: Más con la hoja, pedir de la lista, Facturas y Notas · ' + (await texto(p, '.mas-link .lg-n')).join('|'));
       await shot(p, 'mas-encargado-390');
       await p.goto(BASE + '#/mis-pedidos'); await p.waitForSelector('.ped, .empty');
       ok(await p.locator('.tab.is-active').innerText() === 'Mis pedidos', '#/mis-pedidos es su pestaña');
       await p.goto(BASE + '#/contar'); await p.waitForSelector('#view .vista');
-      ok(await p.locator('.tab.is-active').innerText() === 'Hoja', 'ruta vieja #/contar sigue andando (dentro de Hoja)');
+      ok(await p.locator('.tab.is-active').innerText() === 'Hoy', 'ruta vieja #/contar sigue andando (dentro de Hoy)');
       ok(dbEnc.log.filter(l => l.rol === 'encargado').every(l => !/factura|tablero|precio/.test(l.t)), 'encargado: Hoy no consulta facturas, tablero ni precios');
     } else {
       ok(await sinDesborde(p), 'encargado 1366: sin desbordes ni texto cortado');
-      ok((await texto(p, '.sidebar .side-link')).join('|') === 'Hoja|Pedir|Mis pedidos|Más|Salir', 'encargado PC: barra lateral Hoja · Pedir · Mis pedidos · Más + Salir');
+      ok((await texto(p, '.sidebar .side-link')).join('|') === 'Hoy|Mis pedidos|Más|Salir', 'encargado PC: barra lateral Hoy · Mis pedidos · Más + Salir');
       await shot(p, 'hoy-encargado-1366');
       await p.locator('.sidebar').screenshot({ path: path.join(OUT, 'barra-encargado-1366.png') });
     }
@@ -201,14 +202,15 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     await p.waitForSelector('.hoy-lista');
     if (ancho === 390) {
       const txt = await texto(p, '[data-tarea]');
-      ok(/^Abrir depósito/.test(txt[0]) && /^Hacer el pedido/.test(txt[1]) && txt.length === 2, 'Shopping: "Abrir depósito" y el pedido · ' + txt.join(' / '));
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Retiros|Pedir|Mis pedidos|Más', 'Shopping: barra Retiros · Pedir · Mis pedidos · Más');
+      ok(/^Abrir depósito/.test(txt[0]) && /^Pedir para la semana/.test(txt[1]) && /^Anotar un retiro/.test(txt[2]) && txt.length === 3, 'Shopping: "Abrir depósito", el pedido y Retiros · ' + txt.join(' / '));
+      ok(await p.locator('[data-tarea="abrir"]').getAttribute('href') === '#/hoja', 'Shopping: Abrir depósito sigue con la hoja por sector');
+      ok((await texto(p, '.tabbar .tab')).join('|') === 'Hoy|Mis pedidos|Más', 'Shopping: barra Hoy · Mis pedidos · Más');
       ok(await sinDesborde(p), 'Shopping 390: sin desbordes');
       await shot(p, 'hoy-shopping-390');
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
-      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Hoy|Hoja del depósito|Facturas|Notas', 'Shopping: Más con Hoy, la hoja del depósito, Facturas y Notas');
-      await p.goto(BASE + '#/elaborados'); await p.waitForFunction(() => location.hash === '#/retiros');
-      ok(true, 'Shopping: #/elaborados lleva a Retiros');
+      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Hoja del depósito|Retiros|Pedir de la lista completa|Facturas|Notas', 'Shopping: Más con la hoja del depósito, Retiros, pedir, Facturas y Notas');
+      await p.goto(BASE + '#/elaborados'); await p.waitForFunction(() => location.hash === '#/hoy');
+      ok(true, 'Shopping: #/elaborados lleva a Hoy');
     } else {
       await shot(p, 'hoy-shopping-1366');
     }
@@ -243,7 +245,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
     const { c, p } = await abrir(ancho, U_GER, dbGer, MIER, '#/tablero');
     await p.waitForSelector('.gh-sem'); await p.waitForSelector('.gh-cargando', { state: 'detached' });
     if (ancho === 390) {
-      ok(await p.locator('h1').first().innerText() === 'Hoy', 'gerencia: el tablero (Hoy) sigue en #/tablero');
+      ok(await p.locator('h1').first().innerText() === 'Tablero', 'gerencia: el tablero sigue en #/tablero (Más → Tablero)');
       ok((await p.locator('.gh-sem').innerText()).replace(/\s+/g, ' ').toLowerCase() === 'Ventas $ 4,12 M Compras $ 1,89 M Margen 68 %'.toLowerCase(), 'gerencia: una línea con ventas, compras y margen de la semana');
       ok((await texto(p, '[data-grupo="aprobar"]')).join(' / ') === 'Barcena Shopping · Umo Grill 3 ítems / Distribuidora Florida Umo Grill 1 ítem', 'gerencia: para aprobar por proveedor · ' + (await texto(p, '[data-grupo="aprobar"]')).join(' / '));
       ok((await texto(p, '[data-grupo="entregas"]')).join(' / ') === 'Barcena Umo Grill 2 ítems', 'gerencia: entregas de hoy (Barcena entrega los miércoles)');
@@ -252,7 +254,7 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
       ok((await texto(p, '[data-grupo="diferencias"]')).join(' / ') === 'Umo Grill Ayer · 1 producto −$ 24.000', 'gerencia: diferencias del día en $ · ' + (await texto(p, '[data-grupo="diferencias"]')).join(' / '));
       ok((await texto(p, '[data-grupo="locales"]')).join(' / ') === 'Shopping Sin cierre ayer / Trento Café Sin cierre ayer · Sin pedido esta semana', 'gerencia: locales sin cierre o sin pedido · ' + (await texto(p, '[data-grupo="locales"]')).join(' / '));
       ok(await p.locator('.tb-card, .kpi').count() === 0 && !/estimad/i.test(await p.locator('#view').innerText()), 'gerencia: sin tarjetas grandes ni "margen estimado"');
-      ok((await texto(p, '.tabbar .tab')).join('|') === 'Comprar|Lo que hay|Pedidos|Más', 'gerencia: barra Comprar · Lo que hay · Pedidos · Más');
+      ok((await texto(p, '.tabbar .tab')).join('|') === 'Decidir|Locales|Compras|Más', 'gerencia: barra Decidir · Locales · Compras · Más');
       ok(await sinDesborde(p), 'gerencia 390: sin desbordes ni texto cortado');
       await shot(p, 'hoy-gerencia-datos-390');
       await p.locator('#scroller').evaluate(el => el.scrollTo(0, el.scrollHeight));
@@ -260,11 +262,11 @@ const texto = async (p, sel) => (await p.locator(sel).allInnerTexts()).map(x => 
       await p.locator('#scroller').evaluate(el => el.scrollTo(0, 0));
       // Más
       await p.locator('.tab[data-nav="mas"]').click(); await p.waitForSelector('.mas-link');
-      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Tablero|Compras|Stock y control|Números|Cocina|Pagos|Catálogo|Ajustes|Notas', 'gerencia: Más con Tablero, Compras, Stock y control, Números, Cocina, Pagos, Catálogo, Ajustes y Notas');
+      ok((await texto(p, '.mas-link .lg-n')).join('|') === 'Tablero|Lo que hay|Comprar por cierres|Stock y control|Números|Cocina|Pagos|Catálogo|Ajustes|Notas', 'gerencia: Más con Tablero, Lo que hay, Comprar por cierres, Stock y control, Números, Cocina, Pagos, Catálogo, Ajustes y Notas');
       ok(await sinDesborde(p), 'Más 390: sin desbordes');
       await shot(p, 'mas-gerencia-390');
-      await p.goto(BASE + '#/hoy'); await p.waitForFunction(() => location.hash === '#/comprar');
-      ok(true, 'gerencia: la ruta vieja #/hoy lleva a Comprar');
+      await p.goto(BASE + '#/hoy'); await p.waitForFunction(() => location.hash === '#/decidir');
+      ok(true, 'gerencia: la ruta vieja #/hoy lleva a Decidir');
     } else {
       ok(await sinDesborde(p), 'gerencia 1366: sin desbordes');
       await shot(p, 'hoy-gerencia-datos-1366');

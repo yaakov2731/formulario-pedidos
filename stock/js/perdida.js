@@ -177,3 +177,29 @@ export function productosClave({ cons, prods, precios, localId = null, pct = CLA
   }
   return { clave, total, acum, sinCosto, hayHistorial: conCosto.length + sinCosto.length > 0 };
 }
+
+// Detalle por producto entre dos fechas, solo los días con apertura y cierre completos (Local y ficha de producto):
+//   vendido (lo que debió usarse según ventas y producción), consumo (lo que se usó: había + entró − salió − merma − quedó),
+//   dif = vendido − consumo (negativo = se usó de más) y valor = faltante a costo (null sin costo cargado, nunca 0).
+// Devuelve { dias (con cierre), productos: Map producto_id → { p, vendido, consumo, dif, falta, valor, dias } }.
+export function detalleSemana({ hoja = [], movs = [], desde, hasta, prods, precios }) {
+  const porDia = porFecha(hoja);
+  const out = new Map();
+  let dias = 0;
+  for (const f of diasDe(desde, hasta)) {
+    const hd = porDia.get(f);
+    if (!hd || !hd.length) continue;
+    const filas = calcularSector(TODOS, hd, deJornada(movs, f), prods, precios);
+    if (!filas.some(r => r.completo)) continue;
+    dias++;
+    for (const r of filas) {
+      if (!r.completo) continue;
+      if (!out.has(r.p.id)) out.set(r.p.id, { p: r.p, vendido: 0, consumo: 0, dif: 0, falta: 0, valor: null, dias: 0 });
+      const x = out.get(r.p.id);
+      x.vendido = r3(x.vendido + r.vendido); x.consumo = r3(x.consumo + r.consumo); x.dif = r3(x.dif + r.dif); x.dias++;
+      if (r.dif < 0) x.falta = r3(x.falta - r.dif);
+    }
+  }
+  for (const x of out.values()) { const pu = costoUnidad(x.p, precios); x.valor = pu == null ? null : x.falta * pu; x.costoUnidad = pu; }
+  return { dias, productos: out };
+}
