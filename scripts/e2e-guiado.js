@@ -15,7 +15,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (_e) { ({ chromium } = require('/opt/node-tools/node_modules/playwright')); }
-const { servidor, U, P, PV, base, sesion, montarApi } = require('./e2e-reposicion-datos.js');
+const { servidor, U, L, P, PV, base, sesion, montarApi } = require('./e2e-reposicion-datos.js');
 
 const OUT = path.resolve(process.argv[2] || '/tmp/e2e-guiado');
 const EXEC = process.env.CHROMIUM_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
@@ -58,17 +58,21 @@ const UMO = ['coca', 'cerveza', 'limon', 'servilleta', 'chorizo', 'molleja', 'mo
   for (const ancho of [390, 1300]) {
     const n = ancho === 390 ? 'celular' : 'pc';
     const db = base({ ahora: MANANA });
+    // FIFO: la Coca entró también el 14/11 (además de hoy a la mañana); el chorizo, por una producción del 20/11.
+    db.movs.push({ id: 'm-fifo', local_id: L.umo, producto_id: 'coca', tipo: 'recepcion', cantidad: 12, nota: '', creado_en: '2026-11-14T12:00:00.000Z', ref_id: null });
+    db.producciones = [{ id: 'pr1', local_id: L.umo, producto_id: 'chorizo', cantidad: 3, nota: null, creado_en: '2026-11-20T15:00:00.000Z' }];
 
     // ===== 1) Hoy =====
     const { c, p } = await abrir(ancho, db, MANANA, '#/hoy');
     await p.waitForSelector('.hoy-top');
     await p.waitForSelector('[data-tarea]');
-    ok(await txt(p, '.hoy-top .titulo') === 'Hola, Lucas', `${n}: Hoy saluda "Hola, Lucas"`);
+    ok((await txt(p, '.hoy-top .titulo')).toLowerCase() === 'hola, lucas', `${n}: Hoy saluda "Hola, Lucas"`);
     ok(/^Umo Grill · domingo,? 22 de noviembre/.test(await txt(p, '.hoy-top small')), `${n}: local y fecha arriba · ${await txt(p, '.hoy-top small')}`);
     const tabs = ancho === 390 ? await p.locator('.tabbar .tab span').allInnerTexts() : await p.locator('.side-nav .side-link:not(.side-out) span').allInnerTexts();
-    ok(tabs.join(' · ') === 'Hoy · Mis pedidos · Más', `${n}: barra exacta "Hoy · Mis pedidos · Más" · ${tabs.join(' · ')}`);
-    const primero = p.locator('.hoy-lista [data-tarea]').first();
-    ok(await primero.getAttribute('data-tarea') === 'abrir' && /is-main/.test(await primero.getAttribute('class')) && await primero.getAttribute('href') === '#/apertura', `${n}: lo primero es Abrir el local, en la tinta, y lleva a #/apertura`);
+    ok(tabs.join(' · ').toLowerCase() === 'hoy · pedidos · más', `${n}: barra exacta "Hoy · Pedidos · Más" · ${tabs.join(' · ')}`);
+    const primero = p.locator('[data-principal]');
+    ok(await primero.getAttribute('data-principal') === 'abrir' && /is-main/.test(await primero.getAttribute('class')) && await primero.getAttribute('href') === '#/apertura', `${n}: el botón grande es Abrir el local, en dorado, y lleva a #/apertura`);
+    ok(await p.locator('.ct[data-momento="apertura"] [data-tarea="abrir"]').count() === 1 && await p.locator('.lt-m.is-ahora').getAttribute('data-momento') === 'apertura', `${n}: a la mañana el momento actual es la Apertura`);
     ok(await p.locator('.hoy-avance, .av-anillo').count() === 0, `${n}: sin anillo de avance`);
     ok(await sinPlata(p), `${n}: Hoy sin plata, precio, mínimo ni par`);
     if (ancho === 390) ok(await sinDesborde(p), `${n}: Hoy sin desborde`);
@@ -84,11 +88,16 @@ const UMO = ['coca', 'cerveza', 'limon', 'servilleta', 'chorizo', 'molleja', 'mo
     const prod1 = await txt(p, '[data-guiada="producto"]');
     ok(/^Ayer quedaron /.test(await txt(p, '[data-guiada="anterior"]')), `${n}: apertura muestra "Ayer quedaron N" · ${await txt(p, '[data-guiada="anterior"]')}`);
     ok(/^Siguiente: /.test(await txt(p, '[data-guiada="siguiente"]')), `${n}: botón "Siguiente: <producto>"`);
+    const lugar = await p.locator('[data-guiada="lugar"]').textContent();
+    ok(lugar === 'Barra1 de 4 acá', `${n}: encabezado de lugar con el avance ahí · ${lugar}`);
+    const fifo1 = await p.locator('[data-guiada="fifo"] [data-fifo]').evaluateAll(xs => xs.map(x => x.textContent));
+    ok(prod1 === 'Coca-Cola 500 ml' && fifo1.join(' | ') === 'Primero · entró 14/11 | Después · entró 22/11', `${n}: FIFO de la Coca: primero lo del 14/11, después lo de hoy · ${fifo1.join(' | ')}`);
     ok(await p.locator('[data-guiada="atajo"]').innerText() === 'Todo igual, confirmar apertura', `${n}: atajo "Todo igual, confirmar apertura"`);
     await tecla(p, '5');
     ok((await txt(p, '[data-guiada="valor"]')).startsWith('5'), `${n}: la primera tecla reemplaza lo precargado (5)`);
     await p.locator('[data-guiada="siguiente"]').click();
     ok(await txt(p, '[data-guiada="n"]') === `2 de ${total}`, `${n}: Siguiente → 2 de ${total}`);
+    ok(await p.locator('[data-guiada="fifo"]').textContent() === 'Sin fecha de entrada', `${n}: sin entradas en 45 días dice "Sin fecha de entrada"`);
     await tecla(p, '1'); await tecla(p, ','); await tecla(p, '5');
     ok((await txt(p, '[data-guiada="valor"]')).startsWith('1,5'), `${n}: coma decimal (1,5)`);
     await tecla(p, 'borrar');
@@ -115,17 +124,22 @@ const UMO = ['coca', 'cerveza', 'limon', 'servilleta', 'chorizo', 'molleja', 'mo
     const gA = llamadas(db, 'hoja_guardar').slice(antes);
     ok(gA.length === 1 && gA[0].p_tipo === 'apertura' && gA[0].p_items.length === total, `${n}: una sola llamada a hoja_guardar (apertura, ${total} productos)`);
     ok(Number((gA[0].p_items.find(i => i.producto_id === idPrimero) || {}).cantidad) === 5, `${n}: guarda el 5 corregido`);
-    ok(await p.evaluate(() => location.hash) === '#/hoy' && await p.locator('[data-hecho="Apertura"]').count() === 1, `${n}: vuelve a Hoy con Apertura ✓ Hecho`);
-    ok(/de 7/.test(await txt(p, '[data-hecho="Apertura"]')), `${n}: lo hecho dice "n de n" · ${await txt(p, '[data-hecho="Apertura"]')}`);
+    ok(await p.evaluate(() => location.hash) === '#/hoy' && await p.locator('[data-hecho="Abrir el local"]').count() === 1, `${n}: vuelve a Hoy con la apertura tildada`);
+    ok(/de 7/.test(await txt(p, '[data-hecho="Abrir el local"]')), `${n}: lo hecho dice "n de n" · ${await txt(p, '[data-hecho="Abrir el local"]')}`);
+    const sel = db.log.filter(l => l.rol === 'encargado' && (l.t === 'movimientos' || l.t === 'producciones')).map(l => l.sel);
+    ok(sel.some(x => x === 'producto_id,creado_en') && !sel.some(x => /precio|costo/.test(x)) && sel.filter(x => x === 'producto_id,creado_en').length >= 2, `${n}: FIFO pide solo producto y fecha (recepciones y producciones) · ${[...new Set(sel)].join(' / ')}`);
     await c.close();
 
     // ===== 3) Cierre guiado =====
     db.opc.ahora = NOCHE;
     const k = await abrir(ancho, db, NOCHE, '#/hoy');
     await k.p.waitForSelector('[data-tarea="cerrar"]');
-    ok(await k.p.locator('.hoy-lista [data-tarea]').first().getAttribute('data-tarea') === 'cerrar', `${n}: a la noche lo primero es Cerrar el día`);
-    await k.p.locator('[data-tarea="cerrar"]').click();
+    ok(await k.p.locator('[data-principal]').getAttribute('data-principal') === 'cerrar' && await k.p.locator('.lt-m.is-ahora').getAttribute('data-momento') === 'cierre', `${n}: a la noche el botón grande es Cerrar el día (momento Cierre)`);
+    await k.p.screenshot({ path: path.join(OUT, `guiado-hoy-noche-${n}.png`) });
+    await k.p.locator('[data-principal="cerrar"]').click();
     await k.p.waitForSelector('.gd[data-modo="cierre"]');
+    const fifoC = await k.p.locator('[data-guiada="fifo"]').textContent();
+    ok(/^Primero · entró 14\/11/.test(fifoC) && !/\d+ (unidad|kg|pack)/.test(fifoC), `${n}: el cierre también marca FIFO, solo con fechas (a ciegas) · ${fifoC}`);
     ok(await txt(k.p, '[data-guiada="anterior"]') === '' && await k.p.locator('[data-guiada="atajo"]').count() === 0, `${n}: cierre a ciegas (sin "quedaron" ni atajo)`);
     ok((await txt(k.p, '[data-guiada="valor"]')).startsWith('–'), `${n}: cierre arranca vacío`);
     await tecla(k.p, '4');

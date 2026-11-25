@@ -559,6 +559,16 @@ const COLS_HOJA = 'id,local_id,fecha,sector,producto_id,tipo,cantidad,otro,quien
 export const hojaRango = (localId, desde, hasta) => todo(() => sb.from('hoja_movs').select(COLS_HOJA)
   .eq('local_id', localId).gte('fecha', desde).lte('fecha', hasta).order('creado_en').order('id'));
 export const hojaDelDia = (localId, fecha) => hojaRango(localId, fecha, fecha);
+// FIFO del contar guiado: cuándo entró cada producto desde una fecha. Recepciones (movimientos tipo recepcion) y, para
+// lo elaborado, producciones. Solo producto y fecha: nunca cantidades (cierre a ciegas) ni precios.
+export async function entradasRecientes(localId, desde) {
+  const [rec, prod] = await Promise.allSettled([
+    todo(() => sb.from('movimientos').select('producto_id,creado_en').eq('local_id', localId).eq('tipo', 'recepcion').gte('creado_en', desde).order('creado_en').order('id')),
+    todo(() => sb.from('producciones').select('producto_id,creado_en').eq('local_id', localId).gte('creado_en', desde).order('creado_en').order('id'))
+  ]);
+  if (rec.status === 'rejected' && prod.status === 'rejected') throw rec.reason;
+  return [...(rec.status === 'fulfilled' ? rec.value || [] : []), ...(prod.status === 'fulfilled' ? prod.value || [] : [])];
+}
 export const hojaContar = async (localId, sector, fecha, tipo, items, quien) =>
   ok(await sb.rpc('hoja_contar', { p_local: localId, p_sector: sector, p_fecha: fecha, p_tipo: tipo, p_items: items, p_quien: quien || null }));
 export const hojaAnotar = async (localId, sector, fecha, productoId, tipo, cantidad, otro, quien) =>

@@ -10,7 +10,7 @@ const SHELL = [
   './js/g-hoy.js', './js/hoy.js', './js/g-decidir.js', './js/g-semaforo.js', './js/g-local.js', './js/compras-estado.js', './js/mas.js', './js/g-gasto.js', './js/g-cuentas.js', './js/g-facturas.js', './js/g-historial.js', './js/g-cargar-pago.js', './js/g-proveedores.js', './js/g-locales.js',
   './js/aviso.js', './js/notas.js', './js/fotos.js', './js/subir-factura.js', './js/elaborados.js', './js/contar.js', './js/inventario.js', './js/stock-local.js', './js/conteo-detalle.js', './js/g-conteos.js', './js/g-control.js', './js/orden-imagen.js', './js/pagos-util.js', './js/comprobante.js', './js/pdf-texto.js', './js/hoja.js', './js/retiros.js', './js/g-sector.js', './js/g-retiros.js', './js/perdida.js', './js/g-perdida.js',
   './js/feriados.js', './js/reposicion.js', './js/g-comprar.js', './js/g-hay.js', './js/g-ajustes.js', './js/g-por-producto.js', './js/compras-impresion.js',
-  './js/g-inicio.js', './js/g-costos.js', './js/costos.js',
+  './js/g-inicio.js', './js/g-costos.js', './js/costos.js', './js/fifo.js',
   './icons/icon.svg', './icons/logo-docks.svg', './icons/icon-180.png', './icons/icon-192.png'
 ];
 

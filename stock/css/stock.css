@@ -2380,3 +2380,13 @@ a.ct-a:hover, button.ct-a:hover { background: var(--fill); }
 .hoy-principal .bg { text-align: center; justify-items: center; padding: 14px 18px; border-radius: 14px; }
 .hoy-principal .bg b { font: 800 21px/1.1 var(--font-display); letter-spacing: 0.04em; text-transform: var(--title-case); }
 @media (min-width: 820px) { .hoy-turno { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } .hoy-principal { position: static; background: none; max-width: 520px; } }
+
+/* ---------- Contar guiado: encabezado de lugar y FIFO ---------- */
+.gd-lugar { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0; }
+.gd-lugar-n { font: 800 28px/1 var(--font-display); letter-spacing: var(--title-track); text-transform: var(--title-case); color: var(--accent-text); overflow-wrap: anywhere; }
+.gd-lugar-a { flex: 0 0 auto; font-size: 13px; color: var(--text-2); }
+.gd-prod { text-transform: none; }
+.gd-fifo { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.gd-fifo-t { font: 700 12px/1.4 var(--font); letter-spacing: 0.03em; text-transform: uppercase; padding: 2px 8px; border-radius: 5px; background: var(--fill); color: var(--text-2); }
+.gd-fifo-t.is-primero { background: var(--bad-soft); color: var(--bad-ink); border: 1px solid var(--bad-line); }
+.gd-fifo-t.is-despues { background: var(--ok-soft); color: var(--ok-ink); border: 1px solid var(--ok-line); }
