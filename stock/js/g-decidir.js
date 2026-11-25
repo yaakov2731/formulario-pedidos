@@ -1,4 +1,4 @@
-// Gerencia · Decidir (inicio): una bandeja con lo que necesita una decisión hoy, una tarjeta por cosa.
+// Gerencia · Problemas (#/decidir, se abre desde la tarjeta roja del Inicio): una bandeja con lo que necesita una decisión hoy, una tarjeta por cosa.
 //   Pedidos: "Proveedor: n locales listos" (borradores de los locales por proveedor). El monto va solo si todos los
 //     productos tienen precio cargado. Ver → Compras; Aprobar → abre ese proveedor en Compras (no aprueba con un toque).
 //   Precio: "X subió n %" (subas de los últimos 7 días, compras-estado.js). Ver factura → Facturas; Aceptar → queda visto
@@ -14,12 +14,12 @@ import { esqueleto, banner, toast, tituloGrande, tarjetaDecidir, vacio } from '.
 import { cierresDeAnoche } from './reposicion.js';
 
 export const CLAVE_VER_PROV = 'stock:ver-prov';
-const claveVisto = (x) => `decidir:suba:${x.producto_id}:${x.fecha}:${x.pct}`;
+export const claveVisto = (x) => `decidir:suba:${x.producto_id}:${x.fecha}:${x.pct}`;
 const verProveedor = (nombre) => { try { sessionStorage.setItem(CLAVE_VER_PROV, nombre); } catch (_e) { /* nada */ } };
 
 export async function render(root, ctx) {
   const fecha = jornadaISO();
-  const cabeza = (n) => tituloGrande(n === null ? 'Decidir' : n ? `${n} ${n === 1 ? 'cosa' : 'cosas'} para decidir` : 'Decidir', `Gerencia · ${fechaLarga(fecha)}`);
+  const cabeza = (n) => tituloGrande('Problemas', n ? `${n} ${n === 1 ? 'cosa' : 'cosas'} para decidir · ${fechaLarga(fecha)}` : `Gerencia · ${fechaLarga(fecha)}`);
   mount(root, cabeza(null), esqueleto(3));
   try { await cargarG(['locales', 'provs', 'prods', 'precios'], () => {}); } catch (e) { return mount(root, cabeza(null), banner(mensajeError(e), 'error')); }
   if (!ctx.alive()) return;
