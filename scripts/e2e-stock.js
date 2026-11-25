@@ -664,7 +664,7 @@ const irSec = async (pg, id) => {
   await g.locator('[data-grupo="aprobar"][data-prov="' + PV.barcena + '"]').click();
   await g.waitForSelector('.grupo-prov', { timeout: 8000 });
   ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.volver-hoy').count() === 1, 'Para aprobar lleva a Compras (por proveedor) con "‹ Tablero" para volver');
-  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Enviar|Recibir|Gasto', 'Compras: Pedidos · Enviar · Recibir · Gasto');
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Armar|Recibir|Gasto', 'Compras: Pedidos · Armar · Recibir · Gasto');
   await g.locator('.volver-hoy').click();
   await g.waitForSelector('.gh-sem');
   ok(await g.locator('h1').first().innerText() === 'Tablero', '"‹ Tablero" vuelve al Tablero');
@@ -757,8 +757,8 @@ const irSec = async (pg, id) => {
   // ---- Compras (por proveedor) ----
   await irSec(g, 'compras');
   await g.waitForSelector('.grupo-prov');
-  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Enviar', 'Compras: pestaña propia, abre en Enviar (por proveedor)');
-  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Enviar|Recibir|Gasto', 'Compras: Pedidos · Enviar · Recibir · Gasto');
+  ok(await g.locator('.side-link.is-active').innerText() === 'Compras' && await g.locator('.subnav-b.is-on').innerText() === 'Armar', 'Compras: pestaña propia, abre en Armar (por proveedor)');
+  ok((await g.locator('.subnav-b').allInnerTexts()).join('|') === 'Pedidos|Armar|Recibir|Gasto', 'Compras: Pedidos · Armar · Recibir · Gasto');
   ok(await g.locator('.zona-pruebas').count() === 0 && await g.locator('[data-accion="cargar"]').count() === 0, 'Compras no repite Cargar ni Borrar todo');
   ok(await g.locator('.grupo-prov').count() === 4, `Por proveedor: Barcena, Florida, Martín + Sin proveedor (${await g.locator('.grupo-prov').count()})`);
   const sinP = g.locator('.grupo-prov[data-prov="Sin proveedor"]');

@@ -205,7 +205,7 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
     && pestanas(navCon) <= 4 && /const navDe = \(c\) => NAV\[c\.rol\];/.test(m4) && /'pedir-prov': \(\) => import\('\.\/pedir\.js'\), 'apertura': \(\) => import\('\.\/hoja\.js'\), 'cierre': \(\) => import\('\.\/hoja\.js'\)/.test(m4),
     labels(navEnc) + ' / ' + labels(navGer));
   check('fase 2: Stock sin tercer nivel (Control con filtro Hoy · Semana · Pérdida; Retiros y Conteos se abren desde ahí)', /SUBNAV_CONTROL = \[\['sector', 'Hoy'\], \['control', 'Semana'\], \['perdida', 'Pérdida'\]\]/.test(ui) && /CONTROL_ABRE = \[\['g-retiros', 'Retiros'\], \['conteos', 'Conteos'\]\]/.test(ui) && !/subnav2/.test(ui));
-  check('fase 2: Compras junta Pedidos · Enviar · Recibir · Gasto', /SUBNAV_COMPRAS = \[\['pedidos', 'Pedidos'\], \['compras', 'Enviar'\], \['recibir', 'Recibir'\], \['gasto', 'Gasto'\]\]/.test(ui));
+  check('fase 2: Compras junta Pedidos · Armar (Por proveedor · Por producto) · Recibir · Gasto', /SUBNAV_ARMAR = \[\['compras', 'Por proveedor'\], \['por-producto', 'Por producto'\]\];/.test(ui) && /SUBNAV_COMPRAS = \[\['pedidos', 'Pedidos'\], \['compras', 'Armar', SUBNAV_ARMAR\], \['recibir', 'Recibir'\], \['gasto', 'Gasto'\]\]/.test(ui));
   check('fase 2: un solo selector de local (chipsLocal usa selectorLocal)', /selectorLocal\(\{ locales, clave: 'g:local'/.test(read('js/datos.js')) && !/class: 'chip' \+ \(l\.id === localId/.test(read('js/g-stock.js')));
   check('fase 2: Más es una pantalla para todos los roles', /mas: \(\) => import\('\.\/mas\.js'\)/.test(m4));
   const hy = read('js/hoy.js'), gh = read('js/g-hoy.js');
@@ -256,6 +256,14 @@ check('deploy.yml publica stock/ y versiona su SW', /cp -r stock\/\. site\/stock
   check('rediseño: Decidir con pedidos, subas y cierres; Aprobar abre Compras (no aprueba) y Aceptar queda en este equipo', /tarjetaDecidir\(/.test(gd) && /Nada para decidir/.test(gd) && /cierresDeAnoche/.test(gd) && /subasRecientes/.test(gd) && !/actualizarOrden|estado: 'aprobada'/.test(gd) && /lsSet\(claveVisto/.test(gd) && /wa\.me\/\?text=/.test(gd));
   check('rediseño: semáforo con umbrales 3 % y 1 %, "Falta dato" y Shopping por retiros; detalle con barras de 6 semanas', /ROJO = 3, AMBAR = 1/.test(gs) && /Falta dato/.test(gs) && /por retiros/.test(gs) && /retiros? sin destino/.test(gs) && /barrasSemanas\(/.test(gl) && /detalleSemana/.test(gl) && /export function detalleSemana/.test(pe));
   check('rediseño: el SW precachea las pantallas nuevas', ['g-decidir', 'g-semaforo', 'g-local'].every(x => sw.includes('./js/' + x + '.js')));
+
+  // ---- Compras → Armar: Por producto (hoja de armado) e impresión A4 horizontal ----
+  const pp = read('js/g-por-producto.js'), ci = read('js/compras-impresion.js'), gPed = read('js/g-pedidos.js');
+  check('armar: ruta #/por-producto en Compras de gerencia y en el SW', /'por-producto': \(\) => import\('\.\/g-por-producto\.js'\)/.test(m4) && /incluye: \['compras', 'por-producto'/.test(m4) && sw.includes('./js/g-por-producto.js') && sw.includes('./js/compras-impresion.js'));
+  check('armar: Por producto lee los mismos pedidos vivos (para aprobar y aprobados), sin escribir ni mostrar precios', /ordenesPorEstado\(VIVAS\)/.test(pp) && /export const VIVAS = \['borrador', 'aprobada'\]/.test(ci) && !/actualizarItem|actualizarOrden|borrarItem|marcarExcluidos|fmtMoney|G\.precios|'precios'/.test(pp) && !/fmtMoney|G\.precios/.test(ci));
+  check('armar: Por proveedor imprime con la orden de compra nueva (encabezado, responsable para firmar, entrega y facturación)', /ordenProveedor\(prov, os\)/.test(gPed) && !/function hojaImpresion/.test(gPed) && /\['Aprobó', ''\]/.test(ci) && /\['Responsable del armado', ''\]/.test(ci) && /cargado_por_nombre/.test(ci) && /Entrega y facturación/.test(ci));
+  check('impresión: @page A4 horizontal con "Página N de M" (counter(page) y counter(pages))', /@page \{ size: A4 landscape;/.test(css) && /@bottom-center \{ content: "Página " counter\(page\) " de " counter\(pages\)/.test(css));
+  check('impresión: encabezado dentro del thead (se repite), thead repetido, filas enteras, grupo pegado a su fila y un documento por hoja', /h\('thead', \{\},\s*h\('tr', \{ class: 'pr-run' \}/.test(ci) && /\.pr-tabla thead \{ display: table-header-group; \}/.test(css) && /\.pr-tabla tr \{ break-inside: avoid; \}/.test(css) && /tr\.pr-grupo \{ break-inside: avoid; break-after: avoid;/.test(css) && /\.pr-prov \+ \.pr-prov \{ break-before: page; \}/.test(css));
 
   console.log(fallas ? `\n${fallas} FAIL` : '\nTodo OK');
   process.exit(fallas ? 1 : 0);

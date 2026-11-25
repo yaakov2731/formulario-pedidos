@@ -2,6 +2,13 @@
 
 Actualizado: 22 de octubre de 2026 (tarde, pase de diseño). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
 
+## Compras → Armar: Por producto, Por proveedor e impresión A4 (25/11/2026, rama `claude/project-thread-t8l4r7`)
+- Subpestaña Compras: Pedidos · **Armar** (Por proveedor `#/compras` · Por producto `#/por-producto`) · Recibir · Gasto.
+- Por producto (`g-por-producto.js`, solo lee): pedidos para aprobar y aprobados sumados por producto, columnas por local + total, agrupado por proveedor, filtro Todos / Para aprobar / Aprobados; celular en tarjetas. Lo destildado no cuenta.
+- Por proveedor (`g-pedidos.js`): misma lógica de aprobar/destildar/mover/enviar; ahora tabla con una columna por local en PC y tarjeta en celular ("Otro proveedor" a un toque).
+- Impresión (`compras-impresion.js`): hoja de armado y orden de compra, A4 horizontal, encabezado en el thead (se repite en cada hoja), "Página N de M", un proveedor por hoja. Responsable: quién cargó (`cargado_por_nombre`); quién aprobó no se guarda → línea para firmar. Numeración continua en "Imprimir todos".
+- Pruebas: verify-stock, verify-v2, e2e-por-producto (nuevo), e2e-comprar, e2e-decidir, e2e-razon, e2e-gasto, e2e-sugerido OK. e2e-stock y e2e-recibir cortan donde ya cortaban. PDF en `/mnt/project-files/rediseno-cero/impresion/`, capturas en `/mnt/project-files/rediseno-cero/por-producto/`.
+
 ## Avisos de cierre por WhatsApp para Ara (25/11/2026, rama `claude/project-thread-nt7yrx`)
 - SQL `supabase/migrations/0033_avisos_whatsapp.sql` (idempotente, lo pega Jacobo): `locales.avisos_whatsapp text[]`, tabla `avisos_token` (sin políticas), rpc `cierres_pendientes(p_token, p_fecha)` para anon con token, `aviso_token()` / `aviso_token_nuevo()` solo gerencia.
 - Ara (agente en Railway) hace POST a `/rest/v1/rpc/cierres_pendientes` con `apikey` (clave pública) y `{"p_token": ...}`; recibe `faltan` (locales que abrieron y no cerraron, con WhatsApp y link), `cerraron`, `no_abria`. Ara manda el WhatsApp; la app no envía mensajes.
