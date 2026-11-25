@@ -2250,3 +2250,97 @@ body { letter-spacing: -0.003em; }
 .pp .acciones:empty { display: none; }
 .ppr-seg .seg-b { white-space: nowrap; }
 @media (max-width: 419px) { .ppr-seg .seg-n { display: none; } }
+
+/* =====================================================================================================================
+   Rediseño v2 (2026-11-25): barra con chips de módulo (gerencia), miga de color, tarjetas de módulo del Inicio,
+   cajas del turno con encabezado dorado y checklist con tilde (encargado), ficha de plato numerada (Costos).
+   ===================================================================================================================== */
+.chip-mod { display: block; width: 20px; height: 20px; border-radius: 6px; background: var(--mod-inicio); flex: 0 0 auto; }
+.chip-mod[data-mod="stock"] { background: var(--mod-stock); }
+.chip-mod[data-mod="pedidos"] { background: var(--mod-pedidos); }
+.chip-mod[data-mod="costos"] { background: var(--mod-costos); }
+.chip-mod[data-mod="recetas"] { background: var(--mod-recetas); }
+.chip-mod[data-mod="problemas"] { background: var(--mod-problemas); }
+.tab .chip-mod { margin: 1px 0 2px; }
+.tab:not(.is-active) .chip-mod { opacity: 0.78; }
+.tab.is-active .chip-mod { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text-3); }
+.side-link .chip-mod { width: 18px; height: 18px; }
+/* Encargado: barra del turno (Barlow Condensed en mayúscula, dorado lo activo) */
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .tabbar { background: var(--bg); border-top-color: var(--sep); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .tab { font: 700 13px/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .tab.is-active { color: var(--accent); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .side-link { font-family: var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; font-size: 17px; }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .side-link.is-active { color: var(--accent); background: var(--accent-soft); }
+:root:not([data-rol="gerencia"]):not([data-rol="contadora"]) .side-link.is-active svg { color: var(--accent); }
+.miga-mod { display: flex; align-items: center; gap: 7px; margin: 2px 2px 8px; font: 800 12px/1.3 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--mod-text, var(--text-2)); }
+.miga-mod i { width: 11px; height: 11px; border-radius: 3px; background: var(--mod, var(--text-3)); flex: 0 0 auto; }
+
+/* ---------- Gerencia · Inicio: tarjetas de módulo ---------- */
+.ini-head { margin-bottom: 14px; }
+.ini-hola { margin: 0 0 2px; }
+.tm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tm { position: relative; display: flex; flex-direction: column; gap: 10px; min-height: 132px; padding: 14px 14px 13px; border-radius: 18px; text-decoration: none;
+  background: var(--mod-inicio); color: var(--mod-inicio-ink); transition: transform 0.12s ease; }
+.tm[data-mod="stock"] { background: var(--mod-stock); color: var(--mod-stock-ink); }
+.tm[data-mod="pedidos"] { background: var(--mod-pedidos); color: var(--mod-pedidos-ink); }
+.tm[data-mod="costos"] { background: var(--mod-costos); color: var(--mod-costos-ink); }
+.tm[data-mod="recetas"] { background: var(--mod-recetas); color: var(--mod-recetas-ink); }
+.tm[data-mod="problemas"] { background: var(--mod-problemas); color: var(--mod-problemas-ink); }
+.tm:active { transform: scale(0.985); }
+.tm:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+.tm-k { font: 600 13px/1.2 var(--font); opacity: 0.92; }
+.tm-cuerpo { display: flex; flex-direction: column; gap: 8px; }
+.tm-n { font: 800 30px/1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tm-t { font: 700 17px/1.2 var(--font-display); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.tm-s { margin-top: auto; font: 500 12.5px/1.3 var(--font); opacity: 0.9; overflow-wrap: anywhere; }
+.tm[aria-busy="true"] .tm-n { opacity: 0.6; }
+.tm.is-falta .tm-t { font: 600 15px/1.2 var(--font); opacity: 0.92; }
+.tm.is-ancho { grid-column: 1 / -1; min-height: 0; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "k n" "c n" "s n"; align-items: center; column-gap: 12px; row-gap: 4px; }
+.tm.is-ancho .tm-k { grid-area: k; }
+.tm.is-ancho .tm-cuerpo { display: contents; }
+.tm.is-ancho .tm-n { grid-area: n; font-size: 30px; }
+.tm.is-ancho .tm-t { grid-area: c; }
+.tm.is-ancho .tm-s { grid-area: s; margin-top: 0; }
+@media (min-width: 820px) {
+  .tm-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .tm { min-height: 170px; padding: 18px; }
+  .tm-n { font-size: 38px; }
+  .tm.is-ancho { min-height: 0; }
+}
+
+/* ---------- Gerencia · Costos: lista y ficha numerada ---------- */
+.cs-kpi { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; padding: 16px; margin-bottom: 18px; border-radius: 16px;
+  background: var(--mod-costos); color: var(--mod-costos-ink); }
+.cs-kpi-v small { display: block; font: 600 13px/1.2 var(--font); }
+.cs-kpi-v b { display: block; font: 800 40px/1 var(--font-display); letter-spacing: -0.02em; }
+.cs-kpi-v .cs-falta { font-size: 24px; }
+.cs-kpi-s { display: grid; gap: 2px; font: 600 13px/1.3 var(--font); text-align: right; }
+.cs-grupo { margin-bottom: 18px; }
+.cs-lista { display: grid; gap: 8px; }
+.cs-fila { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.cs-fila > svg { color: var(--text-3); flex: 0 0 auto; }
+.cs-fila-tx { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.cs-fila-tx b { font: 700 16px/1.25 var(--font); overflow-wrap: anywhere; }
+.cs-fila-tx small { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
+.cs-pct { flex: 0 0 auto; font: 800 18px/1 var(--font-display); color: var(--text); }
+.cs-pct.is-alto { color: var(--bad-ink); }
+.cs-pct.is-falta { font: 700 12px/1.2 var(--font); padding: 4px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn-ink); }
+.cs-nota { margin: 14px 4px 0; font-size: 12px; color: var(--text-3); }
+@media (min-width: 820px) { .cs-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pf-lista { display: grid; gap: 10px; max-width: 640px; }
+.pf { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.pf-k { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--mod-costos); color: var(--mod-costos-ink); font: 800 15px/1 var(--font-display); }
+.pf-c { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.pf-t { font: 700 16px/1.25 var(--font-display); }
+.pf-s { font-size: 13.5px; color: var(--text-2); }
+.pf-v { font: 800 26px/1.1 var(--font-display); letter-spacing: -0.02em; }
+.pf-res { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pf-res .pf { flex-direction: column; gap: 8px; }
+.pf-res .pf:first-child { background: var(--warn-soft); border-color: var(--warn-line); }
+.pf-res .pf:last-child { background: var(--ok-soft); border-color: var(--ok-line); }
+.pf-tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+.pf-tabla td { padding: 7px 0; border-bottom: 1px dashed var(--line); vertical-align: top; }
+.pf-tabla tr:last-child td { border-bottom: 0; }
+.pf-tabla td small { display: block; font-size: 12px; color: var(--text-3); }
+.pf-tabla td:last-child { text-align: right; font-weight: 700; white-space: nowrap; padding-left: 10px; }
+.pf-tabla td.is-falta { color: var(--warn-ink); font-weight: 600; font-size: 13px; }

@@ -342,3 +342,57 @@ export function barrasSemanas(semanas, { formato = (v) => String(v) } = {}) {
   return h('div', { class: 'bsem', role: 'img', 'aria-label': desc }, semanas.map((s, i) => h('div', { class: 'bsem-c' + (s.valor == null ? ' is-hueco' : '') + (i === ult && s.valor > 0 && s.valor >= max ? ' is-hi' : ''), title: `${s.etiqueta}: ${s.valor == null ? 'sin datos' : formato(s.valor)}` },
     s.valor == null ? h('i') : h('i', { style: `height:${max > 0 ? Math.max(3, Math.round(s.valor / max * 100)) : 3}%` }), h('small', { text: s.etiqueta }))));
 }
+
+// ===================== Rediseño v2: módulos de color (gerencia) y el turno (encargado) =====================
+
+// Tarjeta de módulo del Inicio de gerencia: rótulo arriba, número grande y texto. Se arma con "…" y set() la completa
+// cuando llega el dato; sin dato muestra "Falta dato" (nunca un 0 o un % inventado). ancho: ocupa toda la fila.
+// modulo: 'stock' | 'pedidos' | 'costos' | 'recetas' | 'problemas'.
+export function tarjetaModulo({ modulo, rotulo, href, ancho = false, attrs = {} }) {
+  const n = h('b', { class: 'tm-n num', text: '…' });
+  const t = h('span', { class: 'tm-t' });
+  const s = h('small', { class: 'tm-s' });
+  const el = h('a', { class: 'tm' + (ancho ? ' is-ancho' : ''), 'data-mod': modulo, href, 'aria-busy': 'true', ...attrs },
+    h('span', { class: 'tm-k', text: rotulo }), h('span', { class: 'tm-cuerpo' }, n, t), s);
+  const set = ({ numero = null, texto = '', sub = '' } = {}) => {
+    el.removeAttribute('aria-busy');
+    const falta = numero === null || numero === undefined || numero === '';
+    el.classList.toggle('is-falta', falta && (!texto || texto === 'Falta dato'));
+    n.textContent = falta ? '' : String(numero);
+    n.hidden = falta;
+    t.textContent = falta && !texto ? 'Falta dato' : texto;
+    s.textContent = sub || '';
+    s.hidden = !sub;
+  };
+  return { el, set };
+}
+
+// Paso numerado de una ficha (Costos): círculo con el número, título y contenido.
+export function pasoFicha(n, titulo, ...contenido) {
+  return h('section', { class: 'pf', 'data-paso': String(n) }, h('span', { class: 'pf-k', text: String(n), 'aria-hidden': 'true' }),
+    h('div', { class: 'pf-c' }, h('b', { class: 'pf-t', text: titulo }), ...contenido));
+}
+
+// Línea del turno del encargado: Apertura → Servicio → Cierre, cada uno 'hecho' | 'ahora' | 'pendiente'.
+export function lineaTurno(momentos) {
+  return h('ol', { class: 'lt', 'aria-label': 'Turno' }, momentos.map(m => h('li', { class: 'lt-m is-' + m.estado, 'data-momento': m.id, 'aria-current': m.estado === 'ahora' ? 'step' : null },
+    m.estado === 'hecho' ? icon('check', 14) : null, h('span', { text: m.titulo }))));
+}
+
+// Caja del turno: encabezado dorado con el título y el contador n/n, y la checklist con tilde. items: [{ titulo, sub,
+// hecho, href, onClick, attrs }]. Sin items: "Nada pendiente" (cuenta como hecha).
+export function cajaTurno({ id, titulo, items = [], estado = 'pendiente' }) {
+  const hechos = items.filter(i => i.hecho).length;
+  const cont = items.length ? `${hechos} / ${items.length}` : '✓';
+  const fila = (it) => {
+    const tag = it.href ? 'a' : (it.onClick ? 'button' : 'div');
+    return h('li', { class: 'ct-i' + (it.hecho ? ' is-hecho' : '') },
+      h(tag, { class: 'ct-a', href: it.href || null, type: tag === 'button' ? 'button' : null, ...(it.attrs || {}), on: it.onClick ? { click: it.onClick } : undefined },
+        h('i', { class: 'ct-tilde', 'aria-hidden': 'true' }, it.hecho ? icon('check', 13) : null),
+        h('span', { class: 'ct-tx' }, h('span', { class: 'ct-n', text: it.titulo }), it.sub ? h('small', { text: it.sub }) : null),
+        it.hecho ? h('span', { class: 'ct-sr', text: ' (hecho)' }) : null));
+  };
+  return h('section', { class: 'ct is-' + estado, 'data-momento': id },
+    h('h2', { class: 'ct-h' }, h('span', { text: titulo }), h('em', { class: 'num', text: cont })),
+    items.length ? h('ul', { class: 'ct-l' }, items.map(fila)) : h('p', { class: 'ct-vacio', text: 'Nada pendiente' }));
+}
