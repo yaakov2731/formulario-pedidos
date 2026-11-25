@@ -99,6 +99,7 @@ function montarApi(ctx, db) {
     if (t === 'precio_actual') return json(rol === 'gerencia' ? Object.entries(PRECIOS).map(([producto_id, precio]) => ({ producto_id, precio })) : []);
     if (t === 'hoja_movs') return json(filtro(rol === 'gerencia' ? db.hoja : db.hoja.filter(m => m.local_id === miLocal), q));
     if (t === 'movimientos') return json(filtro(db.movs, q));
+    if (t === 'producciones') return json([]); // FIFO del contar guiado (fecha de lo elaborado)
     if (t === 'ordenes_compra') {
       let r = filtro(db.ordenes, q); if (rol === 'encargado') r = r.filter(o => o.local_id === miLocal);
       return json(r.map(o => ({ ...o, orden_items: o.orden_items || [] })));

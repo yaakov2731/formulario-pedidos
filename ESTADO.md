@@ -1,6 +1,17 @@
 # Estado de continuidad · Pedidos Semanales
 
-Actualizado: 22 de octubre de 2026 (tarde, pase de diseño). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
+Actualizado: 25 de noviembre de 2026 (rediseño v2). Coordinador: Claude Code. Rama: `claude/upbeat-faraday-v6k36x`.
+
+## Rediseño v2: el turno (encargado) y módulos de color (gerencia) (25/11/2026, rama `claude/project-thread-t8l4r7`, sin push ni PR)
+- Referencia: opciones A y C de `/mnt/project-files/rediseno-v2/opciones.html`. Capturas en `/mnt/project-files/rediseno-v2/app/` (01–15, 390/1300 px, escala 2, con las fuentes reales).
+- Tema (`stock.css`, mismos tokens): encargado y Entrar negro/dorado fijo (#0D0C0A, #D4A852, Barlow Condensed en mayúscula); gerencia/contadora claro #F6F7F9 con oscuro por el teléfono (Sora + Manrope). Colores de módulo `--mod-*`; `:root[data-modulo]` redefine `--accent`. Único degradé: encabezado dorado de las cajas (`--caja-head`).
+- Navegación (`main.js`): gerencia Inicio · Stock (`#/hay`) · Pedidos · Costos · Más, chip de color y miga "MÓDULO · pantalla"; `MODULOS` ruta→módulo; `#/hoy` de gerencia → `#/inicio`; `#/decidir` sigue (título "Problemas", en Más y en la tarjeta roja). Encargado: "Mis pedidos" → "Pedidos".
+- Inicio (`g-inicio.js`, `tarjetaModulo` en ui.js): Stock (días que alcanza lo más justo), Pedidos (borradores), Costos (% global), Recetas (platos con receta), Problemas (cierres + subas no aceptadas). Cada uno por su lado; sin dato → "Falta dato".
+- Costos (`costos.js` puro + `g-costos.js`): `#/costos` y `#/costos/<id>`; 28 días de ventas de Núcleo (`ventasItemsTodos` ahora trae `producto_id`); meta 30 %, sugerido = costo ÷ 0,30 redondeado a $100 hacia arriba; elaborado sin precio usa su receta; sin packaging.
+- Hoy del encargado (`hoy.js`): misma lógica de tareas; pinta línea Apertura → Servicio → Cierre, una caja por momento (n / n, checklist con tilde), accesos Elaborados y Notas dentro de Servicio (no se tildan) y botón grande (`data-principal`) con la primera tarea del momento actual. Antes de las 18 h el cierre queda anotado sin enlace.
+- FIFO (`fifo.js` + `entradasRecientes` en api.js + `pintarGuiada`): "Primero · entró dd/mm" / "Después · entró dd/mm" con las dos últimas entradas (recepciones y producciones, 45 días), "Sin fecha de entrada" si no hay; solo fechas. Encabezado de lugar con "n de m acá".
+- Pruebas: verify-stock, verify-costos (nuevo, en CI), verify-v2, verify-reposicion OK; e2e-hoy, guiado, cierre, decidir, inicio (nuevo), comprar, por-producto OK. e2e-shopping 4 fallas y e2e-stock 72 OK cortando en `.ped-tabla` (línea 677): igual que en main.
+- Pendiente: revisar en el teléfono; decidir si el sugerido redondea hacia arriba (hoy sí); push y PR los hace el dueño.
 
 ## Compras → Armar: Por producto, Por proveedor e impresión A4 (25/11/2026, rama `claude/project-thread-t8l4r7`)
 - Subpestaña Compras: Pedidos · **Armar** (Por proveedor `#/compras` · Por producto `#/por-producto`) · Recibir · Gasto.
