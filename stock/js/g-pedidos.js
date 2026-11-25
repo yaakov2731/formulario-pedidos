@@ -752,10 +752,15 @@ export async function render(root, ctx, id) {
     if (!ctx.alive()) return;
     if (hojaDet) { const x = hojaDet; hojaDet = null; x.cerrar(); }
     if (vista === 'proveedor') {
-      return mount(root,
+      mount(root,
         h('header', { class: 'vista-head' }, h('h1', { class: 'titulo', text: titulo }),
           h('p', { class: 'sub', text: 'Por proveedor, de todos los locales' })),
         nav, ...vistaProveedor());
+      // Decidir → Aprobar: se abre en el proveedor elegido (para revisar y aprobar acá, no con un toque).
+      let ver = null; try { ver = sessionStorage.getItem('stock:ver-prov'); } catch (_e) { /* nada */ }
+      const el = ver && [...root.querySelectorAll('[data-prov]')].find(x => x.getAttribute('data-prov') === ver);
+      if (el) { try { sessionStorage.removeItem('stock:ver-prov'); } catch (_e) { /* nada */ } requestAnimationFrame(() => el.scrollIntoView({ block: 'start' })); el.classList.add('is-ver'); }
+      return;
     }
     // En Pedidos, un acceso a Compras cuando hay proveedores esperando que se les mande el pedido.
     const nProv = new Set(vivas().map(o => o.proveedor_id || SIN)).size;

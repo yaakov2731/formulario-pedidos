@@ -3,24 +3,21 @@ import { h, lsGet, elabora } from './util.js';
 import { sb, perfilActual, codigoMiLocal, salir, mensajeError } from './api.js';
 import { icon, toast, esqueleto, activarTituloGrande, CLAVE_DESDE_HOY } from './ui.js';
 
-// Cuatro pestañas por rol (cierre y compras, 0032). incluye: pantallas que viven dentro de esa pestaña (quedan marcadas en
-// ella). Lo demás está en Más, una lista tipo Ajustes (mas.js, MAS de abajo). Hoy (encargado) y el Tablero (gerencia) siguen
-// andando por su ruta, sin pestaña: los avisos del encargado van en una línea arriba de la Hoja.
-// Encargado: Hoja · Pedir · Mis pedidos · Más. El Shopping (no elabora) tiene Retiros primero en lugar de Hoja.
-// Gerencia: Comprar · Lo que hay · Pedidos · Más.
+// Pestañas por rol. incluye: pantallas que viven dentro de esa pestaña (quedan marcadas en ella). Lo demás está en Más,
+// una lista tipo Ajustes (mas.js, MAS de abajo).
+// Encargado (también el Shopping): Hoy · Mis pedidos · Más. Hoy lleva a todo lo del día (abrir, pedir, recibir, cerrar).
+// Gerencia: Decidir · Locales · Compras · Más (el Tablero de antes sigue en Más → Tablero). Administración: Pagos · Más.
 const NAV = {
   encargado: [
-    { id: 'hoja', label: 'Hoja', icono: 'hoja', incluye: ['lugares', 'contar', 'stock', 'elaborados', 'hoy'] },
-    { id: 'retiros', label: 'Retiros', icono: 'retiro', incluye: ['hoja', 'lugares', 'contar', 'stock', 'hoy'] },
-    { id: 'pedir', label: 'Pedir', icono: 'pedir', incluye: ['revisar'] },
+    { id: 'hoy', label: 'Hoy', icono: 'hoy', incluye: ['hoja', 'apertura', 'cierre', 'pedir', 'pedir-prov', 'revisar', 'retiros', 'lugares', 'contar', 'stock', 'elaborados', 'subir-factura'] },
     { id: 'mis-pedidos', label: 'Mis pedidos', icono: 'lista' },
-    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['subir-factura', 'notas', 'hoy', 'hoja'] }
+    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['notas'] }
   ],
   gerencia: [
-    { id: 'comprar', label: 'Comprar', icono: 'pedir', incluye: ['cargar', 'cargar-revisar'] },
-    { id: 'hay', label: 'Lo que hay', icono: 'stock' },
-    { id: 'pedidos', label: 'Pedidos', icono: 'lista', incluye: ['compras', 'recibir', 'recibir-factura', 'gasto'] },
-    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['tablero', 'ajustes', 'stock', 'sector', 'control', 'perdida', 'g-retiros', 'conteos', 'lugares',
+    { id: 'decidir', label: 'Decidir', icono: 'decidir' },
+    { id: 'semaforo', label: 'Locales', icono: 'semaforo', incluye: ['local', 'producto', 'perdida', 'sector', 'control', 'g-retiros'] },
+    { id: 'pedidos', label: 'Compras', icono: 'pedir', incluye: ['compras', 'comprar', 'cargar', 'cargar-revisar', 'recibir', 'recibir-factura', 'gasto'] },
+    { id: 'mas', label: 'Más', icono: 'menu', incluye: ['tablero', 'hay', 'ajustes', 'stock', 'conteos', 'lugares',
       'resumen', 'ventas', 'analisis', 'merma', 'recetas', 'produccion', 'elaborados', 'pagos', 'facturas', 'historial', 'cargar-pago',
       'catalogo', 'categorias', 'proveedores', 'locales', 'notas'] }
   ],
@@ -29,18 +26,22 @@ const NAV = {
     { id: 'mas', label: 'Más', icono: 'menu' }
   ]
 };
-// Más: filas tipo Ajustes. Encargado: Facturas y Notas (el Shopping suma Hoy y su hoja del depósito). Gerencia: Tablero,
-// Compras, Stock y control, Números, Cocina, Pagos, Catálogo, Ajustes y Notas. Abajo de todo, con quién se entró y Cerrar sesión.
+// Más: filas tipo Ajustes. Encargado: la hoja completa, pedir de la lista, retiros (Shopping), facturas y notas. Gerencia:
+// Tablero, Lo que hay, Comprar por cierres, Stock y control, Números, Cocina, Pagos, Catálogo, Ajustes y Notas.
+// Abajo de todo, con quién se entró y Cerrar sesión.
 const MAS = {
   encargado: [
-    { id: 'hoy', label: 'Hoy', icono: 'hoy', soloShopping: true },
-    { id: 'hoja', label: 'Hoja del depósito', icono: 'hoja', soloShopping: true },
+    { id: 'hoja', label: 'Hoja del día', icono: 'hoja', sub: 'Apertura y cierre en una lista', soloElabora: true },
+    { id: 'hoja', label: 'Hoja del depósito', icono: 'hoja', sub: 'Abrir y cerrar por sector', soloShopping: true },
+    { id: 'retiros', label: 'Retiros', icono: 'retiro', sub: 'Qué sale del depósito', soloShopping: true },
+    { id: 'pedir', label: 'Pedir de la lista completa', icono: 'buscar', sub: 'Buscar cualquier producto' },
     { id: 'subir-factura', label: 'Facturas', icono: 'recibir' },
     { id: 'notas', label: 'Notas', icono: 'nota' }
   ],
   gerencia: [
     { id: 'tablero', label: 'Tablero', icono: 'tablero', sub: 'Semana, aprobar, entregas, facturas' },
-    { id: 'compras', label: 'Compras', icono: 'pedir', sub: 'Enviar, recibir, gasto' },
+    { id: 'hay', label: 'Lo que hay', icono: 'stock', sub: 'Lo que queda en cada local' },
+    { id: 'comprar', label: 'Comprar por cierres', icono: 'pedir', sub: 'Qué comprar según lo que sobró' },
     { id: 'stock', label: 'Stock y control', icono: 'stock', sub: 'Qué hay, control del día, lugares' },
     { id: 'resumen', label: 'Números', icono: 'ventas', sub: 'Ventas, análisis, merma' },
     { id: 'recetas', label: 'Cocina', icono: 'cocina', sub: 'Recetas, producción, elaborados' },
@@ -51,15 +52,16 @@ const MAS = {
   ],
   contadora: []
 };
-// Rutas viejas que cambiaron de nombre: siguen andando y llevan a la nueva. El Hoy de gerencia pasó a Comprar (el tablero
+// Rutas viejas que cambiaron de nombre: siguen andando y llevan a la nueva. El Hoy de gerencia pasó a Decidir (el tablero
 // sigue en Más → Tablero, #/tablero).
-const ALIAS = { 'gerencia/hoy': 'comprar' };
+const ALIAS = { 'gerencia/hoy': 'decidir' };
 const RUTAS_PAGOS = { 'gasto': () => import('./g-gasto.js'), 'pagos': () => import('./g-cuentas.js'), 'facturas': () => import('./g-facturas.js'), 'cargar-pago': () => import('./g-cargar-pago.js'), 'historial': () => import('./g-historial.js') };
 const VISTAS = {
-  encargado: { 'hoy': () => import('./hoy.js'), 'pedir': () => import('./pedir.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'hoja': () => import('./hoja.js'), 'retiros': () => import('./retiros.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
+  encargado: { 'hoy': () => import('./hoy.js'), 'pedir': () => import('./pedir.js'), 'pedir-prov': () => import('./pedir.js'), 'apertura': () => import('./hoja.js'), 'cierre': () => import('./hoja.js'), 'revisar': () => import('./pedir.js'), 'mis-pedidos': () => import('./pedir.js'), 'hoja': () => import('./hoja.js'), 'retiros': () => import('./retiros.js'), 'stock': () => import('./stock-local.js'), 'contar': () => import('./contar.js'), 'lugares': () => import('./g-lugares.js'), 'elaborados': () => import('./elaborados.js'), 'subir-factura': () => import('./subir-factura.js'), 'notas': () => import('./notas.js') },
   contadora: { ...RUTAS_PAGOS },
   gerencia: {
     ...RUTAS_PAGOS,
+    'decidir': () => import('./g-decidir.js'), 'semaforo': () => import('./g-semaforo.js'), 'local': () => import('./g-local.js'), 'producto': () => import('./g-local.js'),
     'tablero': () => import('./g-hoy.js'), 'comprar': () => import('./g-comprar.js'), 'hay': () => import('./g-hay.js'), 'ajustes': () => import('./g-ajustes.js'), 'proveedores': () => import('./g-proveedores.js'), 'locales': () => import('./g-locales.js'),
     'pedidos': () => import('./g-pedidos.js'), 'compras': () => import('./g-pedidos.js'), 'cargar': () => import('./g-cargar.js'), 'cargar-revisar': () => import('./g-cargar.js'), 'recibir': () => import('./g-recibir.js'), 'recibir-factura': () => import('./g-recibir-factura.js'),
     'stock': () => import('./g-stock.js'), 'sector': () => import('./g-sector.js'), 'g-retiros': () => import('./g-retiros.js'), 'lugares': () => import('./g-lugares.js'), 'conteos': () => import('./g-conteos.js'), 'control': () => import('./g-control.js'), 'perdida': () => import('./g-perdida.js'), 'elaborados': () => import('./elaborados.js'), 'catalogo': () => import('./g-catalogo.js'), 'categorias': () => import('./g-categorias.js'),
@@ -88,6 +90,7 @@ function registrarSW() {
 
 async function mostrarEntrar() {
   ctx = null; ticket++;
+  delete document.documentElement.dataset.rol; // Entrar usa el tema base (el del encargado)
   if (limpiar) { try { limpiar(); } catch (_e) { /* nada */ } limpiar = null; }
   $app.classList.add('no-nav'); $side.replaceChildren(); $tab.replaceChildren(); $tab.hidden = true;
   const { montarEntrar } = await import('./entrar.js');
@@ -100,16 +103,10 @@ function pantallaSimple(titulo, texto, acciones) {
     h('h1', { class: 'titulo', text: titulo }), h('p', { class: 'sub', text: texto }), h('div', { class: 'acciones' }, acciones)));
 }
 
-// Encargado: una sola Hoja por sector (apertura, entró, devolví, merma, cierre). Stock, Contar y Elaborados ya no están
-// en el menú (las rutas siguen andando). El Shopping (no elabora) tiene Retiros en lugar de Hoja: qué sale del depósito y
-// a dónde va; su hoja (abrir y cerrar el depósito) se abre desde Hoy y desde Más.
+// Encargado: Hoy · Mis pedidos · Más, igual en el Shopping (no elabora): su Hoy muestra Retiros y abrir/cerrar el depósito.
 const shopping = (c) => c.rol === 'encargado' && !elabora(c.codigoLocal);
-const navDe = (c) => {
-  const items = NAV[c.rol].filter(it => !(c.rol === 'encargado' && it.id === (shopping(c) ? 'hoja' : 'retiros')));
-  // Al Shopping, Hoy (sus tareas del depósito) le queda en Más: su Hoja se abre desde ahí.
-  return shopping(c) ? items.map(it => (it.id === 'retiros' ? { ...it, incluye: it.incluye.filter(x => x !== 'hoja' && x !== 'hoy') } : it)) : items;
-};
-const masDe = (c) => (MAS[c.rol] || []).filter(it => !it.soloShopping || shopping(c));
+const navDe = (c) => NAV[c.rol];
+const masDe = (c) => (MAS[c.rol] || []).filter(it => (!it.soloShopping || shopping(c)) && (!it.soloElabora || !shopping(c)));
 const vistasDe = (c) => {
   const v = { ...VISTAS[c.rol], mas: () => import('./mas.js') };
   if (c.rol === 'encargado') { if (elabora(c.codigoLocal)) delete v.retiros; else delete v.elaborados; }
@@ -124,6 +121,8 @@ function pestanaDe(id) {
 }
 
 function construirShell(c) {
+  // Tema por rol (stock.css): encargado "Guiado", gerencia y administración "Semáforo".
+  document.documentElement.dataset.rol = c.rol;
   const items = navDe(c);
   const mas = masDe(c);
   $app.classList.remove('no-nav');

@@ -4,7 +4,7 @@
 // la próxima apertura) o "semana". Sin historial: el campo vacío y "Sin historial todavía", nunca un número inventado.
 import { mount, h, norm, fmtNum, groupBy, porTexto, porTandas, lsGet, lsSet, debounce, esCarta, avisoCierre, esFlorida, esMartin, fechaCorta, ESTADOS, esBulto, factorDe, textoStock, plural, jornadaISO, sumarDias } from './util.js';
 import { swr, cargarCatalogo, cargarStock, cargarProveedoresBasico, cargarLocales, buscarServidor, misOrdenes, crearOrdenSolo, agregarItems, mensajeError, datosReposicion } from './api.js';
-import { icon, stepper, esqueleto, vacio, banner, toast, campo, tituloGrande, botonFijo } from './ui.js';
+import { icon, stepper, esqueleto, vacio, banner, toast, campo, tituloGrande, botonFijo, listaGrupo, filaLista } from './ui.js';
 import { entregaDe } from './sugerido.js';
 import { planLocal } from './reposicion.js';
 import { buscar, frecuencia, masUsados, anotarUso, textoUso } from './busqueda.js';
@@ -116,6 +116,7 @@ export async function render(root, ctx, id) {
   try { desde = sessionStorage.getItem('stock:pedir-desde-cierre'); sessionStorage.removeItem('stock:pedir-desde-cierre'); } catch (_e) { /* nada */ }
   if (desde && id !== 'revisar') { filtro.cat = MI_PEDIDO; filtro.q = ''; opc.armado = true; }
   if (id === 'revisar') pinta = () => pintarRevisar(root, ctx);
+  else if (id === 'pedir-prov') pinta = () => pintarProveedores(root, ctx);
   else if (opc.aMis) pinta = () => pintarMis(root);
   else pinta = () => pintarPedir(root, ctx, opc);
   const p = cargar(ctx, () => { if (ctx.alive()) act(); });
@@ -325,6 +326,19 @@ function gruposDePedido() {
 }
 
 let enviado = { ordenes: {}, hechos: new Set() };
+// Manda el pedido de un proveedor: una orden en borrador (gerencia la aprueba) con sus productos. Si se corta a mitad,
+// el reintento reusa la orden ya creada. Lo enviado pasa a "pedido sin recibir" (el sugerido lo descuenta) y queda en 0
+// hasta la semana de pedido siguiente: si el encargado pidió menos de lo sugerido, la app no vuelve a insistir.
+async function enviarGrupo(g, nombre, nota = '') {
+  let oid = enviado.ordenes[g.key];
+  if (!oid) {
+    oid = await crearOrdenSolo({ local_id: S.lid, proveedor_id: g.key === SIN_PROV ? null : g.key, estado: 'borrador', cargado_por_nombre: nombre, nota: nota || null });
+    enviado.ordenes[g.key] = oid;
+  }
+  await agregarItems(oid, g.items.map(p => ({ producto_id: p.id, cantidad: cantidad(p) })));
+  g.items.forEach(p => { S.pend.set(p.id, (S.pend.get(p.id) || 0) + cantidad(p)); S.draft[p.id] = 0; });
+  enviado.hechos.add(g.key);
+}
 function pintarRevisar(root, ctx) {
   const grupos = gruposDePedido();
   const aviso = avisoCierre();
@@ -373,18 +387,8 @@ function pintarRevisar(root, ctx) {
     let fallos = 0, ok = 0;
     for (const g of enviables) {
       if (enviado.hechos.has(g.key)) continue;
-      try {
-        let oid = enviado.ordenes[g.key];
-        if (!oid) {
-          oid = await crearOrdenSolo({ local_id: S.lid, proveedor_id: g.key === SIN_PROV ? null : g.key, estado: 'borrador', cargado_por_nombre: nombre.trim(), nota: nota.trim() || null });
-          enviado.ordenes[g.key] = oid;
-        }
-        await agregarItems(oid, g.items.map(p => ({ producto_id: p.id, cantidad: cantidad(p) })));
-        // Lo enviado pasa a "pedido sin recibir" (el sugerido lo descuenta) y queda en 0 hasta la semana de pedido siguiente:
-        // si el encargado pidió menos de lo sugerido, la app no vuelve a insistir con la diferencia.
-        g.items.forEach(p => { S.pend.set(p.id, (S.pend.get(p.id) || 0) + cantidad(p)); S.draft[p.id] = 0; });
-        enviado.hechos.add(g.key); ok++;
-      } catch (e) { fallos++; err.append(banner(`${g.nombre}: ${mensajeError(e)}`, 'error')); }
+      try { await enviarGrupo(g, nombre.trim(), nota.trim()); ok++; }
+      catch (e) { fallos++; err.append(banner(`${g.nombre}: ${mensajeError(e)}`, 'error')); }
     }
     recalcular(); guardarBorrador();
     if (!fallos) {
@@ -402,6 +406,81 @@ function pintarRevisar(root, ctx) {
     ...grupos.map(cardGrupo),
     h('div', { class: 'form form-rev' }, campo('Tu nombre', inpNombre), campo('Nota para gerencia (opcional)', inpNota)),
     err, btn);
+}
+
+// ---------- Pedir por proveedor (#/pedir-prov y #/pedir-prov/<id>) ----------
+// Una pantalla por proveedor con lo sugerido (también lo que dio 0) y "Quedan N"; sin plata ni cantidades internas.
+// "Mandar pedido" crea la orden en borrador (enviarGrupo) y pasa al proveedor siguiente; al terminar, Mis pedidos.
+const mandados = new Set();
+const uQueda = (p, n) => plural(p.unidad_uso || p.unidad_compra || 'unidad', n);
+const uPide = (p, n) => plural(esBulto(p) ? p.unidad_compra : (p.unidad_compra || p.unidad_uso || 'unidad'), n);
+function productosDe(key) {
+  return S.prods.filter(p => p.activo !== false && !esCarta(p) && (p.proveedor_id || SIN_PROV) === key && (S.sug.has(p.id) || tocado(p)) && (!p.oculto || cantidad(p) > 0))
+    .sort((a, b) => (marca(b) === 'rojo') - (marca(a) === 'rojo') || porTexto(a.nombre, b.nombre));
+}
+function proveedoresConSugerido() {
+  const keys = [...new Set(S.prods.filter(p => p.activo !== false && !esCarta(p) && (S.sug.has(p.id) || tocado(p))).map(p => p.proveedor_id || SIN_PROV))];
+  return keys.map(k => {
+    const items = productosDe(k);
+    return { key: k, nombre: k === SIN_PROV ? 'Sin proveedor' : ((S.provs.get(k) || {}).nombre || 'Proveedor'), items, n: items.filter(p => cantidad(p) > 0).length };
+  }).filter(g => g.items.length).sort((a, b) => (a.key === SIN_PROV) - (b.key === SIN_PROV) || (b.n > 0) - (a.n > 0) || porTexto(a.nombre, b.nombre));
+}
+function pintarProveedores(root, ctx) {
+  const pid = decodeURIComponent((location.hash.split('/')[2] || '').trim());
+  const nombreLocal = S.local ? S.local.nombre : '';
+  const buscarOtro = h('a', { class: 'pp-buscar', href: '#/pedir', 'data-accion': 'buscar-otro' }, icon('buscar', 18), h('span', { text: ' Buscar otro producto' }));
+  const grupos = proveedoresConSugerido();
+  if (!pid) {
+    const filas = grupos.map(g => filaLista({ texto: g.nombre, sub: mandados.has(g.key) ? 'Pedido mandado' : g.n ? `${g.n} ${g.n === 1 ? 'producto sugerido' : 'productos sugeridos'}` : 'Nada sugerido esta vez',
+      href: '#/pedir-prov/' + encodeURIComponent(g.key), chevron: true, check: mandados.has(g.key), attrs: { 'data-prov': g.key } }));
+    mount(root, cabecera('Pedir', nombreLocal ? nombreLocal + ' · por proveedor' : 'Por proveedor'),
+      S.offline ? banner('Sin conexión: mostrando lo último que guardamos.', 'warn') : null,
+      S.listo && !grupos.length ? vacio('Sin historial todavía', 'Cuando haya cierres contados, acá aparece lo que conviene pedir. Mientras, buscá el producto.') : null,
+      grupos.length ? listaGrupo('Proveedores', filas) : (S.listo ? null : esqueleto(3)),
+      buscarOtro);
+    return;
+  }
+  const g = grupos.find(x => x.key === pid) || { key: pid, nombre: pid === SIN_PROV ? 'Sin proveedor' : ((S.provs.get(pid) || {}).nombre || 'Proveedor'), items: productosDe(pid) };
+  let nombre = lsGet('nombre') || '';
+  const volver = h('a', { class: 'volver', href: '#/pedir-prov', text: '‹ Proveedores' });
+  const btn = h('button', { class: 'btn btn-primary btn-block btn-lg pp-mandar', type: 'button', 'data-accion': 'mandar' });
+  const err = h('div', { class: 'form-err', 'aria-live': 'polite' });
+  const enPedido = () => g.items.filter(p => cantidad(p) > 0);
+  const contar = () => { const n = enPedido().length; btn.textContent = n ? `Mandar pedido (${n} ${n === 1 ? 'producto' : 'productos'})` : 'Nada para mandar'; btn.disabled = !n; };
+  const filas = g.items.map(p => {
+    const sinHist = sinHistorial(p) && !tocado(p);
+    const st = stepper({ value: cantidad(p), label: `Pedir ${p.nombre}`, onChange: (v) => { S.draft[p.id] = v; guardarBorrador(); if (v > 0) anotarUso(S.lid, p.id); contar(); } });
+    if (sinHist) st.el.querySelector('input').value = '';
+    const q = quedan(p);
+    return h('div', { class: 'pp-row', 'data-id': p.id },
+      h('div', { class: 'pp-row-t' }, h('b', { text: p.nombre }), h('small', { text: sinHist ? 'Sin historial todavía' : `Quedan ${fmtNum(q, 3) || '0'} ${uQueda(p, q)} · pedir en ${uPide(p, 2)}` })), st.el);
+  });
+  const inpNombre = nombre ? null : h('input', { class: 'input', type: 'text', id: 'pp-nombre', autocomplete: 'name', placeholder: 'Tu nombre', 'aria-label': 'Tu nombre', on: { input: (e) => { nombre = e.target.value; } } });
+  btn.addEventListener('click', async () => {
+    err.replaceChildren();
+    if (!String(nombre).trim()) { err.replaceChildren(banner('Poné tu nombre para mandar el pedido.', 'error')); if (inpNombre) inpNombre.focus(); return; }
+    const items = enPedido();
+    if (!items.length) return;
+    btn.disabled = true; btn.textContent = 'Mandando…';
+    lsSet('nombre', String(nombre).trim());
+    try {
+      await enviarGrupo({ key: g.key, nombre: g.nombre, items }, String(nombre).trim());
+      delete enviado.ordenes[g.key]; enviado.hechos.delete(g.key);
+      mandados.add(g.key);
+      recalcular(); guardarBorrador();
+      toast(`Pedido a ${g.nombre} mandado. Gerencia lo revisa.`, 'ok');
+      const prox = proveedoresConSugerido().find(x => !mandados.has(x.key) && x.key !== SIN_PROV && x.n > 0);
+      if (prox) location.hash = '#/pedir-prov/' + encodeURIComponent(prox.key); else ctx.ir('mis-pedidos');
+    } catch (e) { err.append(banner(`${g.nombre}: ${mensajeError(e)}`, 'error')); btn.disabled = false; btn.textContent = 'Reintentar'; }
+  });
+  const notas = [];
+  if (g.key === SIN_PROV) notas.push(banner('Estos productos no tienen proveedor: gerencia lo asigna antes de pedirlos.', 'warn'));
+  else if (S.provs.get(g.key) && S.provs.get(g.key).dias_entrega) notas.push(h('p', { class: 'aviso-ok', text: 'Entrega: ' + S.provs.get(g.key).dias_entrega }));
+  mount(root, volver, tituloGrande('Revisá y mandá', `Pedido · ${g.nombre}`), ...notas,
+    filas.length ? h('div', { class: 'pp-caja' }, filas) : vacio('Nada sugerido para este proveedor', 'Si hace falta algo, buscalo.'),
+    inpNombre ? h('div', { class: 'form form-rev' }, campo('Tu nombre', inpNombre)) : null,
+    err, btn, buscarOtro);
+  contar();
 }
 
 // ---------- Mis pedidos (pestaña propia del encargado) ----------
