@@ -166,6 +166,24 @@ jobs:
         with:
           path: ./site
 
+      # GitHub a veces tarda en "ver" el paquete recién subido: esperar y reintentar.
+      - name: Wait for artifact to be visible
+        run: sleep 20
+
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deployment_try1
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+
+      - name: Wait before retry
+        if: steps.deployment_try1.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to GitHub Pages (retry)
+        id: deployment_try2
+        if: steps.deployment_try1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      - name: Publish page URL
+        id: deployment
+        run: echo "page_url=${{ steps.deployment_try1.outputs.page_url || steps.deployment_try2.outputs.page_url }}" >> "$GITHUB_OUTPUT"
